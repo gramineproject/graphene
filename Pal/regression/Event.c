@@ -1,4 +1,5 @@
 #include <stdatomic.h>
+#include <stdbool.h>
 
 #include "pal.h"
 #include "pal_debug.h"
@@ -18,7 +19,9 @@ static int thread2_run(void* args) {
     /* UNREACHABLE */
 }
 
-static void pal_failure_handler(PAL_NUM error, PAL_CONTEXT* context) {
+static void pal_failure_handler(bool is_in_pal, PAL_NUM error, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
+
     pal_printf("pal_failure_handler called\n");
 
     if (error == PAL_ERROR_TRYAGAIN) {

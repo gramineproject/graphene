@@ -48,10 +48,7 @@ void* __system_malloc(size_t size) {
         ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0, PAL_PROT_WRITE | PAL_PROT_READ);
 
         if (!ret_addr) {
-            /* If the allocation is interrupted by signal, try to handle the
-             * signal and then retry the allocation. */
             if (PAL_NATIVE_ERRNO() == PAL_ERROR_INTERRUPTED) {
-                handle_signals();
                 continue;
             }
 

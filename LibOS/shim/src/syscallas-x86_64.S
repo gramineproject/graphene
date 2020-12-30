@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
+/* Copyright (C) 2020 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
+ */
 
 /*
- * This file contains the entry point of system call table in library OS (the function syscalldb()
- * and its wrapper syscall_wrapper() for cases of redirection of raw SYSCALL instructions).
+ * This file contains the entry point of system call table in library OS (the function syscalldb()).
  *
  * The below entry point implementation first saves the CPU context of the current application
- * thread on the thread's stack, then calls the corresponding LibOS syscall-emulation function, and
- * then restores the context and passes control back to the application. The context consists of
- * GPRs, FP control word (fpcw) and the SSE/AVX/... control word (mxcsr).
+ * thread on the thread's LibOS stack, then calls the LibOS syscall-emulation function, which, upon
+ * returning, calls context restoring function, which passes control back to the application.
+ * The context consists of GPRs, FP control word (fpcw) and the SSE/AVX/... control word (mxcsr).
  *
  * Note that LibOS may clobber all FP/SSE/AVX/... (extended) state except the control words. We rely
  * on the fact that applications do *not* assume that this extended state is preserved across system
@@ -19,154 +20,255 @@
  */
 
 #include "asm-offsets.h"
-#include "shim_defs.h"
 
-        .global syscalldb
-        .type syscalldb, @function
-        .extern shim_table, debug_unsupp
-        .global syscall_wrapper
-        .type syscall_wrapper, @function
-        .global syscall_wrapper_after_syscalldb
-        .type syscall_wrapper_after_syscalldb, @function
+.extern shim_emulate_syscall
+.extern shim_xstate_size
+.extern shim_xstate_restore
 
+.global syscalldb
+.type syscalldb, @function
 syscalldb:
-        .cfi_startproc
+    # On entry to this function rcx contains the return value (next instruction after syscall),
+    # all other registers can have arbitrary values.
+    # We have to be very careful with executed instructions not to change any flags until they
+    # are saved!
+    .cfi_startproc
+    .cfi_def_cfa %rsp, 0
+    .cfi_register %rip, %rcx
 
-        # Create shim_regs struct on the stack.
-        pushfq
+    # We can clobber r11 as it will be set to rflags later on.
+    mov %rsp, %r11
+    .cfi_undefined %r11
+    .cfi_register %rsp, %r11
+    .cfi_def_cfa_register %r11
+    mov %gs:(SHIM_TCB_OFF + SHIM_TCB_LIBOS_STACK_OFF), %rsp
 
-        # Under GDB, single-stepping sets Trap Flag (TP) of EFLAGS,
-        # thus TP=1 is stored on pushfq above. Upon consequent popfq,
-        # TP is 1, resulting in spurious trap. Reset TP here.
-        andq $~0x100, (%rsp)
+    # Create PAL_CONTEXT struct on the stack.
 
-        cld
-        pushq %rbp
-        pushq %rbx
-        pushq %rdi
-        pushq %rsi
-        pushq %rdx
-        pushq %rcx
-        pushq %r8
-        pushq %r9
-        pushq %r10
-        pushq %r11
-        pushq %r12
-        pushq %r13
-        pushq %r14
-        pushq %r15
-        leaq SHIM_REGS_SIZE - SHIM_REGS_R15(%rsp), %rbx
-        pushq %rbx
-        pushq %rax
-        # shim_regs struct ends here.
+    # reserve space for mxcsr + fpcw + is_fpregs_used
+    pushq $0
 
-        movq %rsp, %rbp
-        .cfi_def_cfa_offset SHIM_REGS_SIZE
-        .cfi_offset %rbp, -3 * 8    # saved_rbp is at CFA-24 (saved_rflags + saved_rbp)
-        .cfi_def_cfa_register %rbp  # %rbp
+    # fpregs, but for now we use this to store rax - to get a scratch register
+    push %rax
 
-        cmp $LIBOS_SYSCALL_BOUND, %rax
-        jae isundef
+    # err + trapno + oldmask + cr2 are cleared for a syscall frame
+    mov $0, %eax
+    push %rax
+    push %rax
+    push %rax
+    push %rax
 
-        movq shim_table@GOTPCREL(%rip), %rbx
-        movq (%rbx,%rax,8), %rbx
-        cmp $0, %rbx
-        je isundef
+    # csgsfsss - default value, as we do not support changing it
+    mov $(0x2b << 48 | 0x33), %rax
+    push %rax
 
-        # set pointer to shim_regs and save FP Control Word & MXCSR into current thread's TCB
-        movq %rbp, %gs:(SHIM_TCB_OFFSET + TCB_REGS)
-        fnstcw %gs:(SHIM_TCB_OFFSET + TCB_FPCW)
-        stmxcsr %gs:(SHIM_TCB_OFFSET + TCB_MXCSR)
+    # after this we can use instructions changing flags
+    pushfq
+    # Debuggers use Trap Flag (TF) of EFLAGS to do single-stepping - otherwise it is unused by normal
+    # applications. If the previous instruction was single-stepped, it stored TF, so reset it here.
+    andq $~0x100, (%rsp)
 
-        /* Translating x86_64 kernel calling convention to user-space
-         * calling convention */
-        movq %r10, %rcx
-        andq $~0xF, %rsp  # Required by System V AMD64 ABI.
-        call *%rbx
+    # Set default rflags value (just IF set).
+    pushq $0x202
+    popfq
 
-        # invalidate pointer to shim_regs and restore FP Control Word & MXCSR from TCB
-        movq $0, %gs:(SHIM_TCB_OFFSET + TCB_REGS)
-        fldcw %gs:(SHIM_TCB_OFFSET + TCB_FPCW)
-        ldmxcsr %gs:(SHIM_TCB_OFFSET + TCB_MXCSR)
+    push %rcx # rip
+    push %r11 # rsp
+    .cfi_def_cfa %rsp, 0x50
+    .cfi_rel_offset %rsp, 0
+    .cfi_rel_offset %rip, 8
 
-ret:
-        movq %rbp, %rsp
-        addq $2 * 8, %rsp   # skip orig_rax and rsp
-        popq %r15
-        popq %r14
-        popq %r13
-        popq %r12
-        popq %r11
-        popq %r10
-        popq %r9
-        popq %r8
-        popq %rcx
-        popq %rdx
-        popq %rsi
-        popq %rdi
-        popq %rbx
-        popq %rbp
-        .cfi_def_cfa %rsp, 2 * 8  # +8 for ret_addr, +8 for saved_rflags
-        popfq
-        .cfi_def_cfa_offset 8     # +8 for ret_addr
-        retq
+    # Set r11 to rflags
+    mov 0x10(%rsp), %r11
 
-isundef:
+    push %rcx
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rcx, 0
+
+    # rax was saved in fpregs, save it in proper place now, fpregs will be populated later
+    pushq 0x48(%rsp)
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rax, 0
+
+    push %rdx
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rdx, 0
+    push %rbx
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rbx, 0
+    push %rbp
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rbp, 0
+    push %rsi
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rsi, 0
+    push %rdi
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rdi, 0
+    push %r15
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r15, 0
+    push %r14
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r14, 0
+    push %r13
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r13, 0
+    push %r12
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r12, 0
+    push %r11
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r11, 0
+    push %r10
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r10, 0
+    push %r9
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r9, 0
+    push %r8
+    .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r8, 0
+    # PAL_CONTEXT struct ends here.
+
+    mov %rsp, %r15
+    .cfi_def_cfa_register %r15
+
+    and $~0xF, %rsp # Required by System V AMD64 ABI.
+
+    # save FP Control Word & MXCSR into current thread's TCB
+    stmxcsr PAL_CONTEXT_MXCSR_OFF(%r15)
+    fnstcw PAL_CONTEXT_FPCW_OFF(%r15)
+
+    # fpregs is not populated, so is_fpregs_used should be 0.
+    movb $0, PAL_CONTEXT_FPREGS_USED_OFF(%r15)
+
+    call shim_xstate_size
+    sub %rax, %rsp                          # allocate space for xstate
+    and $~(SHIM_XSTATE_ALIGN - 1), %rsp
+    mov %rsp, PAL_CONTEXT_FPREGS_OFF(%r15)
+
+    and $~0xF, %rsp # Required by System V AMD64 ABI.
+    xor %ebp, %ebp
+
 #ifdef DEBUG
-        mov %rax, %rdi
-        andq $~0xF, %rsp  # Required by System V AMD64 ABI.
-        call *debug_unsupp@GOTPCREL(%rip)
+    # Pretend that this function (`syscalldb`) is called from somewhere inside a function called
+    # `__morestack`. This is the only way to have a backtrace in GDB spanning from LibOS/Pal,
+    # through `syscalldb` to the user application code/libc, because GDB does not handle switching
+    # stacks in the middle of backtrace, unless the function doing it is called `__morestack`.
+    # Thanks GDB!
+    # Technical details: we load an address somewhere inside `__morestack` (this cannot be the first
+    # instruction in there) into r14 (a callee-saved register) and mark it as holding old rip. This
+    # way GDB thinks `syscalldb` was called by `__morestack`. Inside `__morestack` we mark all
+    # registers as having the same value as in the previous frame (basically a no-op frame). Now GDB
+    # sees a backtrace: `user_function` -> `__morestack` -> `syscalldb`, with `__morestack` having
+    # the same stack value as `user_function` and `syscalldb` having the new stack value. This makes
+    # GDB happy and it prints correct backtrace across all these functions, which is what we are
+    # after with all this madness.
+    lea Lmorestack_for_gdb_bt(%rip), %r14
+    .cfi_register %rip, %r14
 #endif
-        movq $-38, %rax  # ENOSYS
-        jmp ret
 
-        .cfi_endproc
-        .size syscalldb, .-syscalldb
+    mov %r15, %rdi
+    call shim_emulate_syscall # this does not return
 
-        /*
-         * syscall_wrapper: emulate syscall instruction
-         *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
-         * See illegal_upcall() @ shim_signal.c and
-         *     fixup_child_context() @ shim_clone.c
-         *
-         * input:
-         * %rcx: Instruction address to continue app execution after trapped
-         *       syscall instruction
-         * %r11: rflags on entering syscall
-         *
-         * Omit CFI information for %rflags when compiling under clang, see bug:
-         *   https://bugs.llvm.org/show_bug.cgi?id=33633
-         */
-syscall_wrapper:
-        .cfi_startproc
-        .cfi_def_cfa %rsp, 0
-        # %rcx is used as input for returning %rip
-        .cfi_register %rip, %rcx
-        # %r11 is used as input to keep %rflags
-#ifndef __clang__
-        .cfi_register %rflags, %r11
-#endif
-        subq $RED_ZONE_SIZE, %rsp
-        .cfi_adjust_cfa_offset RED_ZONE_SIZE
-        callq *syscalldb@GOTPCREL(%rip)
-syscall_wrapper_after_syscalldb:
-        addq $RED_ZONE_SIZE, %rsp
-        .cfi_adjust_cfa_offset -RED_ZONE_SIZE
-        # restore %rflags for syscall abi compatibility.
-        # This must be done after "addq $RED_ZONE_SIZE, %rsp" above
-        # which destroys %rflags
-        xchg %r11, (%rsp)
-#ifndef __clang__
-        .cfi_offset %rflags, 0
-#endif
-        popfq
-        .cfi_adjust_cfa_offset -8
-#ifndef __clang__
-        .cfi_same_value %rflags
-#endif
-        pushq %r11
-        .cfi_adjust_cfa_offset 8
-        jmp *%rcx
+    # Just to make return address point inside this function.
+    ud2
 
-        .cfi_endproc
-        .size syscall_wrapper, .-syscall_wrapper
+    .cfi_endproc
+.size syscalldb, .-syscalldb
+
+#ifdef DEBUG
+.global __morestack
+.type __morestack, @function
+__morestack:
+    .cfi_startproc
+    .cfi_register %rip, %rcx
+    .cfi_same_value %r8
+    .cfi_same_value %r9
+    .cfi_same_value %r10
+    .cfi_same_value %r11
+    .cfi_same_value %r12
+    .cfi_same_value %r13
+    .cfi_same_value %r14
+    .cfi_same_value %r15
+    .cfi_same_value %rdi
+    .cfi_same_value %rsi
+    .cfi_same_value %rbp
+    .cfi_same_value %rbx
+    .cfi_same_value %rdx
+    .cfi_same_value %rax
+    .cfi_same_value %rcx
+    .cfi_same_value %rsp
+
+    nop
+Lmorestack_for_gdb_bt:
+    nop
+
+    .cfi_endproc
+.size __morestack, .-__morestack
+#endif
+
+.global return_from_syscall
+.type return_from_syscall, @function
+return_from_syscall:
+    # expects one argument (in `rdi`) - pointer to PAL_CONTEXT
+    .cfi_startproc
+
+    mov %rdi, %rbx
+
+    movb PAL_CONTEXT_FPREGS_USED_OFF(%rbx), %al
+    test %al, %al
+    jne .Lrestore_xstate
+
+    # restore FP Control Word & MXCSR from TCB
+    fldcw PAL_CONTEXT_FPCW_OFF(%rbx)
+    ldmxcsr PAL_CONTEXT_MXCSR_OFF(%rbx)
+
+.Lrestore_context:
+    # After this line cfi will be broken, but we don't care much since this does not call anything
+    # and just restores the user context, so it will not be visible in any backtrace.
+    # Note that fixing it is not trivial - we would need the trick with `__morestack`, but we do not
+    # have neither a stack, nor a scratch register.
+    mov %rbx, %rsp
+
+    pop %r8
+    pop %r9
+    pop %r10
+    pop %r11
+    pop %r12
+    pop %r13
+    pop %r14
+    pop %r15
+    pop %rdi
+    pop %rsi
+    pop %rbp
+    pop %rbx
+    pop %rdx
+
+    # exchange rcx with rip
+    mov 0x8(%rsp), %rcx
+    mov 0x18(%rsp), %rax
+    mov %rcx, 0x18(%rsp)
+    mov %rax, 0x8(%rsp)
+    # exchange rsp with flags
+    mov 0x10(%rsp), %rcx
+    mov 0x20(%rsp), %rax
+    mov %rcx, 0x20(%rsp)
+    mov %rax, 0x10(%rsp)
+
+    pop %rax
+    pop %rcx # rip
+    popfq
+    mov %rcx, %gs:(SHIM_TCB_OFF + SHIM_TCB_SCRATCH_PC_OFF)
+    pop %rcx
+    pop %rsp
+    jmp *%gs:(SHIM_TCB_OFF + SHIM_TCB_SCRATCH_PC_OFF)
+
+.Lrestore_xstate:
+    mov PAL_CONTEXT_FPREGS_OFF(%rbx), %rdi
+    call shim_xstate_restore
+    jmp .Lrestore_context
+
+    .cfi_endproc
+.size return_from_syscall, .-return_from_syscall

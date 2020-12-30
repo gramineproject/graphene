@@ -43,14 +43,11 @@ struct execve_rtld_arg {
 noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct execve_rtld_arg arg = *__arg;
 
-    struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
-    unsigned long tls_base = 0;
-    update_tls_base(tls_base);
-    debug("set tls_base to 0x%lx\n", tls_base);
+    set_default_tls();
 
-    thread_sigaction_reset_on_execve(cur_thread);
+    thread_sigaction_reset_on_execve();
 
     remove_loaded_libraries();
     clean_link_map_list();
@@ -64,6 +61,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
         goto error;
     }
 
+    struct shim_thread* cur_thread = get_cur_thread();
     for (struct shim_vma_info* vma = vmas; vma < vmas + count; vma++) {
         /* Don't free the current stack */
         if (vma->addr == cur_thread->stack || vma->addr == cur_thread->stack_red)
@@ -316,11 +314,6 @@ reopen:
     /* All other threads are dead. Restoring initial value in case we stay inside same process
      * instance and call execve again. */
     __atomic_store_n(&first, 0, __ATOMIC_RELAXED);
-
-    /* Disable preemption during `execve`. It will be enabled back in `execute_elf_object` if we
-     * stay in the same process. Otherwise it is never enabled, since this process dies both on
-     * errors and success. */
-    disable_preempt(NULL);
 
     /* Passing ownership of `exec`. */
     ret = shim_do_execve_rtld(exec, argv, envp);

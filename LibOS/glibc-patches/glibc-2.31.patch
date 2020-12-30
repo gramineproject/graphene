@@ -1,5 +1,5 @@
 diff --git a/Makeconfig b/Makeconfig
-index f252842979a1d777e0f0c2bdafa7a65aee0805cd..4e22deb595ad6e5dd36571aec01d5b1e39f10f16 100644
+index f252842979a1d777e0f0c2bdafa7a65aee0805cd..0a044a7b60ae305af56c47982e3bdf1e25769527 100644
 --- a/Makeconfig
 +++ b/Makeconfig
 @@ -930,7 +930,8 @@ endif	# $(+cflags) == ""
@@ -246,7 +246,7 @@ index 31bbc9dbe4bec944bb0037d24900120535d08504..e1bfe2f13eb1a6f00e461973e09ef426
  	   leaving RDI and RSI available for use later can avoid
  	   shuffling values.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
-index c58a77c5c6a3547a3bff5437c1a2b13368f2f48b..f1b413ea733966eb3e649bb30a49ffc3c65d2fa9 100644
+index c58a77c5c6a3547a3bff5437c1a2b13368f2f48b..fdaef663d6f9a69901a612970485d3673eb65e95 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 @@ -78,7 +78,7 @@ asm									\
@@ -254,7 +254,7 @@ index c58a77c5c6a3547a3bff5437c1a2b13368f2f48b..f1b413ea733966eb3e649bb30a49ffc3
     "__" #name ":\n"							\
     "	movq $" #syscall ", %rax\n"					\
 -   "	syscall\n"							\
-+   SYSCALLDB_ASM							\
++   SYSCALLDB								\
     ".LEND_" #name ":\n"							\
     ".section .eh_frame,\"a\",@progbits\n"				\
     ".LSTARTFRAME_" #name ":\n"						\
@@ -391,7 +391,7 @@ index 776d2fc610751b7efdcf5b39aa42728504b14080..9fc94470d650f3c80e9c0a4ec04c8754
  #if !SHSTK_ENABLED
  	/* Push back the return PC.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/x32/times.c b/sysdeps/unix/sysv/linux/x86_64/x32/times.c
-index fb93cb609c09831cbcee1c0cc57ff7a6bbe12ff5..c36fd5264edc96398e49ac98bcf213b7f761f4d5 100644
+index fb93cb609c09831cbcee1c0cc57ff7a6bbe12ff5..380f0bc4ede8249215c423430d43566a011943c9 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/x32/times.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/x32/times.c
 @@ -26,7 +26,7 @@
@@ -399,7 +399,7 @@ index fb93cb609c09831cbcee1c0cc57ff7a6bbe12ff5..c36fd5264edc96398e49ac98bcf213b7
      register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB_ASM                           \
++    SYSCALLDB								\
      : "=a" (resultvar)							\
      : "0" (number), "r" (_a1)						\
      : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\

@@ -33,6 +33,11 @@ loader.insecure__use_cmdline_argv = 1
 # - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
 loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
 
+################################## SIGNALS ####################################
+
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = 1
+
 ################################# MOUNT FS  ###################################
 
 # General notes:

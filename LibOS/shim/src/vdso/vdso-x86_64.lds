@@ -60,10 +60,7 @@ VERSION {
                 time;
                 __vdso_time;
 
-                __vdso_shim_clock_gettime;
-                __vdso_shim_gettimeofday;
-                __vdso_shim_getcpu;
-                __vdso_shim_time;
+                __vdso_syscalldb;
         local: *;
         };
 }
