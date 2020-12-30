@@ -219,7 +219,6 @@ static int _wakeup_one_thread(struct shim_thread* thread, void* _arg) {
             arg->current_should_handle = true;
         } else {
             thread_wakeup(thread);
-            DkThreadResume(thread->pal_handle);
         }
         ret = 1;
     }
@@ -355,7 +354,6 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
                 return ret;
             }
             thread_wakeup(thread);
-            DkThreadResume(thread->pal_handle);
         }
 
         put_thread(thread);
