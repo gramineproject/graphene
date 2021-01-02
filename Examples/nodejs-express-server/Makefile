@@ -28,7 +28,7 @@ endif
 
 include ../../Scripts/Makefile.configs
 
-# Generate manifest rules for nodejs dependencies.
+# Generate manifest rules for Node.js dependencies.
 # We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
 # there's no harm in this.
 .INTERMEDIATE: trusted-libs

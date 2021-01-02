@@ -82,7 +82,7 @@ sgx.trusted_files.libdl = "file:$(GRAPHENEDIR)/Runtime/libdl.so.2"
 sgx.trusted_files.librt = "file:$(GRAPHENEDIR)/Runtime/librt.so.1"
 sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
 
-# Other libraries as dependencies of R (generated from ldd in the Makefile)
+# Other libraries as dependencies of R
 sgx.trusted_files.stats_lib = "file:$(R_HOME)/library/stats/libs/stats.so"
 sgx.trusted_files.lapack = "file:$(R_HOME)/modules/lapack.so"
 

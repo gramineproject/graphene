@@ -143,7 +143,7 @@ server.token: server.sig
 
 ########################### CLIENT (DCAP) MANIFEST ############################
 
-# Generate manifest rules for Bash dependencies.
+# Generate manifest rules for client dependencies.
 # We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
 # there's no harm in this.
 CLIENT_DCAP_LIBS = client libra_tls_verify_dcap_graphene.so /usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so
@@ -172,7 +172,7 @@ client_dcap.token: client_dcap.sig
 
 ########################### CLIENT (EPID) MANIFEST ############################
 
-# Generate manifest rules for Bash dependencies.
+# Generate manifest rules for client dependencies.
 # We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
 # there's no harm in this.
 CLIENT_EPID_LIBS = client libra_tls_verify_epid.so

@@ -38,7 +38,7 @@ PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PY
           $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
           $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so
 
-# Generate manifest rules for Bash dependencies.
+# Generate manifest rules for Python dependencies.
 # We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
 # there's no harm in this.
 .INTERMEDIATE: trusted-libs

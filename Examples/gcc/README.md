@@ -1,6 +1,7 @@
 # Introduction
 
-*** TODO: this example should be reworked to use a standalone gcc version, not the one from the system and readded to Jenkins ***
+***TODO: this example should be reworked to use a standalone gcc version, not the one from the
+system and readded to Jenkins***
 
 This directory contains a Makefile and template manifests to run gcc and its related tools on
 Graphene. We tested with gcc version 5.5.0 and binutils (as, ld) version 2.26.1 on Ubuntu 16.04. We
