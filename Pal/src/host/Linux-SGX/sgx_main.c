@@ -463,8 +463,9 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             for (uint32_t t = 0; t < enclave->thread_num; t++) {
                 sgx_arch_tcs_t* tcs = data + g_page_size * t;
                 memset(tcs, 0, g_page_size);
-                // .ossa, .ofs_base and .ogs_base are offsets from enclave base, not VAs.
-                tcs->ossa      = ssa_area->addr - enclave->baseaddr + enclave->ssaframesize * SSAFRAMENUM * t;
+                // .ossa, .oentry, .ofs_base and .ogs_base are offsets from enclave base, not VAs.
+                tcs->ossa      = ssa_area->addr - enclave->baseaddr
+                                 + enclave->ssaframesize * SSAFRAMENUM * t;
                 tcs->nssa      = SSAFRAMENUM;
                 tcs->oentry    = enclave_entry_addr - enclave->baseaddr;
                 tcs->ofs_base  = 0;
@@ -1135,7 +1136,7 @@ int main(int argc, char* argv[], char* envp[]) {
     if (first_process) {
         g_pal_enclave.is_first_process = true;
 
-        g_pal_enclave.project_path = strdup(argv[3]); // strdup just to be safe, TODO: remove
+        g_pal_enclave.project_path = argv[3];
         manifest_path = alloc_concat(g_pal_enclave.project_path, -1, ".manifest.sgx", -1);
         if (!manifest_path) {
             return -ENOMEM;
@@ -1155,7 +1156,8 @@ int main(int argc, char* argv[], char* envp[]) {
 
         /* We'll receive our argv and config via IPC. */
         int parent_pipe_fd = atoi(argv[3]);
-        ret = sgx_init_child_process(parent_pipe_fd, &g_pal_enclave.pal_sec, &g_pal_enclave.project_path, &manifest);
+        ret = sgx_init_child_process(parent_pipe_fd, &g_pal_enclave.pal_sec,
+                                     &g_pal_enclave.project_path, &manifest);
         if (ret < 0)
             return ret;
         exec_path = strdup(g_pal_enclave.pal_sec.exec_name + URI_PREFIX_FILE_LEN);

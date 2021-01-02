@@ -250,14 +250,7 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
 #define APPEND_WRITECOPY(prot) ((prot) | PAL_PROT_WRITECOPY)
 
     if (e_type == ET_DYN) {
-        /* This is a position-independent shared object. Graphene allows
-         * libraries to be mapped anywhere in address space, but the
-         * executable must be mapped at the exact address. This is because
-         * Graphene copies libraries during fork but does not copy executable.
-         * We must enforce that executable segments are located at the same
-         * addresses across forks: simply use a predefined base address. */
-        void* mapaddr = NULL;//type == OBJECT_EXEC ? DEFAULT_OBJECT_EXEC_ADDR : NULL;
-
+        void* mapaddr = NULL;
         ret = _DkStreamMap(handle, (void**)&mapaddr, APPEND_WRITECOPY(c->prot), c->mapoff,
                            maplength);
         if (ret < 0) {
@@ -442,8 +435,8 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** o
     char* errstring;
     int ret = 0;
 
-    /* Now we will start verify the file as a ELF header. This part of code
-       was borrowed from open_verify() */
+    /* Now we will start verify the file as a ELF header. This part of code was borrowed from
+     * open_verify(). */
     ElfW(Ehdr)* ehdr = (ElfW(Ehdr)*)&fb;
     ElfW(Phdr)* phdr = NULL;
     int phdr_malloced = 0;

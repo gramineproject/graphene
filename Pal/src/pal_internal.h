@@ -174,7 +174,7 @@ extern PAL_CONTROL g_pal_control;
  * This function must be called by the host-specific loader.
  *
  * \param instance_id       current instance id
- * \param exec_loaded_addr  executable addr if loaded
+ * \param exec_uri          executable URI
  * \param parent_process    parent process if it's a child
  * \param first_thread      first thread handle
  * \param arguments         application arguments

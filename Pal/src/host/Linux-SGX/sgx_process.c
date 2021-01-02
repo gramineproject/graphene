@@ -158,7 +158,8 @@ out:
     return ret;
 }
 
-int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** project_path_out, char** manifest_out) {
+int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** project_path_out,
+                           char** manifest_out) {
     int ret;
     struct proc_args proc_args;
     long bytes_read, bytes_written;
@@ -166,7 +167,7 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** p
     char* project_path = NULL;
 
     bytes_read = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(struct proc_args));
-    if (IS_ERR(bytes_read) || bytes_read != sizeof(struct proc_args)) {
+    if (IS_ERR(bytes_read) || (size_t)bytes_read != sizeof(struct proc_args)) {
         ret = IS_ERR(bytes_read) ? bytes_read : -EINTR;
         goto out;
     }
@@ -184,22 +185,22 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** p
     }
 
     bytes_read = INLINE_SYSCALL(read, 3, parent_pipe_fd, project_path, proc_args.project_path_size);
-    if (IS_ERR(bytes_read)) {
+    if (IS_ERR(bytes_read) || (size_t)bytes_read != proc_args.project_path_size) {
         ret = IS_ERR(bytes_read) ? bytes_read : -EINTR;
         goto out;
     }
     project_path[proc_args.project_path_size] = '\0';
 
     bytes_read = INLINE_SYSCALL(read, 3, parent_pipe_fd, manifest, proc_args.manifest_size);
-    if (IS_ERR(bytes_read)) {
+    if (IS_ERR(bytes_read) || (size_t)bytes_read != proc_args.manifest_size) {
         ret = IS_ERR(bytes_read) ? bytes_read : -EINTR;
         goto out;
     }
     manifest[proc_args.manifest_size] = '\0';
 
     int child_status = 0;
-    bytes_written = INLINE_SYSCALL(write, 3, parent_pipe_fd, &child_status, sizeof(int));
-    if (IS_ERR(bytes_written)) {
+    bytes_written = INLINE_SYSCALL(write, 3, parent_pipe_fd, &child_status, sizeof(child_status));
+    if (IS_ERR(bytes_written) || (size_t)bytes_written != sizeof(child_status)) {
         ret = IS_ERR(bytes_written) ? bytes_written : -EINTR;
         goto out;
     }

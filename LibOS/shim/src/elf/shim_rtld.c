@@ -349,7 +349,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
         return NULL;
 
     struct link_map* l = new_elf_object(file ? (!qstrempty(&file->path) ? qstrgetstr(&file->path)
-                                                                : qstrgetstr(&file->uri))
+                                                                        : qstrgetstr(&file->uri))
                                              : "",
                                         type);
 

@@ -694,12 +694,9 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 
             new->checksum.bytes[i] = byte1 * 16 + byte2;
         }
-
-        // SGX_DBG(DBG_S, "trusted: %s\n", new->uri);
     } else {
         memset(&new->checksum, 0, sizeof(sgx_checksum_t));
         new->allowed = true;
-        // SGX_DBG(DBG_S, "allowed: %s\n", new->uri);
     }
 
     spinlock_lock(&g_trusted_file_lock);

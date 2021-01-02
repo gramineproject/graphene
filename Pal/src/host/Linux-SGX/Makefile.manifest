@@ -22,7 +22,6 @@ $(SGX_SIGNER_KEY):
 	$(call cmd,sgx_sign)
 
 .PRECIOUS: %.manifest.sgx.d
-
 %.manifest.sgx.d: %.manifest
 	$(call cmd,sgx_sign_depend)
 

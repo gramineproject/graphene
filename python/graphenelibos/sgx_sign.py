@@ -439,32 +439,32 @@ def gen_area_content(attr, areas, enclave_base, enclave_heap_min):
 
 
 def populate_memory_areas(attr, areas, enclave_base, enclave_heap_min):
-    next_addr_to_populate = enclave_base + attr['enclave_size']
+    last_populated_addr = enclave_base + attr['enclave_size']
 
     for area in areas:
         if area.addr is not None:
             continue
 
-        area.addr = next_addr_to_populate - area.size
+        area.addr = last_populated_addr - area.size
         if area.addr < enclave_heap_min:
             raise Exception('Enclave size is not large enough')
-        next_addr_to_populate = area.addr
+        last_populated_addr = area.addr
 
     free_areas = []
     for area in areas:
         addr = area.addr + area.size
-        if addr < next_addr_to_populate:
+        if addr < last_populated_addr:
             flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
             free_areas.append(
-                MemoryArea('free', addr=addr, size=next_addr_to_populate - addr,
+                MemoryArea('free', addr=addr, size=last_populated_addr - addr,
                            flags=flags, measure=False))
-            next_addr_to_populate = area.addr
+            last_populated_addr = area.addr
 
-    if next_addr_to_populate > enclave_heap_min:
+    if last_populated_addr > enclave_heap_min:
         flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
         free_areas.append(
             MemoryArea('free', addr=enclave_heap_min,
-                       size=next_addr_to_populate - enclave_heap_min, flags=flags,
+                       size=last_populated_addr - enclave_heap_min, flags=flags,
                        measure=False))
 
     gen_area_content(attr, areas, enclave_base, enclave_heap_min)
