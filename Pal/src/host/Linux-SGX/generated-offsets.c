@@ -155,6 +155,9 @@ __attribute__((__used__)) static void dummy(void) {
     /* pal_linux.h */
     DEFINE(PAGESIZE, PRESET_PAGESIZE);
 
+    /* pal.h */
+    DEFINE(PAL_EVENT_NUM_BOUND, PAL_EVENT_NUM_BOUND);
+
     /* errno */
     DEFINE(EINTR, EINTR);
 

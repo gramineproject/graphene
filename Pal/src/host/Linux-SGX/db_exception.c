@@ -283,7 +283,7 @@ void _DkExceptionReturn(void* event) {
 
 noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
                                      PAL_XREGS_STATE* xregs_state) {
-    assert(event);
+    assert(event > 0 && event < PAL_EVENT_NUM_BOUND);
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     /* we only end up in _DkHandleExternalEvent() if interrupted during host syscall; inform LibOS
