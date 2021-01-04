@@ -19,8 +19,6 @@ static void handler1(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 
     while (*(unsigned char*)context->rip != 0x90)
         context->rip++;
-
-    DkExceptionReturn(event);
 }
 
 static void handler2(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
@@ -28,8 +26,6 @@ static void handler2(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 
     while (*(unsigned char*)context->rip != 0x90)
         context->rip++;
-
-    DkExceptionReturn(event);
 }
 
 static void handler3(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
@@ -37,8 +33,6 @@ static void handler3(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 
     while (*(unsigned char*)context->rip != 0x90)
         context->rip++;
-
-    DkExceptionReturn(event);
 }
 
 atomic_bool handler4_called = false;
@@ -51,8 +45,6 @@ static void handler4(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
         context->rip++;
 
     handler4_called = true;
-
-    DkExceptionReturn(event);
 }
 
 static void red_zone_test(void) {

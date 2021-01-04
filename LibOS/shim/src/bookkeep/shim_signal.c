@@ -329,7 +329,6 @@ static void arithmetic_error_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* con
 
         deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV, si_addr, (void*)arg), context);
     }
-    DkExceptionReturn(event);
 }
 
 static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
@@ -341,7 +340,7 @@ static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
         assert(context);
         tcb->test_range.has_fault = true;
         pal_context_set_ip(context, (PAL_NUM)tcb->test_range.cont_addr);
-        goto ret_exception;
+        return;
     }
 
     if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
@@ -391,9 +390,6 @@ static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     }
 
     deliver_signal(ALLOC_SIGINFO(signo, code, si_addr, (void*)arg), context);
-
-ret_exception:
-    DkExceptionReturn(event);
 }
 
 /*
@@ -615,7 +611,6 @@ static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (vma_info.file) {
         put_handle(vma_info.file);
     }
-    DkExceptionReturn(event);
 }
 
 static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
@@ -629,7 +624,6 @@ static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (kill_current_proc(&info) < 0) {
         debug("quit_upcall: failed to deliver a signal\n");
     }
-    DkExceptionReturn(event);
 }
 
 static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
@@ -643,7 +637,6 @@ static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (kill_current_proc(&info) < 0) {
         debug("suspend_upcall: failed to deliver a signal\n");
     }
-    DkExceptionReturn(event);
 }
 
 static void resume_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
@@ -659,7 +652,6 @@ static void resume_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
             __handle_signals(tcb);
         __enable_preempt(tcb);
     }
-    DkExceptionReturn(event);
 }
 
 int init_signal(void) {

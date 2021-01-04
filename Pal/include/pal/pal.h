@@ -577,16 +577,6 @@ typedef void (*PAL_EVENT_HANDLER)(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
  */
 PAL_BOL DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
 
-/*!
- * \brief Exit an exception handler and restore the context.
- */
-void DkExceptionReturn(PAL_PTR event);
-
-/* parameter: keeping int threadHandle for now (to be in sync with the paper).
- * We may want to replace it with a PAL_HANDLE. Ideally, either use PAL_HANDLE
- * or threadHandle.
- */
-
 /*
  * Synchronization
  */

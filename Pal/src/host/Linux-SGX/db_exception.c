@@ -277,10 +277,6 @@ void _DkRaiseFailure(int error) {
     }
 }
 
-void _DkExceptionReturn(void* event) {
-    __UNUSED(event);
-}
-
 noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
                                      PAL_XREGS_STATE* xregs_state) {
     assert(event);

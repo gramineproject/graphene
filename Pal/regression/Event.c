@@ -25,8 +25,6 @@ static void pal_failure_handler(PAL_PTR event, PAL_NUM error, PAL_CONTEXT* conte
         pal_printf("Timeout event received.\n");
         timeouts += 1;
     }
-
-    DkExceptionReturn(event);
 }
 
 int main(void) {

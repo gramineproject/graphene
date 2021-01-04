@@ -19,8 +19,6 @@ static void handler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 #else
 #error Unsupported architecture
 #endif
-
-    DkExceptionReturn(event);
 }
 
 int main(int argc, char** argv, char** envp) {

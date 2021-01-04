@@ -259,7 +259,6 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 /* DkException calls & structures */
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event_num);
 void _DkRaiseFailure(int error);
-void _DkExceptionReturn(void* event);
 
 /* other DK calls */
 void _DkInternalLock(PAL_LOCK* mut);

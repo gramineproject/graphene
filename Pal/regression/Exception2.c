@@ -10,8 +10,6 @@ static void handler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 
     if (count == 30)
         DkProcessExit(0);
-
-    DkExceptionReturn(event);
 }
 
 int main(void) {

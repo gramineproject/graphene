@@ -210,10 +210,6 @@ void _DkRaiseFailure(int error) {
     }
 }
 
-void _DkExceptionReturn(void* event) {
-    __UNUSED(event);
-}
-
 void signal_setup(void) {
     int ret;
 
