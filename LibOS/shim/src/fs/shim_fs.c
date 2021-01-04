@@ -214,6 +214,12 @@ static int __mount_one_other(toml_table_t* mount) {
         goto out;
     }
 
+    if (!strcmp(mount_path, ".") || !strcmp(mount_path, "..")) {
+        debug("Mount points \'.\' and \'..\' are not allowed, remove them from manifest.\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
     if ((ret = mount_fs(mount_type, mount_uri, mount_path, NULL, NULL, 1)) < 0) {
         debug("Mounting %s on %s (type=%s) failed (%d)\n", mount_uri, mount_path, mount_type,
               -ret);
