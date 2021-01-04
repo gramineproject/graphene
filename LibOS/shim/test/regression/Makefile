@@ -94,23 +94,14 @@ repo_manifests = \
 	debug_log_inline.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
-	eventfd.manifest \
-	exit_group.manifest \
 	file_check_policy_allow_all_but_log.manifest \
 	file_check_policy_strict.manifest \
-	futex_bitset.manifest \
-	futex_requeue.manifest \
-	futex_wake_op.manifest \
-	getdents.manifest \
 	host_root_fs.manifest \
 	init_fail.manifest \
 	init_fail2.manifest \
 	large_mmap.manifest \
-	mmap_file.manifest \
 	multi_pthread.manifest \
-	multi_pthread_exitless.manifest \
-	proc_path.manifest \
-	shared_object.manifest
+	multi_pthread_exitless.manifest
 
 # Empty rule to prevent overriding them using "%.manifest: manifest.template" rule.
 $(repo_manifests): ;

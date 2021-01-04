@@ -52,7 +52,7 @@ sgx.enclave_size = "256M"
 # enclave creation time.
 sgx.thread_num = 4
 
-# Specify all libraries used by dcap and its dependencies (including all libs
+# Specify all files used by dcap and its dependencies (including all libs
 # which can be loaded at runtime via dlopen).
 sgx.trusted_files.client = "file:client"
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"

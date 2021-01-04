@@ -394,8 +394,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
     load_libraries();
 
-    // This is just an ugly, temporary hack for PAL regression tests and should only be used there
-    // until we clean up the way LibOS is loaded.
+    // TODO: This is just an ugly, temporary hack for PAL regression tests and should only be used
+    // there until we clean up the way LibOS is loaded.
     char* entrypoint;
     ret = toml_string_in(g_pal_state.manifest_root, "pal.entrypoint", &entrypoint);
     if (ret < 0)

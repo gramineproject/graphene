@@ -33,7 +33,7 @@ endif
 .PHONY: all
 all: addressbook addressbook.manifest pal_loader
 ifeq ($(SGX),1)
-all: addressbook.token
+all: addressbook.manifest.sgx addressbook.sig addressbook.token
 endif
 
 include ../../Scripts/Makefile.configs

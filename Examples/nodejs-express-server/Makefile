@@ -23,7 +23,7 @@ endif
 .PHONY: all
 all: nodejs.manifest | pal_loader
 ifeq ($(SGX),1)
-all: nodejs.token
+all: nodejs.manifest.sgx nodejs.sig nodejs.token
 endif
 
 include ../../Scripts/Makefile.configs

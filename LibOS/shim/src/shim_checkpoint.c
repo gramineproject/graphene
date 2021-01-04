@@ -567,19 +567,18 @@ static void* cp_alloc(void* addr, size_t size) {
     return addr;
 }
 
-int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
+int create_process_and_send_checkpoint(migrate_func_t migrate_func,
                                        struct shim_child_process* child_process,
                                        struct shim_process* process_description,
                                        struct shim_thread* thread_description, ...) {
-    assert(exec || child_process);
+    assert(child_process);
 
     int ret = 0;
     struct shim_process_ipc_info* process_ipc_info = NULL;
 
     /* FIXME: Child process requires some time to initialize before starting to receive checkpoint
      * data. Parallelizing process creation and checkpointing could improve latency of forking. */
-    const char* exec_uri = exec ? /*execve*/ qstrgetstr(&exec->uri)
-                                : /*fork*/ pal_control.executable;
+    const char* exec_uri = pal_control.executable;
     PAL_HANDLE pal_process = DkProcessCreate(exec_uri, /*args=*/NULL);
     if (!pal_process) {
         ret = -PAL_ERRNO();
@@ -587,22 +586,10 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     }
 
     /* Create IPC bookkeepings for the new process. */
-    process_ipc_info = create_process_ipc_info(exec ? /*execve*/ true : /*fork*/ false);
+    process_ipc_info = create_process_ipc_info();
     if (!process_ipc_info) {
         ret = -EACCES;
         goto out;
-    }
-
-    /* in exec case, need to migrate PAL handles for self/parent IPC; simply set them in new
-     * process_ipc_info object so migration function notices and migrates them, and revert back
-     * after migration at the end of this function (we do this pointer assignment because there is
-     * no notion of refcounts for PAL handles at LibOS level) */
-    if (exec) {
-        lock(&g_process_ipc_info.lock);
-        process_ipc_info->self->pal_handle = g_process_ipc_info.self->pal_handle;
-        if (process_ipc_info->parent)
-            process_ipc_info->parent->pal_handle = g_process_ipc_info.parent->pal_handle;
-        unlock(&g_process_ipc_info.lock);
     }
 
     /* allocate a space for dumping the checkpoint data */
@@ -690,29 +677,21 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
         goto out;
     }
 
-    if (exec) {
-        /* execve case: child process "replaces" this current process: no need to notify the leader
-         * or establish IPC, the only thing to do is revert self/parent PAL handles' pointers */
-        process_ipc_info->self->pal_handle = NULL;
-        if (process_ipc_info->parent)
-            process_ipc_info->parent->pal_handle = NULL;
-    } else {
-        /* Child creation was successful, now we add it to the children list. This needs to be done
-         * before we start handling async IPC messages from this child (done below). */
-        child_process->vmid = child_vmid;
-        add_child_process(child_process);
+    /* Child creation was successful, now we add it to the children list. This needs to be done
+     * before we start handling async IPC messages from this child (done below). */
+    child_process->vmid = child_vmid;
+    add_child_process(child_process);
 
-        /* fork/clone case: new process is an actual child process for this current process, so
-         * notify the leader regarding subleasing of TID (child must create self-pipe with
-         * convention of pipe:child-vmid) */
-        char process_self_uri[256];
-        snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
-        ipc_sublease_send(child_vmid, thread_description->tid, process_self_uri);
+    /* fork/clone case: new process is an actual child process for this current process, so
+     * notify the leader regarding subleasing of TID (child must create self-pipe with
+     * convention of pipe:child-vmid) */
+    char process_self_uri[256];
+    snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
+    ipc_sublease_send(child_vmid, thread_description->tid, process_self_uri);
 
-        /* create new IPC port to communicate over pal_process channel with the child process */
-        add_ipc_port_by_id(child_vmid, pal_process, IPC_PORT_CONNECTION | IPC_PORT_DIRECTCHILD,
-                           &ipc_port_with_child_fini, NULL);
-    }
+    /* create new IPC port to communicate over pal_process channel with the child process */
+    add_ipc_port_by_id(child_vmid, pal_process, IPC_PORT_CONNECTION | IPC_PORT_DIRECTCHILD,
+                       &ipc_port_with_child_fini, NULL);
 
     ret = 0;
 out:

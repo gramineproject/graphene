@@ -62,10 +62,7 @@ repo_manifests = \
 	Bootstrap6.manifest \
 	Bootstrap7.manifest \
 	File.manifest \
-	Process.manifest \
-	Process2.manifest \
 	Process3.manifest \
-	SendHandle.manifest \
 	Thread2.manifest \
 	Thread2_exitless.manifest
 

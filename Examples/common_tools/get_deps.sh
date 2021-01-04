@@ -25,9 +25,6 @@ DEPS=$(ldd "$@" \
 	| sort | uniq)
 
 for DEP in $DEPS; do
-	# remove special characters (resulting IDs are quite ugly, but good enough)
-	ID=$(echo $DEP | tr -c -d "[:alnum:]_")
-
 	# generate Graphene manifest line
-	echo "sgx.trusted_files.$ID = \"file:$DEP\""
+	echo "sgx.trusted_files.\"$DEP\" = \"file:$DEP\""
 done

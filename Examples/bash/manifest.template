@@ -55,7 +55,7 @@ sgx.enclave_size = "256M"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 4
 
-# SGX trusted libraries
+# SGX trusted files
 
 sgx.trusted_files.bash = "file:$(EXECDIR)/bash"
 sgx.trusted_files.ls = "file:$(EXECDIR)/ls"

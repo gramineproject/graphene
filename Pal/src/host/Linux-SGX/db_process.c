@@ -61,10 +61,10 @@
  *
  * (3) Both the parent and child enclaves need to have matching measurements.
  *
- *       All Graphene enclaves with the same configuration (manifest) should have the same
- *       measurement. During initialization, it's decided based on input from untrusted PAL, whether
- *       a particular enclave will become a leader of a new Graphene namespace, or will wait a on
- *       pipe for some parent enclave connection.
+ *       All Graphene enclaves with the same configuration (manifest) and same Graphene (LibOS, PAL)
+ *       binaries should have the same measurement. During initialization, it's decided based on
+ *       input from untrusted PAL, whether a particular enclave will become a leader of a new
+ *       Graphene namespace, or will wait on a pipe for some parent enclave connection.
  *
  * (4) The two parties who create the session key need to be the ones proven by the CPU
  *     (for preventing man-in-the-middle attacks).
@@ -115,7 +115,8 @@ static bool is_child_mr_enclave_ok(PAL_HANDLE child, sgx_measurement_t* mr_encla
     if (memcmp(&remote_state->enclave_data, &sign_data, sizeof(sign_data)))
         return false;
 
-    /* All Graphene processes should have the same MR_ENCLAVE */
+    /* All Graphene enclaves with the same configuration (manifest) should have the same MR_ENCLAVE
+     */
     if (!memcmp(mr_enclave, &g_pal_sec.mr_enclave, sizeof(*mr_enclave))) {
         return true;
     }
@@ -135,7 +136,8 @@ static bool is_parent_mr_enclave_ok(PAL_HANDLE parent, sgx_measurement_t* mr_enc
     if (memcmp(&remote_state->enclave_data, &sign_data, sizeof(sign_data)))
         return false;
 
-    /* All Graphene processes should have the same MR_ENCLAVE */
+    /* All Graphene enclaves with the same configuration (manifest) should have the same MR_ENCLAVE
+     */
     if (!memcmp(mr_enclave, &g_pal_sec.mr_enclave, sizeof(*mr_enclave))) {
         return true;
     }

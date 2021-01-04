@@ -88,19 +88,19 @@ sgx.thread_num = 8
 
 ############################# SGX: TRUSTED LIBS ###############################
 
-# Specify all libraries used by Redis and its dependencies (including all
-# libraries which can be loaded at runtime via dlopen). The paths to libraries
-# are host-OS paths. These libraries will be searched for in in-Graphene visible
+# Specify all files used by Redis and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to files
+# are host-OS paths. These files will be searched for in in-Graphene visible
 # paths according to mount points above.
 #
 # As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
-# specified library, measures its hash, and outputs the hash in auto-generated
+# specified file, measures its hash, and outputs the hash in auto-generated
 # entry 'sgx.trusted_checksum.xxx' in auto-generated redis-server.manifest.sgx.
-# Note that this happens on the developer machine.
+# Note that this happens on the developer machine or a build server.
 #
-# At runtime, during loading of this library, Graphene-SGX measures its hash
+# At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
 # and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
-# match, this library is trusted and allowed to be loaded and used. Note that
+# match, this file is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
 
 sgx.trusted_files.redis-server = "file:redis-server"

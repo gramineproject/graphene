@@ -231,7 +231,6 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     char* exec_uri = NULL; // TODO: This should be removed from here and handled by LibOS.
     if (first_process) {
         const char* project_path = argv[3];
-        exec_uri = NULL;
         char* manifest_path = alloc_concat(project_path, -1, ".manifest", -1);
         if (!manifest_path)
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
@@ -266,7 +265,9 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
                 // Temporary hack for PAL regression tests. TODO: We should always error out here.
                 char* pal_entrypoint;
                 ret = toml_string_in(g_pal_state.manifest_root, "pal.entrypoint", &pal_entrypoint);
-                if (ret >= 0 && !pal_entrypoint)
+                if (ret < 0)
+                    INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'\n");
+                if (!pal_entrypoint)
                     INIT_FAIL(PAL_ERROR_INVAL,
                               "'libos.entrypoint' must be specified in the manifest\n");
             }

@@ -28,7 +28,9 @@ is described in :doc:`../manifest-syntax`.
 Manifest and executable loading
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To run a program in Graphene the PAL loader needs a manifest, which will describe the whole environment inside Graphene namespace. It also describes which binary to start first (via ``libos.entrypoint``).
+To run a program in Graphene the PAL loader needs a manifest, which will
+describe the whole environment inside Graphene namespace. It also describes
+which executable to start first (via ``libos.entrypoint``).
 
 Data types and variables
 ------------------------

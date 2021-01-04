@@ -449,7 +449,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                 gs->common.self = (PAL_TCB*)(tls_area->addr + g_page_size * t);
                 gs->enclave_size = enclave->size;
                 gs->tcs_offset = tcs_area->addr - enclave->baseaddr + g_page_size * t;
-                gs->initial_stack_offset = stack_areas[t].addr + ENCLAVE_STACK_SIZE;
+                gs->initial_stack_addr = stack_areas[t].addr + ENCLAVE_STACK_SIZE;
                 gs->sig_stack_low = sig_stack_areas[t].addr;
                 gs->sig_stack_high = sig_stack_areas[t].addr + ENCLAVE_SIG_STACK_SIZE;
                 gs->ssa = (void*)ssa_area->addr + enclave->ssaframesize * SSAFRAMENUM * t;
@@ -612,7 +612,12 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         } else {
             // Temporary hack for PAL regression tests. We should always error out here.
             ret = toml_string_in(manifest_root, "pal.entrypoint", &entrypoint);
-            if (ret >= 0 && !entrypoint) {
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Cannot parse 'pal.entrypoint'\n");
+                ret = -EINVAL;
+                goto out;
+            }
+            if (!entrypoint) {
                 SGX_DBG(DBG_E, "'libos.entrypoint' must be specified in the manifest\n");
                 ret = -EINVAL;
                 goto out;
@@ -765,7 +770,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Cannot parse 'sgx.profile.enable' "
-                "(the value must be 'none', 'main' or 'all')\n");
+                "(the value must be \"none\", \"main\" or \"all\")\n");
         ret = -EINVAL;
         goto out;
     }
@@ -788,7 +793,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
                  SGX_PROFILE_FILENAME_WITH_PID, (int)INLINE_SYSCALL(getpid, 0));
     } else {
         SGX_DBG(DBG_E, "Invalid 'sgx.profile.enable' "
-                "(the value must be 'none', 'main' or 'all')\n");
+                "(the value must be \"none\", \"main\" or \"all\")\n");
         ret = -EINVAL;
         goto out;
     }
@@ -1193,4 +1198,5 @@ int main(int argc, char* argv[], char* envp[]) {
     if (ret < 0) {
         SGX_DBG(DBG_E, "load_enclave() failed with error %d\n", ret);
     }
+    return 0;
 }

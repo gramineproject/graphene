@@ -23,7 +23,7 @@ endif
 .PHONY: all
 all: curl.manifest pal_loader
 ifeq ($(SGX),1)
-all: curl.token
+all: curl.manifest.sgx curl.sig curl.token
 endif
 
 include ../../Scripts/Makefile.configs

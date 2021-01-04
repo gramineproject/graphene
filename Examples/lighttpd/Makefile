@@ -27,7 +27,7 @@ CONF_FILES = lighttpd-server.conf lighttpd.conf
 .PHONY: all
 all: $(INSTALL_DIR)/sbin/lighttpd lighttpd.manifest $(CONF_FILES) testdata | pal_loader
 ifeq ($(SGX),1)
-all: lighttpd.token
+all: lighttpd.manifest.sgx lighttpd.sig lighttpd.token
 endif
 
 include ../../Scripts/Makefile.configs

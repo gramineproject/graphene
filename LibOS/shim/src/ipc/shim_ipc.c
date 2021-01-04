@@ -185,7 +185,7 @@ struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid) {
     return NULL;
 }
 
-struct shim_process_ipc_info* create_process_ipc_info(bool is_execve) {
+struct shim_process_ipc_info* create_process_ipc_info(void) {
     struct shim_process_ipc_info* new_process_ipc_info = calloc(1, sizeof(*new_process_ipc_info));
     if (!new_process_ipc_info)
         return NULL;
@@ -195,38 +195,14 @@ struct shim_process_ipc_info* create_process_ipc_info(bool is_execve) {
     /* current process must have been initialized with info on its own IPC info */
     assert(g_process_ipc_info.self);
 
-    if (is_execve) {
-        /* execve case, new process assumes identity of current process and thus has
-         * - same vmid as current process
-         * - same self IPC info as current process
-         * - same parent IPC info as current process */
-        new_process_ipc_info->vmid = g_process_ipc_info.vmid;
-        new_process_ipc_info->self = create_ipc_info(g_process_ipc_info.self->vmid,
-                                                     qstrgetstr(&g_process_ipc_info.self->uri),
-                                                     g_process_ipc_info.self->uri.len);
-        if (!new_process_ipc_info->self)
-            goto fail;
-
-        /* there is a corner case of execve in very first process; such process does
-         * not have parent process, so cannot copy parent IPC info */
-        if (g_process_ipc_info.parent) {
-            new_process_ipc_info->parent =
-                create_ipc_info(g_process_ipc_info.parent->vmid,
-                                qstrgetstr(&g_process_ipc_info.parent->uri),
-                                g_process_ipc_info.parent->uri.len);
-            if (!new_process_ipc_info->parent)
-                goto fail;
-        }
-    } else {
-        /* fork/clone case, new process has new identity but inherits parent  */
-        new_process_ipc_info->vmid   = 0;
-        new_process_ipc_info->self   = NULL;
-        new_process_ipc_info->parent = create_ipc_info(g_process_ipc_info.self->vmid,
-                                                       qstrgetstr(&g_process_ipc_info.self->uri),
-                                                       g_process_ipc_info.self->uri.len);
-        if (!new_process_ipc_info->parent)
-            goto fail;
-    }
+    /* new process after clone/fork has new identity but inherits parent  */
+    new_process_ipc_info->vmid   = 0;
+    new_process_ipc_info->self   = NULL;
+    new_process_ipc_info->parent = create_ipc_info(g_process_ipc_info.self->vmid,
+                                                   qstrgetstr(&g_process_ipc_info.self->uri),
+                                                   g_process_ipc_info.self->uri.len);
+    if (!new_process_ipc_info->parent)
+        goto fail;
 
     /* new process inherits the same namespace leader */
     if (g_process_ipc_info.ns) {
@@ -492,10 +468,9 @@ BEGIN_RS_FUNC(process_ipc_info) {
     __UNUSED(offset);
     struct shim_process_ipc_info* process_ipc_info = (void*)(base + GET_CP_FUNC_ENTRY());
 
-    /* process_ipc_info vmid  = 0: fork/clone case, forces to pick up new host-OS vmid
-     * process_ipc_info vmid != 0: execve case, forces to re-use vmid of parent */
-    if (!process_ipc_info->vmid)
-        process_ipc_info->vmid = g_process_ipc_info.vmid;
+    assert(process_ipc_info->vmid == 0);
+    /* forces to pick up new host-OS vmid */
+    process_ipc_info->vmid = g_process_ipc_info.vmid;
 
     CP_REBASE(process_ipc_info->self);
     CP_REBASE(process_ipc_info->parent);

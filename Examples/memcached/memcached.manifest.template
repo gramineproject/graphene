@@ -114,11 +114,11 @@ sgx.nonpie_binary = 1
 # '16' allows to run a maximum of 13 Memcached threads (`--threads <= 13`).
 sgx.thread_num = 16
 
-############################# SGX: TRUSTED LIBS ###############################
+############################# SGX: TRUSTED FILES ###############################
 
-# Specify all libraries used by Memcached and its dependencies (including all
-# libraries which can be loaded at runtime via dlopen). The paths to libraries
-# are host-OS paths. These libraries will be searched for in in-Graphene visible
+# Specify all files used by Memcached and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to files
+# are host-OS paths. These files will be searched for in in-Graphene visible
 # paths according to mount points above.
 #
 # As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
@@ -128,7 +128,7 @@ sgx.thread_num = 16
 #
 # At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
 # and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
-# match, this library is trusted and allowed to be loaded and used. Note that
+# match, this file is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
 
 

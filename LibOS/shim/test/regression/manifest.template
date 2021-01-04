@@ -4,6 +4,9 @@ loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
 loader.debug_type = "none"
 loader.insecure__use_cmdline_argv = 1
 
+# for eventfd test
+sys.insecure__allow_eventfd = 1
+
 fs.mount.graphene_lib.type = "chroot"
 fs.mount.graphene_lib.path = "/lib"
 fs.mount.graphene_lib.uri = "file:../../../../Runtime"
@@ -36,9 +39,9 @@ sgx.trusted_files.entrypoint = "file:$(ENTRYPOINT)"
 sgx.trusted_files.exec_victim = "file:exec_victim"
 
 sgx.allowed_files.tmp_dir = "file:tmp/"
+sgx.allowed_files.root = "file:root" # for getdents test
+sgx.allowed_files.testfile = "file:testfile" # for mmap_file test
 
-# Set this value to at least 4 (1 for the main thread, 2 for Graphene internal threads and 1 for
-# helper threads some tests use)
-sgx.thread_num = 8
+sgx.thread_num = 16
 
 sgx.nonpie_binary = 1

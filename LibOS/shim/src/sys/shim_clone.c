@@ -217,7 +217,7 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
     child_process->uid = thread->uid;
     /* `child_process->vmid` is set by the checkpointing function below. */
 
-    long ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL,
+    long ret = create_process_and_send_checkpoint(&migrate_fork,
                                                   child_process,
                                                   &process_description, thread);
 

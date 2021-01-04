@@ -1,9 +1,0 @@
-pal.entrypoint = "file:SendHandle"
-loader.debug_type = "inline"
-loader.argv0_override = "SendHandle"
-loader.insecure__use_cmdline_argv = 1
-
-sgx.nonpie_binary = 1
-
-sgx.trusted_files.entrypoint = "file:SendHandle"
-sgx.allowed_files.tmp = "file:to_send.tmp"

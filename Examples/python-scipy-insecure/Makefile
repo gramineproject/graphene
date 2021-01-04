@@ -27,7 +27,7 @@ UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --rele
 .PHONY: all
 all: python.manifest pal_loader
 ifeq ($(SGX),1)
-all: python.manifest.sgx python.token python.sig
+all: python.manifest.sgx python.sig python.token
 endif
 
 # Python libraries which are dynamically loaded.

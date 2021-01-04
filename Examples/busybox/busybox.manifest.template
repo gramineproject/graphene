@@ -68,11 +68,11 @@ fs.mount.etc.type = "chroot"
 fs.mount.etc.path = "/etc"
 fs.mount.etc.uri = "file:/etc"
 
-############################# SGX: TRUSTED LIBS ###############################
+############################# SGX: TRUSTED FILES ###############################
 
-# Specify all libraries used by Busybox and its dependencies (including all
-# libraries which can be loaded at runtime via dlopen). The paths to libraries
-# are host-OS paths. These libraries will be searched for in in-Graphene
+# Specify all files used by Busybox and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to files
+# are host-OS paths. These files will be searched for in in-Graphene
 # visible paths according to mount points above.
 #
 # As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
@@ -80,10 +80,10 @@ fs.mount.etc.uri = "file:/etc"
 # entry 'sgx.trusted_checksum.xxx' in auto-generated 'busybox.manifest.sgx'
 # file. Note that this happens on the developer's machine.
 #
-# At runtime, during loading of this library, Graphene-SGX measures its hash
-# and compares it with the one specified in 'sgx.trusted_checksum.xxx'. If both
-# hashes match, this library is trusted and allowed to be loaded and used. Note
-# that this happens on the client machine.
+# At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
+# and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
+# match, this file is trusted and allowed to be loaded and used. Note that
+# this happens on the client machine.
 
 sgx.trusted_files.busybox = "file:busybox"
 
@@ -110,9 +110,8 @@ sgx.trusted_files.libnssnis = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
 # library dependencies required by Graphene-SGX.
 sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
 
-############################ SGX: TRUSTED FILES ###############################
 
-# Trusted no-library files include configuration files, read-only files, and
+# Trusted non-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure
 # they are not maliciously modified (modifications will be detected as hash
 # mismatch by Graphene-SGX).

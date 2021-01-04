@@ -31,7 +31,7 @@ endif
 .PHONY: all
 all: $(BLENDER_DIR)/blender blender.manifest | $(RUN_DIR)/pal_loader $(DATA_DIR)/images
 ifeq ($(SGX),1)
-all: blender.token
+all: blender.manifest.sgx blender.sig blender.token
 endif
 
 include ../../Scripts/Makefile.configs

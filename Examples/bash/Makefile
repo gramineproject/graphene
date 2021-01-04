@@ -20,7 +20,7 @@ endif
 .PHONY: all
 all: bash.manifest | pal_loader
 ifeq ($(SGX),1)
-all: bash.manifest.sgx bash.token bash.sig
+all: bash.manifest.sgx bash.sig bash.token
 endif
 
 include ../../Scripts/Makefile.configs

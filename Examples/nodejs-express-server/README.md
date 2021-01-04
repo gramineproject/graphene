@@ -17,12 +17,12 @@ application itself can be executed without Graphene by running `node helloworld.
 
 ## Steps to run without SGX
 
-#. Run `make`.
-#. Run `./pal_loader nodejs helloworld.js 3000`.
-#. The expected output should be the following: `Example app listening on port 3000!`
+1. Run `make`.
+2. Run `./pal_loader nodejs helloworld.js 3000`.
+3. The expected output should be the following: `Example app listening on port 3000!`
 
 ## Steps to run with SGX
 
-#. Run `make SGX=1` in order to build the application using SGX.
-#. Run `./pal_loader SGX nodejs helloworld.js 3000`
-#. The expected output should be the following: `Example app listening on port 3000!`
+1. Run `make SGX=1` in order to build the application using SGX.
+2. Run `./pal_loader SGX nodejs helloworld.js 3000`
+3. The expected output should be the following: `Example app listening on port 3000!`

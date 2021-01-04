@@ -1100,8 +1100,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
     if (!is_mr_enclave_ok(stream, &report.body.mr_enclave, remote_state)) {
-        SGX_DBG(DBG_E,
-                "Not an allowed enclave (mr_enclave = %s)\n",
+        SGX_DBG(DBG_E, "Not an allowed enclave (mr_enclave = %s)\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;
@@ -1211,8 +1210,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
     if (!is_mr_enclave_ok(stream, &report.body.mr_enclave, remote_state)) {
-        SGX_DBG(DBG_E,
-                "Not an allowed enclave (mr_enclave = %s)\n",
+        SGX_DBG(DBG_E, "Not an allowed enclave (mr_enclave = %s)\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;

@@ -159,20 +159,12 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
         goto out;
     }
 
-    /* If this process creation is for fork emulation,
-     * map address of executable is already determined.
-     * tell its address to forked process.
-     */
-    size_t len;
-    const char* file_uri = URI_PREFIX_FILE;
-    if (g_exec_map && g_exec_map->l_name && (len = strlen(exec_uri)) >= URI_PREFIX_FILE_LEN &&
-            !memcmp(exec_uri, file_uri, URI_PREFIX_FILE_LEN) &&
-            /* skip "file:"*/
-            strlen(g_exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
-            /* + 1 for lasting * NUL */
-            !memcmp(g_exec_map->l_name,
-                    exec_uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
+    /* If this process creation is for fork emulation, map address of executable is already
+     * determined. Tell its address to forked process. */
+    if (g_exec_map && g_exec_map->l_name && strstartswith(exec_uri, URI_PREFIX_FILE) &&
+            !strcmp(g_exec_map->l_name, exec_uri + URI_PREFIX_FILE_LEN)) {
         exec->file.map_start = (PAL_PTR)g_exec_map->l_map_start;
+    }
 
     /* step 2: create parent and child process handle */
 
@@ -349,26 +341,6 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
 }
 
 noreturn void _DkProcessExit(int exitcode) {
-    if (exitcode == PAL_WAIT_FOR_CHILDREN_EXIT) {
-        /* this is a "temporary" process exiting after execve'ing a child process: it must still
-         * be around until the child finally exits (because its parent in turn may wait on it) */
-        int wstatus;
-        int ret = INLINE_SYSCALL(wait4, 4, /*any child*/ -1, &wstatus, /*options=*/0,
-                                 /*rusage=*/NULL);
-        if (IS_ERR(ret)) {
-            /* it's too late to recover from errors, just set some reasonable exit code */
-            exitcode = ECHILD;
-        } else {
-            /* Linux expects 0..127 for normal termination and 128..255 for signal termination */
-            if (WIFEXITED(wstatus))
-                exitcode = WEXITSTATUS(wstatus);
-            else if (WIFSIGNALED(wstatus))
-                exitcode = 128 + WTERMSIG(wstatus);
-            else
-                exitcode = ECHILD;
-        }
-    }
-
     INLINE_SYSCALL(exit_group, 1, exitcode);
     while (true) {
         /* nothing */;

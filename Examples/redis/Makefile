@@ -33,7 +33,7 @@ endif
 .PHONY: all
 all: redis-server redis-server.manifest pal_loader
 ifeq ($(SGX),1)
-all: redis-server.manifest.sgx
+all: redis-server.manifest.sgx redis-server.sig redis-server.token
 endif
 
 include ../../Scripts/Makefile.configs
@@ -73,16 +73,15 @@ redis-server.manifest: redis-server.manifest.template
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-# Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This
-# procedure measures all Redis dependencies (shared libraries and trusted
-# files), measures Redis code/data pages, and adds measurements in the
-# resulting manifest.sgx file (among other, less important SGX options).
+# Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This procedure measures all
+# Redis trusted files, adds the measurement to the resulting manifest.sgx file (among other,
+# less important SGX options) and creates redis-server.sig (SIGSTRUCT object).
 #
-# Additionally, Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see
-# SGX hardware ABI, in particular EINIT instruction). The "pal-sgx-get-token"
-# script generates these objects and puts them in files .token and .sig
-# respectively. Note that filenames must be the same as the manifest
-# name (i.e., "redis-server").
+# Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see SGX hardware ABI, in particular EINIT
+# instruction). The "pal-sgx-get-token" script generates EINITTOKEN based on a SIGSTRUCT and puts it
+# in .token file. Note that filenames must be the same as the manifest name (i.e., "redis-server").
+# EINITTOKEN must be generated on the machine where the application will run, not where it was
+# built.
 
 redis-server.manifest.sgx: redis-server.manifest $(SRCDIR)/src/redis-server
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \

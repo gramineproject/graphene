@@ -75,7 +75,7 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);
     OFFSET(SGX_ENCLAVE_SIZE, enclave_tls, enclave_size);
     OFFSET(SGX_TCS_OFFSET, enclave_tls, tcs_offset);
-    OFFSET(SGX_INITIAL_STACK_ADDR, enclave_tls, initial_stack_offset);
+    OFFSET(SGX_INITIAL_STACK_ADDR, enclave_tls, initial_stack_addr);
     OFFSET(SGX_TMP_RIP, enclave_tls, tmp_rip);
     OFFSET(SGX_ECALL_RETURN_ADDR, enclave_tls, ecall_return_addr);
     OFFSET(SGX_SIG_STACK_LOW, enclave_tls, sig_stack_low);

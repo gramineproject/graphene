@@ -5,3 +5,5 @@ loader.insecure__use_cmdline_argv = 1
 fs.mount.root.uri = "file:"
 sgx.trusted_files.entrypoint = "file:$(ENTRYPOINT)"
 sgx.nonpie_binary = 1 # all tests are currently non-PIE unless overridden
+
+sgx.allowed_files.to_send_tmp = "file:to_send.tmp" # for SendHandle test

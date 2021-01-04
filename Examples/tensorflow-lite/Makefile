@@ -13,7 +13,7 @@ TAR_SHA256 ?= ffc3151b06823d57b4a408261ba8efe53601563dfe93af0866751d4f6ca5068c
 .PHONY: all
 all: label_image.manifest
 ifeq ($(SGX),1)
-all: label_image.manifest.sgx
+all: label_image.manifest.sgx label_image.sig label_image.token
 endif
 
 include ../../Scripts/Makefile.configs

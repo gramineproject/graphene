@@ -31,9 +31,9 @@ endif
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
 .PHONY: all
-all: python3.manifest | pal_loader
+all: pytorch.manifest | pal_loader
 ifeq ($(SGX),1)
-all: python3.sig python3.token python3.manifest.sgx
+all: pytorch.manifest.sgx pytorch.sig pytorch.token
 endif
 
 include ../../Scripts/Makefile.configs
@@ -49,12 +49,12 @@ include ../../Scripts/Makefile.configs
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-python3.sig: python3.manifest
+pytorch.sig: pytorch.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-output python3.manifest.sgx \
-		-manifest python3.manifest
+		-output pytorch.manifest.sgx \
+		-manifest pytorch.manifest
 
 %.token: %.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<

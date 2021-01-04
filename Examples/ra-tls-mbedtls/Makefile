@@ -33,13 +33,15 @@ endif
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/CMakeLists.txt server.manifest.sgx server.token client pal_loader
+app: mbedtls/CMakeLists.txt server.manifest.sgx server.sig server.token client pal_loader
 
 .PHONY: epid
-epid: libra_tls_attest.so libra_tls_verify_epid.so client_epid.sig
+epid: libra_tls_attest.so libra_tls_verify_epid.so client_epid.manifest.sgx client_epid.sig \
+      client_epid.token
 
 .PHONY: dcap
-dcap: libra_tls_attest.so libra_tls_verify_dcap.so client_dcap.token
+dcap: libra_tls_attest.so libra_tls_verify_dcap.so client_dcap.manifest.sgx client_dcap.sig \
+      client_dcap.token
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
