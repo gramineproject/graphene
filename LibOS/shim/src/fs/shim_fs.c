@@ -97,14 +97,14 @@ static int __mount_root(struct shim_dentry** root) {
 
     ret = toml_string_in(g_manifest_root, "fs.root.type", &fs_root_type);
     if (ret < 0) {
-        debug("Cannot parse \'fs.root.type\' (the value must be put in double quotes!)\n");
+        debug("Cannot parse 'fs.root.type' (the value must be put in double quotes!)\n");
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_string_in(g_manifest_root, "fs.root.uri", &fs_root_uri);
     if (ret < 0) {
-        debug("Cannot parse \'fs.root.uri\' (the value must be put in double quotes!)\n");
+        debug("Cannot parse 'fs.root.uri' (the value must be put in double quotes!)\n");
         ret = -EINVAL;
         goto out;
     }
@@ -163,19 +163,19 @@ static int __mount_one_other(toml_table_t* mount) {
 
     toml_raw_t mount_type_raw = toml_raw_in(mount, "type");
     if (!mount_type_raw) {
-        debug("Cannot find \'fs.mount.%s.type\'\n", key);
+        debug("Cannot find 'fs.mount.%s.type'\n", key);
         return -EINVAL;
     }
 
     toml_raw_t mount_path_raw = toml_raw_in(mount, "path");
     if (!mount_path_raw) {
-        debug("Cannot find \'fs.mount.%s.path\'\n", key);
+        debug("Cannot find 'fs.mount.%s.path'\n", key);
         return -EINVAL;
     }
 
     toml_raw_t mount_uri_raw = toml_raw_in(mount, "uri");
     if (!mount_uri_raw) {
-        debug("Cannot find \'fs.mount.%s.uri\'\n", key);
+        debug("Cannot find 'fs.mount.%s.uri'\n", key);
         return -EINVAL;
     }
 
@@ -185,21 +185,21 @@ static int __mount_one_other(toml_table_t* mount) {
 
     ret = toml_rtos(mount_type_raw, &mount_type);
     if (ret < 0) {
-        debug("Cannot parse \'fs.mount.%s.type\' (the value must be put in double quotes!)\n", key);
+        debug("Cannot parse 'fs.mount.%s.type' (the value must be put in double quotes!)\n", key);
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_rtos(mount_path_raw, &mount_path);
     if (ret < 0) {
-        debug("Cannot parse \'fs.mount.%s.path\' (the value must be put in double quotes!)\n", key);
+        debug("Cannot parse 'fs.mount.%s.path' (the value must be put in double quotes!)\n", key);
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_rtos(mount_uri_raw, &mount_uri);
     if (ret < 0) {
-        debug("Cannot parse \'fs.mount.%s.uri\' (the value must be put in double quotes!)\n", key);
+        debug("Cannot parse 'fs.mount.%s.uri' (the value must be put in double quotes!)\n", key);
         ret = -EINVAL;
         goto out;
     }
@@ -209,13 +209,13 @@ static int __mount_one_other(toml_table_t* mount) {
     if (!strcmp(mount_path, "/")) {
         debug("Root mount / already exists, verify that there are no duplicate mounts in manifest\n"
               "(note that root / is automatically mounted in Graphene and can be changed via "
-              "\'fs.root\' manifest entry).\n");
+              "'fs.root' manifest entry).\n");
         ret = -EEXIST;
         goto out;
     }
 
     if (!strcmp(mount_path, ".") || !strcmp(mount_path, "..")) {
-        debug("Mount points \'.\' and \'..\' are not allowed, remove them from manifest.\n");
+        debug("Mount points '.' and '..' are not allowed, remove them from manifest.\n");
         ret = -EINVAL;
         goto out;
     }
@@ -292,7 +292,7 @@ int init_mount(void) {
     char* fs_start_dir = NULL;
     ret = toml_string_in(g_manifest_root, "fs.start_dir", &fs_start_dir);
     if (ret < 0) {
-        debug("Can't parse \"fs.start_dir\" (note that the value must be put in double quotes)!\n");
+        debug("Can't parse 'fs.start_dir' (note that the value must be put in double quotes)!\n");
         return ret;
     }
 
@@ -301,7 +301,7 @@ int init_mount(void) {
         ret = path_lookupat(NULL, fs_start_dir, 0, &dent, NULL);
         free(fs_start_dir);
         if (ret < 0) {
-            debug("Invalid \"fs.start_dir\" in manifest.\n");
+            debug("Invalid 'fs.start_dir' in manifest.\n");
             return ret;
         }
         lock(&g_process.fs_lock);
