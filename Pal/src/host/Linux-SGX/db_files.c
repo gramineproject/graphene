@@ -410,7 +410,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         return pf_file_map(pf, handle, addr, prot, offset, size);
 
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
-    uint64_t total    = handle->file.total;
+    size_t total      = handle->file.total;
     void* mem         = *addr;
     int ret;
 
@@ -442,9 +442,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     if (stubs) {
         /* case of trusted file: already mmaped in umem, copy from there into enclave memory and
          * verify hashes along the way */
-        uint64_t end            = (offset + size > total) ? total : offset + size;
-        uint64_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
-        uint64_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
+        size_t end           = (offset + size > total) ? total : offset + size;
+        off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
+        off_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
 
         ret = copy_and_verify_trusted_file(handle->file.realpath,
                                            handle->file.umem + aligned_offset,
@@ -457,19 +457,19 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         }
     } else {
         /* case of allowed file: simply read from underlying file descriptor into enclave memory */
-        uint64_t end            = offset + size;
-        uint64_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
-        uint64_t aligned_end    = ALLOC_ALIGN_UP(end);
-        uint64_t total_size     = aligned_end - aligned_offset;
+        size_t end           = offset + size;
+        off_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
+        off_t aligned_end    = ALLOC_ALIGN_UP(end);
+        size_t total_size    = aligned_end - aligned_offset;
 
-        uint64_t total_bytes = 0;
-        while (total_bytes < total_size) {
-            uint64_t read_size = total_size - total_bytes < MAX_READ_SIZE ?
-                                 total_size - total_bytes : MAX_READ_SIZE;
-            ssize_t bytes = ocall_pread(handle->file.fd, mem + total_bytes, read_size,
-                                        aligned_offset + total_bytes);
+        size_t bytes_read = 0;
+        while (bytes_read < total_size) {
+            size_t read_size = total_size - bytes_read < MAX_READ_SIZE ?
+                               total_size - bytes_read : MAX_READ_SIZE;
+            ssize_t bytes = ocall_pread(handle->file.fd, mem + bytes_read, read_size,
+                                        aligned_offset + bytes_read);
             if (bytes > 0) {
-                total_bytes += bytes;
+                bytes_read += bytes;
             } else if (bytes == 0) {
                 break; /* EOF */
             } else if (ERRNO(bytes) == EINTR || ERRNO(bytes) == EAGAIN) {
@@ -480,9 +480,10 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
             }
         }
 
-        if (total_size - total_bytes > 0) {
-            /* file ended before all requested memory was filled -- remaining memory is zeroed */
-            memset(mem + total_bytes, 0, total_size - total_bytes);
+        if (total_size - bytes_read > 0) {
+            /* file ended before all requested memory was filled -- remaining memory has to be
+             * zeroed */
+            memset(mem + bytes_read, 0, total_size - bytes_read);
         }
     }
 
