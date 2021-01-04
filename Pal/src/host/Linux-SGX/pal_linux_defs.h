@@ -22,10 +22,6 @@
 
 #define TRUSTED_STUB_SIZE (PRESET_PAGESIZE * 4UL)
 
-/* this macro is used to emulate mmap() via read() in chunks of 128MB (mmapped files may be many
- * GBs in size, and a single read could fail with -ENOMEM, so we cap to reasonably small size) */
-#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024UL * 32)
-
 #define MAX_ARGS_SIZE 10000000
 #define MAX_ENV_SIZE  10000000
 

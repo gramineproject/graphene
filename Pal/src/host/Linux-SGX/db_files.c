@@ -25,6 +25,10 @@
 
 #include "enclave_pages.h"
 
+/* this macro is used to emulate mmap() via pread() in chunks of 128MB (mmapped files may be many
+ * GBs in size, and a pread OCALL could fail with -ENOMEM, so we cap to reasonably small size) */
+#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024UL * 32)
+
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
