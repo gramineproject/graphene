@@ -321,6 +321,8 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
 }
 
 static void arithmetic_error_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(event);
+
     if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
         internal_fault("Internal arithmetic fault", arg, context);
     } else {
@@ -332,6 +334,8 @@ static void arithmetic_error_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* con
 }
 
 static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(event);
+
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
 
@@ -557,6 +561,8 @@ ret_fault:
 }
 
 static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(event);
+
     struct shim_vma_info vma_info = {.file = NULL};
 
     if (!is_internal_tid(get_cur_tid()) && !context_is_internal(context) &&
@@ -614,6 +620,7 @@ static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 }
 
 static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(event);
     __UNUSED(arg);
     __UNUSED(context);
     siginfo_t info = {
@@ -627,6 +634,7 @@ static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 }
 
 static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(event);
     __UNUSED(arg);
     __UNUSED(context);
     siginfo_t info = {
@@ -640,6 +648,7 @@ static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 }
 
 static void resume_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(event);
     __UNUSED(arg);
     __UNUSED(context);
     shim_tcb_t* tcb = shim_get_tcb();
