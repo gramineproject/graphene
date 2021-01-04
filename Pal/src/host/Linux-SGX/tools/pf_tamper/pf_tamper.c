@@ -1,35 +1,21 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2019-2020 Invisible Things Lab
-                           Rafal Wojdyla <omeg@invisiblethingslab.com>
-
-   This file is part of Graphene Library OS.
-
-   Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
-
-   Graphene Library OS is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+ *                         Rafal Wojdyla <omeg@invisiblethingslab.com>
+ */
 
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include "pf_util.h"
 #include "protected_files.h"
 #include "protected_files_format.h"
 #include "util.h"
 
-/* Tamper with a PF in various ways for testing purposes.
- * The PF is assumed to be valid and have at least enough data to contain two MHT nodes.
- */
+/* Tamper with a PF in various ways for testing purposes. The PF is assumed to be valid and have at
+ * least enough data to contain two MHT nodes. */
 
 /* Command line options */
 struct option g_options[] = {
@@ -86,18 +72,17 @@ static void make_output_path(const char* suffix) {
     INFO("[*] %s\n", g_output_path);
 }
 
-/*
-PF layout (node size is PF_NODE_SIZE)
-- Node 0: metadata (metadata_node_t)
-  - metadata_plain_t
-  - metadata_encrypted_t (may include MD_USER_DATA_SIZE bytes of data)
-  - metadata_padding_t
-- Node 1: MHT (mht_node_t)
-- Node 2-97: data (ATTACHED_DATA_NODES_COUNT == 96)
-- Node 98: MHT
-- Node 99-195: data
-- ...
-*/
+/* PF layout (node size is PF_NODE_SIZE):
+ * - Node 0: metadata (metadata_node_t)
+ *   - metadata_plain_t
+ *   - metadata_encrypted_t (may include MD_USER_DATA_SIZE bytes of data)
+ *   - metadata_padding_t
+ * - Node 1: MHT (mht_node_t)
+ * - Node 2-97: data (ATTACHED_DATA_NODES_COUNT == 96)
+ * - Node 98: MHT
+ * - Node 99-195: data
+ * - ...
+ */
 static void truncate_file(const char* suffix, size_t output_size) {
     int ret;
 
@@ -118,6 +103,7 @@ out:
 
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 #define FIELD_TRUNCATED(t, f) (offsetof(t, f) + (FIELD_SIZEOF(t, f) / 2))
+#define DATA_CRYPTO_SIZE (FIELD_SIZEOF(mht_node_t, data_nodes_crypto))
 
 static void tamper_truncate(void) {
     size_t mdps = sizeof(metadata_plain_t);
@@ -153,15 +139,7 @@ static void tamper_truncate(void) {
     DBG("size(metadata_padding_t)           = 0x%04lx\n", sizeof(metadata_padding_t));
     DBG("metadata_padding_t                 : 0x%04lx (0x%04lx)\n",
         mdps + sizeof(metadata_encrypted_t), sizeof(metadata_padding_t));
-/*
-typedef struct {
-    uint64_t   file_id;
-    uint8_t    major_version;
-    uint8_t    minor_version;
-    pf_keyid_t metadata_key_id;
-    pf_mac_t   metadata_gmac;
-} metadata_plain_t;
-*/
+
     /* node 0: metadata + 3k of user data */
     /* plain metadata */
     truncate_file("trunc_meta_plain_0", 0);
@@ -189,50 +167,38 @@ typedef struct {
     truncate_file("trunc_meta_pad_0", mdps + sizeof(metadata_encrypted_t));
     truncate_file("trunc_meta_pad_1", mdps + sizeof(metadata_encrypted_t)
                   + sizeof(metadata_padding_t) / 2);
-/*
-typedef struct {
-    gcm_crypto_data_t data_nodes_crypto[ATTACHED_DATA_NODES_COUNT]; // 96
-    gcm_crypto_data_t mht_nodes_crypto[CHILD_MHT_NODES_COUNT]; // 32
-} mht_node_t;
-typedef struct {
-    pf_key_t key;
-    pf_mac_t gmac;
-} gcm_crypto_data_t;
-*/
+
     /* node 1: mht root */
-    // after node 0
+    /* after node 0 */
     truncate_file("trunc_mht_0", PF_NODE_SIZE);
-    // middle of data_nodes_crypto[0].key
+    /* middle of data_nodes_crypto[0].key */
     truncate_file("trunc_mht_1", PF_NODE_SIZE + PF_KEY_SIZE / 2);
-    // after data_nodes_crypto[0].key
+    /* after data_nodes_crypto[0].key */
     truncate_file("trunc_mht_2", PF_NODE_SIZE + PF_KEY_SIZE);
-    // middle of data_nodes_crypto[0].gmac
+    /* middle of data_nodes_crypto[0].gmac */
     truncate_file("trunc_mht_3", PF_NODE_SIZE + PF_KEY_SIZE + PF_MAC_SIZE / 2);
-    // after data_nodes_crypto[0].gmac
+    /* after data_nodes_crypto[0].gmac */
     truncate_file("trunc_mht_4", PF_NODE_SIZE + PF_KEY_SIZE + PF_MAC_SIZE);
-#define DATA_CRYPTO_SIZE FIELD_SIZEOF(mht_node_t, data_nodes_crypto)
-    // after data_nodes_crypto
+    /* after data_nodes_crypto */
     truncate_file("trunc_mht_5", PF_NODE_SIZE + DATA_CRYPTO_SIZE);
-    // middle of mht_nodes_crypto[0].key
+    /* middle of mht_nodes_crypto[0].key */
     truncate_file("trunc_mht_6", PF_NODE_SIZE + DATA_CRYPTO_SIZE + PF_KEY_SIZE / 2);
-    // after mht_nodes_crypto[0].key
+    /* after mht_nodes_crypto[0].key */
     truncate_file("trunc_mht_7", PF_NODE_SIZE + DATA_CRYPTO_SIZE + PF_KEY_SIZE);
-    // middle of mht_nodes_crypto[0].gmac
+    /* middle of mht_nodes_crypto[0].gmac */
     truncate_file("trunc_mht_8", PF_NODE_SIZE + DATA_CRYPTO_SIZE + PF_KEY_SIZE + PF_MAC_SIZE / 2);
-    // after mht_nodes_crypto[0].gmac
+    /* after mht_nodes_crypto[0].gmac */
     truncate_file("trunc_mht_9", PF_NODE_SIZE + DATA_CRYPTO_SIZE + PF_KEY_SIZE + PF_MAC_SIZE);
 
     /* node 2-3: data #0, #1 */
-    // after mht root
+    /* after mht root */
     truncate_file("trunc_data_0", 2 * PF_NODE_SIZE);
-    // middle of data #0
+    /* middle of data #0 */
     truncate_file("trunc_data_1", 2 * PF_NODE_SIZE + PF_NODE_SIZE / 2);
-    // after data #0
+    /* after data #0 */
     truncate_file("trunc_data_2", 3 * PF_NODE_SIZE);
-    // middle of data #1
+    /* middle of data #1 */
     truncate_file("trunc_data_3", 3 * PF_NODE_SIZE + PF_NODE_SIZE / 2);
-
-    // TODO: other MHTs?
 
     /* extend */
     truncate_file("extend_0", g_input_size + 1);
@@ -262,7 +228,7 @@ static void* create_output(const char* path) {
 }
 
 static void pf_decrypt(const void* encrypted, size_t size, const pf_key_t* key, const pf_mac_t* mac,
-                void* decrypted, const char* msg) {
+                       void* decrypted, const char* msg) {
     pf_status_t status = mbedtls_aes_gcm_decrypt(key, &g_empty_iv, NULL, 0,
                                                  encrypted, size,
                                                  decrypted, mac);
@@ -271,7 +237,7 @@ static void pf_decrypt(const void* encrypted, size_t size, const pf_key_t* key, 
 }
 
 static void pf_encrypt(const void* decrypted, size_t size, const pf_key_t* key, pf_mac_t* mac,
-                void* encrypted, const char* msg) {
+                       void* encrypted, const char* msg) {
     pf_status_t status = mbedtls_aes_gcm_encrypt(key, &g_empty_iv, NULL, 0,
                                                  decrypted, size,
                                                  encrypted, mac);
@@ -324,15 +290,7 @@ static void tamper_modify(void) {
     mht_node_t* mht_dec = malloc(sizeof(*mht_dec));
     if (!mht_dec)
         FATAL("Out of memory\n");
-/*
-typedef struct {
-    uint64_t   file_id;
-    uint8_t    major_version;
-    uint8_t    minor_version;
-    pf_keyid_t metadata_key_id;
-    pf_mac_t   metadata_gmac;
-} metadata_plain_t;
-*/
+
     /* plain part of the metadata isn't covered by the MAC so no point updating it */
     BREAK_PF("meta_plain_id_0", /*update=*/false,
              { meta->plain_part.file_id = 0; });
@@ -345,9 +303,8 @@ typedef struct {
     BREAK_PF("meta_plain_version_2", /*update=*/false,
              { meta->plain_part.minor_version = 0xff; });
 
-    /* metadata_key_id is the keying material for encrypted metadata key derivation,
-     * so create also PFs with updated MACs
-     */
+    /* metadata_key_id is the keying material for encrypted metadata key derivation, so create also
+     * PFs with updated MACs */
     BREAK_PF("meta_plain_keyid_0", /*update=*/true,
              { meta->plain_part.metadata_key_id[0] ^= 1; });
     BREAK_PF("meta_plain_keyid_1", /*update=*/true,
@@ -357,15 +314,6 @@ typedef struct {
     BREAK_PF("meta_plain_mac_1", /*update=*/true,
              { LAST_BYTE(meta->plain_part.metadata_gmac) &= 1; });
 
-/*
-typedef struct {
-    char     path[PATH_MAX_SIZE];
-    int64_t  size;
-    pf_key_t mht_key;
-    pf_mac_t mht_gmac;
-    uint8_t  data[MD_USER_DATA_SIZE];
-} metadata_encrypted_t;
-*/
     BREAK_PF("meta_enc_filename_0", /*update=*/true,
              { meta_dec->path[0] = 0; });
     BREAK_PF("meta_enc_filename_1", /*update=*/true,
@@ -393,7 +341,7 @@ typedef struct {
     BREAK_PF("meta_enc_data_1", /*update=*/true,
              { LAST_BYTE(meta_dec->data) ^= 1; });
 
-    // padding is ignored
+    /* padding is ignored */
     BREAK_PF("meta_padding_0", /*update=*/false,
              { meta->padding[0] ^= 1; });
     BREAK_PF("meta_padding_1", /*update=*/false,
@@ -420,13 +368,13 @@ typedef struct {
         memcpy(&mht_dec->mht_nodes_crypto[1], &crypto, sizeof(crypto));
     });
 
-    // data nodes start from node #2
+    /* data nodes start from node #2 */
     BREAK_PF("data_0", /*update=*/false,
              { *(out + 2 * PF_NODE_SIZE) ^= 1; });
     BREAK_PF("data_1", /*update=*/false,
              { *(out + 3 * PF_NODE_SIZE - 1) ^= 1; });
     BREAK_PF("data_2", /*update=*/false, {
-        // swap data nodes
+        /* swap data nodes */
         memcpy(out + 2 * PF_NODE_SIZE, g_input_data + 3 * PF_NODE_SIZE, PF_NODE_SIZE);
         memcpy(out + 3 * PF_NODE_SIZE, g_input_data + 2 * PF_NODE_SIZE, PF_NODE_SIZE);
     });
@@ -435,7 +383,9 @@ typedef struct {
     free(meta_dec);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
+    int ret = -1;
+
     int option          = 0;
     char* input_path    = NULL;
     char* wrap_key_path = NULL;
@@ -518,12 +468,9 @@ int main(int argc, char *argv[]) {
 
     tamper_truncate();
     tamper_modify();
+    ret = 0;
 
 out:
-    if (g_input_data != MAP_FAILED)
-        munmap(g_input_data, g_input_size);
-    if (input_fd >= 0)
-        close(input_fd);
-    free(g_output_path);
-    return 0;
+    /* skip cleanup as we are in main() */
+    return ret;
 }

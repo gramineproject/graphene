@@ -201,9 +201,6 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         if not os.path.exists(invalid_dir):
             os.mkdir(invalid_dir)
 
-        # files below should work normally (benign modifications); currently none
-        benign_mods = []
-
         # prepare valid encrypted file (largest one for maximum possible corruptions)
         original_input = self.OUTPUT_FILES[-1]
         self.__encrypt_file(self.INPUT_FILES[-1], original_input)
@@ -217,17 +214,13 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             input_path = os.path.join(invalid_dir, os.path.basename(original_input))
             # copy the file so it has the original file name (for allowed path check)
             shutil.copy(invalid, input_path)
-            should_pass = any(s in name for s in benign_mods)
 
             try:
                 args = ['decrypt', '-V', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
                 self.__pf_crypt(args)
             except subprocess.CalledProcessError as exc:
-                if should_pass:
-                    self.assertEqual(exc.returncode, 0)
-                else:
-                    self.assertNotEqual(exc.returncode, 0)
+                # decrypt of invalid file must fail with -1 (wrapped to 255)
+                self.assertEqual(exc.returncode, 255)
             else:
-                if not should_pass:
-                    print('[!] Fail: successfully decrypted file: ' + name)
-                    self.fail()
+                print('[!] Fail: successfully decrypted file: ' + name)
+                self.fail()
