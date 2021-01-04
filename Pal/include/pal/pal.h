@@ -568,7 +568,7 @@ enum PAL_EVENT {
     PAL_EVENT_NUM_BOUND        = 8,
 };
 
-typedef void (*PAL_EVENT_HANDLER)(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
+typedef void (*PAL_EVENT_HANDLER)(PAL_NUM arg, PAL_CONTEXT*);
 
 /*!
  * \brief Set the handler for the specific exception event.

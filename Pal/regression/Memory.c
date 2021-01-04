@@ -8,7 +8,7 @@
 
 static volatile int count = 0;
 
-static void handler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void handler(PAL_NUM arg, PAL_CONTEXT* context) {
     count++;
     pal_printf("Memory Fault %d\n", count);
 
