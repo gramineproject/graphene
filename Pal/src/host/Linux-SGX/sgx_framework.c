@@ -310,6 +310,11 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         }
 
         uint64_t added_size = ret > 0 ? (uint64_t)ret : param.count;
+        if (!added_size) {
+            SGX_DBG(DBG_E, "Intel SGX driver did not perform EADD. This may indicate a buggy "
+                           "driver, please update to the most recent version.\n");
+            return -EPERM;
+        }
 
         param.offset += added_size;
         if (param.src != (uint64_t)g_zero_pages)
