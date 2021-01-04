@@ -199,7 +199,7 @@ int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int f
     }
 
     sgx_reset_ustack(old_ustack);
-    return retval;
+    return 0;
 }
 
 int ocall_munmap_untrusted(const void* addr, size_t size) {
