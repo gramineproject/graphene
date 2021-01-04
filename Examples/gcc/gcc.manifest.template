@@ -52,4 +52,9 @@ sgx.allowed_files.aout = "file:a.out"
 sgx.allowed_files.hostdebug = "file:/usr/lib/debug/usr/$(ARCH_LIBDIR)"
 sgx.allowed_files.hostusrlib = "file:/usr/$(ARCH_LIBDIR)"
 sgx.allowed_files.hostlib = "file:$(ARCH_LIBDIR)"
+
+sgx.allowed_files.inc = "file:/usr/include"
+sgx.allowed_files.gccinc = "file:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/include"
+sgx.allowed_files.gccincfixed = "file:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/include-fixed"
+
 $(LD_TRUSTED_FILES)
