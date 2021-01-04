@@ -43,7 +43,6 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkThreadResume);
 
     PRINT_SYMBOL(DkSetExceptionHandler);
-    PRINT_SYMBOL(DkExceptionReturn);
 
     PRINT_SYMBOL(DkMutexCreate);
     PRINT_SYMBOL(DkMutexRelease);

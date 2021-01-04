@@ -568,7 +568,7 @@ enum PAL_EVENT {
     PAL_EVENT_NUM_BOUND        = 8,
 };
 
-typedef void (*PAL_EVENT_HANDLER)(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
+typedef void (*PAL_EVENT_HANDLER)(PAL_NUM arg, PAL_CONTEXT*);
 
 /*!
  * \brief Set the handler for the specific exception event.
@@ -576,16 +576,6 @@ typedef void (*PAL_EVENT_HANDLER)(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
  * \param event can be one of #PAL_EVENT values
  */
 PAL_BOL DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
-
-/*!
- * \brief Exit an exception handler and restore the context.
- */
-void DkExceptionReturn(PAL_PTR event);
-
-/* parameter: keeping int threadHandle for now (to be in sync with the paper).
- * We may want to replace it with a PAL_HANDLE. Ideally, either use PAL_HANDLE
- * or threadHandle.
- */
 
 /*
  * Synchronization

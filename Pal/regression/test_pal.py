@@ -242,7 +242,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkThreadExit',
         'DkThreadResume',
         'DkSetExceptionHandler',
-        'DkExceptionReturn',
         'DkMutexCreate',
         'DkMutexRelease',
         'DkNotificationEventCreate',

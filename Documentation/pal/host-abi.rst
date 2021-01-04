@@ -314,9 +314,6 @@ Exception handling
 .. doxygenfunction:: DkSetExceptionHandler
    :project: pal
 
-.. doxygenfunction:: DkExceptionReturn
-   :project: pal
-
 
 Synchronization
 ^^^^^^^^^^^^^^^

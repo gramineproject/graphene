@@ -320,7 +320,7 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
     DkProcessExit(1);
 }
 
-static void arithmetic_error_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void arithmetic_error_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
         internal_fault("Internal arithmetic fault", arg, context);
     } else {
@@ -329,10 +329,9 @@ static void arithmetic_error_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* con
 
         deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV, si_addr, (void*)arg), context);
     }
-    DkExceptionReturn(event);
 }
 
-static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void memfault_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
 
@@ -341,7 +340,7 @@ static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
         assert(context);
         tcb->test_range.has_fault = true;
         pal_context_set_ip(context, (PAL_NUM)tcb->test_range.cont_addr);
-        goto ret_exception;
+        return;
     }
 
     if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
@@ -391,9 +390,6 @@ static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     }
 
     deliver_signal(ALLOC_SIGINFO(signo, code, si_addr, (void*)arg), context);
-
-ret_exception:
-    DkExceptionReturn(event);
 }
 
 /*
@@ -560,7 +556,7 @@ ret_fault:
     return has_fault;
 }
 
-static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void illegal_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     struct shim_vma_info vma_info = {.file = NULL};
 
     if (!is_internal_tid(get_cur_tid()) && !context_is_internal(context) &&
@@ -615,10 +611,9 @@ static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (vma_info.file) {
         put_handle(vma_info.file);
     }
-    DkExceptionReturn(event);
 }
 
-static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void quit_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
     siginfo_t info = {
@@ -629,10 +624,9 @@ static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (kill_current_proc(&info) < 0) {
         debug("quit_upcall: failed to deliver a signal\n");
     }
-    DkExceptionReturn(event);
 }
 
-static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void suspend_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
     siginfo_t info = {
@@ -643,10 +637,9 @@ static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (kill_current_proc(&info) < 0) {
         debug("suspend_upcall: failed to deliver a signal\n");
     }
-    DkExceptionReturn(event);
 }
 
-static void resume_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void resume_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
     shim_tcb_t* tcb = shim_get_tcb();
@@ -659,7 +652,6 @@ static void resume_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
             __handle_signals(tcb);
         __enable_preempt(tcb);
     }
-    DkExceptionReturn(event);
 }
 
 int init_signal(void) {

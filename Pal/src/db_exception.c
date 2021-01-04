@@ -35,10 +35,6 @@ DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
-void DkExceptionReturn(PAL_PTR event) {
-    _DkExceptionReturn(event);
-}
-
 /* This does not return */
 noreturn void __abort(void) {
     _DkProcessExit(-ENOTRECOVERABLE);

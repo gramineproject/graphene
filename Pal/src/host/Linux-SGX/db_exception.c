@@ -264,7 +264,7 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
     if (upcall) {
-        (*upcall)(/*event=*/NULL, arg, &ctx);
+        (*upcall)(arg, &ctx);
     }
 
     restore_pal_context(uc, &ctx);
@@ -273,12 +273,8 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
     if (upcall) {
-        (*upcall)(/*event=*/NULL, error, /*context=*/NULL);
+        (*upcall)(error, /*context=*/NULL);
     }
-}
-
-void _DkExceptionReturn(void* event) {
-    __UNUSED(event);
 }
 
 noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
@@ -299,7 +295,7 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
     if (upcall) {
-        (*upcall)(/*event=*/NULL, /*arg=*/0, &ctx);
+        (*upcall)(/*arg=*/0, &ctx);
     }
 
     /* modification to PAL_CONTEXT is discarded; it is assumed that LibOS won't change context

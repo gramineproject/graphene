@@ -28,7 +28,3 @@ int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])(int, PAL_UPCALL, int) = {
 void _DkRaiseFailure(int error) {
     /* needs to be implemented */
 }
-
-void _DkExceptionReturn(void* event) {
-    /* needs to be implemented */
-}
