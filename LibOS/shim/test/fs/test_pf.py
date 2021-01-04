@@ -219,7 +219,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
                 args = ['decrypt', '-V', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
                 self.__pf_crypt(args)
             except subprocess.CalledProcessError as exc:
-                # decrypt of invalid file must fail with -1 (wrapped to 255)
+                # decryption of invalid file must fail with -1 (wrapped to 255)
                 self.assertEqual(exc.returncode, 255)
             else:
                 print('[!] Fail: successfully decrypted file: ' + name)
