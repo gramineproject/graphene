@@ -990,25 +990,20 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
     if (hdl->type != TYPE_SOCK)
         goto out;
 
-    struct shim_sock_handle* sock = &hdl->info.sock;
-
-    ret = -EFAULT;
-    if (addr && test_user_memory((void*)addr, addrlen, false))
-        goto out;
-
-    if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
-        goto out;
-
-    for (int i = 0; i < nbufs; i++) {
-        if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len, false))
-            goto out;
-    }
-
     if (flags & ~(MSG_NOSIGNAL | MSG_DONTWAIT)) {
         debug("sendmsg()/sendmmsg()/sendto(): unknown flag (only MSG_NOSIGNAL and MSG_DONTWAIT"
               " are supported).\n");
         ret = -EOPNOTSUPP;
         goto out;
+    }
+
+    struct shim_sock_handle* sock = &hdl->info.sock;
+
+    if (addr) {
+        if (addrlen < 0 || (size_t)addrlen < minimal_addrlen(sock->domain)) {
+            ret = -EINVAL;
+            goto out;
+        }
     }
 
     lock(&hdl->lock);
@@ -1130,6 +1125,14 @@ out:
 
 ssize_t shim_do_sendto(int sockfd, const void* buf, size_t len, int flags,
                        const struct sockaddr* addr, int addrlen) {
+    if (addr && test_user_memory((void*)addr, addrlen, /*write=*/false)) {
+        return -EFAULT;
+    }
+
+    if (!buf || test_user_memory((void*)buf, len, /*write=*/false)) {
+        return -EFAULT;
+    }
+
     struct iovec iovbuf;
     iovbuf.iov_base = (void*)buf;
     iovbuf.iov_len  = len;
@@ -1137,17 +1140,63 @@ ssize_t shim_do_sendto(int sockfd, const void* buf, size_t len, int flags,
     return do_sendmsg(sockfd, &iovbuf, 1, flags, addr, addrlen);
 }
 
+static int check_msghdr(struct msghdr* msg, bool is_recv) {
+    if (msg->msg_namelen < 0) {
+        return -EINVAL;
+    }
+
+    if (test_user_memory(msg->msg_name, msg->msg_namelen, /*write=*/is_recv)) {
+        return -EFAULT;
+    }
+
+    size_t size;
+    if (__builtin_mul_overflow(sizeof(*msg->msg_iov), msg->msg_iovlen, &size)) {
+        return -EMSGSIZE;
+    }
+
+    if (test_user_memory(msg->msg_iov, size, /*write=*/false)) {
+        return -EFAULT;
+    }
+
+    struct iovec* bufs = msg->msg_iov;
+    for (size_t i = 0; i < msg->msg_iovlen; i++) {
+        if (test_user_memory(bufs[i].iov_base, bufs[i].iov_len, /*write=*/is_recv)) {
+            return -EFAULT;
+        }
+    }
+
+    return 0;
+}
+
 ssize_t shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
+    if (!msg || test_user_memory(msg, sizeof(*msg), /*write=*/false)) {
+        return -EFAULT;
+    }
+
+    int ret = check_msghdr(msg, /*is_recv=*/false);
+    if (ret < 0) {
+        return ret;
+    }
+
     return do_sendmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags, msg->msg_name,
                       msg->msg_namelen);
 }
 
 ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags) {
-    if (test_user_memory(msg, vlen, /*write=*/true))
+    if (test_user_memory(msg, sizeof(*msg) * vlen, /*write=*/true)) {
         return -EFAULT;
+    }
+    for (size_t i = 0; i < vlen; i++) {
+        struct msghdr* m = &msg[i].msg_hdr;
+
+        int ret = check_msghdr(m, /*is_recv=*/false);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     ssize_t total = 0;
-    for (size_t i = 0; i * sizeof(struct mmsghdr) < vlen; i++) {
+    for (size_t i = 0; i < vlen; i++) {
         struct msghdr* m = &msg[i].msg_hdr;
 
         ssize_t bytes =
@@ -1178,32 +1227,14 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (addr) {
-        ret = -EINVAL;
-        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true))
+        if (*addrlen < 0 || (size_t)*addrlen < minimal_addrlen(sock->domain)) {
+            ret = -EINVAL;
             goto out;
-
-        if (*addrlen < 0 || (size_t)*addrlen < minimal_addrlen(sock->domain))
-            goto out;
-
-        if (test_user_memory(addr, *addrlen, /*write=*/true))
-            goto out;
+        }
     }
-
-    size_t bufs_size;
-    if (__builtin_mul_overflow(sizeof(*bufs), nbufs, &bufs_size)) {
-        ret = -EMSGSIZE;
-        goto out;
-    }
-
-    ret = -EFAULT;
-    if (!bufs || test_user_memory(bufs, bufs_size, /*write=*/false))
-        goto out;
 
     size_t expected_size = 0;
     for (size_t i = 0; i < nbufs; i++) {
-        if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len,
-                                                  /*write=*/true))
-            goto out;
         expected_size += bufs[i].iov_len;
     }
 
@@ -1413,6 +1444,24 @@ out:
 
 ssize_t shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* addr,
                          int* addrlen) {
+    if (addr) {
+        if (test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true)) {
+            return -EFAULT;
+        }
+
+        if (*addrlen < 0) {
+            return -EINVAL;
+        }
+
+        if (test_user_memory(addr, *addrlen, /*write=*/true)) {
+            return -EFAULT;
+        }
+    }
+
+    if (test_user_memory(buf, len, /*write=*/true)) {
+        return -EFAULT;
+    }
+
     struct iovec iovbuf;
     iovbuf.iov_base = (void*)buf;
     iovbuf.iov_len  = len;
@@ -1421,16 +1470,33 @@ ssize_t shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct so
 }
 
 ssize_t shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
+    if (test_user_memory(msg, sizeof(*msg), /*write=*/true)) {
+        return -EFAULT;
+    }
+
+    int ret = check_msghdr(msg, /*is_recv=*/true);
+    if (ret < 0) {
+        return ret;
+    }
+
     return do_recvmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags, msg->msg_name,
                       &msg->msg_namelen);
 }
 
 ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
                          struct __kernel_timespec* timeout) {
-    if (test_user_memory(msg, vlen, /*write=*/true))
+    if (test_user_memory(msg, sizeof(*msg) * vlen, /*write=*/true))
         return -EFAULT;
 
-    ssize_t total = 0;
+    for (size_t i = 0; i < vlen; i++) {
+        struct msghdr* m = &msg[i].msg_hdr;
+
+        int ret = check_msghdr(m, /*is_recv=*/true);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     // Issue # 753 - https://github.com/oscarlab/graphene/issues/753
     /* TODO(donporter): timeout properly. For now, explicitly return an error. */
     if (timeout) {
@@ -1438,7 +1504,8 @@ ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int
         return -EOPNOTSUPP;
     }
 
-    for (size_t i = 0; i * sizeof(struct mmsghdr) < vlen; i++) {
+    ssize_t total = 0;
+    for (size_t i = 0; i < vlen; i++) {
         struct msghdr* m = &msg[i].msg_hdr;
 
         ssize_t bytes =
