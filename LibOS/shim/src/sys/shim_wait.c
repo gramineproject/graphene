@@ -93,19 +93,10 @@ static void remove_qnode_from_wait_queue(struct shim_thread_queue* qnode) {
     }
 }
 
-long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct __kernel_rusage* ru) {
-    __UNUSED(ru);
-
-    if (options & ~(WNOHANG | WNOWAIT | WEXITED | WSTOPPED | WCONTINUED |
-                    __WNOTHREAD | __WCLONE | __WALL))
-        return -EINVAL;
-
+static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
     if (options & __WALL) {
         options &= ~__WCLONE;
     }
-
-    if (!(options & (WEXITED | WSTOPPED | WCONTINUED)))
-        return -EINVAL;
 
     if (options & WSTOPPED) {
         debug("Ignoring unsupported WSTOPPED flag to wait4\n");
@@ -124,9 +115,6 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
 
     if (!(which == P_PGID || which == P_ALL || which == P_PID))
         return -EINVAL;
-
-    if (infop && test_user_memory(infop, sizeof(*infop), /*write=*/true))
-        return -EFAULT;
 
     long ret = 0;
 
@@ -225,7 +213,25 @@ out:
     return ret;
 }
 
+long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct __kernel_rusage* ru) {
+    __UNUSED(ru);
+
+    if (options & ~(WNOHANG | WNOWAIT | WEXITED | WSTOPPED | WCONTINUED |
+                    __WNOTHREAD | __WCLONE | __WALL))
+        return -EINVAL;
+
+    if (!(options & (WEXITED | WSTOPPED | WCONTINUED)))
+        return -EINVAL;
+
+    if (infop && test_user_memory(infop, sizeof(*infop), /*write=*/true))
+        return -EFAULT;
+
+    return do_waitid(which, id, infop, options);
+}
+
 long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* ru) {
+    __UNUSED(ru);
+
     int which;
     pid_t id;
     siginfo_t info;
@@ -237,7 +243,7 @@ long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* 
     if (status && test_user_memory(status, sizeof(*status), /*write=*/true))
         return -EFAULT;
 
-    /* Prepare options for shim_do_waitid(). */
+    /* Prepare options for do_waitid(). */
     options |= WEXITED;
     if (options & WUNTRACED) {
         options &= ~WUNTRACED;
@@ -259,7 +265,7 @@ long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* 
     }
 
     info.si_pid = 0;
-    int ret = shim_do_waitid(which, id, &info, options, ru);
+    int ret = do_waitid(which, id, &info, options);
     if (ret < 0)
         return ret;
 
