@@ -561,7 +561,7 @@ BEGIN_RS_FUNC(thread) {
         __shim_tcb_init(tcb);
 
         assert(tcb->context.regs && shim_context_get_sp(&tcb->context));
-        update_fs_base(tcb->context.fs_base);
+        update_tls_base(tcb->context.tls_base);
         /* Temporarily disable preemption until the thread resumes. */
         __disable_preempt(tcb);
     } else {

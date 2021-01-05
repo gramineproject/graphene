@@ -500,12 +500,12 @@ void* shim_do_arch_prctl(int code, void* addr) {
             if (!addr)
                 return (void*)-EINVAL;
 
-            update_fs_base((unsigned long)addr);
+            update_tls_base((unsigned long)addr);
             debug("set fs_base to 0x%lx\n", (unsigned long)addr);
             return NULL;
 
         case ARCH_GET_FS:
-            return (void*)DkSegmentRegister(PAL_SEGMENT_FS, NULL) ?: (void*)-PAL_ERRNO();
+            return DkSegmentRegisterGet(PAL_SEGMENT_FS, addr) ? NULL : (void*)-PAL_ERRNO();
     }
 
     return (void*)-ENOSYS;

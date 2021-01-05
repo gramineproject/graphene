@@ -18,12 +18,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-/* sgx.h is required to define SGX_DCAP,
- * and doesn't have a definition for __packed */
-#ifndef __packed
-#define __packed __attribute__((packed))
-#endif
-#include "sgx.h"
+#include "gsgx.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
 #include "toml.h"
@@ -396,8 +391,6 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     bool is_epid;
     sgx_spid_t spid;
     bool linkable;
-
-    assert(g_pal_state.manifest_root);
 
     /* read sgx.ra_client_spid from manifest (must be hex string) */
     char* ra_client_spid_str = NULL;

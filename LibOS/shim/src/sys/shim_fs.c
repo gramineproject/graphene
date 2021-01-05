@@ -49,20 +49,25 @@ int shim_do_unlinkat(int dfd, const char* pathname, int flag) {
 
     if (!dent->parent) {
         ret = -EACCES;
-        goto out_dent;
+        goto out;
     }
 
     if (flag & AT_REMOVEDIR) {
-        if (!(dent->state & DENTRY_ISDIRECTORY))
-            return -ENOTDIR;
+        if (!(dent->state & DENTRY_ISDIRECTORY)) {
+            ret = -ENOTDIR;
+            goto out;
+        }
     } else {
-        if (dent->state & DENTRY_ISDIRECTORY)
-            return -EISDIR;
+        if (dent->state & DENTRY_ISDIRECTORY) {
+            ret = -EISDIR;
+            goto out;
+        }
     }
 
     if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->unlink) {
-        if ((ret = dent->fs->d_ops->unlink(dent->parent, dent)) < 0)
-            return ret;
+        if ((ret = dent->fs->d_ops->unlink(dent->parent, dent)) < 0) {
+            goto out;
+        }
     } else {
         dent->state |= DENTRY_PERSIST;
     }
@@ -71,11 +76,12 @@ int shim_do_unlinkat(int dfd, const char* pathname, int flag) {
         dent->state &= ~DENTRY_ISDIRECTORY;
 
     dent->state |= DENTRY_NEGATIVE;
-out_dent:
-    put_dentry(dent);
 out:
     if (dir)
         put_dentry(dir);
+    if (dent) {
+        put_dentry_maybe_delete(dent);
+    }
     return ret;
 }
 

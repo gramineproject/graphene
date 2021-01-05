@@ -4,14 +4,12 @@
 int count = 0;
 int i     = 0;
 
-static void handler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void handler(PAL_NUM arg, PAL_CONTEXT* context) {
     pal_printf("failure in the handler: 0x%08lx\n", arg);
     count++;
 
     if (count == 30)
         DkProcessExit(0);
-
-    DkExceptionReturn(event);
 }
 
 int main(void) {

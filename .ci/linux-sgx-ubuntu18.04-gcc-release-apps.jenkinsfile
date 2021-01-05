@@ -10,15 +10,10 @@ node('sgx_slave_2.6') {
         "local:${env.BUILD_TAG}",
         '-f .ci/ubuntu18.04.dockerfile .'
     ).inside("${env.DOCKER_ARGS_COMMON} ${env.DOCKER_ARGS_SGX}") {
-        sh 'printenv'
-
         load '.ci/lib/stage-lint.jenkinsfile'
         load '.ci/lib/stage-clean-check-prepare.jenkinsfile'
         load '.ci/lib/stage-build-sgx.jenkinsfile'
-        try {
-            load '.ci/lib/stage-test-apps-sgx.jenkinsfile'
-        } finally {
-            load '.ci/lib/artifacts.jenkinsfile'
-        }
+        load '.ci/lib/stage-test-sgx.jenkinsfile'
+        load '.ci/lib/stage-clean-check.jenkinsfile'
     }
 }

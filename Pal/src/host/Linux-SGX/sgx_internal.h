@@ -50,20 +50,21 @@ uint16_t ntohs(uint16_t shortval);
 
 extern struct pal_enclave {
     /* attributes */
+    bool is_first_process; // Initial process in Graphene namespace is special.
     unsigned long baseaddr;
     unsigned long size;
     unsigned long thread_num;
     unsigned long rpc_thread_num;
     unsigned long ssaframesize;
+    bool use_static_address;
+    bool remote_attestation_enabled;
+    bool use_epid_attestation; /* Valid only if `remote_attestation_enabled` is true, selects
+                                * EPID/DCAP attestation scheme. */
 
     /* files */
-    int manifest;
     int exec;
     int sigfile;
     int token;
-
-    /* manifest */
-    toml_table_t* manifest_root;
 
     /* Path to the PAL binary */
     char* libpal_uri;
@@ -72,6 +73,12 @@ extern struct pal_enclave {
     /* Pointer to information for GDB inside the enclave (see sgx_rtld.h).
      * Set up using update_debugger() ocall. */
     struct debug_map* _Atomic* debug_map;
+
+    /* profiling */
+    bool profile_enable;
+    char profile_filename[64];
+    bool profile_with_stack;
+    int profile_frequency;
 #endif
 
     /* security information */
@@ -140,11 +147,64 @@ void thread_exit(int status);
 uint64_t sgx_edbgrd(void* addr);
 void sgx_edbgwr(void* addr, uint64_t data);
 
-int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec);
+int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** manifest);
 int sgx_signal_setup(void);
 int block_signals(bool block, const int* sigs, int nsig);
 int block_async_signals(bool block);
 
 void update_debugger(void);
+
+#ifdef DEBUG
+/* SGX profiling (sgx_profile.c) */
+
+/*
+ * Default and maximum sampling frequency. We depend on Linux scheduler to interrupt us, so it's not
+ * possible to achieve higher than 250.
+ */
+#define SGX_PROFILE_DEFAULT_FREQUENCY 50
+#define SGX_PROFILE_MAX_FREQUENCY 250
+
+/* Filenames for saved data */
+#define SGX_PROFILE_FILENAME "sgx-perf.data"
+#define SGX_PROFILE_FILENAME_WITH_PID "sgx-perf-%d.data"
+
+/* Initialize based on g_pal_enclave settings */
+int sgx_profile_init(void);
+
+/* Finalize and close file */
+void sgx_profile_finish(void);
+
+/* Record a sample */
+void sgx_profile_sample(void* tcs);
+
+/* Record a new mmap of executable region */
+void sgx_profile_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset);
+#endif
+
+/* perf.data output (sgx_perf_data.h) */
+
+#define PD_STACK_SIZE 8192
+
+struct perf_data;
+
+struct perf_data* pd_open(const char* file_name, bool with_stack);
+
+/* Finalize and close; returns resulting file size */
+ssize_t pd_close(struct perf_data* pd);
+
+/* Write PERF_RECORD_COMM (report command name) */
+int pd_event_command(struct perf_data* pd, const char* command, uint32_t pid, uint32_t tid);
+
+/* Write PERF_RECORD_MMAP (report mmap of executable region) */
+int pd_event_mmap(struct perf_data* pd, const char* filename, uint32_t pid, uint64_t addr,
+                  uint64_t len, uint64_t pgoff);
+
+/* Write PERF_RECORD_SAMPLE (simple version) */
+int pd_event_sample_simple(struct perf_data* pd, uint64_t ip, uint32_t pid, uint32_t tid,
+                           uint64_t period);
+
+/* Write PERF_RECORD_SAMPLE (with stack sample, at most PD_STACK_SIZE bytes) */
+int pd_event_sample_stack(struct perf_data* pd,  uint64_t ip, uint32_t pid, uint32_t tid,
+                          uint64_t period, sgx_pal_gpr_t* gpr, void* stack, size_t stack_size);
 
 #endif

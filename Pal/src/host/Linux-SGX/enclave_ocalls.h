@@ -14,9 +14,9 @@
 
 noreturn void ocall_exit(int exitcode, int is_exitgroup);
 
-int ocall_mmap_untrusted(int fd, uint64_t offset, uint64_t size, unsigned short prot, void** mem);
+int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int fd, off_t offset);
 
-int ocall_munmap_untrusted(const void* mem, uint64_t size);
+int ocall_munmap_untrusted(const void* addr, size_t size);
 
 int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
@@ -93,6 +93,8 @@ int ocall_rename(const char* oldpath, const char* newpath);
 int ocall_delete(const char* pathname);
 
 int ocall_update_debugger(struct debug_map* _Atomic* debug_map);
+
+int ocall_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset);
 
 int ocall_eventfd(unsigned int initval, int flags);
 

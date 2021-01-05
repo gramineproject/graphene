@@ -9,8 +9,12 @@ import struct
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-import generated_offsets as offs # pylint: disable=import-error,wrong-import-position
+try:
+    from . import _offsets as offs # pylint: disable=import-error
+except ImportError:
+    # when we're in repo, _offsets does not exist and pal-sgx-sign sets sys.path
+    # so we can import as follows
+    import generated_offsets as offs # pylint: disable=import-error
 
 # pylint: enable=invalid-name
 
@@ -208,18 +212,6 @@ def resolve_uri(uri, check_exist=True):
             'Cannot resolve ' + orig_uri + ' or the file does not exist.')
     return target
 
-# Resolve an URI relative to manifest file to its absolute path
-def resolve_manifest_uri(manifest_path, uri):
-    if len(uri) < 2 or not uri.startswith('"') or not uri.endswith('"'):
-        raise Exception('Cannot parse uri `' + uri + '` (must be put in double quotes).')
-    uri = uri[1:-1]
-
-    if not uri.startswith('file:'):
-        raise Exception('URI ' + uri + ' is not a local file')
-    path = uri[len('file:'):]
-    if os.path.isabs(path):
-        return path
-    return os.path.join(os.path.dirname(manifest_path), path)
 
 def get_checksum(filename):
     digest = hashlib.sha256()
@@ -481,8 +473,7 @@ def gen_area_content(attr, areas, enclave_base_addr, enclave_heap_min):
                       enclave_base_addr + sig_stacks[t].addr + sig_stacks[t].size)
         set_tls_field(t, offs.SGX_SSA, ssa)
         set_tls_field(t, offs.SGX_GPR, ssa + SSAFRAMESIZE - offs.SGX_GPR_SIZE)
-        set_tls_field(t, offs.SGX_MANIFEST_SIZE,
-                      os.stat(manifest_area.file).st_size)
+        set_tls_field(t, offs.SGX_MANIFEST_SIZE, len(manifest_area.content))
         set_tls_field(t, offs.SGX_HEAP_MIN, enclave_base_addr + enclave_heap_min)
         set_tls_field(t, offs.SGX_HEAP_MAX, enclave_base_addr + enclave_heap_max)
         if exec_area is not None:
@@ -619,7 +610,7 @@ def generate_measurement(attr, areas):
             include_page(digest, page, flags, start_zero + data + end_zero, True)
 
     for area in areas:
-        if area.file:
+        if area.file is not None:
             with open(area.file, 'rb') as file:
                 if area.is_binary:
                     loadcmds = get_loadcmds(area.file)
@@ -656,7 +647,7 @@ def generate_measurement(attr, areas):
                     start = addr - area.addr
                     end = start + offs.PAGESIZE
                     data = area.content[start:end]
-
+                    data += b'\0' * (offs.PAGESIZE - len(data)) # pad last page
                 include_page(mrenclave, addr, area.flags, data, area.measure)
 
             print_area(area.addr, area.size, area.flags, area.desc,
@@ -863,7 +854,7 @@ def main_sign(args):
         # executable is static, i.e. it is non-PIE: enclave base address must cover code segment
         # loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this)
         enclave_base_addr = offs.DEFAULT_ENCLAVE_BASE
-        enclave_heap_min = offs.DEFAULT_HEAP_MIN
+        enclave_heap_min = offs.MMAP_MIN_ADDR
     else:
         # executable is not static, i.e. it is PIE: enclave base address can be arbitrary (we
         # choose it same as enclave_size), and heap can start immediately at this base address
@@ -875,11 +866,14 @@ def main_sign(args):
 
     output_manifest(args['output'], manifest, manifest_layout)
 
+    with open(args['output'], 'rb') as file:
+        manifest_data = file.read()
+    manifest_data += b'\0' # in-memory manifest needs NULL-termination
+
     memory_areas = [
-        MemoryArea('manifest', file=args['output'],
+        MemoryArea('manifest', content=manifest_data, size=len(manifest_data),
                    flags=PAGEINFO_R | PAGEINFO_REG)
         ] + memory_areas
-
     memory_areas = populate_memory_areas(attr, memory_areas, enclave_base_addr, enclave_heap_min)
 
     print("Memory:")
@@ -889,8 +883,8 @@ def main_sign(args):
     print("    %s" % mrenclave.hex())
 
     # Generate sigstruct
-    open(args['sigfile'], 'wb').write(
-        generate_sigstruct(attr, args, mrenclave))
+    with open(args['sigfile'], 'wb') as file:
+        file.write(generate_sigstruct(attr, args, mrenclave))
     return 0
 
 

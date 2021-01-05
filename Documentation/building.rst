@@ -72,23 +72,24 @@ Run the following commands on Ubuntu to install SGX-related dependencies::
     sudo apt install -y python3-pip
     sudo /usr/bin/pip3 install protobuf
 
-2. Install the Linux kernel patched with FSGSBASE
-"""""""""""""""""""""""""""""""""""""""""""""""""
+2a. Install the Linux kernel patched with FSGSBASE
+""""""""""""""""""""""""""""""""""""""""""""""""""
 
 FSGSBASE is a feature in recent processors which allows direct access to the FS
 and GS segment base addresses. For more information about FSGSBASE and its
 benefits, see `this discussion <https://lwn.net/Articles/821719>`__.
+FSGSBASE patchset was merged in 5.9. For older kernels it is available as
+`separate patches <https://github.com/oscarlab/graphene-sgx-driver/tree/master/fsgsbase_patches>`__.
 
-Work is being done to include FSGSBASE enabling in the upstream Linux kernel.
-Currently, the FSGSBASE enabling code is out-of-tree, requiring some patches to
-the kernel.
+The following instructions to patch and compile a Linux kernel with FSGSBASE
+support below are written around Ubuntu 18.04 LTS (Bionic Beaver) with a Linux
+5.4 LTS stable kernel but can be adapted for other distros as necessary. These
+instructions ensure that the resulting kernel has FSGSBASE support and up to
+date security mitigations.
 
-Enabling FSGSBASE support requires building and installing a custom kernel with
-backported patches. The instructions to patch and compile a Linux kernel with
-FSGSBASE support below are written around Ubuntu 18.04 LTS (Bionic Beaver) with
-a Linux 5.4 LTS stable kernel but can be adapted for other distros as necessary.
-These instructions ensure that the resulting kernel has FSGSBASE support and up
-to date security mitigations.
+#. Clone the repository with patches::
+
+       git clone https://github.com/oscarlab/graphene-sgx-driver
 
 #. Setup a build environment for kernel development following `the instructions
    in the Ubuntu wiki <https://wiki.ubuntu.com/KernelTeam/GitKernelBuild>`__.
@@ -100,7 +101,7 @@ to date security mitigations.
 
 #. Apply the provided FSGSBASE patches to the kernel source tree::
 
-       git am <graphene-dir>/Pal/src/host/Linux-SGX/sgx-driver/fsgsbase_patches/*.patch
+       git am <graphene-sgx-driver>/fsgsbase_patches/*.patch
 
    The conversation regarding this patchset can be found in the kernel mailing
    list archives `here
@@ -125,6 +126,27 @@ SDK/PSW, and Graphene itself (see next steps). Note that older versions of
 these software packages may not work with recent Linux kernels like 5.4. We
 recommend to use commit ``b7ccf6f`` of the Intel SGX Linux Driver for Intel SGX
 DCAP and commit ``0e71c22`` of the Intel SGX SDK/PSW.
+
+2b. Install the Graphene FSGSBASE driver (not for production)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+If you followed step 2a and installed the patched Linux kernel, skip this step.
+Otherwise, you will need a Graphene-specific Linux driver that enables the
+FSGSBASE feature available in recent processors.
+
+.. warning::
+
+   This module is a |~| quick-and-dirty hack with dangerous security hole
+   (allows unauthorized local privilege escalation). "Do not use for production"
+   is not a |~| joke. We use it only for testing on very old kernels where the
+   patchset does not apply cleanly.
+
+To install the Graphene FSGSBASE driver, run the following commands::
+
+   git clone https://github.com/oscarlab/graphene-sgx-driver
+   cd graphene-sgx-driver
+   make
+   sudo insmod gsgx.ko
 
 3. Generate signing keys
 """"""""""""""""""""""""
@@ -157,22 +179,6 @@ Alternatively, if you want to use the DCAP versions of the SDK and driver,
 download and install it from:
 
 - https://github.com/intel/SGXDataCenterAttestationPrimitives
-
-5. Install the Graphene SGX driver (not for production)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-If you followed step 1 and installed the patched Linux kernel, skip this step.
-Otherwise, you will need a Graphene-specific Linux driver that enables the
-FSGSBASE feature available in recent processors.
-
-To install the Graphene SGX driver, run the following commands::
-
-   git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver
-   cd Pal/src/host/Linux-SGX/sgx-driver
-   make
-   # the console will prompt you for the path to the Intel SGX driver code
-   # (simply press ENTER if you use the in-kernel Intel SGX driver)
-   sudo insmod gsgx.ko
 
 Building
 ^^^^^^^^

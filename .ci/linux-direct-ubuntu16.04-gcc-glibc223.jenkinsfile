@@ -10,10 +10,9 @@ node('nonsgx_slave') {
         "local:${env.BUILD_TAG}",
         '-f .ci/ubuntu16.04.dockerfile .'
     ).inside("${env.DOCKER_ARGS_COMMON}") {
-        sh 'printenv'
-
         load '.ci/lib/stage-lint.jenkinsfile'
         load '.ci/lib/stage-clean-check-prepare.jenkinsfile'
         load '.ci/lib/stage-build-nosgx.jenkinsfile'
+        load '.ci/lib/stage-clean-check.jenkinsfile'
     }
 }

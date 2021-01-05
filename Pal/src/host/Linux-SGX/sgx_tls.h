@@ -6,7 +6,7 @@
 #include "pal.h"
 
 struct untrusted_area {
-    void* mem;
+    void* addr;
     size_t size;
     uint64_t in_use; /* must be uint64_t, because SET_ENCLAVE_TLS() currently supports only 8-byte
                       * types. TODO: fix this. */
@@ -93,6 +93,7 @@ typedef struct pal_tcb_urts {
     atomic_ulong aex_cnt;          /* # of AEXs, corresponds to # of interrupts/signals */
     atomic_ulong sync_signal_cnt;  /* # of sync signals, corresponds to # of SIGSEGV/SIGILL/.. */
     atomic_ulong async_signal_cnt; /* # of async signals, corresponds to # of SIGINT/SIGCONT/.. */
+    uint64_t profile_sample_time;  /* last time sgx_profile_sample() recorded a sample */
 } PAL_TCB_URTS;
 
 extern void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack);

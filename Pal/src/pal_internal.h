@@ -149,21 +149,13 @@ extern struct pal_internal_state {
 
     PAL_HANDLE      parent_process;
 
-    const char*     manifest;
-    PAL_HANDLE      manifest_handle;
-
+    const char*     raw_manifest_data;
     toml_table_t*   manifest_root;
 
-    const char*     exec;
     PAL_HANDLE      exec_handle;
 
-    /* May not be the same as page size, see e.g. SYSTEM_INFO::dwAllocationGranularity on Windows.
-     */
+    /* May not be the same as page size, e.g. SYSTEM_INFO::dwAllocationGranularity on Windows */
     size_t          alloc_align;
-
-    PAL_HANDLE      console;
-
-    uint64_t        start_time;
 } g_pal_state;
 
 extern PAL_CONTROL g_pal_control;
@@ -183,7 +175,6 @@ extern PAL_CONTROL g_pal_control;
  * This function must be called by the host-specific loader.
  *
  * \param instance_id       current instance id
- * \param manifest_handle   manifest handle if opened
  * \param exec_handle       executable handle if opened
  * \param exec_loaded_addr  executable addr if loaded
  * \param parent_process    parent process if it's a child
@@ -191,16 +182,18 @@ extern PAL_CONTROL g_pal_control;
  * \param arguments         application arguments
  * \param environments      environment variables
  */
-noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE manifest_handle, PAL_HANDLE exec_handle,
-                       PAL_PTR exec_loaded_addr, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
-                       PAL_STR* arguments, PAL_STR* environments);
+noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE exec_handle, PAL_PTR exec_loaded_addr,
+                       PAL_HANDLE parent_process, PAL_HANDLE first_thread, PAL_STR* arguments,
+                       PAL_STR* environments);
 
 /* For initialization */
+
+/* Called very early, its implementation should have no dependencies. */
 unsigned long _DkGetAllocationAlignment(void);
+
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end);
 bool _DkCheckMemoryMappable(const void* addr, size_t size);
 PAL_NUM _DkGetProcessId(void);
-PAL_NUM _DkGetHostId(void);
 unsigned long _DkMemoryQuota(void);
 unsigned long _DkMemoryAvailableQuota(void);
 // Returns 0 on success, negative PAL code on failure
@@ -266,7 +259,6 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 /* DkException calls & structures */
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event_num);
 void _DkRaiseFailure(int error);
-void _DkExceptionReturn(void* event);
 
 /* other DK calls */
 void _DkInternalLock(PAL_LOCK* mut);
@@ -279,8 +271,8 @@ int _DkSystemTimeQuery(uint64_t* out_usec);
  * 0 on success, negative on failure.
  */
 size_t _DkRandomBitsRead(void* buffer, size_t size);
-int _DkSegmentRegisterSet(int reg, const void* addr);
 int _DkSegmentRegisterGet(int reg, void** addr);
+int _DkSegmentRegisterSet(int reg, void* addr);
 int _DkInstructionCacheFlush(const void* addr, int size);
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
@@ -343,9 +335,9 @@ void _DkPrintConsole(const void* buf, int size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-/* errval is negative value, see pal_strerror */
-static inline void print_error(const char* errstring, int errval) {
-    printf("%s (%s)\n", errstring, pal_strerror(errval));
+/* err - positive value of error code */
+static inline void print_error(const char* msg, int err) {
+    printf("%s (%s)\n", msg, pal_strerror(err));
 }
 
 #endif

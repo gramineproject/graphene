@@ -13,6 +13,8 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#include "toml.h"
+
 #if defined(__i386__) || defined(__x86_64__)
 #include "cpu.h"
 #endif
@@ -125,16 +127,16 @@ typedef struct PAL_MEM_INFO_ {
 typedef struct PAL_CONTROL_ {
     PAL_STR host_type;
     PAL_NUM process_id; /*!< An identifier of current picoprocess */
-    PAL_NUM host_id;
 
     /*
      * Handles and executables
      */
-    PAL_HANDLE manifest_handle; /*!< program manifest */
-    PAL_STR executable;         /*!< executable name */
-    PAL_HANDLE parent_process;  /*!< handle of parent process */
-    PAL_HANDLE first_thread;    /*!< handle of first thread */
-    PAL_BOL enable_debug_log;   /*!< enable debug log calls */
+
+    toml_table_t* manifest_root; /*!< program manifest */
+    PAL_STR executable;          /*!< executable name */
+    PAL_HANDLE parent_process;   /*!< handle of parent process */
+    PAL_HANDLE first_thread;     /*!< handle of first thread */
+    PAL_BOL enable_debug_log;    /*!< enable debug log calls */
 
     /*
      * Memory layout
@@ -566,7 +568,7 @@ enum PAL_EVENT {
     PAL_EVENT_NUM_BOUND        = 8,
 };
 
-typedef void (*PAL_EVENT_HANDLER)(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
+typedef void (*PAL_EVENT_HANDLER)(PAL_NUM arg, PAL_CONTEXT*);
 
 /*!
  * \brief Set the handler for the specific exception event.
@@ -574,16 +576,6 @@ typedef void (*PAL_EVENT_HANDLER)(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
  * \param event can be one of #PAL_EVENT values
  */
 PAL_BOL DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
-
-/*!
- * \brief Exit an exception handler and restore the context.
- */
-void DkExceptionReturn(PAL_PTR event);
-
-/* parameter: keeping int threadHandle for now (to be in sync with the paper).
- * We may want to replace it with a PAL_HANDLE. Ideally, either use PAL_HANDLE
- * or threadHandle.
- */
 
 /*
  * Synchronization
@@ -713,20 +705,29 @@ PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size);
 PAL_BOL DkInstructionCacheFlush(PAL_PTR addr, PAL_NUM size);
 
 enum PAL_SEGMENT {
-    PAL_SEGMENT_FS = 0x1,
-    PAL_SEGMENT_GS = 0x2,
+    PAL_SEGMENT_FS = 1,
+    PAL_SEGMENT_GS,
 };
+
+/*!
+ * \brief Get segment register
+ *
+ * \param reg the register to get (#PAL_SEGMENT)
+ * \param addr the address where result will be stored
+ *
+ * \return true on success, false on error
+ */
+PAL_BOL DkSegmentRegisterGet(PAL_FLG reg, PAL_PTR* addr);
 
 /*!
  * \brief Set segment register
  *
  * \param reg the register to be set (#PAL_SEGMENT)
- * \param addr the address to be set; if `NULL`, return the current value of the
- *  segment register.
+ * \param addr the address to be set
  *
- * \todo Please note that this API is broken and doesn't allow setting segment base to 0.
+ * \return true on success, false on error
  */
-PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr);
+PAL_BOL DkSegmentRegisterSet(PAL_FLG reg, PAL_PTR addr);
 
 /*!
  * \brief Return the amount of currently available memory for LibOS/application

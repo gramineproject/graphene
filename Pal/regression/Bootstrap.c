@@ -16,11 +16,6 @@ int main(int argc, char** argv, char** envp) {
     /* check executable name */
     pal_printf("Loaded Executable: %s\n", pal_control.executable);
 
-    /* check manifest name */
-    char manifest[30];
-    DkStreamGetName(pal_control.manifest_handle, manifest, 30);
-    pal_printf("Loaded Manifest: %s\n", manifest);
-
     /* check arguments */
     pal_printf("# of Arguments: %d\n", argc);
     for (int i = 0; i < argc; i++) {
@@ -29,9 +24,6 @@ int main(int argc, char** argv, char** envp) {
 
     /* unique process ID */
     pal_printf("Process ID: %016lx\n", pal_control.process_id);
-
-    /* unique host ID */
-    pal_printf("Host ID: %016lx\n", pal_control.host_id);
 
     /* parent process */
     pal_printf("Parent Process: %p\n", pal_control.parent_process);

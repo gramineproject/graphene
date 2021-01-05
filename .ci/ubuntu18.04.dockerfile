@@ -34,6 +34,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libxrender1 \
     libxxf86vm1 \
     linux-headers-4.15.0-20-generic \
+    meson \
     net-tools \
     pkg-config \
     protobuf-c-compiler \

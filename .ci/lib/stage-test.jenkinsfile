@@ -1,0 +1,53 @@
+stage('test') {
+    sh '''
+        if test -n "$SGX"
+        then
+            make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/tools install \
+                PREFIX=../../../../../../LibOS/shim/test/fs
+        fi
+    '''
+
+    timeout(time: 15, unit: 'MINUTES') {
+        try {
+            sh '''
+                cd Pal/regression
+                make ${MAKEOPTS} all
+                if test -n "$SGX"
+                then
+                    make ${MAKEOPTS} sgx-tokens
+                fi
+                make regression
+            '''
+        } finally {
+            junit 'Pal/regression/pal-regression.xml'
+        }
+    }
+
+    timeout(time: 15, unit: 'MINUTES') {
+        try {
+            sh '''
+                cd LibOS/shim/test/regression
+                make ${MAKEOPTS} RA_CLIENT_SPID=${ra_client_spid} all
+                if test -n "$SGX"
+                then
+                    make ${MAKEOPTS} RA_CLIENT_SPID=${ra_client_spid} sgx-tokens
+                fi
+                make regression
+            '''
+        } finally {
+            junit 'LibOS/shim/test/regression/libos-regression.xml'
+        }
+    }
+
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd LibOS/shim/test/fs
+            make ${MAKEOPTS} all
+            if test -n "$SGX"
+            then
+                make ${MAKEOPTS} sgx-tokens
+            fi
+            make test
+        '''
+    }
+}

@@ -28,8 +28,6 @@ struct pal_sec {
     PAL_PTR     exec_addr;
     PAL_NUM     exec_size;
 
-    PAL_SEC_STR manifest_name;
-
     /* child's stream FD created and sent over by parent */
     PAL_IDX stream_fd;
 
@@ -42,10 +40,6 @@ struct pal_sec {
 
 #ifdef DEBUG
     PAL_BOL in_gdb;
-#endif
-
-#if PRINT_ENCLAVE_STAT == 1
-    PAL_NUM start_time;
 #endif
 };
 

@@ -18,15 +18,13 @@ static int thread2_run(void* args) {
     /* UNREACHABLE */
 }
 
-static void pal_failure_handler(PAL_PTR event, PAL_NUM error, PAL_CONTEXT* context) {
+static void pal_failure_handler(PAL_NUM error, PAL_CONTEXT* context) {
     pal_printf("pal_failure_handler called\n");
 
     if (error == PAL_ERROR_TRYAGAIN) {
         pal_printf("Timeout event received.\n");
         timeouts += 1;
     }
-
-    DkExceptionReturn(event);
 }
 
 int main(void) {

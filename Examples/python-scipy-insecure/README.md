@@ -46,12 +46,12 @@ Here's an example of running Python scripts under Graphene:
 
 Without SGX:
 ```
-./pal_loader python.manifest scripts/test-numpy.py
-./pal_loader python.manifest scripts/test-scipy.py
+./pal_loader ./python scripts/test-numpy.py
+./pal_loader ./python scripts/test-scipy.py
 ```
 
 With SGX:
 ```
-SGX=1 ./pal_loader python.manifest scripts/test-numpy.py
-SGX=1 ./pal_loader python.manifest scripts/test-scipy.py
+SGX=1 ./pal_loader ./python scripts/test-numpy.py
+SGX=1 ./pal_loader ./python scripts/test-scipy.py
 ```

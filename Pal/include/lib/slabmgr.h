@@ -126,6 +126,8 @@ typedef struct __attribute__((packed)) large_mem_obj {
     // offset 32
     unsigned char raw[];
 } LARGE_MEM_OBJ_TYPE, *LARGE_MEM_OBJ;
+static_assert(sizeof(LARGE_MEM_OBJ_TYPE) % MIN_MALLOC_ALIGNMENT == 0,
+              "LARGE_MEM_OBJ_TYPE is not properly aligned");
 
 #define OBJ_LEVEL(obj) ((obj)->level)
 #define OBJ_RAW(obj)   (&(obj)->raw)
@@ -301,6 +303,8 @@ static inline void* slab_alloc(SLAB_MGR mgr, size_t size) {
         }
 
     if (level == -1) {
+        size = ALIGN_UP_POW2(size, MIN_MALLOC_ALIGNMENT);
+
         LARGE_MEM_OBJ mem = (LARGE_MEM_OBJ)system_malloc(sizeof(LARGE_MEM_OBJ_TYPE) + size);
         if (!mem)
             return NULL;

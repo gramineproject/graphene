@@ -31,9 +31,6 @@ static void load_libraries(void) {
     int ret = 0;
     char* preload_str = NULL;
 
-    if (!g_pal_state.manifest_root)
-        return;
-
     /* FIXME: rewrite to use array-of-strings TOML syntax */
     /* string with preload libs: can be multiple URIs separated by commas */
     ret = toml_string_in(g_pal_state.manifest_root, "loader.preload", &preload_str);
@@ -70,9 +67,6 @@ static void load_libraries(void) {
 static int insert_envs_from_manifest(const char*** envpp) {
     int ret;
     assert(envpp);
-
-    if (!g_pal_state.manifest_root)
-        return 0;
 
     toml_table_t* toml_loader = toml_table_in(g_pal_state.manifest_root, "loader");
     if (!toml_loader)
@@ -158,9 +152,6 @@ static int insert_envs_from_manifest(const char*** envpp) {
 
 static void set_debug_type(void) {
     int ret = 0;
-
-    if (!g_pal_state.manifest_root)
-        return;
 
     char* debug_type = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_type", &debug_type);
@@ -258,9 +249,11 @@ out_fail:
     return ret;
 }
 
-/* 'pal_main' must be called by the host-specific bootloader */
+/* 'pal_main' must be called by the host-specific loader.
+ * At this point the manifest is assumed to be already parsed, because some PAL loaders use manifest
+ * configuration for early initialization.
+ */
 noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
-                       PAL_HANDLE manifest_handle, /* manifest handle if opened */
                        PAL_HANDLE exec_handle,     /* executable handle if opened */
                        PAL_PTR exec_loaded_addr,   /* executable addr if loaded */
                        PAL_HANDLE parent_process,  /* parent process if it's a child */
@@ -268,133 +261,49 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                        PAL_STR* arguments,         /* application arguments */
                        PAL_STR* environments       /* environment variables */) {
     g_pal_state.instance_id = instance_id;
-    g_pal_state.alloc_align = _DkGetAllocationAlignment();
-    assert(IS_POWER_OF_2(g_pal_state.alloc_align));
-
-    init_slab_mgr(g_pal_state.alloc_align);
-
     g_pal_state.parent_process = parent_process;
 
     char uri_buf[URI_MAX];
-    char* manifest_uri = NULL;
     char* exec_uri = NULL;
     ssize_t ret;
 
-    if (exec_handle) {
-        ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
-        if (ret < 0)
-            INIT_FAIL(-ret, "Cannot get executable name");
+    assert(g_pal_state.manifest_root);
+    assert(g_pal_state.alloc_align && IS_POWER_OF_2(g_pal_state.alloc_align));
+    assert(exec_handle);
 
-        exec_uri = malloc_copy(uri_buf, ret + 1);
-    }
+    ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
+    if (ret < 0)
+        INIT_FAIL(-ret, "Cannot get executable name");
 
-    if (manifest_handle) {
-        ret = _DkStreamGetName(manifest_handle, uri_buf, URI_MAX);
-        if (ret < 0)
-            INIT_FAIL(-ret, "Cannot get manifest name");
+    exec_uri = malloc_copy(uri_buf, ret + 1);
 
-        manifest_uri = malloc_copy(uri_buf, ret + 1);
-    } else {
-        if (!exec_handle)
-            INIT_FAIL(PAL_ERROR_INVAL, "Must have manifest or executable");
-
-        /* try opening "<execname>.manifest" */
-        size_t len = sizeof(uri_buf);
-        ret = get_norm_path(exec_uri, uri_buf, &len);
-        if (ret < 0) {
-            INIT_FAIL(-ret, "Cannot normalize exec_uri");
-        }
-
-        strcpy_static(uri_buf + len, ".manifest", sizeof(uri_buf) - len);
-        ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
-        if (ret) {
-            /* try opening "file:manifest" */
-            manifest_uri = URI_PREFIX_FILE "manifest";
-            ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
-            if (ret) {
-                INIT_FAIL(PAL_ERROR_DENIED, "Cannot find manifest file");
-            }
-        }
-    }
-
-    /* load manifest if there is one */
-    if (!g_pal_state.manifest_root && manifest_handle) {
-        PAL_STREAM_ATTR attr;
-        ret = _DkStreamAttributesQueryByHandle(manifest_handle, &attr);
-        if (ret < 0)
-            INIT_FAIL(-ret, "Cannot open manifest file");
-
-        void* cfg_addr = NULL;
-        int cfg_size = attr.pending_size;
-
-        ret = _DkStreamMap(manifest_handle, &cfg_addr, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(cfg_size));
-        if (ret < 0)
-            INIT_FAIL(-ret, "Cannot open manifest file");
-
-        char errbuf[256];
-        g_pal_state.manifest_root = toml_parse(cfg_addr, errbuf, sizeof(errbuf));
-        if (!g_pal_state.manifest_root)
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, errbuf);
-    }
-
-    if (g_pal_state.manifest_root) {
-        char* dummy_exec_str = NULL;
-        ret = toml_string_in(g_pal_state.manifest_root, "loader.exec", &dummy_exec_str);
-        if (ret < 0 || dummy_exec_str)
-            INIT_FAIL(PAL_ERROR_INVAL, "loader.exec is not supported anymore. Please update your "
-                                       "manifest according to the current documentation.");
-    }
-
-    /* try to find an executable with the name matching the manifest name */
-    if (!exec_handle && manifest_uri) {
-        size_t exec_uri_len;
-        bool success = false;
-        // try ".manifest"
-        if (strendswith(manifest_uri, ".manifest")) {
-            exec_uri_len = strlen(manifest_uri) - 9;
-            success = true;
-        } else if (strendswith(manifest_uri, ".manifest.sgx")) {
-            exec_uri_len = strlen(manifest_uri) - 13;
-            success = true;
-        }
-
-        if (success) {
-            exec_uri = alloc_concat(manifest_uri, exec_uri_len, NULL, 0);
-            if (!exec_uri)
-                INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate URI buf");
-            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
-            if (ret < 0)
-                INIT_FAIL(PAL_ERROR_INVAL, "Cannot open the executable");
-        }
-    }
+    char* dummy_exec_str = NULL;
+    ret = toml_string_in(g_pal_state.manifest_root, "loader.exec", &dummy_exec_str);
+    if (ret < 0 || dummy_exec_str)
+        INIT_FAIL(PAL_ERROR_INVAL, "loader.exec is not supported anymore. Please update your "
+                                   "manifest according to the current documentation.");
+    free(dummy_exec_str);
 
     /* must be an ELF */
-    if (exec_handle) {
-        if (exec_loaded_addr) {
-            if (!has_elf_magic(exec_loaded_addr, sizeof(ElfW(Ehdr))))
-                INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
-        } else {
-            if (!is_elf_object(exec_handle))
-                INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
-        }
+    if (exec_loaded_addr) {
+        if (!has_elf_magic(exec_loaded_addr, sizeof(ElfW(Ehdr))))
+            INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
+    } else {
+        if (!is_elf_object(exec_handle))
+            INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
     }
 
-    g_pal_state.manifest        = manifest_uri;
-    g_pal_state.manifest_handle = manifest_handle;
-    g_pal_state.exec            = exec_uri;
-    g_pal_state.exec_handle     = exec_handle;
+    g_pal_state.exec_handle = exec_handle;
 
     bool disable_aslr = false;
-    if (g_pal_state.manifest_root) {
-        int64_t disable_aslr_int64;
-        ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__disable_aslr",
-                          /*defaultval=*/0, &disable_aslr_int64);
-        if (ret < 0 || (disable_aslr_int64 != 0 && disable_aslr_int64 != 1)) {
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.insecure__disable_aslr\' "
-                                                 "(the value must be 0 or 1)");
-        }
-        disable_aslr = !!disable_aslr_int64;
+    int64_t disable_aslr_int64;
+    ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__disable_aslr",
+                      /*defaultval=*/0, &disable_aslr_int64);
+    if (ret < 0 || (disable_aslr_int64 != 0 && disable_aslr_int64 != 1)) {
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.insecure__disable_aslr\' "
+                                             "(the value must be 0 or 1)");
     }
+    disable_aslr = !!disable_aslr_int64;
 
     /* Load argv */
     /* TODO: Add an option to specify argv inline in the manifest. This requires an upgrade to the
@@ -403,32 +312,28 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
      * resolving https://github.com/oscarlab/graphene/issues/1053 (RFC: graphene invocation).
      */
     bool argv0_overridden = false;
-    if (g_pal_state.manifest_root) {
-        char* argv0_override = NULL;
-        ret = toml_string_in(g_pal_state.manifest_root, "loader.argv0_override", &argv0_override);
-        if (ret < 0)
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv0_override\'");
+    char* argv0_override = NULL;
+    ret = toml_string_in(g_pal_state.manifest_root, "loader.argv0_override", &argv0_override);
+    if (ret < 0)
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv0_override\'");
 
-        if (argv0_override) {
-            argv0_overridden = true;
-            if (!arguments[0]) {
-                arguments = malloc(sizeof(const char*) * 2);
-                if (!arguments)
-                    INIT_FAIL(PAL_ERROR_NOMEM, "malloc() failed");
-                arguments[1] = NULL;
-            }
-            arguments[0] = argv0_override;
+    if (argv0_override) {
+        argv0_overridden = true;
+        if (!arguments[0]) {
+            arguments = malloc(sizeof(const char*) * 2);
+            if (!arguments)
+                INIT_FAIL(PAL_ERROR_NOMEM, "malloc() failed");
+            arguments[1] = NULL;
         }
+        arguments[0] = argv0_override;
     }
 
     int64_t use_cmdline_argv = 0;
-    if (g_pal_state.manifest_root) {
-        ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_cmdline_argv",
-                          /*defaultval=*/0, &use_cmdline_argv);
-        if (ret < 0 || (use_cmdline_argv != 0 && use_cmdline_argv != 1)) {
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
-                               "\'loader.insecure__use_cmdline_argv\' (the value must be 0 or 1)");
-        }
+    ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_cmdline_argv",
+                      /*defaultval=*/0, &use_cmdline_argv);
+    if (ret < 0 || (use_cmdline_argv != 0 && use_cmdline_argv != 1)) {
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
+                           "\'loader.insecure__use_cmdline_argv\' (the value must be 0 or 1)");
     }
 
     if (use_cmdline_argv) {
@@ -440,11 +345,9 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     } else {
         char* argv_src_file = NULL;
 
-        if (g_pal_state.manifest_root) {
-            ret = toml_string_in(g_pal_state.manifest_root, "loader.argv_src_file", &argv_src_file);
-            if (ret < 0)
-                INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv_src_file\'");
-        }
+        ret = toml_string_in(g_pal_state.manifest_root, "loader.argv_src_file", &argv_src_file);
+        if (ret < 0)
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv_src_file\'");
 
         if (argv_src_file) {
             /* Load argv from a file and discard cmdline argv. We trust the file contents (this can
@@ -465,18 +368,19 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     }
 
     int64_t use_host_env = 0;
-    if (g_pal_state.manifest_root) {
-        ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_host_env",
-                          /*defaultval=*/0, &use_host_env);
-        if (ret < 0 || (use_host_env != 0 && use_host_env != 1)) {
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
-                               "\'loader.insecure__use_host_env\' (the value must be 0 or 1)");
-        }
+    ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_host_env",
+                      /*defaultval=*/0, &use_host_env);
+    if (ret < 0 || (use_host_env != 0 && use_host_env != 1)) {
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
+                           "\'loader.insecure__use_host_env\' (the value must be 0 or 1)");
     }
 
     if (use_host_env) {
-        printf("WARNING: Forwarding host environment variables to the app is enabled. Don't use "
-               "this configuration in production!\n");
+        /* Warn only in the first process. */
+        if (!parent_process) {
+            printf("WARNING: Forwarding host environment variables to the app is enabled. Don't "
+                   "use this configuration in production!\n");
+        }
     } else {
         environments = malloc(sizeof(*environments));
         if (!environments)
@@ -485,11 +389,9 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     }
 
     char* env_src_file = NULL;
-    if (g_pal_state.manifest_root) {
-        ret = toml_string_in(g_pal_state.manifest_root, "loader.env_src_file", &env_src_file);
-        if (ret < 0)
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.env_src_file\'");
-    }
+    ret = toml_string_in(g_pal_state.manifest_root, "loader.env_src_file", &env_src_file);
+    if (ret < 0)
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.env_src_file\'");
 
     if (use_host_env && env_src_file)
         INIT_FAIL(PAL_ERROR_INVAL, "Wrong manifest configuration - cannot use "
@@ -513,23 +415,19 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
     load_libraries();
 
-    if (exec_handle) {
-        if (exec_loaded_addr) {
-            ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
-        } else {
-            ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
-        }
-
-        if (ret < 0)
-            INIT_FAIL(-ret, pal_strerror(ret));
+    if (exec_loaded_addr) {
+        ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
+    } else {
+        ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
     }
+    if (ret < 0)
+        INIT_FAIL(-ret, pal_strerror(-ret));
 
     set_debug_type();
 
     g_pal_control.host_type       = XSTRINGIFY(HOST_TYPE);
     g_pal_control.process_id      = _DkGetProcessId();
-    g_pal_control.host_id         = _DkGetHostId();
-    g_pal_control.manifest_handle = manifest_handle;
+    g_pal_control.manifest_root   = g_pal_state.manifest_root;
     g_pal_control.executable      = exec_uri;
     g_pal_control.parent_process  = parent_process;
     g_pal_control.first_thread    = first_thread;

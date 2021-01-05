@@ -48,5 +48,8 @@ out:
 
     if (dir)
         put_dentry(dir);
+    if (dent) {
+        put_dentry(dent);
+    }
     return ret;
 }

@@ -38,8 +38,8 @@ DkInstructionCacheFlush
 DkCpuIdRetrieve
 DkObjectClose
 DkSetExceptionHandler
-DkExceptionReturn
-DkSegmentRegister
+DkSegmentRegisterGet
+DkSegmentRegisterSet
 DkStreamChangeName
 DkStreamAttributesSetByHandle
 DkMemoryAvailableQuota

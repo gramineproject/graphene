@@ -711,12 +711,15 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int wence) {
     struct shim_file_handle* file = &hdl->info.file;
     lock(&hdl->lock);
 
+    /* TODO: this function emulates lseek() completely inside the LibOS, but some device files
+     *       may report size == 0 during fstat() and may provide device-specific lseek() logic;
+     *       this emulation breaks for such device-specific cases */
     off_t marker = file->marker;
     off_t size = file->size;
 
     if (check_version(hdl)) {
         struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
-        if (data->type != FILE_REGULAR) {
+        if (data->type != FILE_REGULAR && data->type != FILE_DEV) {
             ret = -ESPIPE;
             goto out;
         }

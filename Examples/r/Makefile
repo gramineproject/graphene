@@ -119,7 +119,7 @@ pal_loader:
 
 .PHONY: check
 check: all
-	./pal_loader R.manifest --slave --vanilla -f scripts/sample.r > OUTPUT 2> /dev/null
+	./pal_loader ./R --slave --vanilla -f scripts/sample.r > OUTPUT 2> /dev/null
 	@grep -q "success" OUTPUT && echo "[ Success 1/1 ]"
 	@$(RM) OUTPUT
 

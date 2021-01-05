@@ -120,7 +120,7 @@ static void perform_signal_handling(int event, siginfo_t* info, ucontext_t* uc) 
 
     PAL_CONTEXT context;
     ucontext_to_pal_context(&context, uc);
-    (*upcall)(/*event=*/NULL, arg, &context);
+    (*upcall)(arg, &context);
     pal_context_to_ucontext(uc, &context);
 }
 
@@ -196,7 +196,7 @@ void __check_pending_event(void) {
     for (int i = 0; i < num; i++) {
         PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(tcb->pending_events[i]);
         if (upcall) {
-            (*upcall)(/*event=*/NULL, /*arg=*/0, /*context=*/NULL);
+            (*upcall)(/*arg=*/0, /*context=*/NULL);
         }
     }
 
@@ -206,12 +206,8 @@ void __check_pending_event(void) {
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
     if (upcall) {
-        (*upcall)(/*event=*/NULL, error, /*context=*/NULL);
+        (*upcall)(error, /*context=*/NULL);
     }
-}
-
-void _DkExceptionReturn(void* event) {
-    __UNUSED(event);
 }
 
 void signal_setup(void) {

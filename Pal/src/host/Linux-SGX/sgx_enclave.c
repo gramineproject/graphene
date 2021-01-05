@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2014 Stony Brook University
+ */
 #include "sgx_enclave.h"
 
 #include <asm/errno.h>
@@ -14,6 +17,7 @@
 
 #include "cpu.h"
 #include "ecall_types.h"
+#include "linux_utils.h"
 #include "ocall_types.h"
 #include "pal_linux_error.h"
 #include "pal_security.h"
@@ -64,6 +68,9 @@ static long sgx_ocall_exit(void* pms) {
     /* exit the whole process if exit_group() */
     if (ms->ms_is_exitgroup) {
         update_and_print_stats(/*process_wide=*/true);
+#ifdef DEBUG
+        sgx_profile_finish();
+#endif
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
     }
 
@@ -76,6 +83,9 @@ static long sgx_ocall_exit(void* pms) {
     if (!current_enclave_thread_cnt()) {
         /* no enclave threads left, kill the whole process */
         update_and_print_stats(/*process_wide=*/true);
+#ifdef DEBUG
+        sgx_profile_finish();
+#endif
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
     }
 
@@ -86,25 +96,21 @@ static long sgx_ocall_exit(void* pms) {
 static long sgx_ocall_mmap_untrusted(void* pms) {
     ms_ocall_mmap_untrusted_t* ms = (ms_ocall_mmap_untrusted_t*)pms;
     void* addr;
-
     ODEBUG(OCALL_MMAP_UNTRUSTED, ms);
-    addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
-                                 ms->ms_prot,
-                                 (ms->ms_fd == -1) ? MAP_ANONYMOUS | MAP_PRIVATE
-                                                   : MAP_FILE | MAP_SHARED,
+
+    addr = (void*)INLINE_SYSCALL(mmap, 6, ms->ms_addr, ms->ms_size, ms->ms_prot, ms->ms_flags,
                                  ms->ms_fd, ms->ms_offset);
     if (IS_ERR_P(addr))
         return -ERRNO_P(addr);
 
-    ms->ms_mem = addr;
+    ms->ms_addr = addr;
     return 0;
 }
 
 static long sgx_ocall_munmap_untrusted(void* pms) {
     ms_ocall_munmap_untrusted_t* ms = (ms_ocall_munmap_untrusted_t*)pms;
     ODEBUG(OCALL_MUNMAP_UNTRUSTED, ms);
-    INLINE_SYSCALL(munmap, 2, ALLOC_ALIGN_DOWN_PTR(ms->ms_mem),
-                   ALLOC_ALIGN_UP_PTR(ms->ms_mem + ms->ms_size) - ALLOC_ALIGN_DOWN_PTR(ms->ms_mem));
+    INLINE_SYSCALL(munmap, 2, ms->ms_addr, ms->ms_size);
     return 0;
 }
 
@@ -288,13 +294,34 @@ static long sgx_ocall_clone_thread(void* pms) {
 }
 
 static long sgx_ocall_create_process(void* pms) {
+    long ret;
+    char* manifest = NULL;
+    char* manifest_path = NULL;
+
     ms_ocall_create_process_t* ms = (ms_ocall_create_process_t*)pms;
     ODEBUG(OCALL_CREATE_PROCESS, ms);
-    long ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd);
-    if (ret < 0)
-        return ret;
+
+    /* Temporary solution, will be removed after introduction of centralized manifests. */
+    manifest_path = alloc_concat(ms->ms_uri + URI_PREFIX_FILE_LEN, -1, ".manifest.sgx", -1);
+    if (!manifest_path) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    ret = read_text_file_to_cstr(manifest_path, &manifest);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd, manifest);
+    if (ret < 0) {
+        goto out;
+    }
     ms->ms_pid = ret;
-    return 0;
+    ret = 0;
+out:
+    free(manifest_path);
+    free(manifest);
+    return ret;
 }
 
 static long sgx_ocall_futex(void* pms) {
@@ -669,6 +696,18 @@ static long sgx_ocall_update_debugger(void* pms) {
     return 0;
 }
 
+static long sgx_ocall_report_mmap(void* pms) {
+    ms_ocall_report_mmap_t* ms = (ms_ocall_report_mmap_t*)pms;
+    ODEBUG(OCALL_REPORT_MMAP, ms);
+
+#ifdef DEBUG
+    sgx_profile_report_mmap(ms->ms_filename, ms->ms_addr, ms->ms_len, ms->ms_offset);
+#else
+    __UNUSED(ms);
+#endif
+    return 0;
+}
+
 static long sgx_ocall_get_quote(void* pms) {
     ms_ocall_get_quote_t* ms = (ms_ocall_get_quote_t*)pms;
     ODEBUG(OCALL_GET_QUOTE, ms);
@@ -715,6 +754,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_RENAME]           = sgx_ocall_rename,
     [OCALL_DELETE]           = sgx_ocall_delete,
     [OCALL_UPDATE_DEBUGGER]  = sgx_ocall_update_debugger,
+    [OCALL_REPORT_MMAP]      = sgx_ocall_report_mmap,
     [OCALL_EVENTFD]          = sgx_ocall_eventfd,
     [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
 };

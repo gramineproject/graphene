@@ -455,6 +455,55 @@ This syntax specifies whether to enable SGX enclave-specific statistics:
    AEXs (corresponds to interrupts/exceptions/signals during enclave
    execution). Prints per-thread and per-process stats.
 
+#. Printing the SGX enclave loading time at startup. The enclave loading time
+   includes creating the enclave, adding enclave pages, measuring them and
+   initializing the enclave.
+
 *Note:* this option is insecure and cannot be used with production enclaves
 (``sgx.debug = 0``). If the production enclave is started with this option set,
 Graphene will fail initialization of the enclave.
+
+SGX profiling
+^^^^^^^^^^^^^
+
+::
+
+    sgx.profile.enable = ["none"|"main"|"all"]
+    (Default: "none")
+
+This syntax specifies whether to enable SGX profiling. Graphene must be compiled
+with ``DEBUG=1`` for this option to work.
+
+If this option is set to ``main``, the main process will collect IP samples and
+save them as ``sgx-perf.data``. If it is set to ``all``, all processes will
+collect samples and save them to ``sgx-perf-<PID>.data``.
+
+The saved files can be viewed with the ``perf`` tool, e.g. ``perf report -i
+sgx-perf.data``.
+
+See :doc:`devel/performance` for more information.
+
+*Note:* this option is insecure and cannot be used with production enclaves
+(``sgx.debug = 0``). If the production enclave is started with this option set,
+Graphene will fail initialization of the enclave.
+
+::
+
+    sgx.profile.with_stack = [1|0]
+    (Default: 0)
+
+This syntax specifies whether to include stack information with the profiling
+data. This will enable ``perf report`` to show call chains. However, it will
+make the output file much bigger, and slow down the process.
+
+::
+
+    sgx.profile.frequency = [INTEGER]
+    (Default: 50)
+
+This syntax specifies approximate frequency at which profiling samples are taken
+(in samples per second). Lower values will mean less accurate results, but also
+lower overhead.
+
+Note that the accuracy is limited by how often the process is interrupted by
+Linux scheduler: the effective maximum is 250 samples per second.

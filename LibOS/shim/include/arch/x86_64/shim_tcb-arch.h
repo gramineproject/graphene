@@ -186,13 +186,19 @@ static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num
         }                                                               \
     } while (0)
 
-static inline void shim_arch_update_fs_base(unsigned long fs_base) {
-    DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
+static inline void shim_arch_update_tls_base(unsigned long tls_base) {
+    DkSegmentRegisterSet(PAL_SEGMENT_FS, (PAL_PTR)tls_base);
 }
 
-/* On x86_64 the fs_base is the same as the tls parameter to 'clone' */
-static inline unsigned long tls_to_fs_base(unsigned long tls) {
+/* On x86_64 the tls_base (fs register) is the same as the tls parameter to 'clone' */
+static inline unsigned long tls_to_tls_base(unsigned long tls) {
     return tls;
 }
+
+/* extended context */
+struct shim_ext_context {
+    uint16_t  fpcw;    /* FPU Control Word (for x87) */
+    uint32_t  mxcsr;   /* MXCSR control/status register (for SSE/AVX/...) */
+};
 
 #endif /* _SHIM_TCB_ARCH_H_ */

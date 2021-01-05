@@ -43,7 +43,6 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkThreadResume);
 
     PRINT_SYMBOL(DkSetExceptionHandler);
-    PRINT_SYMBOL(DkExceptionReturn);
 
     PRINT_SYMBOL(DkMutexCreate);
     PRINT_SYMBOL(DkMutexRelease);
@@ -59,7 +58,8 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkRandomBitsRead);
     PRINT_SYMBOL(DkInstructionCacheFlush);
 #if defined(__x86_64__)
-    PRINT_SYMBOL(DkSegmentRegister);
+    PRINT_SYMBOL(DkSegmentRegisterGet);
+    PRINT_SYMBOL(DkSegmentRegisterSet);
 #endif
     PRINT_SYMBOL(DkMemoryAvailableQuota);
 

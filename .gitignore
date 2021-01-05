@@ -1,4 +1,5 @@
 /build
+/install
 
 # No editor backup files.
 *.sw*
@@ -21,7 +22,8 @@ pal.map
 *.so.*
 
 # python
-*.pyc
+*.py[co]
+__pycache__
 
 # sgx
 *.manifest.sgx

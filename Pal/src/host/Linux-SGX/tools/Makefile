@@ -12,3 +12,4 @@ $(targets):
 	$(MAKE) -C verify-ias-report $@
 	$(MAKE) -C ra-tls $@
 	$(MAKE) -C pf_crypt $@
+	$(MAKE) -C pf_tamper $@

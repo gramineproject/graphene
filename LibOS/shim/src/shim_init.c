@@ -43,8 +43,7 @@ toml_table_t* g_manifest_root = NULL;
 
 const unsigned int glibc_version = GLIBC_VERSION;
 
-static void handle_failure(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
-    __UNUSED(event);
+static void handle_failure(PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(context);
     if ((arg <= PAL_ERROR_NATIVE_COUNT) ||
             (arg >= PAL_ERROR_CRYPTO_START && arg <= PAL_ERROR_CRYPTO_END))
@@ -352,63 +351,6 @@ static int read_environs(const char** envp) {
     return 0;
 }
 
-int init_manifest(PAL_HANDLE manifest_handle) {
-    int ret = 0;
-    void* addr = NULL;
-    size_t size = 0, map_size = 0;
-    bool stream_mapped = false;
-
-    if (PAL_CB(manifest_preload.start)) {
-        addr = PAL_CB(manifest_preload.start);
-        size = PAL_CB(manifest_preload.end) - PAL_CB(manifest_preload.start);
-    } else {
-        PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQueryByHandle(manifest_handle, &attr))
-            return -PAL_ERRNO();
-
-        size = attr.pending_size;
-        map_size = ALLOC_ALIGN_UP(size);
-        ret = bkeep_mmap_any(map_size, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL, NULL,
-                             0, "manifest", &addr);
-        if (ret < 0) {
-            return ret;
-        }
-
-        void* ret_addr = DkStreamMap(manifest_handle, addr, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(size));
-
-        if (!ret_addr) {
-            ret = -ENOMEM;
-            goto fail;
-        }
-        stream_mapped = true;
-        assert(addr == ret_addr);
-    }
-
-    char errbuf[256];
-    g_manifest_root = toml_parse(addr, errbuf, sizeof(errbuf));
-    if (!g_manifest_root) {
-        debug("PAL failed at parsing the manifest: %s\n"
-              "  Graphene switched to the TOML format recently, please update the manifest\n"
-              "  (in particular, string values must be put in double quotes)\n", errbuf);
-        goto fail;
-    }
-
-    return 0;
-
-fail:
-    if (map_size) {
-        void* tmp_vma = NULL;
-        if (bkeep_munmap(addr, map_size, /*is_internal=*/true, &tmp_vma) < 0) {
-            BUG();
-        }
-        if (stream_mapped) {
-            DkStreamUnmap(addr, map_size);
-        }
-        bkeep_remove_tmp_vma(tmp_vma);
-    }
-    return ret;
-}
-
 #define CALL_INIT(func, args...) func(args)
 
 #define RUN_INIT(func, ...)                                              \
@@ -426,7 +368,7 @@ noreturn void* shim_init(int argc, void* args) {
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
-    update_fs_base(0);
+    update_tls_base(0);
     __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
 
@@ -442,6 +384,8 @@ noreturn void* shim_init(int argc, void* args) {
         debug("Error during shim_init(): PAL allocation alignment not a power of 2\n");
         DkProcessExit(EINVAL);
     }
+
+    g_manifest_root = PAL_CB(manifest_root);
 
     shim_xstate_init();
 
@@ -475,9 +419,6 @@ noreturn void* shim_init(int argc, void* args) {
         assert(hdr.size);
         RUN_INIT(receive_checkpoint_and_restore, &hdr);
     }
-
-    if (PAL_CB(manifest_handle))
-        RUN_INIT(init_manifest, PAL_CB(manifest_handle));
 
     RUN_INIT(init_mount_root);
     RUN_INIT(init_ipc);

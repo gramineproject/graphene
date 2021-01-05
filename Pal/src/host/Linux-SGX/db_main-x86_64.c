@@ -6,6 +6,7 @@
  */
 
 #include "api.h"
+#include "cpu.h"
 #include "linux_utils.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -219,21 +220,29 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
     return 0;
 }
 
-int _DkSegmentRegisterSet(int reg, const void* addr) {
-    /* GS is internally used, denied any access to it */
-    if (reg != PAL_SEGMENT_FS)
-        return -PAL_ERROR_DENIED;
-
-    SET_ENCLAVE_TLS(fsbase, (void*)addr);
-    wrfsbase((uint64_t)addr);
-    return 0;
+int _DkSegmentRegisterGet(int reg, void** addr) {
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            *addr = (void*)GET_ENCLAVE_TLS(fsbase);
+            return 0;
+        case PAL_SEGMENT_GS:
+            /* GS is internally used, deny any access to it */
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
+    }
 }
 
-int _DkSegmentRegisterGet(int reg, void** addr) {
-    /* GS is internally used, denied any access to it */
-    if (reg != PAL_SEGMENT_FS)
-        return -PAL_ERROR_DENIED;
-
-    *addr = (void*)GET_ENCLAVE_TLS(fsbase);
-    return 0;
+int _DkSegmentRegisterSet(int reg, void* addr) {
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            SET_ENCLAVE_TLS(fsbase, addr);
+            wrfsbase((uint64_t)addr);
+            return 0;
+        case PAL_SEGMENT_GS:
+            /* GS is internally used, deny any access to it */
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
+    }
 }

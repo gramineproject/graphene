@@ -3,7 +3,6 @@ include Makefile.am
 
 CFLAGS += \
 	-I. \
-	-Iinclude \
 	-I../.. \
 	-I../../../include \
 	-I../../../include/pal \
@@ -14,8 +13,7 @@ CFLAGS += \
 	-I../../../include/lib \
 	-I../../../lib/crypto/mbedtls/include \
 	-I../../../lib/crypto/mbedtls/crypto/include \
-	-Iprotected-files \
-	-Isgx-driver
+	-Iprotected-files
 
 # Some of the code uses alignof on expressions, which is a GNU extension.
 # Silence Clang - it complains but does support it.
@@ -34,7 +32,7 @@ CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
 commons_objs_encl = bogomips.o
-commons_objs_urts = main_exec_path.o
+commons_objs_urts = file_utils.o main_exec_path.o
 
 enclave-objs = \
 	db_devices.o \
@@ -75,8 +73,10 @@ urts-objs = \
 	sgx_framework.o \
 	sgx_graphene.o \
 	sgx_main.o \
+	sgx_perf_data.o \
 	sgx_platform.o \
 	sgx_process.o \
+	sgx_profile.o \
 	sgx_gdb_info.o \
 	sgx_thread.o \
 	quote/aesm.pb-c.o \
@@ -87,7 +87,7 @@ urts-asm-objs = sgx_entry.o
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
-all: sgx-driver/sgx.h $(host_files) tools
+all: gsgx.h $(host_files) tools
 
 libpal-Linux-SGX.a: $(enclave-objs) $(enclave-asm-objs)
 	$(call cmd,ar_a_o)
@@ -136,8 +136,8 @@ gdb_integration/sgx_gdb.so: gdb_integration/sgx_gdb.c
 
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
-sgx-driver/sgx.h:
-	$(MAKE) -C sgx-driver $(notdir $@)
+gsgx.h: gsgx.h.in
+	./link-intel-driver.py < $< > $@
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard gdb_integration/*.d)
@@ -152,6 +152,7 @@ tools:
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += gdb_integration/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
+CLEAN_FILES += gsgx.h
 
 .PHONY: clean_
 clean_:
@@ -161,12 +162,10 @@ clean_:
 
 .PHONY: clean
 clean: clean_
-	$(MAKE) -C sgx-driver $@
 	$(MAKE) -C tools $@
 
 .PHONY: distclean
 distclean: clean_
-	$(MAKE) -C sgx-driver $@
 	$(MAKE) -C tools $@
 
 .PHONY: test

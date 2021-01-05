@@ -145,8 +145,8 @@ void _DkDebugAddMap(struct link_map* map) {
         shdr = __alloca(shdrsz);
         unsigned long s = ALLOC_ALIGN_DOWN(ehdr->e_shoff);
         unsigned long e = ALLOC_ALIGN_UP(ehdr->e_shoff + shdrsz);
-        void* umem;
-        ocall_mmap_untrusted(fd, s, e - s, PROT_READ, &umem);
+        void* umem = NULL;
+        ocall_mmap_untrusted(&umem, e - s, PROT_READ, MAP_SHARED, fd, s);
         memcpy(shdr, umem + ehdr->e_shoff - s, shdrsz);
         ocall_munmap_untrusted(umem, e - s);
     }
@@ -167,8 +167,8 @@ void _DkDebugAddMap(struct link_map* map) {
         shstrtab = __alloca(shstrsz);
         unsigned long s = ALLOC_ALIGN_DOWN(shstroff);
         unsigned long e = ALLOC_ALIGN_UP(shstroff + shstrsz);
-        void* umem;
-        ocall_mmap_untrusted(fd, s, e - s, PROT_READ, &umem);
+        void* umem = NULL;
+        ocall_mmap_untrusted(&umem, e - s, PROT_READ, MAP_SHARED, fd, s);
         memcpy((void*)shstrtab, umem + shstroff - s, shstrsz);
         ocall_munmap_untrusted(umem, e - s);
     }
@@ -198,6 +198,14 @@ void _DkDebugAddMap(struct link_map* map) {
     }
 
     debug_map_add(debug_map);
+
+    for (ph = phdr; ph < &phdr[ehdr->e_phnum]; ++ph)
+        if (ph->p_type == PT_LOAD && ph->p_flags & PF_X) {
+            uint64_t mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
+            uint64_t mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
+            uint64_t offset = ALLOC_ALIGN_DOWN(ph->p_offset);
+            ocall_report_mmap(map->l_name, map->l_addr + mapstart, mapend - mapstart, offset);
+        }
 }
 
 void _DkDebugDelMap(struct link_map* map) {

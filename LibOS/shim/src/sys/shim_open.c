@@ -560,7 +560,6 @@ int shim_do_truncate(const char* path, loff_t length) {
         goto out_handle;
 
     ret = fs->fs_ops->truncate(hdl, length);
-    flush_handle(hdl);
 out_handle:
     put_handle(hdl);
 out:

@@ -354,7 +354,6 @@ struct shim_handle {
 
 /* allocating / manage handle */
 struct shim_handle* get_new_handle(void);
-void flush_handle(struct shim_handle* hdl);
 void get_handle(struct shim_handle* hdl);
 void put_handle(struct shim_handle* hdl);
 
@@ -410,7 +409,6 @@ struct shim_handle* detach_fd_handle(FDTYPE fd, int* flags, struct shim_handle_m
 
 /* manage handle mapping */
 int dup_handle_map(struct shim_handle_map** new_map, struct shim_handle_map* old_map);
-int flush_handle_map(struct shim_handle_map* map);
 void get_handle_map(struct shim_handle_map* map);
 void put_handle_map(struct shim_handle_map* map);
 int walk_handle_map(int (*callback)(struct shim_fd_handle*, struct shim_handle_map*),

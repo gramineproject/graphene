@@ -2,9 +2,20 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * syscallas.S
+ * This file contains the entry point of system call table in library OS (the function syscalldb()
+ * and its wrapper syscall_wrapper() for cases of redirection of raw SYSCALL instructions).
  *
- * This file contains the entry point of system call table in library OS.
+ * The below entry point implementation first saves the CPU context of the current application
+ * thread on the thread's stack, then calls the corresponding LibOS syscall-emulation function, and
+ * then restores the context and passes control back to the application. The context consists of
+ * GPRs, FP control word (fpcw) and the SSE/AVX/... control word (mxcsr).
+ *
+ * Note that LibOS may clobber all FP/SSE/AVX/... (extended) state except the control words. We rely
+ * on the fact that applications do *not* assume that this extended state is preserved across system
+ * calls. Indeed, the extended state (bar control words) is explicitly described as *not* preserved
+ * by the System V ABI, and though syscall ABI is not the same as System V ABI, we assume that no
+ * sane application issues syscalls in a non-System-V compliant manner. See System V ABI docs
+ * (https://uclibc.org/docs/psABI-x86_64.pdf), "Register Usage" for more information.
  */
 
 #include "asm-offsets.h"
@@ -62,7 +73,10 @@ syscalldb:
         cmp $0, %rbx
         je isundef
 
+        # set pointer to shim_regs and save FP Control Word & MXCSR into current thread's TCB
         movq %rbp, %gs:(SHIM_TCB_OFFSET + TCB_REGS)
+        fnstcw %gs:(SHIM_TCB_OFFSET + TCB_FPCW)
+        stmxcsr %gs:(SHIM_TCB_OFFSET + TCB_MXCSR)
 
         /* Translating x86_64 kernel calling convention to user-space
          * calling convention */
@@ -70,7 +84,10 @@ syscalldb:
         andq $~0xF, %rsp  # Required by System V AMD64 ABI.
         call *%rbx
 
+        # invalidate pointer to shim_regs and restore FP Control Word & MXCSR from TCB
         movq $0, %gs:(SHIM_TCB_OFFSET + TCB_REGS)
+        fldcw %gs:(SHIM_TCB_OFFSET + TCB_FPCW)
+        ldmxcsr %gs:(SHIM_TCB_OFFSET + TCB_MXCSR)
 
 ret:
         movq %rbp, %rsp

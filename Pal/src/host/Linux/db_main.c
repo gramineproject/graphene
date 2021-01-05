@@ -38,9 +38,7 @@ struct pal_sec g_pal_sec;
 
 static size_t g_page_size = PRESET_PAGESIZE;
 static int g_uid, g_gid;
-#if USE_VDSO_GETTIME == 1
 static ElfW(Addr) g_sysinfo_ehdr;
-#endif
 
 static void read_args_from_stack(void* initial_rsp, int* out_argc, const char*** out_argv,
                                  const char*** out_envp) {
@@ -85,11 +83,9 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
             case AT_EGID:
                 g_gid ^= av->a_un.a_val;
                 break;
-#if USE_VDSO_GETTIME == 1
             case AT_SYSINFO_EHDR:
                 g_sysinfo_ehdr = av->a_un.a_val;
                 break;
-#endif
         }
     }
     *out_argc = argc;
@@ -103,7 +99,7 @@ unsigned long _DkGetAllocationAlignment(void) {
 
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     void* end_addr = (void*)ALLOC_ALIGN_DOWN_PTR(TEXT_START);
-    void* start_addr = (void*)USER_ADDRESS_LOWEST;
+    void* start_addr = (void*)MMAP_MIN_ADDR;
 
     assert(IS_ALLOC_ALIGNED_PTR(start_addr) && IS_ALLOC_ALIGNED_PTR(end_addr));
 
@@ -130,15 +126,7 @@ PAL_NUM _DkGetProcessId(void) {
     return g_linux_state.process_id;
 }
 
-PAL_NUM _DkGetHostId(void) {
-    return 0;
-}
-
 #include "dynamic_link.h"
-
-#if USE_VDSO_GETTIME == 1
-void setup_vdso_map(ElfW(Addr) addr);
-#endif
 
 static struct link_map g_pal_map;
 
@@ -147,7 +135,7 @@ static struct link_map g_pal_map;
 noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s <path to libpal.so> init [<executable>|<manifest>] args...\n"
+           "\tFirst process: %s <path to libpal.so> init <executable> args...\n"
            "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
            self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
@@ -156,11 +144,18 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
 
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
-
-    uint64_t start_time = _DkSystemTimeQueryEarly();
-    g_pal_state.start_time = start_time;
-
     int ret;
+
+    uint64_t start_time;
+    ret = _DkSystemTimeQuery(&start_time);
+    if (ret < 0)
+        INIT_FAIL(unix_to_pal_error(-ret), "_DkSystemTimeQuery() failed");
+
+
+    /* Initialize alloc_align as early as possible, a lot of PAL APIs depend on this being set. */
+    g_pal_state.alloc_align = _DkGetAllocationAlignment();
+    assert(IS_POWER_OF_2(g_pal_state.alloc_align));
+
     int argc;
     const char** argv;
     const char** envp;
@@ -217,17 +212,8 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     setup_pal_map(&g_pal_map);
 
-#if USE_VDSO_GETTIME == 1
     if (g_sysinfo_ehdr)
         setup_vdso_map(g_sysinfo_ehdr);
-#endif
-
-    PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
-    if (!first_process) {
-        // Children receive their argv and config via IPC.
-        int parent_pipe_fd = atoi(argv[3]);
-        init_child_process(parent_pipe_fd, &parent, &exec, &manifest);
-    }
 
     if (!g_pal_sec.process_id)
         g_pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
@@ -240,27 +226,49 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     if (!g_linux_state.parent_process_id)
         g_linux_state.parent_process_id = g_linux_state.process_id;
 
+    PAL_HANDLE parent = NULL;
+    PAL_HANDLE exec_handle = NULL;
+    char* manifest = NULL;
     if (first_process) {
         char* exec_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, argv[3], -1);
-        if (!exec_uri)
+        char* manifest_path = alloc_concat(argv[3], -1, ".manifest", -1);
+        if (!exec_uri || !manifest_path)
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
-        PAL_HANDLE file;
-        int ret = _DkStreamOpen(&file, exec_uri, PAL_ACCESS_RDONLY, 0, 0, PAL_OPTION_CLOEXEC);
+        ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, PAL_OPTION_CLOEXEC);
         free(exec_uri);
-        if (ret < 0)
+        if (ret < 0) {
             INIT_FAIL(-ret, "Failed to open file to execute");
-
-        if (is_elf_object(file)) {
-            exec = file;
-        } else {
-            manifest = file;
         }
+
+        if (!is_elf_object(exec_handle)) {
+            INIT_FAIL(EINVAL, "First argument passed to Graphene must be an executable");
+        }
+
+        ret = read_text_file_to_cstr(manifest_path, &manifest);
+        if (ret == -ENOENT) {
+            ret = read_text_file_to_cstr("manifest", &manifest);
+        }
+        if (ret < 0) {
+            INIT_FAIL(-ret, "Reading manifest failed");
+        }
+    } else {
+        // Children receive their argv and config via IPC.
+        int parent_pipe_fd = atoi(argv[3]);
+        init_child_process(parent_pipe_fd, &parent, &exec_handle, &manifest);
     }
+    assert(manifest);
 
     signal_setup();
 
+    g_pal_state.raw_manifest_data = manifest;
+
+    char errbuf[256];
+    g_pal_state.manifest_root = toml_parse(manifest, errbuf, sizeof(errbuf));
+    if (!g_pal_state.manifest_root)
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, errbuf);
+
     /* call to main function */
-    pal_main((PAL_NUM)g_linux_state.parent_process_id, manifest, exec, NULL, parent, first_thread,
+    pal_main((PAL_NUM)g_linux_state.parent_process_id, exec_handle, NULL, parent, first_thread,
              first_process ? argv + 3 : argv + 4, envp);
 }
 

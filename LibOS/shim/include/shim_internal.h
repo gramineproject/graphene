@@ -486,7 +486,6 @@ int init_brk_region(void* brk_region, size_t data_segment_size);
 void reset_brk(void);
 int init_internal_map(void);
 int init_loader(void);
-int init_manifest(PAL_HANDLE manifest_handle);
 int init_rlimit(void);
 
 bool test_user_memory(void* addr, size_t size, bool write);

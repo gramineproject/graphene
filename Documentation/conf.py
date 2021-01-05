@@ -107,6 +107,7 @@ todo_include_todos = True
 nitpicky = True
 nitpick_ignore = [
     ('c:type', 'bool'),
+    ('c:type', 'toml_table_t'),
     ('c:type', 'uint32_t'),
     ('c:type', 'uint64_t'),
     ('c:type', 'union'),

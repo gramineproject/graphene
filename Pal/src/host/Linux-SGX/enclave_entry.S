@@ -700,7 +700,10 @@ __morestack:
 
 	# Check if there was a signal
 	cmpq $0, %rsi
-	jne .Lexternal_event
+	je .Lno_external_event
+	cmpq $PAL_EVENT_NUM_BOUND, %rsi
+	jb .Lexternal_event
+.Lno_external_event:
 	movq %rsp, %rdi # %rdi = sgx_cpu_context_t* uc
 	movq %rsp, %rsi
 	addq $SGX_CPU_CONTEXT_SIZE, %rsi # %rsi = PAL_XREGS_STATE* xregs_state

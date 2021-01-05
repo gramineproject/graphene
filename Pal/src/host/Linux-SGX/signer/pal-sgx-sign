@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-
-# This is just a wrapper that provides the cmdline tool. All code should go
-# into pal_sgx_sign.py.
-
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name,import-error,wrong-import-position
 
 import sys
 import os
+import pathlib
 
-sys.path.insert(0, os.path.dirname(__file__))
-from pal_sgx_sign import main # pylint: disable=import-error,wrong-import-position
+try:
+    fspath = os.fspath
+except AttributeError:
+    fspath = str
+
+# this is needed, so import generated_offsets works as backup from main python package
+sys.path.insert(0, fspath(pathlib.Path(__file__).parent.parent))
+
+sys.path.insert(0, fspath((pathlib.Path(__file__) / '../../../../../../python').resolve()))
+from graphenelibos.sgx_sign import main
 
 sys.exit(main())

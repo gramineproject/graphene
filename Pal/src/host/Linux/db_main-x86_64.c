@@ -219,51 +219,28 @@ out_vendor_id:
     return rv;
 }
 
-#if USE_ARCH_RDRAND == 1
-int _DkRandomBitsRead(void* buffer, size_t size) {
-    uint32_t rand;
-    for (size_t i = 0; i < size; i += sizeof(rand)) {
-        rand = rdrand();
-        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
-    }
-    return 0;
-}
-#endif
-
-int _DkSegmentRegisterSet(int reg, const void* addr) {
-    int ret = 0;
-
-    if (reg == PAL_SEGMENT_FS) {
-        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
-    } else if (reg == PAL_SEGMENT_GS) {
-        return -PAL_ERROR_DENIED;
-    } else {
-        return -PAL_ERROR_INVAL;
-    }
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    return 0;
-}
-
 int _DkSegmentRegisterGet(int reg, void** addr) {
-    int ret;
-    unsigned long ret_addr;
-
-    if (reg == PAL_SEGMENT_FS) {
-        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, &ret_addr);
-    } else if (reg == PAL_SEGMENT_GS) {
-        // The GS segment is used for the internal TCB of PAL
-        return -PAL_ERROR_DENIED;
-    } else {
-        return -PAL_ERROR_INVAL;
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            return INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, addr);
+        case PAL_SEGMENT_GS:
+            // The GS segment is used for the internal TCB of PAL
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
     }
+}
 
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    *addr = (void*)ret_addr;
-    return 0;
+int _DkSegmentRegisterSet(int reg, void* addr) {
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            return INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
+        case PAL_SEGMENT_GS:
+            // The GS segment is used for the internal TCB of PAL
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
+    }
 }
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {

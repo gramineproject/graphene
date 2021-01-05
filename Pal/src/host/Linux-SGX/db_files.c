@@ -42,7 +42,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     char* path = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
-        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
+        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(-ret));
         free(hdl);
         return ret;
     }
@@ -119,7 +119,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         if (ret < 0) {
             SGX_DBG(DBG_E, "Accessing file:%s is denied (%s). This file is not trusted or allowed."
                     " Trusted files should be regular files (seekable).\n", hdl->file.realpath,
-                    pal_strerror(ret));
+                    pal_strerror(-ret));
             goto out;
         }
 
@@ -412,7 +412,6 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
     uint64_t total    = handle->file.total;
     void* mem         = *addr;
-    void* umem;
     int ret;
 
     /*
@@ -421,7 +420,8 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
      * does not request a specific address.
      */
     if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
-        ret = ocall_mmap_untrusted(handle->file.fd, offset, size, PAL_PROT_TO_LINUX(prot), &mem);
+        ret = ocall_mmap_untrusted(&mem, size, PAL_PROT_TO_LINUX(prot), MAP_SHARED, handle->file.fd,
+                                   offset);
         if (!IS_ERR(ret))
             *addr = mem;
         return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
@@ -451,7 +451,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         map_end   = ALLOC_ALIGN_UP(end);
     }
 
-    ret = ocall_mmap_untrusted(handle->file.fd, map_start, map_end - map_start, PROT_READ, &umem);
+    void* umem = NULL;
+    ret = ocall_mmap_untrusted(&umem, map_end - map_start, PROT_READ, MAP_SHARED, handle->file.fd,
+                               map_start);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "file_map - ocall returned %d\n", ret);
         return unix_to_pal_error(ERRNO(ret));
@@ -608,7 +610,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     size_t len = URI_MAX;
     ret = get_norm_path(uri, path, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
+        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(-ret));
         goto out;
     }
 

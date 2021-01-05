@@ -11,6 +11,7 @@
 
 #include <asm/errno.h>
 #include <asm/fcntl.h>
+#include <asm/ioctls.h>
 #include <asm/poll.h>
 #include <linux/sched.h>
 #include <linux/time.h>
@@ -92,7 +93,6 @@ out:
 struct proc_param {
     PAL_HANDLE parent;
     PAL_HANDLE exec;
-    PAL_HANDLE manifest;
     const char** argv;
 };
 
@@ -128,8 +128,6 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
         handle_set_cloexec(proc_param->parent, false);
     if (proc_param->exec)
         handle_set_cloexec(proc_param->exec, false);
-    if (proc_param->manifest)
-        handle_set_cloexec(proc_param->manifest, false);
 
     int res = INLINE_SYSCALL(execve, 3, g_pal_loader_path, proc_param->argv,
                              g_linux_state.host_environ);
@@ -144,6 +142,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     PAL_HANDLE exec = NULL;
     PAL_HANDLE parent_handle = NULL;
     PAL_HANDLE child_handle = NULL;
+    struct proc_args* proc_args = NULL;
+    void* parent_data = NULL;
+    void* exec_data = NULL;
     int ret;
 
     assert(uri);
@@ -182,39 +183,32 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     param.parent   = parent_handle;
     param.exec     = exec;
-    param.manifest = g_pal_state.manifest_handle;
 
     /* step 3: compose process parameters */
 
-    size_t parent_datasz = 0, exec_datasz = 0, manifest_datasz = 0;
-    void* parent_data = NULL;
-    void* exec_data = NULL;
-    void* manifest_data = NULL;
+    size_t parent_data_size = 0;
+    size_t exec_data_size = 0;
+    size_t manifest_data_size = 0;
 
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
         goto out;
-    parent_datasz = (size_t)ret;
+    parent_data_size = (size_t)ret;
 
     ret = handle_serialize(exec, &exec_data);
     if (ret < 0) {
-        free(parent_data);
         goto out;
     }
-    exec_datasz = (size_t)ret;
+    exec_data_size = (size_t)ret;
 
-    if (g_pal_state.manifest_handle) {
-        ret = handle_serialize(g_pal_state.manifest_handle, &manifest_data);
-        if (ret < 0) {
-            free(parent_data);
-            free(exec_data);
-            goto out;
-        }
-        manifest_datasz = (size_t)ret;
+    manifest_data_size = strlen(g_pal_state.raw_manifest_data);
+
+    size_t data_size = parent_data_size + exec_data_size + manifest_data_size;
+    proc_args = malloc(sizeof(struct proc_args) + data_size);
+    if (!proc_args) {
+        ret = -ENOMEM;
+        goto out;
     }
-
-    size_t datasz = parent_datasz + exec_datasz + manifest_datasz;
-    struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + datasz);
 
     proc_args->parent_process_id = g_linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &g_pal_sec, sizeof(struct pal_sec));
@@ -222,23 +216,19 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     proc_args->pal_sec._r_debug        = NULL;
     proc_args->memory_quota            = g_linux_state.memory_quota;
 
-    void* data = (void*)(proc_args + 1);
+    char* data = (char*)(proc_args + 1);
 
-    memcpy(data, parent_data, parent_datasz);
-    data += (proc_args->parent_data_size = parent_datasz);
-    free(parent_data);
+    memcpy(data, parent_data, parent_data_size);
+    proc_args->parent_data_size = parent_data_size;
+    data += parent_data_size;
 
-    memcpy(data, exec_data, exec_datasz);
-    data += (proc_args->exec_data_size = exec_datasz);
-    free(exec_data);
+    memcpy(data, exec_data, exec_data_size);
+    proc_args->exec_data_size = exec_data_size;
+    data += exec_data_size;
 
-    if (manifest_data) {
-        memcpy(data, manifest_data, manifest_datasz);
-        data += (proc_args->manifest_data_size = manifest_datasz);
-        free(manifest_data);
-    } else {
-        proc_args->manifest_data_size = 0;
-    }
+    memcpy(data, g_pal_state.raw_manifest_data, manifest_data_size);
+    proc_args->manifest_data_size = manifest_data_size;
+    data += manifest_data_size;
 
     /* step 4: create a child thread which will execve in the future */
 
@@ -282,9 +272,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     /* step 4: send parameters over the process handle */
 
     ret = INLINE_SYSCALL(write, 3, child_handle->process.stream, proc_args,
-                         sizeof(struct proc_args) + datasz);
+                         sizeof(struct proc_args) + data_size);
 
-    if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args) + datasz) {
+    if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args) + data_size) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -292,6 +282,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     *handle = child_handle;
     ret = 0;
 out:
+    free(parent_data);
+    free(exec_data);
+    free(proc_args);
     if (parent_handle)
         _DkObjectClose(parent_handle);
     if (exec)
@@ -304,68 +297,65 @@ out:
 }
 
 void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDLE* exec_handle,
-                        PAL_HANDLE* manifest_handle) {
+                        char** manifest_out) {
     int ret = 0;
 
-    /* try to do a very large reading, so it doesn't have to be read for the
-       second time */
-    struct proc_args* proc_args = __alloca(sizeof(struct proc_args));
-    struct proc_args* new_proc_args;
+    struct proc_args proc_args;
 
-    int bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, proc_args, sizeof(*proc_args));
-    if (IS_ERR(bytes)) {
-        INIT_FAIL(-unix_to_pal_error(ERRNO(bytes)), "communication with parent failed");
+    long bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(proc_args));
+    if (IS_ERR(bytes) || bytes != sizeof(proc_args)) {
+        int err = IS_ERR(bytes) ? -unix_to_pal_error(ERRNO(bytes)) : PAL_ERROR_INTERRUPTED;
+        INIT_FAIL(err, "communication with parent failed");
     }
 
     /* a child must have parent handle and an executable */
-    if (!proc_args->parent_data_size)
+    if (!proc_args.parent_data_size)
         INIT_FAIL(PAL_ERROR_INVAL, "invalid process created");
 
-    size_t datasz = proc_args->parent_data_size + proc_args->exec_data_size
-                    + proc_args->manifest_data_size;
-    new_proc_args = __alloca(sizeof(*proc_args) + datasz);
-    memcpy(new_proc_args, proc_args, sizeof(*proc_args));
-    proc_args = new_proc_args;
-    void* data = (void*)(proc_args + 1);
+    size_t data_size = proc_args.parent_data_size + proc_args.exec_data_size
+                       + proc_args.manifest_data_size;
+    char* data = malloc(data_size);
+    if (!data)
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
 
-    bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, datasz);
-    if (IS_ERR(bytes))
+    bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, data_size);
+    if (IS_ERR(bytes) || (size_t)bytes != data_size)
         INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
 
     /* now deserialize the parent_handle */
     PAL_HANDLE parent = NULL;
-    ret = handle_deserialize(&parent, data, proc_args->parent_data_size);
+    char* data_iter = data;
+    ret = handle_deserialize(&parent, data_iter, proc_args.parent_data_size);
     if (ret < 0)
         INIT_FAIL(-ret, "cannot deserialize parent process handle");
-    data += proc_args->parent_data_size;
+    data_iter += proc_args.parent_data_size;
     *parent_handle = parent;
 
     /* deserialize the executable handle */
-    if (proc_args->exec_data_size) {
+    if (proc_args.exec_data_size) {
         PAL_HANDLE exec = NULL;
 
-        ret = handle_deserialize(&exec, data, proc_args->exec_data_size);
+        ret = handle_deserialize(&exec, data_iter, proc_args.exec_data_size);
         if (ret < 0)
             INIT_FAIL(-ret, "cannot deserialize executable handle");
 
-        data += proc_args->exec_data_size;
+        data_iter += proc_args.exec_data_size;
         *exec_handle = exec;
     }
 
-    /* deserialize the manifest handle, if there is one */
-    if (proc_args->manifest_data_size) {
-        PAL_HANDLE manifest = NULL;
+    char* manifest = malloc(proc_args.manifest_data_size + 1);
+    if (!manifest)
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+    memcpy(manifest, data_iter, proc_args.manifest_data_size);
+    manifest[proc_args.manifest_data_size] = '\0';
+    data_iter += proc_args.manifest_data_size;
 
-        ret = handle_deserialize(&manifest, data, proc_args->manifest_data_size);
-        if (ret < 0)
-            INIT_FAIL(-ret, "cannot deserialize manifest handle");
+    g_linux_state.parent_process_id = proc_args.parent_process_id;
+    g_linux_state.memory_quota = proc_args.memory_quota;
+    memcpy(&g_pal_sec, &proc_args.pal_sec, sizeof(struct pal_sec));
 
-        data += proc_args->manifest_data_size;
-        *manifest_handle = manifest;
-    }
-    g_linux_state.parent_process_id = proc_args->parent_process_id;
-    g_linux_state.memory_quota = proc_args->memory_quota;
-    memcpy(&g_pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
+    *manifest_out = manifest;
+    free(data);
 }
 
 noreturn void _DkProcessExit(int exitcode) {

@@ -22,9 +22,6 @@ class RegressionTestCase(unittest.TestCase):
     HOST_PAL_PATH_ENV = 'HOST_PAL_PATH'
     DEFAULT_TIMEOUT = (20 if HAS_SGX else 10)
 
-    def get_manifest(self, filename):
-        return filename + '.manifest' + ('.sgx' if HAS_SGX else '')
-
     def get_env(self, name):
         try:
             return os.environ[name]

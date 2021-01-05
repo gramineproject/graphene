@@ -252,7 +252,7 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
     int my_pathlen = 0;
     int err = 0;
     struct shim_dentry* my_dent = NULL;
-    struct shim_qstr this = QSTR_INIT;
+    struct shim_qstr link_target = QSTR_INIT;
     bool leaf_case = false; // Leaf call in case of recursion
     bool no_start = false; // start not passed
     bool no_fs = false; // fs not passed
@@ -363,18 +363,15 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
 
                 assert(my_dent->fs->d_ops && my_dent->fs->d_ops->follow_link);
 
-                if ((err = my_dent->fs->d_ops->follow_link(my_dent, &this)) < 0)
+                if ((err = my_dent->fs->d_ops->follow_link(my_dent, &link_target)) < 0)
                     goto out;
 
-                path = qstrgetstr(&this);
+                /* let's re-start lookup & recursion with the link's target */
+                my_path = qstrgetstr(&link_target);
 
-                if (path) {
+                if (my_path) {
                     /* symlink name starts with a slash, restart lookup at root */
-                    if (*path == '/') {
-                        /* FIXME: below logic assumes that target file is under chroot; this misses
-                         *        cases like `/dev/stdin` which is a link to `/proc/self/fd/0`
-                         *        (i.e., Graphene currently fails if target is under pseudo-FS) */
-
+                    if (*my_path == '/') {
                         /*XXX: Check out path_reacquire here? */
                         // my_dent's refcount was incremented by lookup_dentry above,
                         // we need to not leak it here
@@ -418,13 +415,9 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
             get_mount(my_dent->fs);
             err = __path_lookupat(my_dent, my_path, flags, dent, link_depth, my_dent->fs,
                                   make_ancestor);
+            put_mount(my_dent->fs);
             if (err < 0)
                 goto out;
-            /* If we aren't returning a live reference to the target dentry, go
-             * ahead and release the ref count when we unwind the recursion.
-             */
-            put_mount(my_dent->fs);
-            put_dentry(my_dent);
         } else {
             /* If make_ancestor is set, we also need to handle the case here */
             if (make_ancestor && (my_dent->state & DENTRY_NEGATIVE)) {
@@ -440,8 +433,10 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
 
     /* Base case.  Set dent and return. */
     if (leaf_case) {
-        if (dent)
+        if (dent) {
+            get_dentry(my_dent);
             *dent = my_dent;
+        }
 
         // Enforce LOOKUP_CREATE flag at a higher level
         if (my_dent->state & DENTRY_NEGATIVE) {
@@ -455,6 +450,10 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
     }
 
 out:
+    if (my_dent) {
+        put_dentry(my_dent);
+    }
+
     /* If we didn't have a start dentry, decrement the ref count here */
     if (no_start)
         put_dentry(start);
@@ -462,7 +461,7 @@ out:
     if (no_fs)
         put_mount(fs);
 
-    qstrfree(&this);
+    qstrfree(&link_target);
     return err;
 }
 
@@ -581,8 +580,11 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
         err = dentry_open(hdl, mydent, flags);
 
 out:
-    if (dent && !err)
+    if (dent && !err) {
         *dent = mydent;
+    } else if (mydent) {
+        put_dentry(mydent);
+    }
 
     unlock(&dcache_lock);
 
@@ -744,8 +746,10 @@ int list_directory_dentry(struct shim_dentry* dent) {
             }
         }
 
-        if (child->state & DENTRY_NEGATIVE)
+        if (child->state & DENTRY_NEGATIVE) {
+            put_dentry(child);
             continue;
+        }
 
         if (!(child->state & DENTRY_VALID)) {
             child->state |= DENTRY_VALID | DENTRY_RECENTLY;
@@ -753,6 +757,7 @@ int list_directory_dentry(struct shim_dentry* dent) {
 
         set_dirent_type(&child->type, d->type);
         child->ino = d->ino;
+        put_dentry(child);
     }
 
     /* Once DENTRY_LISTED is set, the ino of the newly created file will not be updated, so its

@@ -146,18 +146,18 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     uint64_t request_mmap_addr = secs->base;
     uint64_t request_mmap_size = secs->size;
 
-#ifdef SGX_DCAP_16_OR_LATER
+#ifdef SGX_DCAP
     /* newer DCAP/in-kernel SGX drivers allow starting enclave address space with non-zero;
-     * the below trick to start from DEFAULT_HEAP_MIN is to avoid vm.mmap_min_addr==0 issue */
-    if (request_mmap_addr < DEFAULT_HEAP_MIN) {
-        request_mmap_size -= DEFAULT_HEAP_MIN - request_mmap_addr;
-        request_mmap_addr  = DEFAULT_HEAP_MIN;
+     * the below trick to start from MMAP_MIN_ADDR is to avoid vm.mmap_min_addr==0 issue */
+    if (request_mmap_addr < MMAP_MIN_ADDR) {
+        request_mmap_size -= MMAP_MIN_ADDR - request_mmap_addr;
+        request_mmap_addr  = MMAP_MIN_ADDR;
     }
 #endif
 
     uint64_t addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
                                    PROT_NONE, /* newer DCAP driver requires such initial mmap */
-#ifdef SGX_DCAP_16_OR_LATER
+#ifdef SGX_DCAP
                                    MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #else
                                    MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
@@ -260,7 +260,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         SGX_DBG(DBG_I, "adding pages to enclave: %p-%p [%s:%s] (%s)%s\n", addr, addr + size, t, p,
                 comment, m);
 
-#ifdef SGX_DCAP_16_OR_LATER
+#ifdef SGX_DCAP
     if (!user_addr && g_zero_pages_size < size) {
         /* not enough contigious zero pages to back up enclave pages, allocate more */
         /* TODO: this logic can be removed if we introduce a size cap in ENCLAVE_ADD_PAGES ioctl */
@@ -288,6 +288,9 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         .flags   = skip_eextend ? 0 : SGX_PAGE_MEASURE,
         .count   = 0, /* output parameter, will be checked after IOCTL */
     };
+    /* DCAP and in-kernel drivers require aligned data */
+    assert(IS_ALIGNED_POW2(param.src, g_page_size));
+    assert(IS_ALIGNED_POW2(param.offset, g_page_size));
 
     /* NOTE: SGX driver v39 removes `count` field and returns "number of bytes added" as return
      * value directly in `ret`. It also caps the maximum number of bytes to be added as 1MB, or 256
@@ -307,6 +310,11 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         }
 
         uint64_t added_size = ret > 0 ? (uint64_t)ret : param.count;
+        if (!added_size) {
+            SGX_DBG(DBG_E, "Intel SGX driver did not perform EADD. This may indicate a buggy "
+                           "driver, please update to the most recent version.\n");
+            return -EPERM;
+        }
 
         param.offset += added_size;
         if (param.src != (uint64_t)g_zero_pages)
@@ -352,7 +360,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         SGX_DBG(DBG_I, "Changing protections of EADDed pages returned %d\n", ret);
         return -ERRNO(ret);
     }
-#endif /* SGX_DCAP_16_OR_LATER */
+#endif /* SGX_DCAP */
 
     return 0;
 }
@@ -369,7 +377,7 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
     SGX_DBG(DBG_I, "    mr_enclave:   %s\n", ALLOCA_BYTES2HEXSTR(sigstruct->body.enclave_hash.m));
 
     struct sgx_enclave_init param = {
-#ifndef SGX_DCAP_16_OR_LATER
+#ifndef SGX_DCAP
         .addr = enclave_valid_addr,
 #endif
         .sigstruct = (uint64_t)sigstruct,

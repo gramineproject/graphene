@@ -80,7 +80,7 @@ class TC_00_BasicSet2(RegressionTestCase):
     @unittest.skipUnless(ON_X86, "x86-specific")
     def test_Segment(self):
         _, stderr = self.run_binary(['Segment'])
-        self.assertIn('TLS = 0x', stderr)
+        self.assertIn('Test OK', stderr)
 
     def test_Select(self):
         _, stderr = self.run_binary(['Select'])
@@ -188,18 +188,6 @@ class TC_01_Bootstrap(RegressionTestCase):
         _, stderr = self.run_binary(['..Bootstrap'])
         self.assertIn('User Program Started', stderr)
 
-    def test_104_manifest_as_executable_name(self):
-        manifest = self.get_manifest('Bootstrap2')
-        _, stderr = self.run_binary(['Bootstrap2'])
-        self.assertIn('User Program Started', stderr)
-        self.assertIn('Loaded Manifest: file:' + manifest, stderr)
-
-    def test_105_manifest_as_argument(self):
-        manifest = self.get_manifest('Bootstrap4')
-        _, stderr = self.run_binary(['Bootstrap4'])
-        self.assertIn('Loaded Manifest: file:' + manifest, stderr)
-        self.assertIn('Loaded Executable: file:Bootstrap', stderr)
-
     def test_110_preload_libraries(self):
         _, stderr = self.run_binary(['Bootstrap3'])
         self.assertIn('Binary 1 Preloaded', stderr)
@@ -209,9 +197,7 @@ class TC_01_Bootstrap(RegressionTestCase):
 
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
     def test_120_8gb_enclave(self):
-        manifest = self.get_manifest('Bootstrap6')
         _, stderr = self.run_binary(['Bootstrap6'], timeout=360)
-        self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Executable Range OK', stderr)
 
     def test_130_large_number_of_items_in_manifest(self):
@@ -256,7 +242,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkThreadExit',
         'DkThreadResume',
         'DkSetExceptionHandler',
-        'DkExceptionReturn',
         'DkMutexCreate',
         'DkMutexRelease',
         'DkNotificationEventCreate',
@@ -272,7 +257,8 @@ class TC_02_Symbols(RegressionTestCase):
         'DkMemoryAvailableQuota',
     ]
     if ON_X86:
-        ALL_SYMBOLS.append('DkSegmentRegister')
+        ALL_SYMBOLS.append('DkSegmentRegisterGet')
+        ALL_SYMBOLS.append('DkSegmentRegisterSet')
 
     def test_000_symbols(self):
         _, stderr = self.run_binary(['Symbols'])

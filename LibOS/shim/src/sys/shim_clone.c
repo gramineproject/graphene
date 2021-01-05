@@ -23,22 +23,14 @@
 #include "shim_utils.h"
 #include "shim_vma.h"
 
-void __attribute__((weak)) syscall_wrapper_after_syscalldb(void) {
-    /*
-     * workaround for linking.
-     * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
-     * due to missing syscall_wrapper_after_syscalldb.
-     */
-}
-
 struct shim_clone_args {
     PAL_HANDLE create_event;
     PAL_HANDLE initialize_event;
     struct shim_thread* thread;
     void* stack;
-    unsigned long fs_base;
+    unsigned long tls_base;
     struct shim_regs regs;
-    void* xstate_extended;
+    struct shim_ext_context ext_ctx;
 };
 
 /*
@@ -68,7 +60,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     shim_tcb_init();
     set_cur_thread(my_thread);
-    update_fs_base(arg->fs_base);
+    update_tls_base(arg->tls_base);
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
      * do not move the below functions before shim_tcb_init/set_cur_thread()! */
@@ -82,13 +74,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     struct debug_buf debug_buf;
     (void)debug_setbuf(tcb, &debug_buf);
 
-    debug("set fs_base to 0x%lx\n", tcb->context.fs_base);
-
-    /* FIXME: The below XSAVE area restore is not really correct but rather a dummy and will be
-     * fixed later. Now it restores the extended state from within LibOS rather than the app. In
-     * reality, XSAVE area should be part of shim_regs, and XRSTOR should happen during
-     * restore_context(). */
-    shim_xstate_restore(arg->xstate_extended);
+    debug("set tls_base to 0x%lx\n", tcb->context.tls_base);
 
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
@@ -108,6 +94,9 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     }
 
     add_thread(my_thread);
+
+    /* New thread inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words of parent thread. */
+    tcb->context.ext_ctx = arg->ext_ctx;
 
     /* Copy regs before we let the parent release them. */
     struct shim_regs regs = arg->regs;
@@ -152,7 +141,7 @@ static int migrate_fork(struct shim_cp_store* store, struct shim_process* proces
     return START_MIGRATE(store, fork, process_description, thread_description, process_ipc_info);
 }
 
-static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long fs_base,
+static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long tls_base,
                             unsigned long user_stack_addr, int* set_parent_tid) {
     assert(!(flags & CLONE_VM));
 
@@ -172,10 +161,13 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
      * shared with the parent. */
     shim_tcb.context.regs = self->shim_tcb->context.regs;
 
+    /* new process inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words */
+    shim_tcb.context.ext_ctx = self->shim_tcb->context.ext_ctx;
+
     if (flags & CLONE_SETTLS) {
-        shim_tcb.context.fs_base = fs_base;
+        shim_tcb.context.tls_base = tls_base;
     } else {
-        shim_tcb.context.fs_base = self->shim_tcb->context.fs_base;
+        shim_tcb.context.tls_base = self->shim_tcb->context.tls_base;
     }
 
     thread->shim_tcb = &shim_tcb;
@@ -354,9 +346,9 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (flags & CLONE_CHILD_CLEARTID)
         thread->clear_child_tid = child_tidptr;
 
-    unsigned long fs_base = 0;
+    unsigned long tls_base = 0;
     if (flags & CLONE_SETTLS) {
-        fs_base = tls_to_fs_base(tls);
+        tls_base = tls_to_tls_base(tls);
     }
 
     if (!(flags & CLONE_VM)) {
@@ -364,12 +356,14 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
          * another process. */
         assert(!(flags & CLONE_THREAD));
 
-        ret = do_clone_new_vm(flags, thread, fs_base, user_stack_addr, set_parent_tid);
+        ret = do_clone_new_vm(flags, thread, tls_base, user_stack_addr, set_parent_tid);
 
         /* We should not have saved any references to this thread anywhere and `put_thread` below
          * should free it. */
         assert(__atomic_load_n(&thread->ref_count.counter, __ATOMIC_RELAXED) == 1);
-        /* We do not want to release `tid`, now it's owned by child process. */
+        /* We do not want to release `tid` now, we will do this once the child process dies. This
+         * makes little sense (as in theory we've passed the ownership of this id to the child), but
+         * IPC code is a mess, so that's what we have to do. */
         thread->tid = 0;
         put_thread(thread);
 
@@ -418,20 +412,11 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     /* Increasing refcount due to copy below. Passing ownership of the new copy
      * of this pointer to the new thread (receiver of new_args). */
     get_thread(thread);
-    new_args.thread  = thread;
-    new_args.stack   = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
-    new_args.fs_base = fs_base;
-    new_args.regs    = *self->shim_tcb->context.regs;
-
-    /* FIXME: The below XSAVE area save is not really correct but rather a dummy and will be fixed
-     * later. Now it saves the extended state from within LibOS rather than the app. In reality,
-     * XSAVE area should be part of shim_regs, and XSAVE should happen during syscalldb().
-     * Also note that we require up to 4KB of stack space for XSAVE -- this is wrong for e.g. Go
-     * because its goroutines start with 2KB stack size; but we'll remove XSAVE here anyway. */
-    size_t xstate_extended_size = g_shim_xsave_size + SHIM_FP_XSTATE_MAGIC2_SIZE;
-    new_args.xstate_extended    = ALIGN_DOWN_PTR(new_args.stack - xstate_extended_size,
-                                                 SHIM_XSTATE_ALIGN);
-    shim_xstate_save(new_args.xstate_extended);
+    new_args.thread   = thread;
+    new_args.stack    = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
+    new_args.tls_base = tls_base;
+    new_args.regs     = *self->shim_tcb->context.regs;
+    new_args.ext_ctx  = self->shim_tcb->context.ext_ctx;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child

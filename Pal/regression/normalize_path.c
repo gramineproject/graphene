@@ -57,7 +57,7 @@ static int run_test(void) {
         int ret = func_to_test(cases[i][0], buf, &size);
 
         if (ret < 0) {
-            print_err(func_name, i, "failed with error: %s\n", pal_strerror(ret));
+            print_err(func_name, i, "failed with error: %s\n", pal_strerror(-ret));
             return 1;
         }
 
