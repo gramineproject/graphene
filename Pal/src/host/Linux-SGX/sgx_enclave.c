@@ -688,18 +688,6 @@ static long sgx_ocall_eventfd(void* pms) {
     return ret;
 }
 
-static long sgx_ocall_report_mmap(void* pms) {
-    ms_ocall_report_mmap_t* ms = (ms_ocall_report_mmap_t*)pms;
-    ODEBUG(OCALL_REPORT_MMAP, ms);
-
-#ifdef DEBUG
-    sgx_profile_report_mmap(ms->ms_filename, ms->ms_addr, ms->ms_len, ms->ms_offset);
-#else
-    __UNUSED(ms);
-#endif
-    return 0;
-}
-
 static long sgx_ocall_debug_map_add(void* pms) {
     ms_ocall_debug_map_add_t* ms = (ms_ocall_debug_map_add_t*)pms;
 
@@ -720,6 +708,18 @@ static long sgx_ocall_debug_map_remove(void* pms) {
     int ret = debug_map_remove(ms->ms_addr);
     if (ret < 0)
         SGX_DBG(DBG_E, "debug_map_remove(%p): %d", ms->ms_addr, ret);
+#else
+    __UNUSED(ms);
+#endif
+    return 0;
+}
+
+static long sgx_ocall_report_mmap(void* pms) {
+    ms_ocall_report_mmap_t* ms = (ms_ocall_report_mmap_t*)pms;
+    ODEBUG(OCALL_REPORT_MMAP, ms);
+
+#ifdef DEBUG
+    sgx_profile_report_mmap(ms->ms_filename, ms->ms_addr, ms->ms_len, ms->ms_offset);
 #else
     __UNUSED(ms);
 #endif
@@ -771,9 +771,9 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_POLL]             = sgx_ocall_poll,
     [OCALL_RENAME]           = sgx_ocall_rename,
     [OCALL_DELETE]           = sgx_ocall_delete,
-    [OCALL_REPORT_MMAP]      = sgx_ocall_report_mmap,
     [OCALL_DEBUG_MAP_ADD]    = sgx_ocall_debug_map_add,
     [OCALL_DEBUG_MAP_REMOVE] = sgx_ocall_debug_map_remove,
+    [OCALL_REPORT_MMAP]      = sgx_ocall_report_mmap,
     [OCALL_EVENTFD]          = sgx_ocall_eventfd,
     [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
 };

@@ -888,7 +888,6 @@ void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr) {
     const char* realname = uri + URI_PREFIX_FILE_LEN;
 
     _DkDebugMapAdd(realname, start_addr);
-    return;
 #endif
 }
 

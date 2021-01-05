@@ -6,14 +6,12 @@
 /*
  * Internal debug maps, used to communicate with GDB.
  *
- * Note that this is a separate module (and not part of libpal) because in case of SGX it is used in
- * the outer pal-sgx process, not in libpal itself.
+ * Note that this is part of a common library, and not part of libpal, to support setups in which
+ * the debug maps are maintained in an "outer" binary instead of the main PAL binary.
  */
 
 #ifndef PAL_DEBUG_MAP_H
 #define PAL_DEBUG_MAP_H
-
-#include <stdint.h>
 
 struct debug_map {
     char* name;

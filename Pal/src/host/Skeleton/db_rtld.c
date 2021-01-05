@@ -5,6 +5,8 @@
  * This file contains host-specific code related to linking and reporting ELFs to debugger.
  */
 
+#include "pal_rtld.h"
+
 void _DkDebugMapAdd(const char* name, void* addr) {}
 
 void _DkDebugMapRemove(void* addr) {}

@@ -4,6 +4,8 @@
 #                    Paweł Marczewski <mkow@invisiblethingslab.com>
 
 import os
+import shlex
+
 import gdb  # pylint: disable=import-error
 
 try:
@@ -93,8 +95,6 @@ class UpdateDebugMaps(gdb.Command):
             if old.get(load_addr) == new.get(load_addr):
                 continue
 
-            # Note that this doesn't escape the file names.
-
             if load_addr in old:
                 # Log the removing, because remove-symbol-file itself doesn't produce helpful output
                 # on errors.
@@ -106,11 +106,15 @@ class UpdateDebugMaps(gdb.Command):
                 except gdb.error:
                     print('warning: failed to remove symbol file')
 
+            # Note that we escape text arguments to 'add-symbol-file' (file name and section names)
+            # using shlex.quote(), because GDB commands use a shell-like argument syntax.
+
             if load_addr in new:
                 file_name, sections = new[load_addr]
                 text_addr = sections['.text']
-                cmd = 'add-symbol-file {} 0x{:x} '.format(file_name, text_addr)
-                cmd += ' '.join('-s {} 0x{:x}'.format(name, addr)
+                cmd = 'add-symbol-file {} 0x{:x} '.format(
+                    shlex.quote(file_name), text_addr)
+                cmd += ' '.join('-s {} 0x{:x}'.format(shlex.quote(name), addr)
                                 for name, addr in sections.items()
                                 if name != '.text')
                 gdb.execute(cmd)
@@ -124,6 +128,7 @@ class DebugMapBreakpoint(gdb.Breakpoint):
 
     def stop(self):
         gdb.execute('update-debug-maps')
+        # return False to continue automatically after the breakpoint
         return False
 
 
@@ -134,11 +139,10 @@ def debug_map_stop_handler(event):
         progspace = gdb.current_progspace()
         if not hasattr(progspace, 'debug_maps'):
             gdb.execute('update-debug-maps')
-            print('updated')
 
 
 def debug_map_clear_objfiles_handler(event):
-    # Record that symbol files has been cleared on GDB's side (e.g. on program exit), so that we do
+    # Record that symbol files have been cleared on GDB's side (e.g. on program exit), so that we do
     # not try to remove them again.
     if hasattr(event.progspace, 'debug_maps'):
         delattr(event.progspace, 'debug_maps')
