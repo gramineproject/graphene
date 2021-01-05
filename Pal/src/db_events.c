@@ -65,7 +65,7 @@ void DkEventWait(PAL_HANDLE handle) {
         LEAVE_PAL_CALL();
     }
 
-    int ret = _DkEventWait(handle);
+    int ret = _DkEventWaitTimeout(handle, NO_TIMEOUT);
 
     if (ret < 0)
         _DkRaiseFailure(-ret);

@@ -68,8 +68,9 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
 int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     int ret = 0;
 
-    if (timeout_us < 0)
-        return _DkEventWait(event);
+    if (timeout_us < 0) {
+        timeout_us = -1;
+    }
 
     if (!event->event.isnotification || !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
         __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
@@ -81,31 +82,13 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
                 } else {
-                    ret = unix_to_pal_error(ERRNO(ret));
-                    break;
-                }
-            }
-        } while (event->event.isnotification &&
-                 !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST));
-
-        __atomic_sub_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
-    }
-
-    return ret;
-}
-
-int _DkEventWait(PAL_HANDLE event) {
-    int ret = 0;
-
-    if (!event->event.isnotification || !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
-        __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
-
-        do {
-            ret = ocall_futex(event->event.signaled, FUTEX_WAIT, 0, -1);
-            if (IS_ERR(ret)) {
-                if (ERRNO(ret) == EWOULDBLOCK) {
-                    ret = 0;
-                } else {
+                    if (ret == -EINTR) {
+                        if (!event->event.isnotification
+                                || __atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST)) {
+                            ret = 0;
+                            break;
+                        }
+                    }
                     ret = unix_to_pal_error(ERRNO(ret));
                     break;
                 }

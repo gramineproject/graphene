@@ -241,7 +241,6 @@ int _DkMutexGetCurrentCount(PAL_HANDLE sem);
 int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification);
 int _DkEventSet(PAL_HANDLE event, int wakeup);
 int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us);
-int _DkEventWait(PAL_HANDLE event);
 int _DkEventClear(PAL_HANDLE event);
 
 /* DkVirtualMemory calls */
