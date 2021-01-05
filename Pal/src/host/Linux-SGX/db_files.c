@@ -27,7 +27,7 @@
 
 /* this macro is used to emulate mmap() via pread() in chunks of 128MB (mmapped files may be many
  * GBs in size, and a pread OCALL could fail with -ENOMEM, so we cap to reasonably small size) */
-#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024UL * 32)
+#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024L * 32)
 
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
@@ -408,21 +408,22 @@ out:
 
 /* 'map' operation for file stream. */
 static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
-    struct protected_file* pf = find_protected_file_handle(handle);
+    int ret;
 
+    if (size > SIZE_MAX) {
+        /* for compatibility with 32-bit systems */
+        return -PAL_ERROR_INVAL;
+    }
+
+    struct protected_file* pf = find_protected_file_handle(handle);
     if (pf)
         return pf_file_map(pf, handle, addr, prot, offset, size);
 
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
-    size_t total      = handle->file.total;
     void* mem         = *addr;
-    int ret;
 
-    /*
-     * If the file is listed in the manifest as an "allowed" file,
-     * we allow mapping the file outside the enclave, if the library OS
-     * does not request a specific address.
-     */
+    /* If the file is listed in the manifest as an "allowed" file, we allow mapping the file outside
+     * the enclave, if the library OS does not request a specific address. */
     if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
         ret = ocall_mmap_untrusted(handle->file.fd, offset, size, PAL_PROT_TO_LINUX(prot), &mem);
         if (!IS_ERR(ret))
@@ -446,27 +447,41 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     if (stubs) {
         /* case of trusted file: already mmaped in umem, copy from there into enclave memory and
          * verify hashes along the way */
-        size_t end           = (offset + size > total) ? total : offset + size;
+        off_t end            = (offset + size > handle->file.total) ? handle->file.total
+                                                                    : offset + size;
         off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
         off_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
+        off_t total_size     = aligned_end - aligned_offset;
+
+        if ((uint64_t)total_size > SIZE_MAX) {
+            /* for compatibility with 32-bit systems */
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
 
         ret = copy_and_verify_trusted_file(handle->file.realpath,
                                            handle->file.umem + aligned_offset,
                                            aligned_offset, aligned_end,
                                            mem, offset, end - offset,
-                                           stubs, total);
+                                           stubs, handle->file.total);
         if (ret < 0) {
             SGX_DBG(DBG_E, "file_map - copy & verify on trusted file returned %d\n", ret);
-            return ret;
+            goto out;
         }
     } else {
         /* case of allowed file: simply read from underlying file descriptor into enclave memory */
-        size_t end           = offset + size;
+        off_t end            = offset + size;
         off_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
         off_t aligned_end    = ALLOC_ALIGN_UP(end);
-        size_t total_size    = aligned_end - aligned_offset;
+        off_t total_size     = aligned_end - aligned_offset;
 
-        size_t bytes_read = 0;
+        if ((uint64_t)total_size > SIZE_MAX) {
+            /* for compatibility with 32-bit systems */
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        ssize_t bytes_read = 0;
         while (bytes_read < total_size) {
             size_t read_size = total_size - bytes_read < MAX_READ_SIZE ?
                                total_size - bytes_read : MAX_READ_SIZE;
@@ -480,7 +495,8 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
                 continue;
             } else {
                 SGX_DBG(DBG_E, "file_map - ocall_pread on allowed file returned %ld\n", bytes);
-                return unix_to_pal_error(ERRNO(bytes));
+                ret = unix_to_pal_error(ERRNO(bytes));
+                goto out;
             }
         }
 
@@ -492,7 +508,13 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     }
 
     *addr = mem;
-    return 0;
+    ret = 0;
+
+out:
+    if (ret < 0) {
+        free_enclave_pages(mem, size);
+    }
+    return ret;
 }
 
 static int64_t pf_file_setlength(struct protected_file* pf, PAL_HANDLE handle, uint64_t length) {
