@@ -160,7 +160,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
     }
 
     /* If this process creation is for fork emulation, map address of executable is already
-     * determined. Tell its address to forked process. */
+     * determined. Tell its address to the forked process. */
     if (g_exec_map && g_exec_map->l_name && strstartswith(exec_uri, URI_PREFIX_FILE) &&
             !strcmp(g_exec_map->l_name, exec_uri + URI_PREFIX_FILE_LEN)) {
         exec->file.map_start = (PAL_PTR)g_exec_map->l_map_start;

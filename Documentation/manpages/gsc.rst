@@ -366,8 +366,8 @@ executable arguments may be supplied to the :command:`docker run` command.
 .. option:: ARGUMENTS
 
    Arguments to be supplied to the executable launching inside the Docker
-   container and Graphene. Such arguments may only be provided when :option
-   :`--insecure-args <gsc-build --insecure-args>` was specified during
+   container and Graphene. Such arguments may only be provided when
+   :option:`--insecure-args <gsc-build --insecure-args>` was specified during
    :command:`gsc build`.
 
 

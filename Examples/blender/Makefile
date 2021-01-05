@@ -55,18 +55,16 @@ blender.manifest: blender.manifest.template $(BLENDER_DIR)/blender | $(RUN_DIR)
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-blender.manifest.sgx: $(BLENDER_DIR)/blender blender.manifest \
+blender.sig blender.manifest.sgx &: $(BLENDER_DIR)/blender blender.manifest \
         $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so | $(RUN_DIR)
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-output $@ \
+		-output blender.manifest.sgx \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
 		-manifest blender.manifest
 
-blender.token: blender.manifest.sgx
-	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output $@ \
-		-sig blender.sig
+blender.token: blender.sig
+	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 $(RUN_DIR)/pal_loader: | $(RUN_DIR)
 	ln -s $(GRAPHENE_DIR)/Runtime/pal_loader $@
