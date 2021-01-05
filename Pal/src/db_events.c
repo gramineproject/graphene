@@ -57,22 +57,6 @@ void DkEventSet(PAL_HANDLE handle) {
     LEAVE_PAL_CALL();
 }
 
-void DkEventWait(PAL_HANDLE handle) {
-    ENTER_PAL_CALL(DkEventWait);
-
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL();
-    }
-
-    int ret = _DkEventWaitTimeout(handle, NO_TIMEOUT);
-
-    if (ret < 0)
-        _DkRaiseFailure(-ret);
-
-    LEAVE_PAL_CALL();
-}
-
 void DkEventClear(PAL_HANDLE handle) {
     ENTER_PAL_CALL(DkEventClear);
 
