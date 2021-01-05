@@ -41,7 +41,13 @@ def load_elf_sections(file_name, load_addr):
 
         for section in elf.iter_sections():
             if section.name and section.header['sh_addr']:
-                sections[section.name] = load_addr + section.header['sh_addr']
+                # Workaround for old version of pyelftools (Ubuntu 16)
+                # that stores section.name as bytes.
+                name = section.name
+                if isinstance(name, bytes):
+                    name = name.decode('ascii')
+
+                sections[name] = load_addr + section.header['sh_addr']
 
     return sections
 
