@@ -864,7 +864,8 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
        goto out;
     }
 
-    if (sock->sock_state != SOCK_LISTENED || hdl->pal_handle != handle) {
+    assert(hdl->pal_handle == handle);
+    if (sock->sock_state != SOCK_LISTENED) {
         debug("shim_accept: socket changed while waiting for a client connection\n");
         ret = -ECONNABORTED;
         goto out;
