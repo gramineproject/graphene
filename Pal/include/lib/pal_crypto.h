@@ -15,6 +15,8 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include "spinlock.h"
+
 #define SHA256_DIGEST_LEN 32
 
 #ifdef CRYPTO_USE_MBEDTLS
@@ -51,6 +53,7 @@ typedef struct {
     ssize_t (*pal_recv_cb)(int fd, void* buf, size_t buf_size);
     ssize_t (*pal_send_cb)(int fd, const void* buf, size_t buf_size);
     int stream_fd;
+    spinlock_t lock;
 } LIB_SSL_CONTEXT;
 
 #endif /* CRYPTO_USE_MBEDTLS */

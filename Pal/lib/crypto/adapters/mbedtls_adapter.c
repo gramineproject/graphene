@@ -22,6 +22,7 @@
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "rng-arch.h"
+#include "spinlock.h"
 
 int mbedtls_to_pal_error(int error) {
     switch (error) {
@@ -380,6 +381,11 @@ static int recv_cb(void* ctx, uint8_t* buf, size_t buf_size) {
         /* pal_recv_cb cannot receive more than 32-bit limit, trim buf_size to fit in 32-bit */
         buf_size = INT_MAX;
     }
+
+    /* NOTE: If two threads recv on the same SSL context simultaneously, one of them may block on
+     *       recv() and the other will spin and burn CPU cycles. We consider "shared SSL context"
+     *       a rare case and use simple spinlocks instead of mutexes. */
+    assert(spinlock_is_locked(&ssl_ctx->lock));
     ssize_t ret = ssl_ctx->pal_recv_cb(fd, buf, buf_size);
 
     if (ret < 0) {
@@ -403,7 +409,13 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t buf_size) {
         /* pal_send_cb cannot send more than 32-bit limit, trim buf_size to fit in 32-bit */
         buf_size = INT_MAX;
     }
+
+    /* NOTE: If two threads send on the same SSL context simultaneously, one of them may block on
+     *       send() and the other will spin and burn CPU cycles. We consider "shared SSL context"
+     *       a rare case and use simple spinlocks instead of mutexes. */
+    assert(spinlock_is_locked(&ssl_ctx->lock));
     ssize_t ret = ssl_ctx->pal_send_cb(fd, buf, buf_size);
+
     if (ret < 0) {
         if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK)
             return MBEDTLS_ERR_SSL_WANT_WRITE;
@@ -430,6 +442,7 @@ int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server, const u
     ssl_ctx->pal_recv_cb = pal_recv_cb;
     ssl_ctx->pal_send_cb = pal_send_cb;
     ssl_ctx->stream_fd   = stream_fd;
+    spinlock_init(&ssl_ctx->lock);
 
     mbedtls_entropy_init(&ssl_ctx->entropy);
     mbedtls_ctr_drbg_init(&ssl_ctx->ctr_drbg);
@@ -482,10 +495,14 @@ int lib_SSLFree(LIB_SSL_CONTEXT* ssl_ctx) {
 
 int lib_SSLHandshake(LIB_SSL_CONTEXT* ssl_ctx) {
     int ret;
+
+    spinlock_lock(&ssl_ctx->lock);
     while ((ret = mbedtls_ssl_handshake(&ssl_ctx->ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
             break;
     }
+    spinlock_unlock(&ssl_ctx->lock);
+
     if (ret != 0)
         return mbedtls_to_pal_error(ret);
 
@@ -493,7 +510,9 @@ int lib_SSLHandshake(LIB_SSL_CONTEXT* ssl_ctx) {
 }
 
 int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t buf_size) {
+    spinlock_lock(&ssl_ctx->lock);
     int ret = mbedtls_ssl_read(&ssl_ctx->ssl, buf, buf_size);
+    spinlock_unlock(&ssl_ctx->lock);
     if (ret == 0)
         return -PAL_ERROR_ENDOFSTREAM;
     if (ret < 0)
@@ -502,14 +521,18 @@ int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t buf_size) {
 }
 
 int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t buf_size) {
+    spinlock_lock(&ssl_ctx->lock);
     int ret = mbedtls_ssl_write(&ssl_ctx->ssl, buf, buf_size);
+    spinlock_unlock(&ssl_ctx->lock);
     if (ret <= 0)
         return mbedtls_to_pal_error(ret);
     return ret;
 }
 
 int lib_SSLSave(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t buf_size, size_t* out_size) {
+    spinlock_lock(&ssl_ctx->lock);
     int ret = mbedtls_ssl_context_save(&ssl_ctx->ssl, buf, buf_size, out_size);
+    spinlock_unlock(&ssl_ctx->lock);
     if (ret == MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL) {
         return -PAL_ERROR_NOMEM;
     } else if (ret < 0) {

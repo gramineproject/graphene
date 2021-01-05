@@ -53,6 +53,7 @@ c_executables = \
 	multi_pthread \
 	openmp \
 	pipe \
+	pipe_multithread \
 	pipe_nonblocking \
 	pipe_ocloexec \
 	poll \
@@ -151,26 +152,27 @@ extra_rules = \
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
 
-CFLAGS-bootstrap_static = -static
+CFLAGS-abort_multithread = -pthread
 CFLAGS-bootstrap_pie = -fPIC -pie
+CFLAGS-bootstrap_static = -static
 CFLAGS-debug = -g3
 CFLAGS-debug_regs-x86_64 = -g3
-CFLAGS-exec_same = -pthread
-CFLAGS-shared_object = -fPIC -pie
-CFLAGS-syscall += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST) -I$(PALDIR)/../include/arch/$(ARCH)/Linux
-CFLAGS-openmp = -fopenmp
-CFLAGS-multi_pthread = -pthread
-CFLAGS-exit_group = -pthread
-CFLAGS-abort_multithread = -pthread
 CFLAGS-eventfd = -pthread
+CFLAGS-exec_same = -pthread
+CFLAGS-exit_group = -pthread
 CFLAGS-futex_bitset = -pthread
 CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
+CFLAGS-multi_pthread = -pthread
+CFLAGS-openmp = -fopenmp
+CFLAGS-pipe_multithread = -pthread
 CFLAGS-proc_common = -pthread
-CFLAGS-spinlock += -I$(PALDIR)/../include/lib -I$(PALDIR)/../include/arch/$(ARCH) -pthread
+CFLAGS-pthread_set_get_affinity += -pthread
+CFLAGS-shared_object = -fPIC -pie
 CFLAGS-sigaction_per_process += -pthread
 CFLAGS-signal_multithread += -pthread
-CFLAGS-pthread_set_get_affinity += -pthread
+CFLAGS-spinlock += -I$(PALDIR)/../include/lib -I$(PALDIR)/../include/arch/$(ARCH) -pthread
+CFLAGS-syscall += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST) -I$(PALDIR)/../include/arch/$(ARCH)/Linux
 
 CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
                       -I$(PALDIR)/host/Linux-SGX \

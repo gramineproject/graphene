@@ -65,6 +65,7 @@
 /multi_pthread_exitless
 /openmp
 /pipe
+/pipe_multithread
 /pipe_nonblocking
 /pipe_ocloexec
 /poll
