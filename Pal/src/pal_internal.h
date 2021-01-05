@@ -9,6 +9,7 @@
 #define PAL_INTERNAL_H
 
 #include <stdarg.h>
+#include <sys/types.h>
 
 #include "pal.h"
 #include "pal_defs.h"

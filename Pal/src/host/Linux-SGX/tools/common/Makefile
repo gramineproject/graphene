@@ -5,6 +5,8 @@ include ../../../../../../Scripts/Makefile.rules
 CFLAGS := $(filter-out -DIN_PAL, $(CFLAGS))
 CFLAGS += -I../.. \
           -I../../../../../include/lib \
+          -I../../../../../include/arch/$(ARCH) \
+          -I../../../../../include/arch/$(ARCH)/Linux \
           -I../../../../../lib/crypto/mbedtls/install/include \
           -I../../../../../lib/crypto/mbedtls/crypto/include \
           -I../../protected-files \
