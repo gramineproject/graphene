@@ -86,7 +86,7 @@ sgx.nonpie_binary = 1
 # specifying '8' allows to run a maximum of 6 Redis threads which is enough.
 sgx.thread_num = 8
 
-############################# SGX: TRUSTED LIBS ###############################
+############################# SGX: TRUSTED FILES ###############################
 
 # Specify all files used by Redis and its dependencies (including all
 # libraries which can be loaded at runtime via dlopen). The paths to files
@@ -132,8 +132,6 @@ sgx.trusted_files.liblzma = "file:$(ARCH_LIBDIR)/liblzma.so.5"
 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
 sgx.trusted_files.libgpgerror = "file:$(ARCH_LIBDIR)/libgpg-error.so.0"
 sgx.trusted_files.liblz4 = "file:/usr/$(ARCH_LIBDIR)/liblz4.so.1"
-
-############################ SGX: TRUSTED FILES ###############################
 
 # Trusted no-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure

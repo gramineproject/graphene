@@ -323,10 +323,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         }
     }
 
-    // TODO: Should this really be so early? Isn't this insecure?
-    /* now let's mark our enclave as initialized */
-    g_pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
-
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
     void* manifest_addr = g_enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
 
@@ -376,6 +372,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     first_thread->thread.tid = 1;
     g_pal_control.first_thread = first_thread;
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
+
+    g_pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
 
     /* call main function */
     pal_main(g_pal_sec.instance_id, g_pal_sec.exec_name, parent, first_thread, arguments, environments);

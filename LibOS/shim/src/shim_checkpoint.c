@@ -682,9 +682,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     child_process->vmid = child_vmid;
     add_child_process(child_process);
 
-    /* fork/clone case: new process is an actual child process for this current process, so
-     * notify the leader regarding subleasing of TID (child must create self-pipe with
-     * convention of pipe:child-vmid) */
+    /* New process is an actual child process for this current process, so notify the leader
+     * regarding subleasing of TID (child must create self-pipe with convention of pipe:child-vmid)
+     */
     char process_self_uri[256];
     snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
     ipc_sublease_send(child_vmid, thread_description->tid, process_self_uri);

@@ -472,7 +472,7 @@ Recording samples with ``perf record``
 
 To record (saves ``perf.data``)::
 
-    perf record ./pal_loader project_path
+    perf record ./pal_loader application
 
 To view the report for ``perf.data``::
 

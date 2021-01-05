@@ -399,13 +399,13 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('mmap test 6 passed', stdout)
         self.assertIn('mmap test 7 passed', stdout)
 
-        # TODO: why are "test 5" and "test 8" missing from here??
-
         # Private mmap beyond file range (after fork)
         self.assertIn('mmap test 1 passed', stdout)
         self.assertIn('mmap test 2 passed', stdout)
         self.assertIn('mmap test 3 passed', stdout)
         self.assertIn('mmap test 4 passed', stdout)
+
+        # "test 5" and "test 8" are checked below, in test_051_mmap_sgx
 
     @unittest.skipIf(HAS_SGX,
         'On SGX, SIGBUS isn\'t always implemented correctly, for lack '

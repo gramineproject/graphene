@@ -135,7 +135,7 @@ static struct link_map g_pal_map;
 noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s <path to libpal.so> init <project_path> args...\n"
+           "\tFirst process: %s <path to libpal.so> init <application> args...\n"
            "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
            self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
@@ -230,8 +230,8 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     char* manifest = NULL;
     char* exec_uri = NULL; // TODO: This should be removed from here and handled by LibOS.
     if (first_process) {
-        const char* project_path = argv[3];
-        char* manifest_path = alloc_concat(project_path, -1, ".manifest", -1);
+        const char* application_path = argv[3];
+        char* manifest_path = alloc_concat(application_path, -1, ".manifest", -1);
         if (!manifest_path)
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
 

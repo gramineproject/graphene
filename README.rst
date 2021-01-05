@@ -66,8 +66,8 @@ How to run an application in Graphene?
 Graphene library OS uses ``pal_loader`` utility as a loader to bootstrap
 applications in the library OS::
 
-   [PATH TO Runtime]/pal_loader [PROJECT_PATH] [ARGUMENTS]...
-   (Manifest file: "[PROJECT_PATH].manifest")
+   [PATH TO Runtime]/pal_loader [APPLICATION] [ARGUMENTS]...
+   (Manifest file: "[APPLICATION].manifest")
 
 Running an application requires some minimal configuration in the application's
 manifest file. A |nbsp| sensible manifest file will include paths to the library

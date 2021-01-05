@@ -998,7 +998,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
         return -EINVAL;
     }
 
-    char* sig_path = alloc_concat(g_pal_enclave.project_path, -1, ".sig", -1);
+    char* sig_path = alloc_concat(g_pal_enclave.application_path, -1, ".sig", -1);
     if (!sig_path) {
         return -ENOMEM;
     }
@@ -1010,7 +1010,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     }
     free(sig_path);
 
-    char* token_path = alloc_concat(g_pal_enclave.project_path, -1, ".token", -1);
+    char* token_path = alloc_concat(g_pal_enclave.application_path, -1, ".token", -1);
     if (!token_path) {
         return -ENOMEM;
     }
@@ -1096,7 +1096,7 @@ static void force_linux_to_grow_stack(void) {
 noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s <path to libpal.so> init <project_path> args...\n"
+           "\tFirst process: %s <path to libpal.so> init <application> args...\n"
            "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
            self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
@@ -1141,8 +1141,8 @@ int main(int argc, char* argv[], char* envp[]) {
     if (first_process) {
         g_pal_enclave.is_first_process = true;
 
-        g_pal_enclave.project_path = argv[3];
-        manifest_path = alloc_concat(g_pal_enclave.project_path, -1, ".manifest.sgx", -1);
+        g_pal_enclave.application_path = argv[3];
+        manifest_path = alloc_concat(g_pal_enclave.application_path, -1, ".manifest.sgx", -1);
         if (!manifest_path) {
             return -ENOMEM;
         }
@@ -1162,7 +1162,7 @@ int main(int argc, char* argv[], char* envp[]) {
         /* We'll receive our argv and config via IPC. */
         int parent_pipe_fd = atoi(argv[3]);
         ret = sgx_init_child_process(parent_pipe_fd, &g_pal_enclave.pal_sec,
-                                     &g_pal_enclave.project_path, &manifest);
+                                     &g_pal_enclave.application_path, &manifest);
         if (ret < 0)
             return ret;
         exec_path = strdup(g_pal_enclave.pal_sec.exec_name + URI_PREFIX_FILE_LEN);
