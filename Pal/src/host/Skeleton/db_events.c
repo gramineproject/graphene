@@ -23,10 +23,6 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkEventWait(PAL_HANDLE event) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 int _DkEventClear(PAL_HANDLE event) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

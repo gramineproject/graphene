@@ -59,42 +59,15 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
 int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     int ret = 0;
 
-    if (timeout_us < 0)
-        return _DkEventWait(event);
-
-    if (!event->event.isnotification ||
-        !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST)) {
-        struct timespec waittime;
+    struct timespec waittime;
+    struct timespec* waittime_ptr = NULL;
+    if (timeout_us >= 0) {
         int64_t sec      = timeout_us / 1000000UL;
         int64_t microsec = timeout_us - (sec * 1000000UL);
         waittime.tv_sec  = sec;
         waittime.tv_nsec = microsec * 1000;
-
-        __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
-
-        do {
-            ret =
-                INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT, 0, &waittime, NULL, 0);
-
-            if (IS_ERR(ret)) {
-                if (ERRNO(ret) == EWOULDBLOCK) {
-                    ret = 0;
-                } else {
-                    ret = unix_to_pal_error(ERRNO(ret));
-                    break;
-                }
-            }
-        } while (event->event.isnotification &&
-                 !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST));
-
-        __atomic_sub_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
+        waittime_ptr = &waittime;
     }
-
-    return ret;
-}
-
-int _DkEventWait(PAL_HANDLE event) {
-    int ret = 0;
 
     if (!event->event.isnotification ||
         !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST)) {
@@ -102,13 +75,19 @@ int _DkEventWait(PAL_HANDLE event) {
         __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
         do {
-            ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT, 0, NULL, NULL, 0);
+            ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT, 0, waittime_ptr,
+                                 NULL, 0);
 
-            if (IS_ERR(ret)) {
-                if (ERRNO(ret) == EWOULDBLOCK) {
+            if (ret < 0) {
+                if (ret == -EWOULDBLOCK) {
                     ret = 0;
+                } else if (ret == -EINTR
+                           && (!event->event.isnotification
+                               || __atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST))) {
+                    ret = 0;
+                    break;
                 } else {
-                    ret = unix_to_pal_error(ERRNO(ret));
+                    ret = unix_to_pal_error(-ret);
                     break;
                 }
             }
