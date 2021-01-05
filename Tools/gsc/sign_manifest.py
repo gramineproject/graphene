@@ -29,7 +29,7 @@ def generate_signature(exec_):
         sys.exit(1)
 
 def main(args=None):
-    print('Signing project:', args[1])
+    print('Signing application:', args[1])
     generate_signature(args[1])
 
 if __name__ == '__main__':
