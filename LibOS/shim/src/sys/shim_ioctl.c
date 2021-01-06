@@ -123,9 +123,9 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
             char* arg_char = (char*)arg;
             uint64_t rsvd2 = *((uint64_t*)(arg_char + 56)); /* 56 is offset of rsvd2 */
             int fence_fd = rsvd2 >> 32;
-            ret = shim_do_eventfd2(/*count=*/fence_fd, /*flags=*/EFD_SEMAPHORE); /* abuse args */
-            if (ret >= 0) {
-                fence_fd = ret;
+            int ret_fd = shim_do_eventfd2(/*count=*/fence_fd, /*flags=*/EFD_SEMAPHORE);
+            if (ret_fd >= 0) {
+                fence_fd = ret_fd;
                 *((uint64_t*)(arg_char + 56)) = (uint64_t)fence_fd << 32;
             }
         }
