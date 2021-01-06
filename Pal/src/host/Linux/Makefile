@@ -37,7 +37,8 @@ ASFLAGS += $(defs)
 commons_objs = \
 	bogomips.o \
 	file_utils.o \
-	main_exec_path.o
+	main_exec_path.o \
+	stack_protector.o
 
 objs = \
 	clone-$(ARCH).o \

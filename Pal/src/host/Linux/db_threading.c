@@ -82,28 +82,28 @@ out:
  * accepts a TCB pointer to be set to the GS register (on x86-64) of the thread. The rest of the TCB
  * is used as the alternate stack for signal handling. Since Graphene uses GCC's stack protector,
  * and this function modifies the stack protector's GS register, we disable stack protector here. */
-__attribute__ ((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* tcbptr) {
+__attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* tcbptr) {
     PAL_TCB_LINUX* tcb = tcbptr;
     int ret;
 
     /* we inherited the parent's GS register which we shouldn't use in the child thread, but GCC's
-     * stack protector will look for a canary at %gs:0x8 in functions called below, so let's install
-     * a dummy temporary TCB with a default canary */
-    static PAL_TCB_LINUX dummy_tcb_for_stack_protector = { 0 };
+     * stack protector will look for a canary at gs:[0x8] in functions called below, so let's
+     * install a dummy temporary TCB with a default canary */
+    PAL_TCB_LINUX dummy_tcb_for_stack_protector = { 0 };
     dummy_tcb_for_stack_protector.common.self = &dummy_tcb_for_stack_protector.common;
-    dummy_tcb_for_stack_protector.common.stack_protector_canary = STACK_PROTECTOR_CANARY_DEFAULT;
+    pal_set_tcb_stack_canary(&dummy_tcb_for_stack_protector, STACK_PROTECTOR_CANARY_DEFAULT);
     ret = pal_set_tcb(&dummy_tcb_for_stack_protector.common);
     if (IS_ERR(ret))
         return -ERRNO(ret);
 
     /* each newly-created thread (including the first thread) has its own random stack canary */
-    tcb->common.stack_protector_canary = STACK_PROTECTOR_CANARY_DEFAULT;
-    ret = _DkRandomBitsRead(&tcb->common.stack_protector_canary,
-                            sizeof(tcb->common.stack_protector_canary));
+    uint64_t stack_protector_canary;
+    ret = _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
     if (IS_ERR(ret))
         return -EPERM;
 
     /* now we can install the correct TCB corresponding to this (child) thread */
+    pal_set_tcb_stack_canary(tcb, stack_protector_canary);
     ret = pal_set_tcb(&tcb->common);
     if (IS_ERR(ret))
         return -ERRNO(ret);

@@ -150,18 +150,18 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
     _DkProcessExit(1);
 }
 
-/* Graphene uses GCC's stack protector that looks for a canary at %gs:0x8, but this function starts
+/* Graphene uses GCC's stack protector that looks for a canary at gs:[0x8], but this function starts
  * with no TCB in the GS register, so we disable stack protector here */
-__attribute__ ((__optimize__("-fno-stack-protector")))
+__attribute__((__optimize__("-fno-stack-protector")))
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
     int ret;
 
     /* we don't yet have a TCB in the GS register, but GCC's stack protector will look for a canary
-     * at %gs:0x8 in functions called below, so let's install a dummy TCB with a default canary */
-    static PAL_TCB_LINUX dummy_tcb_for_stack_protector = { 0 };
+     * at gs:[0x8] in functions called below, so let's install a dummy TCB with a default canary */
+    PAL_TCB_LINUX dummy_tcb_for_stack_protector = { 0 };
     dummy_tcb_for_stack_protector.common.self = &dummy_tcb_for_stack_protector.common;
-    dummy_tcb_for_stack_protector.common.stack_protector_canary = STACK_PROTECTOR_CANARY_DEFAULT;
+    pal_set_tcb_stack_canary(&dummy_tcb_for_stack_protector, STACK_PROTECTOR_CANARY_DEFAULT);
     ret = pal_set_tcb(&dummy_tcb_for_stack_protector.common);
     if (ret < 0)
         INIT_FAIL(unix_to_pal_error(-ret), "pal_set_tcb() failed");

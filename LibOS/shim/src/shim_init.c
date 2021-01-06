@@ -60,10 +60,9 @@ noreturn void __abort(void) {
 }
 
 /* we use GCC's stack protector; when it detects corrupted stack, it calls __stack_chk_fail() */
-noreturn void __stack_chk_fail(void); /* to supress GCC's warning "no previous prototype" */
-void __stack_chk_fail(void) {
-    debug("Stack protector: Graphene LibOS internal stack is corrupted at %p\n",
-          __builtin_return_address(0));
+noreturn void __stack_chk_fail(void); /* to suppress GCC's warning "no previous prototype" */
+noreturn void __stack_chk_fail(void) {
+    debug("Stack protector: Graphene LibOS internal stack corruption detected\n");
     __abort();
 }
 

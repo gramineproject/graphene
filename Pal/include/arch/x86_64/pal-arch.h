@@ -13,6 +13,7 @@
 #ifndef PAL_ARCH_H
 #define PAL_ARCH_H
 
+#include <assert.h>
 #include <stdint.h>
 
 #include "cpu.h"
@@ -25,17 +26,20 @@ typedef struct pal_tcb PAL_TCB;
 
 #define PAL_LIBOS_TCB_SIZE 256
 
-#define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbadUL
+#define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbad00UL
 
 typedef struct pal_tcb {
     struct pal_tcb* self;
-    /* random per-thread canary used by GCC's stack protector; must be in %gs reg and at offset 0x8
+    /* random per-thread canary used by GCC's stack protector; must be at %gs:[0x8]
      * because we specify `-mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8` */
     uint64_t stack_protector_canary;
     /* uint64_t for alignment */
     uint64_t libos_tcb[(PAL_LIBOS_TCB_SIZE + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
     /* data private to PAL implementation follows this struct. */
 } PAL_TCB;
+
+static_assert(offsetof(PAL_TCB, stack_protector_canary) == 0x8,
+              "unexpected offset of stack_protector_canary in PAL_TCB struct");
 
 #include "pal_host-arch.h"
 

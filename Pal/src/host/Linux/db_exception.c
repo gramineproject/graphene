@@ -41,14 +41,6 @@ __asm__(
 __attribute__((visibility("hidden"))) void __restore_rt(void);
 #endif  /* defined(__x86_64__) */
 
-/* we use GCC's stack protector; when it detects corrupted stack, it calls __stack_chk_fail() */
-noreturn void __stack_chk_fail(void); /* to supress GCC's warning "no previous prototype" */
-void __stack_chk_fail(void) {
-    printf("Stack protector: Graphene PAL internal stack is corrupted at %p\n",
-           __builtin_return_address(0));
-    _DkProcessExit(1);
-}
-
 static const int ASYNC_SIGNALS[] = {SIGTERM, SIGINT, SIGCONT};
 
 static int block_signal(int sig, bool block) {

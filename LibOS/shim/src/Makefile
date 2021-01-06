@@ -18,7 +18,7 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 
 CFLAGS += -Wextra
 
-# use TLS-based stack protector of GCC (we rely on the fact LibOS re-uses the same TCB as its
+# use TLS-based stack protector of GCC (we rely on the fact that LibOS reuses the same TCB as its
 # underlying PAL which must have a canary in its PAL_TCB at offset 0x8, so no additional enabling
 # is required in the LibOS code);
 # not all compilers support mstack-protector-guard, so use stack protector only if supported

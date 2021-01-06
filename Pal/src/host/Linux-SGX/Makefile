@@ -17,14 +17,6 @@ CFLAGS += \
 	-Iprotected-files \
 	-Isgx-driver
 
-# use TLS-based stack protector of GCC (Linux PAL must have a canary in its PAL_TCB at offset 0x8);
-# not all compilers support mstack-protector-guard, so use stack protector only if supported
-CFLAGS += -fno-stack-protector
-ifeq ($(ARCH),x86_64)
-CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls \
-	                        -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
-endif
-
 # Some of the code uses alignof on expressions, which is a GNU extension.
 # Silence Clang - it complains but does support it.
 CFLAGS += $(cc-option,-Wno-gnu-alignof-expression)
@@ -41,7 +33,7 @@ defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
-commons_objs_encl = bogomips.o
+commons_objs_encl = bogomips.o stack_protector.o
 commons_objs_urts = file_utils.o main_exec_path.o
 
 enclave-objs = \
@@ -94,6 +86,16 @@ urts-asm-objs = sgx_entry.o
 
 graphene_lib = .lib/graphene-lib.a
 
+# use TLS-based stack protector of GCC (trusted PAL must have a canary in its PAL_TCB at offset
+# 0x8, untrusted PAL uses the default GCC scheme)
+# not all compilers support mstack-protector-guard, so use stack protector only if supported
+CFLAGS += -fno-stack-protector
+ifeq ($(ARCH),x86_64)
+$(enclave-objs): CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls \
+                             -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
+$(urts-objs): CFLAGS += $(call cc-option, -fstack-protector-strong)
+endif
+
 .PHONY: all
 all: sgx-driver/sgx.h $(host_files) tools
 
@@ -105,9 +107,6 @@ $(patsubst %.o,%.i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(patsubst %.o,%.s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(enclave-asm-objs): ASFLAGS += -DIN_ENCLAVE
 $(patsubst %.o,%.s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
-
-# there is no point in having stack protector in the untrusted part of Linux-SGX PAL
-$(urts-objs): CFLAGS += -fno-stack-protector
 
 $(urts-objs): quote/aesm.pb-c.h
 

@@ -166,4 +166,13 @@ static inline PAL_TCB_LINUX* get_tcb_linux(void) {
     return (PAL_TCB_LINUX*)pal_get_tcb();
 }
 
+static inline void pal_set_tcb_stack_canary(PAL_TCB_LINUX* tcbptr, uint64_t canary) {
+    canary &= ~0xffUL; /* prevent C-string-based stack leaks from exposing the cookie */
+#ifdef __x86_64__
+    tcbptr->common.stack_protector_canary = canary;
+#else
+#error "unsupported architecture"
+#endif
+}
+
 #endif /* PAL_LINUX_H */
