@@ -133,7 +133,7 @@ pal_loader:
 .PHONY: config
 config: $(INSTALL_DIR)/conf/nginx-graphene.conf
 
-$(INSTALL_DIR)/conf/nginx-graphene.conf: nginx-graphene.conf $(INSTALL_DIR)/sbin/nginx
+$(INSTALL_DIR)/conf/nginx-graphene.conf: nginx-graphene.conf.template $(INSTALL_DIR)/sbin/nginx
 	sed -e 's|$$(LISTEN_PORT)|'"$(LISTEN_PORT)"'|g' \
 		-e 's|$$(LISTEN_SSL_PORT)|'"$(LISTEN_SSL_PORT)"'|g' \
 		-e 's|$$(LISTEN_HOST)|'"$(LISTEN_HOST)"'|g' \
