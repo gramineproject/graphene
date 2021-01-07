@@ -133,7 +133,7 @@ typedef struct PAL_CONTROL_ {
      */
 
     toml_table_t* manifest_root; /*!< program manifest */
-    PAL_STR executable;          /*!< executable name */
+    PAL_STR executable;          /*!< initial executable name. TODO: remove from PAL */
     PAL_HANDLE parent_process;   /*!< handle of parent process */
     PAL_HANDLE first_thread;     /*!< handle of first thread */
     PAL_BOL enable_debug_log;    /*!< enable debug log calls */

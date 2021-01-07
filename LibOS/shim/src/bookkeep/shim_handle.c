@@ -55,6 +55,16 @@ static inline int init_exec_handle(void) {
     if (!PAL_CB(executable))
         return 0;
 
+    lock(&g_process.fs_lock);
+    if (g_process.exec) {
+        // TODO: This is only a temporary workaround, which should be deleted after removing exec
+        // handling from PAL. PAL_CB(executable) is valid only until first execve - in such case
+        // it's stale, and g_process.exec is already initialized by shim_do_execve_rtld.
+        unlock(&g_process.fs_lock);
+        return 0;
+    }
+    unlock(&g_process.fs_lock);
+
     struct shim_handle* exec = get_new_handle();
     if (!exec)
         return -ENOMEM;

@@ -76,7 +76,7 @@ target = \
 	$(executables) \
 	$(all_manifests)
 
-include ../../Scripts/Makefile.manifest
+include ../../Scripts/manifest.mk
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 

@@ -3,7 +3,7 @@ $(error include Makefile.config before $(lastword $(MAKEFILE_LIST)))
 endif
 
 ifeq ($(MAKEFILE_MANIFEST_DIR),)
-$(error include Makefile.manifest before $(lastword $(MAKEFILE_LIST)))
+$(error include manifest.mk before $(lastword $(MAKEFILE_LIST)))
 endif
 
 SCRIPTS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))

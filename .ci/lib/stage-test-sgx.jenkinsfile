@@ -27,7 +27,6 @@ stage('test-sgx') {
             make ${MAKEOPTS} check
         '''
     }
-    /* TODO: segfaults for some reason, probably a bug in RTLD code.
     timeout(time: 10, unit: 'MINUTES') {
         sh '''
             cd Examples/gcc
@@ -35,7 +34,6 @@ stage('test-sgx') {
             make ${MAKEOPTS} check
         '''
     }
-    */
     timeout(time: 15, unit: 'MINUTES') {
         sh '''
             cd Examples/memcached
