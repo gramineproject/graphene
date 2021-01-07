@@ -211,12 +211,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     // Initialize TCB at the top of the alternative stack.
     PAL_TCB_LINUX* tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
-    tcb->common.self = &tcb->common;
-    tcb->handle      = first_thread;
-    tcb->alt_stack   = alt_stack; // Stack bottom
-    tcb->callback    = NULL;
-    tcb->param       = NULL;
-
+    pal_tcb_linux_init(tcb, first_thread, alt_stack, NULL, NULL);
     ret = pal_thread_init(tcb);
     if (ret < 0)
         INIT_FAIL(unix_to_pal_error(-ret), "pal_thread_init() failed");
