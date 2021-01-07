@@ -87,12 +87,10 @@ __attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* 
     int ret;
 
     /* we inherited the parent's GS register which we shouldn't use in the child thread, but GCC's
-     * stack protector will look for a canary at gs:[0x8] in functions called below, so let's
-     * install a dummy temporary TCB with a default canary */
-    PAL_TCB_LINUX dummy_tcb_for_stack_protector = { 0 };
-    dummy_tcb_for_stack_protector.common.self = &dummy_tcb_for_stack_protector.common;
-    pal_set_tcb_stack_canary(&dummy_tcb_for_stack_protector, STACK_PROTECTOR_CANARY_DEFAULT);
-    ret = pal_set_tcb(&dummy_tcb_for_stack_protector.common);
+     * stack protector will look for a canary at gs:[0x8] in functions called below (e.g.,
+     * _DkRandomBitsRead), so let's install a default canary in the child's TCB */
+    pal_set_tcb_stack_canary(tcb, STACK_PROTECTOR_CANARY_DEFAULT);
+    ret = pal_set_tcb(&tcb->common);
     if (IS_ERR(ret))
         return -ERRNO(ret);
 
@@ -102,11 +100,7 @@ __attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* 
     if (IS_ERR(ret))
         return -EPERM;
 
-    /* now we can install the correct TCB corresponding to this (child) thread */
     pal_set_tcb_stack_canary(tcb, stack_protector_canary);
-    ret = pal_set_tcb(&tcb->common);
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
 
     if (tcb->alt_stack) {
         stack_t ss = {

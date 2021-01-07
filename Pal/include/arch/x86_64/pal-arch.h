@@ -26,7 +26,7 @@ typedef struct pal_tcb PAL_TCB;
 
 #define PAL_LIBOS_TCB_SIZE 256
 
-#define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbad00UL
+#define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbadUL
 
 typedef struct pal_tcb {
     struct pal_tcb* self;
