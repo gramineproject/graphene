@@ -170,13 +170,9 @@ static inline PAL_TCB_LINUX* get_tcb_linux(void) {
 }
 
 __attribute__((__optimize__("-fno-stack-protector")))
-static inline void pal_set_tcb_stack_canary(PAL_TCB_LINUX* tcbptr, uint64_t canary) {
+static inline void pal_tcb_set_stack_canary(PAL_TCB* tcb, uint64_t canary) {
     ((char*)&canary)[0] = 0; /* prevent C-string-based stack leaks from exposing the cookie */
-#ifdef __x86_64__
-    tcbptr->common.stack_protector_canary = canary;
-#else
-#error "unsupported architecture"
-#endif
+    pal_tcb_arch_set_stack_canary(tcb, canary);
 }
 
 #endif /* PAL_LINUX_H */

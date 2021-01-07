@@ -89,7 +89,7 @@ __attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* 
     /* we inherited the parent's GS register which we shouldn't use in the child thread, but GCC's
      * stack protector will look for a canary at gs:[0x8] in functions called below (e.g.,
      * _DkRandomBitsRead), so let's install a default canary in the child's TCB */
-    pal_set_tcb_stack_canary(tcb, STACK_PROTECTOR_CANARY_DEFAULT);
+    pal_tcb_set_stack_canary(&tcb->common, STACK_PROTECTOR_CANARY_DEFAULT);
     ret = pal_set_tcb(&tcb->common);
     if (IS_ERR(ret))
         return -ERRNO(ret);
@@ -100,7 +100,7 @@ __attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* 
     if (IS_ERR(ret))
         return -EPERM;
 
-    pal_set_tcb_stack_canary(tcb, stack_protector_canary);
+    pal_tcb_set_stack_canary(&tcb->common, stack_protector_canary);
 
     if (tcb->alt_stack) {
         stack_t ss = {
@@ -160,7 +160,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
 
     // Initialize TCB at the top of the alternative stack.
     PAL_TCB_LINUX* tcb = child_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
-    pal_tcb_linux_init(tcb, hdl, child_stack, callback, (void *)param);
+    pal_tcb_linux_init(tcb, hdl, child_stack, callback, (void*)param);
 
     /* align child_stack to 16 */
     child_stack = ALIGN_DOWN_PTR(child_stack, 16);
