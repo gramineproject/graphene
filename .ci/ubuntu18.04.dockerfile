@@ -52,6 +52,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     r-base-core \
     shellcheck \
     texinfo \
+    uthash-dev \
     wget \
     zlib1g \
     zlib1g-dev

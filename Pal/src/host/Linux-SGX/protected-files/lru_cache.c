@@ -6,11 +6,12 @@
 
 /* TODO: add regression tests for this */
 
+#include <uthash.h>
+
 #include "lru_cache.h"
 
 #include "api.h"
 #include "list.h"
-#include "uthash.h"
 
 #ifdef IN_PAL
 #include "assert.h"

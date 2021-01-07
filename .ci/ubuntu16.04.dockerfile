@@ -50,6 +50,7 @@ RUN apt-get update \
        r-base-core \
        shellcheck \
        texinfo \
+       uthash-dev \
        wget \
        zlib1g \
        zlib1g-dev \

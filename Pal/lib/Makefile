@@ -135,7 +135,7 @@ objs += crypto/adapters/mbedtls_encoding.o
 endif
 
 .PHONY: all
-all: ../include/lib/uthash.h $(target)graphene-lib.a
+all: $(target)graphene-lib.a
 
 $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@mkdir -p $(dir $@)
@@ -148,12 +148,6 @@ $(target)%.o: %.c toml.patched
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(patsubst %.o,%.d,$(addprefix $(target),$(objs)))
 endif
-
-UTHASH_URI ?= https://raw.githubusercontent.com/troydhanson/uthash/8b214aefcb81df86a7e5e0d4fa20e59a6c18bc02/src/uthash.h
-UTHASH_CHECKSUM ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c2ac
-
-../include/lib/uthash.h:
-	../../Scripts/download --output $@ --url $(UTHASH_URI) --sha256 $(UTHASH_CHECKSUM)
 
 TOML_H_URI ?= https://raw.githubusercontent.com/cktan/tomlc99/5be06807ad5f2230cad99e15380c4f4076c9dd83/toml.h
 TOML_H_CHECKSUM ?= e79d6d272576561e1b46ee001b0dd6b554330843e6fc7c658a548c659f282ac5
@@ -178,5 +172,4 @@ clean:
 .PHONY: distclean
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls
-	$(RM) ../include/lib/uthash.h
 	$(RM) ../include/lib/toml.h toml.h toml.c toml.patched

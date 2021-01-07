@@ -6,6 +6,7 @@
 
 #include <asm/mman.h>
 #include <linux/mman.h>
+#include <uthash.h>
 
 #include "api.h"
 #include "assert.h"
@@ -21,7 +22,6 @@
 #include "sgx_attest.h"
 #include "sgx_tls.h"
 #include "sysdep-arch.h"
-#include "uthash.h"
 
 #define IS_ERR      INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P    INTERNAL_SYSCALL_ERROR_P
