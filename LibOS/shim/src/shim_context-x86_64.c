@@ -7,7 +7,6 @@
 #include <stdnoreturn.h>
 
 #include "asm-offsets.h"
-#include "immintrin.h"
 #include "pal.h"
 #include "shim_context.h"
 #include "shim_internal.h"
