@@ -17,7 +17,7 @@ stage('clean-check') {
         make -C Examples/python-scipy-insecure clean
         make -C Examples/bash clean
         make -C Examples/curl clean
-        #make -C Examples/gcc distclean
+        make -C Examples/gcc distclean
         make -C Examples/memcached distclean
         make -C Examples/redis distclean
         make -C Examples/lighttpd distclean
