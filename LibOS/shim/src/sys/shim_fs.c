@@ -205,6 +205,11 @@ int shim_do_fchmod(int fd, mode_t mode) {
     struct shim_dentry* dent = hdl->dentry;
     int ret = 0;
 
+    if (!dent) {
+        ret = -EINVAL;
+        goto out;
+    }
+
     if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->chmod) {
         if ((ret = dent->fs->d_ops->chmod(dent, mode)) < 0)
             goto out;
