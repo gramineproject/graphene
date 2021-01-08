@@ -501,4 +501,8 @@ void delete_from_epoll_handles(struct shim_handle* handle);
 void* allocate_stack(size_t size, size_t protect_size, bool user);
 int init_stack(const char** argv, const char** envp, const char*** out_argp, elf_auxv_t** out_auxv);
 
+void syscalldb(void);
+
+int register_library(const char* name, unsigned long load_address);
+
 #endif /* _SHIM_INTERNAL_H_ */

@@ -14,7 +14,6 @@
 
 #include "elf.h"
 #include "elf/ldsodefs.h"
-#include "glibc-version.h"
 #include "shim_checkpoint.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"

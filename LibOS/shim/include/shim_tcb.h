@@ -9,6 +9,11 @@
 
 #define SHIM_TCB_CANARY 0xdeadbeef
 
+/* Offsets for patched code calling into Graphene (see patches for glibc and gcc). If you change
+ * this, update the patches too.*/
+#define SHIM_SYSCALLDB_OFFSET 32
+#define SHIM_REGISTER_LIBRARY_OFFSET 40
+
 struct shim_context {
     struct shim_regs* regs;
     struct shim_ext_context ext_ctx;
@@ -38,6 +43,11 @@ typedef struct shim_tcb shim_tcb_t;
 struct shim_tcb {
     uint64_t            canary;
     shim_tcb_t*         self;
+
+    /* Function pointers for patched code calling into Graphene. */
+    void*               syscalldb;
+    void*               register_library;
+
     struct shim_thread* tp;
     struct shim_context context;
     int                 pal_errno;
@@ -55,9 +65,23 @@ struct shim_tcb {
     } test_range;
 };
 
+static_assert(
+    offsetof(PAL_TCB, libos_tcb) + offsetof(shim_tcb_t, syscalldb) == SHIM_SYSCALLDB_OFFSET,
+    "SHIM_SYSCALLDB_OFFSET must match");
+
+static_assert(
+    offsetof(PAL_TCB, libos_tcb) + offsetof(shim_tcb_t, register_library) ==
+        SHIM_REGISTER_LIBRARY_OFFSET,
+    "SHIM_REGISTER_LIBRARY_OFFSET must match");
+
 static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
-    shim_tcb->canary    = SHIM_TCB_CANARY;
-    shim_tcb->self      = shim_tcb;
+    void syscalldb(void);
+    int register_library(const char* name, unsigned long load_address);
+
+    shim_tcb->canary = SHIM_TCB_CANARY;
+    shim_tcb->self = shim_tcb;
+    shim_tcb->syscalldb = &syscalldb;
+    shim_tcb->register_library = &register_library;
     shim_tcb->vma_cache = NULL;
 }
 

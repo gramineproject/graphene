@@ -1,30 +1,3 @@
-diff --git a/Makeconfig b/Makeconfig
-index f252842979a1d777e0f0c2bdafa7a65aee0805cd..4e22deb595ad6e5dd36571aec01d5b1e39f10f16 100644
---- a/Makeconfig
-+++ b/Makeconfig
-@@ -930,7 +930,8 @@ endif	# $(+cflags) == ""
- # current directory.
- +includes = -I$(..)include $(if $(subdir),$(objpfx:%/=-I%)) \
- 	    $(+sysdep-includes) $(includes) \
--	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes)
-+	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes) \
-+	    -I$(common-objpfx)../shim/include
- 
- # Since libio has several internal header files, we use a -I instead
- # of many little headers in the include directory.
-diff --git a/Makefile b/Makefile
-index 8f0a93aceb824e556f519847d322cbe5ee5eec7d..37c6356629cfe430fc667a4ca47939937cff536d 100644
---- a/Makefile
-+++ b/Makefile
-@@ -434,6 +434,8 @@ $(inst_includedir)/gnu/stubs.h: $(+force)
- install-others-nosubdir: $(installed-stubs)
- endif
- 
-+# For Graphene
-+CFLAGS-syscalldb.c = -fPIC
- 
- # Since stubs.h is never needed when building the library, we simplify the
- # hairy installation process by producing it in place only as the last part
 diff --git a/Makerules b/Makerules
 index 1e9c18f0d866731910d29327b975e359dbb3ea33..3fa0d4a52489b6d05111e76ade0a68cc618f2679 100644
 --- a/Makerules
@@ -51,28 +24,6 @@ index 632a4d8b0f6a30e5be7e9d675a81b6e3fd0fdcad..d9def31d16c6e0f64b8410dbe01931cf
  routines	= $(all-dl-routines) dl-support dl-iteratephdr \
  		  dl-addr dl-addr-obj enbl-secure dl-profstub \
  		  dl-origin dl-libc dl-sym dl-sysdep dl-error \
-@@ -33,7 +33,8 @@ dl-routines	= $(addprefix dl-,load lookup object reloc deps hwcaps \
- 				  runtime init fini debug misc \
- 				  version profile tls origin scope \
- 				  execstack open close trampoline \
--				  exception sort-maps)
-+				  exception sort-maps) \
-+			  syscalldb syscallas
- ifeq (yes,$(use-ldconfig))
- dl-routines += dl-cache
- endif
-diff --git a/elf/Versions b/elf/Versions
-index 3b09901f6c31e3d41c926c0b35246cb7db3c4f10..b7e555aded71595d937b5f22e359f753abba1fdd 100644
---- a/elf/Versions
-+++ b/elf/Versions
-@@ -79,4 +79,7 @@ ld {
-     # Set value of a tunable.
-     __tunable_get_val;
-   }
-+  SHIM {
-+    syscalldb; glibc_version; register_library;
-+  }
- }
 diff --git a/elf/dl-load.c b/elf/dl-load.c
 index a6b80f93957199e1ef2bcbbcc12302830caae978..92ac9703f750755e350c86fc13fd382347931950 100644
 --- a/elf/dl-load.c
@@ -81,7 +32,7 @@ index a6b80f93957199e1ef2bcbbcc12302830caae978..92ac9703f750755e350c86fc13fd3823
  #include <dl-prop.h>
  #include <not-cancel.h>
  
-+#include <glibc-version.h>
++#include "syscalldb.h"
 +
  #include <endian.h>
  #if BYTE_ORDER == BIG_ENDIAN
@@ -96,44 +47,6 @@ index a6b80f93957199e1ef2bcbbcc12302830caae978..92ac9703f750755e350c86fc13fd3823
    /* Now that the object is fully initialized add it to the object list.  */
    _dl_add_to_namespace_list (l, nsid);
  
-diff --git a/elf/rtld.c b/elf/rtld.c
-index 553cfbd1b74e05467e3c30e291f694ce40c4b0f4..09a0826d2d8fac85e358fbb9a08bb5c67e97b537 100644
---- a/elf/rtld.c
-+++ b/elf/rtld.c
-@@ -458,6 +458,23 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
-   return start_addr;
- }
- 
-+/* For Graphene, check if Glibc version matches the compatible SHIM
-+ * library. If not, tell the user to update Glibc. */
-+#include "glibc-version.h"
-+
-+const unsigned int glibc_version __attribute__((weak)) = GLIBC_VERSION;
-+
-+static void
-+check_glibc_version (void)
-+{
-+  if (glibc_version != GLIBC_VERSION)
-+    {
-+      _dl_fatal_printf ("Warning from Graphene: "
-+                        "Glibc version is incorrect. Please rebuild Glibc.\n");
-+      _exit (1);
-+    }
-+}
-+
- static ElfW(Addr) __attribute_used__
- _dl_start (void *arg)
- {
-@@ -528,6 +545,9 @@ _dl_start (void *arg)
-      therefore need not test whether we have to allocate the array
-      for the relocation results (as done in dl-reloc.c).  */
- 
-+  /* For Graphene, check if the glibc version is correct. */
-+  check_glibc_version();
-+
-   /* Now life is sane; we can call functions and access global data.
-      Set up to use the operating system facilities, and find out from
-      the operating system's program loader where to find the program
 diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
 index 07334c63d81cb3b0dca848aa28c6a80292059bfb..2093438c050443920da0fcafe3083d7270f9bb24 100644
 --- a/sysdeps/gnu/errlist-compat.awk
