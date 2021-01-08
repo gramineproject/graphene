@@ -604,24 +604,22 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     // TODO: should actually be parsed by LibOS
     char* entrypoint = NULL;
     ret = toml_string_in(manifest_root, "libos.entrypoint", &entrypoint);
-    if (ret < 0 || entrypoint == NULL) {
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot parse 'libos.entrypoint'\n");
+        ret = -EINVAL;
+        goto out;
+    } else if (entrypoint == NULL) {
+        // Temporary hack for PAL regression tests. We should always error out here.
+        ret = toml_string_in(manifest_root, "pal.entrypoint", &entrypoint);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Cannot parse 'libos.entrypoint'\n");
+            SGX_DBG(DBG_E, "Cannot parse 'pal.entrypoint'\n");
             ret = -EINVAL;
             goto out;
-        } else {
-            // Temporary hack for PAL regression tests. We should always error out here.
-            ret = toml_string_in(manifest_root, "pal.entrypoint", &entrypoint);
-            if (ret < 0) {
-                SGX_DBG(DBG_E, "Cannot parse 'pal.entrypoint'\n");
-                ret = -EINVAL;
-                goto out;
-            }
-            if (!entrypoint) {
-                SGX_DBG(DBG_E, "'libos.entrypoint' must be specified in the manifest\n");
-                ret = -EINVAL;
-                goto out;
-            }
+        }
+        if (!entrypoint) {
+            SGX_DBG(DBG_E, "'libos.entrypoint' must be specified in the manifest\n");
+            ret = -EINVAL;
+            goto out;
         }
     }
     enclave_info->entrypoint_uri = entrypoint;

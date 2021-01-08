@@ -199,8 +199,8 @@ class TC_01_Bootstrap(RegressionTestCase):
 
     def test_130_large_number_of_items_in_manifest(self):
         _, stderr = self.run_binary(['Bootstrap7'])
-        self.assertIn('key1000=na', stderr)
         self.assertIn('key1=na', stderr)
+        self.assertIn('key1000=batman', stderr)
 
     def test_140_missing_executable_and_manifest(self):
         try:

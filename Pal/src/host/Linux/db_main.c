@@ -258,19 +258,17 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     if (!exec_uri) {
         ret = toml_string_in(g_pal_state.manifest_root, "libos.entrypoint", &exec_uri);
-        if (ret < 0 || exec_uri == NULL) {
-            if (ret < 0) {
-                INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'libos.entrypoint'\n");
-            } else {
-                // Temporary hack for PAL regression tests. TODO: We should always error out here.
-                char* pal_entrypoint;
-                ret = toml_string_in(g_pal_state.manifest_root, "pal.entrypoint", &pal_entrypoint);
-                if (ret < 0)
-                    INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'\n");
-                if (!pal_entrypoint)
-                    INIT_FAIL(PAL_ERROR_INVAL,
-                              "'libos.entrypoint' must be specified in the manifest\n");
-            }
+        if (ret < 0) {
+            INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'libos.entrypoint'\n");
+        } else if (exec_uri == NULL) {
+            // Temporary hack for PAL regression tests. TODO: We should always error out here.
+            char* pal_entrypoint;
+            ret = toml_string_in(g_pal_state.manifest_root, "pal.entrypoint", &pal_entrypoint);
+            if (ret < 0)
+                INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'\n");
+            if (!pal_entrypoint)
+                INIT_FAIL(PAL_ERROR_INVAL,
+                          "'libos.entrypoint' must be specified in the manifest\n");
         }
     }
 

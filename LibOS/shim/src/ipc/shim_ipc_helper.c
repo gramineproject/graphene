@@ -17,6 +17,9 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
+// TODO: There's some dead code left in this file after removal of execve-in-new-process quirk. We
+// need to clean it up.
+
 #define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 
 static struct shim_lock ipc_port_mgr_lock;

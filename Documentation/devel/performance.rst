@@ -316,10 +316,10 @@ overheads.
 To summarize, there are two sources of overhead for multi-process applications
 in Graphene:
 
-#. ``Fork()``, ``vfork()``, ``clone()`` as well as the ``execve()`` system calls
-   are very expensive in Graphene and in SGX in general. This is because Intel
-   SGX lacks the mechanisms for memory sharing and copy-on-write semantics. They
-   are emulated via checkpoint-and-restore in Graphene.
+#. ``Fork()``, ``vfork()`` and ``clone()`` system calls are very expensive in
+   Graphene and in SGX in general. This is because Intel SGX lacks the
+   mechanisms for memory sharing and copy-on-write semantics. They are emulated
+   via checkpoint-and-restore in Graphene.
 
 #. Inter-Process Communication (IPC) is moderately expensive in Graphene because
    all IPC is transparently encrypted/decrypted using the TLS-PSK with AES-GCM
@@ -391,9 +391,9 @@ encrypts many means of communication:
 #. Files marked as ``sgx.protected_files`` are transparently encrypted/decrypted
    on each file access via SGX SDK Merkle-tree format.
 
-#. ``Fork/vfork/clone/execve`` all require to generate an encrypted checkpoint
-   of the whole enclave memory, send it from parent process to the child, and
-   decrypt it (all via TLS-PSK).
+#. ``Fork/vfork/clone`` all require to generate an encrypted checkpoint of the
+   whole enclave memory, send it from parent process to the child, and decrypt
+   it (all via TLS-PSK).
 
 #. All SGX attestation, RA-TLS, and Secret Provisioning network communication is
    encrypted via TLS. Moreover, attestation depends on the internet speed and

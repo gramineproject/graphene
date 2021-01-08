@@ -71,7 +71,7 @@ def get_binary_path(executable):
 argparser = argparse.ArgumentParser()
 argparser.add_argument('directory', default='/',
     help='Search the directory tree from this root for files and generate list of trusted files')
-argparser.add_argument('manifest', required=True, help='Manifest file to use.')
+argparser.add_argument('manifest', help='Manifest file to use.')
 
 def main(args=None):
     args = argparser.parse_args(args[1:])
