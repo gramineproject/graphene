@@ -157,8 +157,7 @@ typedef struct pal_tcb_linux {
 int pal_thread_init(void* tcbptr);
 
 static inline void pal_tcb_linux_init(PAL_TCB_LINUX* tcb, PAL_HANDLE handle, void* alt_stack,
-                        int (*callback)(void*), void* param)
-{
+                                      int (*callback)(void*), void* param) {
     tcb->common.self = &tcb->common;
     tcb->handle      = handle;
     tcb->alt_stack   = alt_stack; // Stack bottom
