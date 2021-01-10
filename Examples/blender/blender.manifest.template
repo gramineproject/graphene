@@ -64,23 +64,9 @@ sgx.trusted_files.libpthread = "file:$(GRAPHENE_DIR)/Runtime/libpthread.so.0"
 sgx.trusted_files.libutil = "file:$(GRAPHENE_DIR)/Runtime/libutil.so.1"
 sgx.trusted_files.librt = "file:$(GRAPHENE_DIR)/Runtime/librt.so.1"
 
+# Loaded in runtime, ldd doesn't list them.
+sgx.trusted_files.libnuma = "file:/usr/$(ARCH_LIBDIR)/libnuma.so.1"
 sgx.trusted_files.libGL = "file:$(BLENDER_DIR)/lib/libGL.so.1"
 sgx.trusted_files.libglapi = "file:$(BLENDER_DIR)/lib/libglapi.so.0"
-
-sgx.trusted_files.libX11 = "file:/usr/$(ARCH_LIBDIR)/libX11.so.6"
-sgx.trusted_files.libXi = "file:/usr/$(ARCH_LIBDIR)/libXi.so.6"
-sgx.trusted_files.libXxf86vm = "file:/usr/$(ARCH_LIBDIR)/libXxf86vm.so.1"
-sgx.trusted_files.libXfixes = "file:/usr/$(ARCH_LIBDIR)/libXfixes.so.3"
-sgx.trusted_files.libXrender = "file:/usr/$(ARCH_LIBDIR)/libXrender.so.1"
-sgx.trusted_files.libgcc_s = "file:$(ARCH_LIBDIR)/libgcc_s.so.1"
 sgx.trusted_files.libz = "file:$(ARCH_LIBDIR)/libz.so.1"
-sgx.trusted_files.libXext = "file:/usr/$(ARCH_LIBDIR)/libXext.so.6"
-sgx.trusted_files.libxcb = "file:/usr/$(ARCH_LIBDIR)/libxcb.so.1"
-sgx.trusted_files.libXau = "file:/usr/$(ARCH_LIBDIR)/libXau.so.6"
-sgx.trusted_files.libXdmcp = "file:/usr/$(ARCH_LIBDIR)/libXdmcp.so.6"
 sgx.trusted_files.libstdcpp = "file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6"
-sgx.trusted_files.libnuma = "file:/usr/$(ARCH_LIBDIR)/libnuma.so.1"
-
-# Ubuntu version specific files
-# [Ubuntu18.04] sgx.trusted_files.libbsd = "file:$(ARCH_LIBDIR)/libbsd.so.0"
-# [Ubuntu20.04] sgx.trusted_files.libbsd = "file:/usr/$(ARCH_LIBDIR)/libbsd.so.0"

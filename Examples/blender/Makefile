@@ -45,15 +45,19 @@ $(BLENDER_DIR)/blender:
 $(RUN_DIR):
 	mkdir -p $@
 
-blender.manifest: blender.manifest.template $(BLENDER_DIR)/blender | $(RUN_DIR)
-	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-		-e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
-		-e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
-		-e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
-		-e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
-		-e 's|# \['"$(UBUNTU_VER)"'\] ||g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+.INTERMEDIATE: trusted-libs
+trusted-libs: ../common_tools/get_deps.sh $(BLENDER_DIR)/blender
+	../common_tools/get_deps.sh $(BLENDER_DIR)/blender > $@
+
+blender.manifest: blender.manifest.template trusted-libs | $(RUN_DIR)
+	(sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
+	     -e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
+	     -e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
+	     -e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
+	     -e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
+	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	     $<; \
+    cat trusted-libs) > $@
 
 blender.sig blender.manifest.sgx &: $(BLENDER_DIR)/blender blender.manifest \
         $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so | $(RUN_DIR)
@@ -79,7 +83,7 @@ check: all
 .PHONY: clean
 clean:
 	$(RM) -r $(RUN_DIR) $(DATA_DIR)/images blender.manifest blender.manifest.sgx blender.sig \
-	         blender.token
+	         blender.token trusted-libs
 
 .PHONY: distclean
 distclean: clean
