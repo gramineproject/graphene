@@ -487,7 +487,7 @@ extern struct shim_d_ops sys_d_ops;
 
 struct pseudo_name_ops {
     int (*match_name)(const char* name);
-    int (*list_name)(const char* name, struct shim_dirent** buf, int count);
+    int (*list_name)(const char* name, struct shim_dirent** buf, size_t count);
 };
 
 static inline dev_t makedev(unsigned int major, unsigned int minor) {
