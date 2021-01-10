@@ -487,7 +487,7 @@ extern struct shim_d_ops sys_d_ops;
 
 struct pseudo_name_ops {
     int (*match_name)(const char* name);
-    int (*list_name)(const char* name, struct shim_dirent** buf, int count);
+    int (*list_name)(const char* name, struct shim_dirent** buf, size_t count);
 };
 
 static inline dev_t makedev(unsigned int major, unsigned int minor) {
@@ -557,6 +557,6 @@ int sys_dir_open(struct shim_handle* hdl, const char* name, int flags);
 int sys_dir_mode(const char* name, mode_t* mode);
 int sys_dir_stat(const char* name, struct stat* buf);
 int sys_match_resource_num(const char* pathname);
-int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, int len);
+int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t len);
 
 #endif /* _SHIM_FS_H_ */

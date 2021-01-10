@@ -258,7 +258,7 @@ static int proc_match_thread_each_fd(const char* name) {
     return parse_thread_fd(name, NULL, NULL) == 0 ? 1 : 0;
 }
 
-static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, int count) {
+static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, size_t count) {
     const char* next;
     size_t next_len;
     IDTYPE pid;
@@ -274,7 +274,8 @@ static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, 
         return -ENOENT;
 
     struct shim_handle_map* handle_map = get_thread_handle_map(thread);
-    int err = 0, bytes = 0;
+    int err = 0;
+    size_t bytes = 0;
     struct shim_dirent* dirent = *buf;
     struct shim_dirent** last  = NULL;
 
@@ -695,11 +696,11 @@ static int walk_cb(struct shim_thread* thread, void* arg) {
     return 1;
 }
 
-static int proc_list_thread(const char* name, struct shim_dirent** buf, int len) {
+static int proc_list_thread(const char* name, struct shim_dirent** buf, size_t size) {
     __UNUSED(name);  // We know this is for "/proc/self"
     struct walk_thread_arg args = {
         .buf     = *buf,
-        .buf_end = (void*)*buf + len,
+        .buf_end = (void*)*buf + size,
     };
 
     int ret = walk_thread_list(&walk_cb, &args, /*one_shot=*/false);

@@ -83,7 +83,7 @@ out:
     return ret;
 }
 
-int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, int len) {
+int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t size) {
     int totalcnt;
     char res_name[6];
     char ent_name[32];
@@ -110,7 +110,7 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, int le
         size_t dirent_size = sizeof(struct shim_dirent) + name_size;
 
         total_size += dirent_size;
-        if (total_size > (size_t)len)
+        if (total_size > size)
             return -ENOMEM;
 
         memcpy(dirent_in_buf->name, ent_name, name_size);
