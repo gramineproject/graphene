@@ -47,6 +47,12 @@ static inline PAL_TCB* pal_get_tcb(void) {
     return tcb;
 }
 
+static inline uint64_t count_bits_set(uint64_t x) {
+    uint64_t result;
+    __asm__("popcnt %1, %0" : "=r"(result) : "r"(x) : "cc");
+    return result;
+}
+
 union pal_csgsfs {
     struct {
         uint16_t cs;
@@ -253,7 +259,7 @@ typedef struct PAL_TOPO_INFO_ {
     char online_nodes[PAL_SYSFS_BUF_FILESZ];
     /* Number of nodes available in the host */
     PAL_NUM num_online_nodes;
-    /* cache index corresponds number of cache levels(such as L2 or L3) available in the host */
+    /* cache index corresponds to no. of cache levels (such as L2 or L3) available on the host */
     PAL_NUM num_cache_index;
     PAL_CORE_TOPO_INFO* core_topology; /* Array of logical core topology info */
     PAL_NUMA_TOPO_INFO* numa_topology; /* Array of numa topology info */

@@ -13,8 +13,7 @@
 extern const struct pseudo_dir sys_cpu_dir;
 extern const struct pseudo_dir sys_node_dir;
 
-/* This function will extract "3" from "cpu/cpu3/topology/core_siblings" */
-int extract_num_from_path(const char* pathname) {
+int extract_first_num_from_string (const char* pathname) {
     const char* str = pathname;
 
     while (*str) {
@@ -28,44 +27,44 @@ int extract_num_from_path(const char* pathname) {
 }
 
 /* This function will extract "cpu105" from "cpu105/cache/index0/type". If string doesn't have "/"
- * delimiter, original string is returned. Note: This function modifies pathname! */
-static char* extract_first_token_from_path(char* pathname) {
+ * delimiter, a copy of original string is returned. Note: Caller's responsibility to free returned
+ * buffer.*/
+static char* extract_first_token_from_path(const char* pathname) {
     if (pathname == NULL)
         return NULL;
 
-    char *delim_ptr = strchr(pathname, '/');
+    char* name = strdup(pathname);
+    if (!name)
+        return NULL;
+
+    char *delim_ptr = strchr(name, '/');
     if (delim_ptr)
         *delim_ptr = '\0';
 
-    return pathname;
+    return name;
 }
 
 int sys_match_resource_num(const char* pathname) {
     int num, totalcnt;
     int ret = 1;
 
-    /* Duplicate pathname as this will be modified when extracting path token */
-    char* name = strdup(pathname);
-    if (!name)
-        return 0;
-
-    char* token = extract_first_token_from_path(name);
+    char* token = extract_first_token_from_path(pathname);
     if (!token) {
         ret = 0;
         goto out;
     }
 
-    num = extract_num_from_path(token);
+    num = extract_first_num_from_string (token);
     if (num < 0) {
         ret = 0;
         goto out;
     }
 
-    if (strstr(token, "node")) {
+    if (strstartswith(token, "node")) {
         totalcnt = pal_control.topo_info.num_online_nodes;
-    } else if (strstr(token, "cpu")) {
+    } else if (strstartswith(token, "cpu")) {
         totalcnt = pal_control.cpu_info.online_logical_cores;
-    } else if (strstr(token, "index")) {
+    } else if (strstartswith(token, "index")) {
         totalcnt = pal_control.topo_info.num_cache_index;
     } else {
         debug("Invalid resource %s in file %s!", token, pathname);
@@ -79,7 +78,7 @@ int sys_match_resource_num(const char* pathname) {
         goto out;
     }
 out:
-    free(name);
+    free(token);
     return ret;
 }
 
@@ -90,18 +89,18 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
     struct shim_dirent* dirent_in_buf = *buf;
     size_t total_size = 0;
 
-    if (strstr(pathname, "node")) {
+    if (strendswith(pathname, "node")) {
         snprintf(res_name, sizeof(res_name), "node");
         totalcnt = pal_control.topo_info.num_online_nodes;
-    } else if (strstr(pathname, "index")) {
+    } else if (strendswith(pathname, "index")) {
         snprintf(res_name, sizeof(res_name), "index");
         totalcnt = pal_control.topo_info.num_cache_index;
-    } else if (strstr(pathname, "cpu")) {
+    } else if (strendswith(pathname, "cpu")) {
         snprintf(res_name, sizeof(res_name), "cpu");
         totalcnt = pal_control.cpu_info.online_logical_cores;
     } else {
         debug("Invalid resource name in file %s\n", pathname);
-        return 0;
+        return -EINVAL;
     }
 
     for (int i = 0; i < totalcnt; i++) {
@@ -121,7 +120,7 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
     }
 
     *buf = dirent_in_buf;
-    return 1;
+    return 0;
 }
 
 int sys_info_mode(const char* name, mode_t* mode) {
@@ -178,33 +177,23 @@ static const struct pseudo_fs_ops fs_sysdir = {
 static const struct pseudo_dir sys_sys_dir = {
     .size = 2,
     .ent  = {
-              { .name   = "cpu",
-                .dir    = &sys_cpu_dir,
-                .fs_ops = &fs_sysdir,
-                .type   = LINUX_DT_DIR },
-              { .name   = "node",
-                .dir    = &sys_node_dir,
-                .fs_ops = &fs_sysdir,
-                .type   = LINUX_DT_DIR },
-            }
+        {.name = "cpu",  .dir = &sys_cpu_dir,  .fs_ops = &fs_sysdir, .type = LINUX_DT_DIR},
+        {.name = "node", .dir = &sys_node_dir, .fs_ops = &fs_sysdir, .type = LINUX_DT_DIR},
+    }
 };
 
 static const struct pseudo_dir sys_dev_dir = {
     .size = 1,
     .ent  = {
-              { .name   = "system",
-                .dir    = &sys_sys_dir,
-                .type   = LINUX_DT_DIR },
-            }
+        {.name = "system", .dir = &sys_sys_dir, .type = LINUX_DT_DIR},
+    }
 };
 
 static const struct pseudo_dir sys_root_dir = {
     .size = 1,
     .ent  = {
-              { .name   = "devices",
-                .dir    = &sys_dev_dir,
-                .type   = LINUX_DT_DIR },
-            }
+        {.name = "devices", .dir = &sys_dev_dir, .type = LINUX_DT_DIR},
+    }
 };
 
 static const struct pseudo_fs_ops sys_root_fs = {

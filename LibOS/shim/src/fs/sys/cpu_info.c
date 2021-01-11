@@ -9,17 +9,14 @@
 extern const struct pseudo_dir cpunum_cache_dir;
 
 static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(hdl);
-    __UNUSED(flags);
-
     char filename[32];
 
-    size_t len = sizeof(filename);
-    int ret = get_base_name(name, filename, &len);
-    if (ret < 0 || (strlen(filename) != len))
+    size_t size = sizeof(filename);
+    int ret = get_base_name(name, filename, &size);
+    if (ret < 0 || (strlen(filename) != size))
         return -ENOENT;
 
-    int cpunum = extract_num_from_path(name);
+    int cpunum = extract_first_num_from_string (name);
     if (cpunum < 0)
         return -ENOENT;
 
@@ -49,11 +46,11 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
         return -ENOENT;
     }
 
-    len = strlen(cpu_filebuf) + 1;
-    char* str = malloc(len);
+    size = strlen(cpu_filebuf) + 1;
+    char* str = malloc(size);
     if (!str)
         return -ENOMEM;
-    memcpy(str, cpu_filebuf, len);
+    memcpy(str, cpu_filebuf, size);
 
     struct shim_str_data* data = calloc(1, sizeof(*data));
     if (!data) {
@@ -62,7 +59,7 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     }
 
     data->str          = str;
-    data->len          = len;
+    data->len          = size;
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
@@ -80,19 +77,11 @@ static const struct pseudo_fs_ops cpu_info = {
 static const struct pseudo_dir cpunum_topo_dir = {
     .size = 4,
     .ent  = {
-              { .name   = "core_id",
-                .fs_ops = &cpu_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "physical_package_id",
-                .fs_ops = &cpu_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "core_siblings",
-                .fs_ops = &cpu_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "thread_siblings",
-                .fs_ops = &cpu_info,
-                .type   = LINUX_DT_REG },
-            }
+        {.name = "core_id",             .fs_ops = &cpu_info, .type = LINUX_DT_REG},
+        {.name = "physical_package_id", .fs_ops = &cpu_info, .type = LINUX_DT_REG},
+        {.name = "core_siblings",       .fs_ops = &cpu_info, .type = LINUX_DT_REG},
+        {.name = "thread_siblings",     .fs_ops = &cpu_info, .type = LINUX_DT_REG},
+    }
 };
 
 static const struct pseudo_fs_ops cpunum_dirinfo = {
@@ -104,18 +93,16 @@ static const struct pseudo_fs_ops cpunum_dirinfo = {
 static const struct pseudo_dir cpunum_dir = {
     .size = 3,
     .ent  = {
-              { .name   = "online",
-                .fs_ops = &cpu_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "topology",
-                .fs_ops = &cpunum_dirinfo,
-                .dir    = &cpunum_topo_dir,
-                .type   = LINUX_DT_DIR },
-              { .name   = "cache",
-                .fs_ops = &cpunum_dirinfo,
-                .dir    = &cpunum_cache_dir,
-                .type   = LINUX_DT_DIR },
-            }
+        {.name = "online", .fs_ops = &cpu_info, .type = LINUX_DT_REG},
+        {.name   = "topology",
+         .fs_ops = &cpunum_dirinfo,
+         .dir    = &cpunum_topo_dir,
+         .type   = LINUX_DT_DIR},
+        {.name   = "cache",
+         .fs_ops = &cpunum_dirinfo,
+         .dir    = &cpunum_cache_dir,
+         .type   = LINUX_DT_DIR},
+    }
 };
 
 static const struct pseudo_name_ops cpunum_ops = {
@@ -126,14 +113,8 @@ static const struct pseudo_name_ops cpunum_ops = {
 const struct pseudo_dir sys_cpu_dir = {
     .size = 3,
     .ent  = {
-              { .name     = "online",
-                .fs_ops   = &cpu_info,
-                .type     = LINUX_DT_REG },
-              { .name     = "possible",
-                .fs_ops   = &cpu_info,
-                .type     = LINUX_DT_REG },
-              { .name_ops = &cpunum_ops,
-                .dir      = &cpunum_dir,
-                .type     = LINUX_DT_DIR },
-            }
+        {.name = "online",        .fs_ops = &cpu_info, .type = LINUX_DT_REG},
+        {.name = "possible",      .fs_ops = &cpu_info, .type = LINUX_DT_REG},
+        {.name_ops = &cpunum_ops, .dir = &cpunum_dir,  .type = LINUX_DT_DIR},
+    }
 };

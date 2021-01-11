@@ -14,16 +14,16 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
 
     char filename[32];
 
-    size_t len = sizeof(filename);
-    int ret = get_base_name(name, filename, &len);
-    if (ret < 0 || (strlen(filename) != len))
+    size_t size = sizeof(filename);
+    int ret = get_base_name(name, filename, &size);
+    if (ret < 0 || (strlen(filename) != size))
         return -ENOENT;
 
-    int cpunum = extract_num_from_path(name);
+    int cpunum = extract_first_num_from_string (name);
     if (cpunum < 0)
         return -ENOENT;
 
-    int idx = extract_num_from_path(strstr(name, "index"));
+    int idx = extract_first_num_from_string (strstr(name, "index"));
     if (idx < 0)
         return -ENOENT;
 
@@ -47,11 +47,11 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
         return -ENOENT;
     }
 
-    len = strlen(cache_filebuf) + 1;
-    char* str = malloc(len);
+    size = strlen(cache_filebuf) + 1;
+    char* str = malloc(size);
     if (!str)
         return -ENOMEM;
-    memcpy(str, cache_filebuf, len);
+    memcpy(str, cache_filebuf, size);
 
     struct shim_str_data* data = calloc(1, sizeof(*data));
     if (!data) {
@@ -60,7 +60,7 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     }
 
     data->str          = str;
-    data->len          = len;
+    data->len          = size;
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
@@ -78,28 +78,14 @@ static const struct pseudo_fs_ops cache_idx_info = {
 static const struct pseudo_dir cache_idx_dir = {
     .size = 7,
     .ent  = {
-              { .name   = "shared_cpu_map",
-                .fs_ops = &cache_idx_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "level",
-                .fs_ops = &cache_idx_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "type",
-                .fs_ops = &cache_idx_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "size",
-                .fs_ops = &cache_idx_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "coherency_line_size",
-                .fs_ops = &cache_idx_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "number_of_sets",
-                .fs_ops = &cache_idx_info,
-                .type   = LINUX_DT_REG },
-              { .name   = "physical_line_partition",
-                .fs_ops = &cache_idx_info,
-                .type   = LINUX_DT_REG },
-            }
+        {.name = "shared_cpu_map",          .fs_ops = &cache_idx_info, .type = LINUX_DT_REG},
+        {.name = "level",                   .fs_ops = &cache_idx_info, .type = LINUX_DT_REG},
+        {.name = "type",                    .fs_ops = &cache_idx_info, .type = LINUX_DT_REG},
+        {.name = "size",                    .fs_ops = &cache_idx_info, .type = LINUX_DT_REG},
+        {.name = "coherency_line_size",     .fs_ops = &cache_idx_info, .type = LINUX_DT_REG},
+        {.name = "number_of_sets",          .fs_ops = &cache_idx_info, .type = LINUX_DT_REG},
+        {.name = "physical_line_partition", .fs_ops = &cache_idx_info, .type = LINUX_DT_REG},
+    }
 };
 
 static const struct pseudo_fs_ops cache_info = {
@@ -116,9 +102,6 @@ static const struct pseudo_name_ops cache_ops = {
 const struct pseudo_dir cpunum_cache_dir = {
     .size = 1,
     .ent  = {
-              { .name_ops = &cache_ops,
-                .fs_ops   = &cache_info,
-                .dir      = &cache_idx_dir,
-                .type     = LINUX_DT_DIR },
-            }
+        {.name_ops = &cache_ops, .fs_ops = &cache_info, .dir = &cache_idx_dir, .type = LINUX_DT_DIR},
+    }
 };

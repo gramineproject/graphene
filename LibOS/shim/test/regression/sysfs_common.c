@@ -44,12 +44,12 @@ int main(int argc, char** argv) {
     long maxprocs = sysconf(_SC_NPROCESSORS_CONF);
     printf("Number of processors: %ld\n", maxprocs);
 
-    printf("===== faccessat of sys/devices/system/cpu =====\n");
+    printf("===== faccessat of /sys/devices/system/cpu =====\n");
     ret = faccessat(-1, "/sys/devices/system/cpu", R_OK, 0);
     if (ret)
         err(EXIT_FAILURE, "faccessat failed for /sys/devices/system/cpu");
 
-    printf("===== fopen of sys/devices/system/node =====\n");
+    printf("===== fopen of /sys/devices/system/node =====\n");
     fd = fopen("/sys/devices/system/node", "r");
     if (!fd)
         err(EXIT_FAILURE, "fopen failed for /sys/devices/system/node");
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 
     printf("I-node number:            %ld\n", (long)sb.st_ino);
     printf("Mode:                     %lo (octal)\n", (unsigned long)sb.st_mode);
-    printf("Link count:               %ld\n", (long) sb.st_nlink);
+    printf("Link count:               %ld\n", (long)sb.st_nlink);
     printf("Ownership:                UID=%ld   GID=%ld\n", (long)sb.st_uid, (long)sb.st_gid);
     printf("Preferred I/O block size: %ld bytes\n", (long)sb.st_blksize);
     printf("File size:                %lld bytes\n", (long long)sb.st_size);
@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
         printf("/sys/devices/system/cpu/%s, type=%d\n", dirent64->d_name, dirent64->d_type);
         if (dirent64->d_type == DT_DIR && strncmp(dirent64->d_name, "cpu", 3) == 0) {
             char *endp;
-            unsigned long int nr = strtoul(dirent64->d_name + 3, &endp, 10);
+            unsigned long nr = strtoul(dirent64->d_name + 3, &endp, 10);
             if (nr != _SC_ULONG_MAX && endp != dirent64->d_name + 3 && *endp == '\0')
                 count++;
         }
@@ -143,8 +143,8 @@ int main(int argc, char** argv) {
     while ((dirent = readdir(dir))) {
         printf("/sys/devices/system/node/%s \n", dirent->d_name);
         if (strncmp(dirent->d_name, "node", 4) == 0) {
-            char *endp;
-            unsigned long int nr = strtoul(dirent->d_name + 4,  &endp, 10);
+            char* endp;
+            unsigned long nr = strtoul(dirent->d_name + 4,  &endp, 10);
             if (nr != _SC_ULONG_MAX && endp != dirent64->d_name + 4 && *endp == '\0')
                 count++;
         }
