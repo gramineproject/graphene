@@ -202,7 +202,7 @@ out_handle:
     return addr;
 }
 
-int shim_do_mprotect(void* addr, size_t length, int prot) {
+long shim_do_mprotect(void* addr, size_t length, int prot) {
     if (prot & ~(PROT_NONE | PROT_READ | PROT_WRITE | PROT_EXEC | PROT_GROWSDOWN | PROT_GROWSUP |
                  PROT_SEM)) {
         return -EINVAL;
@@ -262,7 +262,7 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     return 0;
 }
 
-int shim_do_munmap(void* addr, size_t length) {
+long shim_do_munmap(void* addr, size_t length) {
     /*
      * According to the manpage, addr has to be page-aligned, but not the
      * length. munmap() will automatically round up the length.
@@ -293,7 +293,7 @@ int shim_do_munmap(void* addr, size_t length) {
  * pessimistically due to lack of a good way to know it.
  * Possibly it may cause performance(or other) issue due to this lying.
  */
-int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
+long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (!IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
@@ -323,8 +323,8 @@ int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     return 0;
 }
 
-int shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,
-                  unsigned long maxnode, int flags) {
+long shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,
+                   unsigned long maxnode, int flags) {
     /* dummy implementation, always return success */
     __UNUSED(start);
     __UNUSED(len);

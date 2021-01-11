@@ -26,8 +26,8 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
-                      struct __kernel_sigaction* oldact, size_t sigsetsize) {
+long shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
+                       struct __kernel_sigaction* oldact, size_t sigsetsize) {
     /* SIGKILL and SIGSTOP cannot be caught or ignored */
     if (signum == SIGKILL || signum == SIGSTOP || signum <= 0 || signum > NUM_SIGS ||
             sigsetsize != sizeof(__sigset_t))
@@ -57,13 +57,13 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
     return 0;
 }
 
-int shim_do_sigreturn(int __unused) {
+long shim_do_sigreturn(int __unused) {
     __UNUSED(__unused);
     /* do nothing */
     return 0;
 }
 
-int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
+long shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
     __sigset_t old;
 
     if (how != SIG_BLOCK && how != SIG_UNBLOCK && how != SIG_SETMASK)
@@ -112,7 +112,7 @@ out:
     return 0;
 }
 
-int shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
+long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
     if (ss && (ss->ss_flags & ~SS_DISABLE))
         return -EINVAL;
 
@@ -154,7 +154,7 @@ int shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
     return 0;
 }
 
-int shim_do_sigsuspend(const __sigset_t* mask_ptr) {
+long shim_do_sigsuspend(const __sigset_t* mask_ptr) {
     if (!mask_ptr || test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
         return -EFAULT;
 
@@ -189,7 +189,7 @@ int shim_do_sigsuspend(const __sigset_t* mask_ptr) {
     return -EINTR;
 }
 
-int shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
+long shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;
 
@@ -297,7 +297,7 @@ int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig) {
     return kill_current_proc(&info);
 }
 
-int shim_do_kill(pid_t pid, int sig) {
+long shim_do_kill(pid_t pid, int sig) {
     if (sig < 0 || sig > NUM_SIGS) {
         return -EINVAL;
     }
@@ -372,14 +372,14 @@ maybe_try_ipc:
     return -ESRCH;
 }
 
-int shim_do_tkill(pid_t tid, int sig) {
+long shim_do_tkill(pid_t tid, int sig) {
     if (tid <= 0)
         return -EINVAL;
 
     return do_kill_thread(g_process.pid, 0, tid, sig, /*use_ipc=*/true);
 }
 
-int shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
+long shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
     if (tgid <= 0 || tid <= 0)
         return -EINVAL;
 

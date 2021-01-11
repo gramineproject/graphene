@@ -192,7 +192,7 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_process* pr
                          argv, envp);
 }
 
-int shim_do_execve(const char* file, const char** argv, const char** envp) {
+long shim_do_execve(const char* file, const char** argv, const char** envp) {
     struct shim_thread* cur_thread = get_cur_thread();
     struct shim_dentry* dent       = NULL;
     int ret = 0, argc = 0;

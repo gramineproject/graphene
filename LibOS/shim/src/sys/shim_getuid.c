@@ -12,7 +12,7 @@
 #include "shim_thread.h"
 #include "shim_types.h"
 
-uid_t shim_do_getuid(void) {
+long shim_do_getuid(void) {
     struct shim_thread* current = get_cur_thread();
     lock(&current->lock);
     uid_t uid = current->uid;
@@ -20,7 +20,7 @@ uid_t shim_do_getuid(void) {
     return uid;
 }
 
-gid_t shim_do_getgid(void) {
+long shim_do_getgid(void) {
     struct shim_thread* current = get_cur_thread();
     lock(&current->lock);
     gid_t gid = current->gid;
@@ -28,7 +28,7 @@ gid_t shim_do_getgid(void) {
     return gid;
 }
 
-uid_t shim_do_geteuid(void) {
+long shim_do_geteuid(void) {
     struct shim_thread* current = get_cur_thread();
     lock(&current->lock);
     uid_t euid = current->euid;
@@ -36,7 +36,7 @@ uid_t shim_do_geteuid(void) {
     return euid;
 }
 
-gid_t shim_do_getegid(void) {
+long shim_do_getegid(void) {
     struct shim_thread* current = get_cur_thread();
     lock(&current->lock);
     gid_t egid = current->egid;
@@ -44,7 +44,7 @@ gid_t shim_do_getegid(void) {
     return egid;
 }
 
-int shim_do_setuid(uid_t uid) {
+long shim_do_setuid(uid_t uid) {
     struct shim_thread* current = get_cur_thread();
     lock(&current->lock);
     current->euid = uid;
@@ -52,7 +52,7 @@ int shim_do_setuid(uid_t uid) {
     return 0;
 }
 
-int shim_do_setgid(gid_t gid) {
+long shim_do_setgid(gid_t gid) {
     struct shim_thread* current = get_cur_thread();
     lock(&current->lock);
     current->egid = gid;
@@ -68,7 +68,7 @@ static struct groups_info_t {
     gid_t* groups;
 } g_groups_info = { .count = 0, .groups = NULL };
 
-int shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
+long shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
     if (gidsetsize < 0 || (unsigned int)gidsetsize > NGROUPS_MAX)
         return -EINVAL;
 
@@ -96,7 +96,7 @@ int shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
     return 0;
 }
 
-int shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
+long shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
     if (gidsetsize < 0)
         return -EINVAL;
 

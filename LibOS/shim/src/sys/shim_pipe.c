@@ -83,7 +83,7 @@ static void undo_set_fd_handle(int fd) {
     }
 }
 
-int shim_do_pipe2(int* filedes, int flags) {
+long shim_do_pipe2(int* filedes, int flags) {
     int ret = 0;
 
     if (flags & O_DIRECT) {
@@ -157,11 +157,11 @@ out:
     return ret;
 }
 
-int shim_do_pipe(int* filedes) {
+long shim_do_pipe(int* filedes) {
     return shim_do_pipe2(filedes, 0);
 }
 
-int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
+long shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     int ret = 0;
 
     if (domain != AF_UNIX)
@@ -241,7 +241,7 @@ out:
     return ret;
 }
 
-int shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
+long shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     int ret = 0;
     __UNUSED(dev);
 
@@ -374,6 +374,6 @@ out:
     return ret;
 }
 
-int shim_do_mknod(const char* pathname, mode_t mode, dev_t dev) {
+long shim_do_mknod(const char* pathname, mode_t mode, dev_t dev) {
     return shim_do_mknodat(AT_FDCWD, pathname, mode, dev);
 }

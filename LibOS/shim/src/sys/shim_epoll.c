@@ -34,7 +34,7 @@
 
 struct shim_mount epoll_builtin_fs;
 
-int shim_do_epoll_create1(int flags) {
+long shim_do_epoll_create1(int flags) {
     if ((flags & ~EPOLL_CLOEXEC))
         return -EINVAL;
 
@@ -62,7 +62,7 @@ int shim_do_epoll_create1(int flags) {
 }
 
 /* the 'size' argument of epoll_create is not used */
-int shim_do_epoll_create(int size) {
+long shim_do_epoll_create(int size) {
     if (size < 0)
         return -EINVAL;
 
@@ -124,7 +124,7 @@ void delete_from_epoll_handles(struct shim_handle* handle) {
     }
 }
 
-int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* event) {
+long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* event) {
     struct shim_thread* cur = get_cur_thread();
     int ret = 0;
 
@@ -264,8 +264,8 @@ out:
     return ret;
 }
 
-int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxevents,
-                       int timeout_ms) {
+long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxevents,
+                        int timeout_ms) {
     if (maxevents <= 0)
         return -EINVAL;
 
@@ -408,8 +408,8 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
     return nevents;
 }
 
-int shim_do_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxevents,
-                        int timeout_ms, const __sigset_t* sigmask, size_t sigsetsize) {
+long shim_do_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxevents,
+                         int timeout_ms, const __sigset_t* sigmask, size_t sigsetsize) {
     __UNUSED(sigmask);
     __UNUSED(sigsetsize);
     int ret = shim_do_epoll_wait(epfd, events, maxevents, timeout_ms);

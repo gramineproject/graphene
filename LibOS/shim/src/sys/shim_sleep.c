@@ -16,13 +16,13 @@
 #include "shim_utils.h"
 #include "shim_vma.h"
 
-int shim_do_pause(void) {
+long shim_do_pause(void) {
     /* ~0ULL micro sec ~= 805675 years */
     DkThreadDelayExecution(~((PAL_NUM)0));
     return -EINTR;
 }
 
-int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp) {
+long shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp) {
     if (!rqtp)
         return -EFAULT;
 
@@ -44,7 +44,7 @@ int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_time
     return 0;
 }
 
-int shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
+long shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
                             struct __kernel_timespec* rmtp) {
     /* all clocks are the same */
     if (!(0 <= clock_id && clock_id < MAX_CLOCKS))

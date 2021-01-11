@@ -342,7 +342,7 @@ DEFINE_SHIM_SYSCALL(gettimeofday, 2, shim_do_gettimeofday, int, struct __kernel_
 DEFINE_SHIM_SYSCALL(getrlimit, 2, shim_do_getrlimit, int, int, resource, struct __kernel_rlimit*,
                     rlim)
 
-int shim_do_getrusage(int who, struct __kernel_rusage* ru) {
+long shim_do_getrusage(int who, struct __kernel_rusage* ru) {
     __UNUSED(who);
     memset(ru, 0, sizeof(struct __kernel_rusage));
     return -ENOSYS;
@@ -487,28 +487,28 @@ SHIM_SYSCALL_RETURN_ENOSYS(prctl, 5, int, int, option, unsigned long, arg2, unsi
                            unsigned long, arg4, unsigned long, arg5)
 
 #if defined(__i386__) || defined(__x86_64__)
-DEFINE_SHIM_SYSCALL(arch_prctl, 2, shim_do_arch_prctl, void*, int, code, void*, addr)
+DEFINE_SHIM_SYSCALL(arch_prctl, 2, shim_do_arch_prctl, long, int, code, void*, addr)
 
-void* shim_do_arch_prctl(int code, void* addr) {
+long shim_do_arch_prctl(int code, void* addr) {
     if (code != ARCH_SET_FS && code != ARCH_GET_FS) {
         debug("Not supported flag (0x%x) passed to arch_prctl\n", code);
-        return (void*)-ENOSYS;
+        return -ENOSYS;
     }
 
     switch (code) {
         case ARCH_SET_FS:
             if (!addr)
-                return (void*)-EINVAL;
+                return -EINVAL;
 
             update_tls_base((unsigned long)addr);
             debug("set fs_base to 0x%lx\n", (unsigned long)addr);
-            return NULL;
+            return 0;
 
         case ARCH_GET_FS:
-            return DkSegmentRegisterGet(PAL_SEGMENT_FS, addr) ? NULL : (void*)-PAL_ERRNO();
+            return DkSegmentRegisterGet(PAL_SEGMENT_FS, addr) ? 0 : -PAL_ERRNO();
     }
 
-    return (void*)-ENOSYS;
+    return -ENOSYS;
 }
 #endif
 

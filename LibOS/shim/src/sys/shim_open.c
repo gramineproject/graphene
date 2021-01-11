@@ -37,7 +37,7 @@ int do_handle_read(struct shim_handle* hdl, void* buf, int count) {
     return fs->fs_ops->read(hdl, buf, count);
 }
 
-size_t shim_do_read(int fd, void* buf, size_t count) {
+long shim_do_read(int fd, void* buf, size_t count) {
     if (!buf || test_user_memory(buf, count, true))
         return -EFAULT;
 
@@ -72,7 +72,7 @@ int do_handle_write(struct shim_handle* hdl, const void* buf, int count) {
     return fs->fs_ops->write(hdl, buf, count);
 }
 
-size_t shim_do_write(int fd, const void* buf, size_t count) {
+long shim_do_write(int fd, const void* buf, size_t count) {
     if (!buf || test_user_memory((void*)buf, count, false))
         return -EFAULT;
 
@@ -85,15 +85,15 @@ size_t shim_do_write(int fd, const void* buf, size_t count) {
     return ret;
 }
 
-int shim_do_open(const char* file, int flags, mode_t mode) {
+long shim_do_open(const char* file, int flags, mode_t mode) {
     return shim_do_openat(AT_FDCWD, file, flags, mode);
 }
 
-int shim_do_creat(const char* path, mode_t mode) {
+long shim_do_creat(const char* path, mode_t mode) {
     return shim_do_open(path, O_CREAT | O_TRUNC | O_WRONLY, mode);
 }
 
-int shim_do_openat(int dfd, const char* filename, int flags, int mode) {
+long shim_do_openat(int dfd, const char* filename, int flags, int mode) {
     if (!filename || test_user_string(filename))
         return -EFAULT;
 
@@ -131,7 +131,7 @@ out:
     return ret;
 }
 
-int shim_do_close(int fd) {
+long shim_do_close(int fd) {
     struct shim_handle* handle = detach_fd_handle(fd, NULL, NULL);
     if (!handle)
         return -EBADF;
@@ -141,7 +141,7 @@ int shim_do_close(int fd) {
 }
 
 /* lseek is simply doing arithmetic on the offset, no PAL call here */
-off_t shim_do_lseek(int fd, off_t offset, int origin) {
+long shim_do_lseek(int fd, off_t offset, int origin) {
     if (origin != SEEK_SET && origin != SEEK_CUR && origin != SEEK_END)
         return -EINVAL;
 
@@ -170,7 +170,7 @@ out:
     return ret;
 }
 
-ssize_t shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
+long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
     if (!buf || test_user_memory(buf, count, true))
         return -EFAULT;
 
@@ -220,7 +220,7 @@ out:
     return ret;
 }
 
-ssize_t shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
+long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
     if (!buf || test_user_memory(buf, count, false))
         return -EFAULT;
 
@@ -291,7 +291,7 @@ static inline int get_dirent_type(mode_t type) {
     }
 }
 
-size_t shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
+long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
     if (!buf || test_user_memory(buf, count, true))
         return -EFAULT;
 
@@ -395,7 +395,7 @@ out_no_unlock:
     return ret;
 }
 
-size_t shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
+long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
     if (!buf || test_user_memory(buf, count, true))
         return -EFAULT;
 
@@ -491,7 +491,7 @@ out:
     return ret;
 }
 
-int shim_do_fsync(int fd) {
+long shim_do_fsync(int fd) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -518,11 +518,11 @@ out:
 
 // DEP 10/20/16: Assuming fsync >> fdatasync for now
 //  and no app depends on only syncing data for correctness.
-int shim_do_fdatasync(int fd) {
+long shim_do_fdatasync(int fd) {
     return shim_do_fsync(fd);
 }
 
-int shim_do_truncate(const char* path, loff_t length) {
+long shim_do_truncate(const char* path, loff_t length) {
     if (length < 0)
         return -EINVAL;
 
@@ -566,7 +566,7 @@ out:
     return ret;
 }
 
-int shim_do_ftruncate(int fd, loff_t length) {
+long shim_do_ftruncate(int fd, loff_t length) {
     if (length < 0)
         return -EINVAL;
 

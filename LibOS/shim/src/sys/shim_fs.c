@@ -23,11 +23,11 @@
 
 /* The kernel would look up the parent directory, and remove the child from the inode. But we are
  * working with the PAL, so we open the file, truncate and close it. */
-int shim_do_unlink(const char* file) {
+long shim_do_unlink(const char* file) {
     return shim_do_unlinkat(AT_FDCWD, file, 0);
 }
 
-int shim_do_unlinkat(int dfd, const char* pathname, int flag) {
+long shim_do_unlinkat(int dfd, const char* pathname, int flag) {
     if (!pathname)
         return -EINVAL;
 
@@ -85,11 +85,11 @@ out:
     return ret;
 }
 
-int shim_do_mkdir(const char* pathname, int mode) {
+long shim_do_mkdir(const char* pathname, int mode) {
     return shim_do_mkdirat(AT_FDCWD, pathname, mode);
 }
 
-int shim_do_mkdirat(int dfd, const char* pathname, int mode) {
+long shim_do_mkdirat(int dfd, const char* pathname, int mode) {
     if (!pathname)
         return -EINVAL;
 
@@ -109,7 +109,7 @@ int shim_do_mkdirat(int dfd, const char* pathname, int mode) {
     return ret;
 }
 
-int shim_do_rmdir(const char* pathname) {
+long shim_do_rmdir(const char* pathname) {
     int ret = 0;
     struct shim_dentry* dent = NULL;
 
@@ -146,7 +146,7 @@ out:
     return ret;
 }
 
-mode_t shim_do_umask(mode_t mask) {
+long shim_do_umask(mode_t mask) {
     lock(&g_process.fs_lock);
     mode_t old = g_process.umask;
     g_process.umask = mask & 0777;
@@ -154,11 +154,11 @@ mode_t shim_do_umask(mode_t mask) {
     return old;
 }
 
-int shim_do_chmod(const char* path, mode_t mode) {
+long shim_do_chmod(const char* path, mode_t mode) {
     return shim_do_fchmodat(AT_FDCWD, path, mode);
 }
 
-int shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
+long shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
     if (!filename)
         return -EINVAL;
 
@@ -194,7 +194,7 @@ out:
     return ret;
 }
 
-int shim_do_fchmod(int fd, mode_t mode) {
+long shim_do_fchmod(int fd, mode_t mode) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -218,11 +218,11 @@ out:
     return ret;
 }
 
-int shim_do_chown(const char* path, uid_t uid, gid_t gid) {
+long shim_do_chown(const char* path, uid_t uid, gid_t gid) {
     return shim_do_fchownat(AT_FDCWD, path, uid, gid, 0);
 }
 
-int shim_do_fchownat(int dfd, const char* filename, uid_t uid, gid_t gid, int flags) {
+long shim_do_fchownat(int dfd, const char* filename, uid_t uid, gid_t gid, int flags) {
     __UNUSED(flags);
     __UNUSED(uid);
     __UNUSED(gid);
@@ -251,7 +251,7 @@ out:
     return ret;
 }
 
-int shim_do_fchown(int fd, uid_t uid, gid_t gid) {
+long shim_do_fchown(int fd, uid_t uid, gid_t gid) {
     __UNUSED(uid);
     __UNUSED(gid);
 
@@ -548,11 +548,11 @@ static int do_rename(struct shim_dentry* old_dent, struct shim_dentry* new_dent)
     return ret;
 }
 
-int shim_do_rename(const char* oldpath, const char* newpath) {
+long shim_do_rename(const char* oldpath, const char* newpath) {
     return shim_do_renameat(AT_FDCWD, oldpath, AT_FDCWD, newpath);
 }
 
-int shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const char* newpath) {
+long shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const char* newpath) {
     struct shim_dentry* old_dir_dent = NULL;
     struct shim_dentry* old_dent     = NULL;
     struct shim_dentry* new_dir_dent = NULL;
@@ -607,7 +607,7 @@ out:
     return ret;
 }
 
-ssize_t shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
+long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
     struct shim_handle* hdli = get_fd_handle(ifd, NULL, NULL);
     if (!hdli)
         return -EBADF;
@@ -649,7 +649,7 @@ out:
     return ret;
 }
 
-int shim_do_chroot(const char* filename) {
+long shim_do_chroot(const char* filename) {
     int ret = 0;
     struct shim_dentry* dent = NULL;
     if ((ret = path_lookupat(NULL, filename, 0, &dent, NULL)) < 0)
