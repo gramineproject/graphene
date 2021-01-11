@@ -14,9 +14,9 @@ SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 PYTHON3 ?= /usr/bin/python3
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENE_LOG_LEVEL = info
 else
-GRAPHENEDEBUG = none
+GRAPHENE_LOG_LEVEL = error
 endif
 
 DISTRIB_ID ?= $(shell lsb_release --short --id)
@@ -42,7 +42,7 @@ include ../../Scripts/Makefile.configs
 # those lines based on the Ubuntu version detected.
 %.manifest: %.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(HOME)|'"$(HOME)"'|g' \
 		-e 's|$$(PYTHON3)|'"$(PYTHON3)"'|g' \
 		-e 's|# '"$(UBUNTU_VERSION)"' ||g' \

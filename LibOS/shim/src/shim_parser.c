@@ -1541,7 +1541,7 @@ static void print_syscall_name(const char* name, int sysno) {
 }
 
 void debug_print_syscall_before(int sysno, ...) {
-    if (!g_debug_log_enabled)
+    if (g_log_level < PAL_LOG_INFO)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
@@ -1573,7 +1573,7 @@ void debug_print_syscall_before(int sysno, ...) {
 }
 
 void debug_print_syscall_after(int sysno, ...) {
-    if (!g_debug_log_enabled)
+    if (g_log_level < PAL_LOG_INFO)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];

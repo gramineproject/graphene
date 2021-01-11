@@ -1,5 +1,4 @@
 loader.preload = file:@GRAPHENEDIR@/Runtime/libsysdb.so
-loader.debug_type = none
 
 loader.insecure__use_cmdline_argv = 1
 

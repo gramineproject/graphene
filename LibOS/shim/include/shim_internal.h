@@ -36,7 +36,7 @@ struct debug_buf {
 #include "pal_debug.h"
 #include "pal_error.h"
 
-extern bool g_debug_log_enabled;
+extern int g_log_level;
 
 #include <stdarg.h>
 
@@ -45,11 +45,19 @@ void debug_puts(const char* str);
 void debug_putch(int ch);
 void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-#define debug(fmt, ...)                       \
-    do {                                      \
-        if (g_debug_log_enabled)              \
-            debug_printf(fmt, ##__VA_ARGS__); \
-    } while (0)
+#define _log(level, fmt...)                          \
+    do {                                             \
+        if ((level) <= g_log_level)                  \
+            debug_printf(fmt);                       \
+    }  while(0)
+
+#define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
+#define log_info(fmt...)     _log(PAL_LOG_INFO, fmt)
+#define log_debug(fmt...)    _log(PAL_LOG_DEBUG, fmt)
+#define log_trace(fmt...)    _log(PAL_LOG_TRACE, fmt)
+
+/* TODO: Replace debug() calls with log_*() at the appropriate levels, and remove this macro. */
+#define debug(fmt...)        _log(PAL_LOG_INFO, fmt)
 
 #if 0
 #define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()
