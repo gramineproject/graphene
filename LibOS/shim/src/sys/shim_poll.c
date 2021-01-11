@@ -176,15 +176,15 @@ static int _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     return nrevents;
 }
 
-int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
+long shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     if (!fds || test_user_memory(fds, sizeof(*fds) * nfds, true))
         return -EFAULT;
 
     return _shim_do_poll(fds, nfds, timeout_ms);
 }
 
-int shim_do_ppoll(struct pollfd* fds, int nfds, struct timespec* tsp, const __sigset_t* sigmask,
-                  size_t sigsetsize) {
+long shim_do_ppoll(struct pollfd* fds, int nfds, struct timespec* tsp, const __sigset_t* sigmask,
+                   size_t sigsetsize) {
     __UNUSED(sigmask);
     __UNUSED(sigsetsize);
 
@@ -192,8 +192,8 @@ int shim_do_ppoll(struct pollfd* fds, int nfds, struct timespec* tsp, const __si
     return shim_do_poll(fds, nfds, timeout_ms);
 }
 
-int shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds,
-                   struct __kernel_timeval* tsv) {
+long shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds,
+                    struct __kernel_timeval* tsv) {
     if (tsv && (tsv->tv_sec < 0 || tsv->tv_usec < 0))
         return -EINVAL;
 
@@ -290,8 +290,8 @@ int shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds
     return ret;
 }
 
-int shim_do_pselect6(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds,
-                     const struct __kernel_timespec* tsp, const __sigset_t* sigmask) {
+long shim_do_pselect6(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds,
+                      const struct __kernel_timespec* tsp, const __sigset_t* sigmask) {
     __UNUSED(sigmask);
 
     if (tsp) {

@@ -22,7 +22,7 @@
 #define ERANGE 34
 #endif
 
-int shim_do_getcwd(char* buf, size_t len) {
+long shim_do_getcwd(char* buf, size_t len) {
     if (!buf || !len)
         return -EINVAL;
 
@@ -50,7 +50,7 @@ int shim_do_getcwd(char* buf, size_t len) {
     return ret;
 }
 
-int shim_do_chdir(const char* filename) {
+long shim_do_chdir(const char* filename) {
     struct shim_dentry* dent = NULL;
     int ret;
 
@@ -83,7 +83,7 @@ int shim_do_chdir(const char* filename) {
     return 0;
 }
 
-int shim_do_fchdir(int fd) {
+long shim_do_fchdir(int fd) {
     struct shim_thread* thread = get_cur_thread();
     struct shim_handle* hdl    = get_fd_handle(fd, NULL, thread->handle_map);
     if (!hdl)

@@ -62,7 +62,7 @@ static int inet_parse_addr(int domain, int type, const char* uri, struct addr_in
 
 static int __process_pending_options(struct shim_handle* hdl);
 
-int shim_do_socket(int family, int type, int protocol) {
+long shim_do_socket(int family, int type, int protocol) {
     struct shim_handle* hdl = get_new_handle();
     if (!hdl)
         return -ENOMEM;
@@ -403,7 +403,7 @@ static int hash_to_hex_string(HASHTYPE hash, char* buf, size_t size) {
     return 0;
 }
 
-int shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
+long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (_addrlen < 0)
         return -EINVAL;
     size_t addrlen = _addrlen;
@@ -600,7 +600,7 @@ static int inet_parse_addr(int domain, int type, const char* uri, struct addr_in
     return 0;
 }
 
-int shim_do_listen(int sockfd, int backlog) {
+long shim_do_listen(int sockfd, int backlog) {
     if (backlog < 0)
         return -EINVAL;
 
@@ -652,7 +652,7 @@ out:
  * connect again for that socket for one of two reasons: 1. To
  * specify a new IP address and port 2. To unconnect the socket.
  */
-int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
+long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (_addrlen < 0)
         return -EINVAL;
     size_t addrlen = _addrlen;
@@ -957,7 +957,7 @@ out:
     return ret;
 }
 
-int shim_do_accept(int fd, struct sockaddr* addr, int* addrlen) {
+long shim_do_accept(int fd, struct sockaddr* addr, int* addrlen) {
     int flags;
     struct shim_handle* hdl = get_fd_handle(fd, &flags, NULL);
     if (!hdl)
@@ -968,7 +968,7 @@ int shim_do_accept(int fd, struct sockaddr* addr, int* addrlen) {
     return ret;
 }
 
-int shim_do_accept4(int fd, struct sockaddr* addr, int* addrlen, int flags) {
+long shim_do_accept4(int fd, struct sockaddr* addr, int* addrlen, int flags) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1123,8 +1123,8 @@ out:
     return ret;
 }
 
-ssize_t shim_do_sendto(int sockfd, const void* buf, size_t len, int flags,
-                       const struct sockaddr* addr, int addrlen) {
+long shim_do_sendto(int sockfd, const void* buf, size_t len, int flags,
+                    const struct sockaddr* addr, int addrlen) {
     if (addr && test_user_memory((void*)addr, addrlen, /*write=*/false)) {
         return -EFAULT;
     }
@@ -1168,7 +1168,7 @@ static int check_msghdr(struct msghdr* msg, bool is_recv) {
     return 0;
 }
 
-ssize_t shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
+long shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
     if (!msg || test_user_memory(msg, sizeof(*msg), /*write=*/false)) {
         return -EFAULT;
     }
@@ -1182,7 +1182,7 @@ ssize_t shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
                       msg->msg_namelen);
 }
 
-ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags) {
+long shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags) {
     if (test_user_memory(msg, sizeof(*msg) * vlen, /*write=*/true)) {
         return -EFAULT;
     }
@@ -1442,8 +1442,8 @@ out:
     return ret;
 }
 
-ssize_t shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* addr,
-                         int* addrlen) {
+long shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* addr,
+                      int* addrlen) {
     if (addr) {
         if (test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true)) {
             return -EFAULT;
@@ -1469,7 +1469,7 @@ ssize_t shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct so
     return do_recvmsg(sockfd, &iovbuf, 1, flags, addr, addrlen);
 }
 
-ssize_t shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
+long shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
     if (test_user_memory(msg, sizeof(*msg), /*write=*/true)) {
         return -EFAULT;
     }
@@ -1483,8 +1483,8 @@ ssize_t shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
                       &msg->msg_namelen);
 }
 
-ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
-                         struct __kernel_timespec* timeout) {
+long shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
+                      struct __kernel_timespec* timeout) {
     if (test_user_memory(msg, sizeof(*msg) * vlen, /*write=*/true))
         return -EFAULT;
 
@@ -1524,7 +1524,7 @@ ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int
 #define SHUT_WR   1
 #define SHUT_RDWR 2
 
-int shim_do_shutdown(int sockfd, int how) {
+long shim_do_shutdown(int sockfd, int how) {
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1572,7 +1572,7 @@ out:
     return ret;
 }
 
-int shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
+long shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1609,7 +1609,7 @@ out:
     return ret;
 }
 
-int shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
+long shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1828,7 +1828,7 @@ static int __process_pending_options(struct shim_handle* hdl) {
     return 0;
 }
 
-int shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen) {
+long shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen) {
     if (optlen < (int)sizeof(int))
         return -EINVAL;
 
@@ -1879,7 +1879,7 @@ out:
     return ret;
 }
 
-int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen) {
+long shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;

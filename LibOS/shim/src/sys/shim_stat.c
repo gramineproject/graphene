@@ -16,7 +16,7 @@
 #include "shim_process.h"
 #include "shim_table.h"
 
-int shim_do_stat(const char* file, struct stat* stat) {
+long shim_do_stat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -43,7 +43,7 @@ out:
     return ret;
 }
 
-int shim_do_lstat(const char* file, struct stat* stat) {
+long shim_do_lstat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -70,7 +70,7 @@ out:
     return ret;
 }
 
-int shim_do_fstat(int fd, struct stat* stat) {
+long shim_do_fstat(int fd, struct stat* stat) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -90,7 +90,7 @@ out:
     return ret;
 }
 
-int shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
+long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     int ret;
     if (!file || test_user_string(file))
         return -EFAULT;
@@ -140,7 +140,7 @@ out:
     return ret;
 }
 
-int shim_do_readlink(const char* file, char* buf, int bufsize) {
+long shim_do_readlink(const char* file, char* buf, int bufsize) {
     return shim_do_readlinkat(AT_FDCWD, file, buf, bufsize);
 }
 
@@ -161,7 +161,7 @@ static int __do_statfs(struct shim_mount* fs, struct statfs* buf) {
     return 0;
 }
 
-int shim_do_statfs(const char* path, struct statfs* buf) {
+long shim_do_statfs(const char* path, struct statfs* buf) {
     if (!path || test_user_string(path))
         return -EFAULT;
 
@@ -176,7 +176,7 @@ int shim_do_statfs(const char* path, struct statfs* buf) {
     return __do_statfs(fs, buf);
 }
 
-int shim_do_fstatfs(int fd, struct statfs* buf) {
+long shim_do_fstatfs(int fd, struct statfs* buf) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -186,7 +186,7 @@ int shim_do_fstatfs(int fd, struct statfs* buf) {
     return __do_statfs(fs, buf);
 }
 
-int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags) {
+long shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags) {
     if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW))
         return -EINVAL;
     if (test_user_string(pathname))

@@ -17,11 +17,11 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 
-int shim_do_access(const char* file, mode_t mode) {
+long shim_do_access(const char* file, mode_t mode) {
     return shim_do_faccessat(AT_FDCWD, file, mode);
 }
 
-int shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
+long shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
     if (!filename)
         return -EINVAL;
 

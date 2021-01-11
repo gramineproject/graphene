@@ -795,13 +795,13 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
     }
 }
 
-int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val3) {
+long shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val3) {
     static_assert(sizeof(int) == 4, "futexes are defined to be 32-bit");
     return _shim_do_futex((uint32_t*)uaddr, op, (uint32_t)val, utime, (uint32_t*)uaddr2,
                           (uint32_t)val3);
 }
 
-int shim_do_set_robust_list(struct robust_list_head* head, size_t len) {
+long shim_do_set_robust_list(struct robust_list_head* head, size_t len) {
     if (len != sizeof(struct robust_list_head)) {
         return -EINVAL;
     }
@@ -810,7 +810,7 @@ int shim_do_set_robust_list(struct robust_list_head* head, size_t len) {
     return 0;
 }
 
-int shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* len) {
+long shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* len) {
     struct shim_thread* thread;
     int ret = 0;
 

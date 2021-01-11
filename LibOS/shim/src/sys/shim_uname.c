@@ -32,7 +32,7 @@ static struct new_utsname g_current_uname = {
     .domainname = "(none)", /* this seems to be the default on Linux */
 };
 
-int shim_do_uname(struct new_utsname* buf) {
+long shim_do_uname(struct new_utsname* buf) {
     if (!buf || test_user_memory(buf, sizeof(*buf), /*write=*/true))
         return -EFAULT;
 

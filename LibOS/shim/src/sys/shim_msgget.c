@@ -250,7 +250,7 @@ int del_msg_handle(struct shim_msg_handle* msgq) {
     return ret;
 }
 
-int shim_do_msgget(key_t key, int msgflg) {
+long shim_do_msgget(key_t key, int msgflg) {
     IDTYPE msgid = 0;
     int ret;
 
@@ -327,7 +327,7 @@ static int connect_msg_handle(int msqid, struct shim_msg_handle** msgqp) {
     return 0;
 }
 
-int shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg) {
+long shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg) {
     // Issue #755 - https://github.com/oscarlab/graphene/issues/755
     __UNUSED(msgflg);
 
@@ -360,7 +360,7 @@ int shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg) {
     return ret;
 }
 
-int shim_do_msgrcv(int msqid, void* msgp, size_t msgsz, long msgtype, int msgflg) {
+long shim_do_msgrcv(int msqid, void* msgp, size_t msgsz, long msgtype, int msgflg) {
     // Issue #755 - https://github.com/oscarlab/graphene/issues/755
     __UNUSED(msgflg);
 
@@ -386,7 +386,7 @@ int shim_do_msgrcv(int msqid, void* msgp, size_t msgsz, long msgtype, int msgflg
     return ret;
 }
 
-int shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf) {
+long shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf) {
     // Issue #756 - https://github.com/oscarlab/graphene/issues/756
     __UNUSED(buf);
 
