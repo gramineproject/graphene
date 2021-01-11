@@ -2,10 +2,11 @@ loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 libos.entrypoint = "file:label_image"
 loader.env.LD_LIBRARY_PATH = "/lib:."
 loader.env.PATH = "/bin:/usr/bin"
-loader.debug_type = "none"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
+
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 fs.mount.lib1.type = "chroot"
 fs.mount.lib1.path = "/lib"

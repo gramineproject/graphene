@@ -20,10 +20,10 @@ RA_CLIENT_SPID ?=
 RA_CLIENT_LINKABLE ?= 0
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG=inline
+GRAPHENE_LOG_LEVEL = debug
 CFLAGS += -O0 -ggdb3
 else
-GRAPHENEDEBUG=none
+GRAPHENE_LOG_LEVEL = error
 CFLAGS += -O2
 endif
 
@@ -141,7 +141,7 @@ libsecret_prov_verify_dcap.so: libmbedcrypto.so libmbedx509.so libmbedtls.so lib
 
 secret_prov_client.manifest: secret_prov_client.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
 		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 		$< > $@
@@ -161,7 +161,7 @@ secret_prov_client.token: secret_prov_client.sig
 
 secret_prov_min_client.manifest: secret_prov_min_client.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
 		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 		$< > $@
@@ -186,7 +186,7 @@ files/input.txt: files/wrap-key files/plain.txt pf_crypt
 
 secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
 		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 		$< > $@

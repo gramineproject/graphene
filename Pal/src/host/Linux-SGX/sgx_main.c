@@ -826,6 +826,54 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     }
 #endif
 
+    int log_level = PAL_LOG_DEFAULT_LEVEL;
+    char* log_level_str = NULL;
+    ret = toml_string_in(manifest_root, "loader.log_level", &log_level_str);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot parse 'loader.log_level'\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    if (log_level_str) {
+        if (!strcmp(log_level_str, "none")) {
+            log_level = PAL_LOG_NONE;
+        } else if (!strcmp(log_level_str, "error")) {
+            log_level = PAL_LOG_ERROR;
+        } else if (!strcmp(log_level_str, "info")) {
+            log_level = PAL_LOG_INFO;
+        } else if (!strcmp(log_level_str, "debug")) {
+            log_level = PAL_LOG_DEBUG;
+        } else if (!strcmp(log_level_str, "trace")) {
+            log_level = PAL_LOG_TRACE;
+        } else if (!strcmp(log_level_str, "all")) {
+            log_level = PAL_LOG_ALL;
+        } else {
+            SGX_DBG(DBG_E, "Unknown 'loader.log_level'\n");
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+    free(log_level_str);
+
+    char* log_file = NULL;
+    ret = toml_string_in(manifest_root, "loader.log_file", &log_file);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot parse 'loader.log_file'\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    if (log_level > PAL_LOG_NONE && log_file) {
+        ret = urts_log_init(log_file);
+
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Cannot open log file: %d\n", ret);
+            goto out;
+        }
+    }
+    free(log_file);
+
+    g_urts_log_level = log_level;
+
     ret = 0;
 
 out:

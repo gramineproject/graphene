@@ -1,5 +1,5 @@
 pal.entrypoint = "file:Bootstrap3"
-loader.debug_type = "inline"
+loader.log_level = "debug"
 loader.preload = "file:Preload1.so,file:Preload2.so"
 loader.argv0_override = "Bootstrap3"
 

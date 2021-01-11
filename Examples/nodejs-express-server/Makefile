@@ -15,9 +15,9 @@ GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENE_LOG_LEVEL = debug
 else
-GRAPHENEDEBUG = none
+GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
@@ -37,7 +37,7 @@ trusted-libs: ../common_tools/get_deps.sh
 
 nodejs.manifest: nodejs.manifest.template trusted-libs
 	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 	     -e 's|$$(NODEJS_DIR)|'"$(NODEJS_DIR)"'|g' \
 	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 	     $<; \

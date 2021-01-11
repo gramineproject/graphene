@@ -23,21 +23,21 @@ Comments can be inlined in a |~| manifest by starting them with a |~| hash sign
 Common syntax
 -------------
 
-Debug type
-^^^^^^^^^^
+Log level
+^^^^^^^^^
 
 ::
 
-    loader.debug_type = "[none|inline|file]"
-    (Default: "none")
+    loader.log_level = "[none|error|info|debug|trace|all]"
+    (Default: "error")
 
-    loader.debug_file = "[PATH]"
+    loader.log_file = "[PATH]"
 
-This specifies the debug option while running the library OS. If the debug type
-is ``none``, no debug output will be printed to standard output. If the debug
-type is ``inline``, a dmesg-like debug output will be printed inline with
-standard output. If the debug type is ``file``, debug output will be written to
-the file specified in ``loader.debug_file``.
+This configures Graphene's debug log. The ``log_level`` option specifies what
+messages to enable (e.g. ``loader.log_level = "debug"`` will enable all messages
+of type ``error``, ``info`` and ``debug``). By default, the messages are printed
+to the standard output. If ``log_file`` is specified, the messages will be
+appended to that file.
 
 Preloaded libraries
 ^^^^^^^^^^^^^^^^^^^

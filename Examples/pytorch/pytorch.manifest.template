@@ -2,11 +2,13 @@
 #
 # This manifest was tested on Ubuntu 16.04 and 18.04.
 
-# Graphene environment, including the path to the library OS and the debug
-# option (inline/none)
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 libos.entrypoint = "file:$(PYTHON3)"
-loader.debug_type = "$(GRAPHENEDEBUG)"
+
+# Path to the library OS
+loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+
+# Graphene log level
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1

@@ -3,7 +3,6 @@ libos.entrypoint = "file:host_root_fs"
 loader.argv0_override = "host_root_fs"
 
 loader.env.LD_LIBRARY_PATH = "/lib"
-loader.debug_type = "none"
 
 fs.root.type = "chroot"
 fs.root.path = "/"

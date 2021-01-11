@@ -26,10 +26,11 @@ loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 # Binary to run.
 libos.entrypoint = "file:memcached"
 
-# Show/hide debug log of Graphene ("inline" or "none" respectively). Note that
-# GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
-# build process.
-loader.debug_type = "$(GRAPHENEDEBUG)"
+# Verbosity of Graphene debug log (none/error/info/debug/trace/all). Note that
+# GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the building
+# process: the default is "error" for non-debug builds, and "debug" for debug
+# builds.
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 ################################# ARGUMENTS ###################################
 
