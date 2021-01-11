@@ -2,8 +2,8 @@ loader.argv0_override = "bootstrap"
 
 loader.preload = "file:../../src/libsysdb.so"
 loader.env.LD_LIBRARY_PATH = "/lib"
-loader.debug_type = "file"
-loader.debug_file = "tmp/debug_log_file.log"
+loader.log_level = "info"
+loader.log_file = "tmp/debug_log_file.log"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"

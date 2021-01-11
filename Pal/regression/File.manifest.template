@@ -1,5 +1,5 @@
 loader.argv0_override = "File"
-loader.debug_type = "inline"
+loader.log_level = "info"
 
 fs.mount.root.uri = "file:"
 

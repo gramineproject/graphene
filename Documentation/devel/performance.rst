@@ -370,7 +370,7 @@ particular, build Graphene in non-debug configuration (simple ``make SGX=1``
 defaults to non-debug configuration). Also build the application itself in
 non-debug configuration (again, typically simple ``make SGX=1`` is sufficient).
 Finally, disable the debug log of Graphene by specifying the manifest option
-``loader.debug_type = "none"``.
+``loader.log_level = "none"``.
 
 If your application periodically fails and complains about seemingly irrelevant
 things, it may be due to insufficient enclave memory. Please try to increase

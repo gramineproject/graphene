@@ -306,18 +306,19 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 
 #endif /* IN_ENCLAVE */
 
-#define DBG_E 0x01
-#define DBG_I 0x02
-#define DBG_D 0x04
-#define DBG_S 0x08
-#define DBG_P 0x10
-#define DBG_M 0x20
+/*
+ * Legacy logging system (SGX_DBG).
+ *
+ * TODO: replace all SGX_DBG invocations with log_* functions (in enclave) and sgx_log_* (outside of
+ * enclave), remove SGX_DBG from here.
+ */
 
-#ifdef DEBUG
-#define DBG_LEVEL (DBG_E | DBG_I | DBG_D | DBG_S)
-#else
-#define DBG_LEVEL DBG_E
-#endif
+#define DBG_E PAL_LOG_ERROR
+#define DBG_I PAL_LOG_INFO
+#define DBG_D PAL_LOG_DEBUG
+#define DBG_S PAL_LOG_DEBUG
+#define DBG_P PAL_LOG_DEBUG
+#define DBG_M PAL_LOG_DEBUG
 
 #ifdef IN_ENCLAVE
 #undef uthash_fatal
@@ -327,19 +328,14 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
         DkProcessExit(-PAL_ERROR_NOMEM); \
     } while (0)
 
-#define SGX_DBG(class, fmt...)   \
-    do {                         \
-        if ((class) & DBG_LEVEL) \
-            printf(fmt);         \
-    } while (0)
-#else
-#include "pal_debug.h"
+#define SGX_DBG(class, fmt...) _log(class, fmt)
 
-#define SGX_DBG(class, fmt...)   \
-    do {                         \
-        if ((class) & DBG_LEVEL) \
-            pal_printf(fmt);     \
-    } while (0)
+#else
+
+#include "pal_debug.h"
+#include "sgx_log.h"
+#define SGX_DBG(class, fmt...) _sgx_log(class, fmt)
+
 #endif
 
 #ifndef IN_ENCLAVE

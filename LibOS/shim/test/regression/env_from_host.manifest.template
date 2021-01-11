@@ -2,7 +2,6 @@ loader.argv0_override = "bootstrap"
 
 loader.preload = "file:../../src/libsysdb.so"
 loader.env.LD_LIBRARY_PATH = "/lib"
-loader.debug_type = "none"
 loader.insecure__use_host_env = 1
 
 fs.mount.lib.type = "chroot"

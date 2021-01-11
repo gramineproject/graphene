@@ -1,6 +1,5 @@
 loader.preload = "file:../../src/libsysdb.so"
 loader.env.LD_LIBRARY_PATH = "/lib:/usrlib"
-loader.debug_type = "none"
 loader.argv0_override = "openmp"
 
 fs.mount.lib.type = "chroot"

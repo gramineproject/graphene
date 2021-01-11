@@ -28,7 +28,7 @@
 #include "perm.h"
 #include "stat.h"
 
-static int g_debug_fd = -1;
+static int g_log_fd = PAL_LOG_DEFAULT_FD;
 
 struct hdl_header {
     uint8_t fds;       /* bitmask of host file descriptors corresponding to PAL handle */
@@ -369,9 +369,9 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 int _DkInitDebugStream(const char* path) {
     int ret;
 
-    if (g_debug_fd >= 0) {
-        ret = INLINE_SYSCALL(close, 1, g_debug_fd);
-        g_debug_fd = -1;
+    if (g_log_fd != PAL_LOG_DEFAULT_FD) {
+        ret = INLINE_SYSCALL(close, 1, g_log_fd);
+        g_log_fd = PAL_LOG_DEFAULT_FD;
         if (ret < 0)
             return unix_to_pal_error(ERRNO(ret));
     }
@@ -379,15 +379,15 @@ int _DkInitDebugStream(const char* path) {
     ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
     if (ret < 0)
         return unix_to_pal_error(ERRNO(ret));
-    g_debug_fd = ret;
+    g_log_fd = ret;
     return 0;
 }
 
 ssize_t _DkDebugLog(const void* buf, size_t size) {
-    if (g_debug_fd < 0)
+    if (g_log_fd < 0)
         return -PAL_ERROR_BADHANDLE;
 
-    ssize_t ret = INLINE_SYSCALL(write, 3, g_debug_fd, buf, size);
+    ssize_t ret = INLINE_SYSCALL(write, 3, g_log_fd, buf, size);
     ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
     return ret;
 }
