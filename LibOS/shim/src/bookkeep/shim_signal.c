@@ -600,8 +600,9 @@ static void quit_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
 
     /* We need to keep the atomicity of `g_host_injected_signal.siginfo.si_signo` (it's already set
      * above), hence these shenanigans. */
-    static_assert(offsetof(siginfo_t, si_signo) == 0);
-    static_assert(SAME_TYPE(g_host_injected_signal.siginfo, info));
+    static_assert(offsetof(siginfo_t, si_signo) == 0, "Unexpected offset of `si_signo`");
+    static_assert(SAME_TYPE(g_host_injected_signal.siginfo, info),
+                  "Unexpected type of `g_host_injected_signal`");
     size_t skip = sizeof(info.si_signo);
     memcpy((char*)&g_host_injected_signal.siginfo.si_signo + skip, (char*)&info + skip,
            sizeof(info) - skip);
@@ -757,7 +758,7 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
         unlock(&g_process_signal_queue_lock);
         unlock(&current->lock);
     } else if (__atomic_load_n(&g_host_injected_signal.siginfo.si_signo, __ATOMIC_RELAXED) != 0) {
-        static_assert(NUM_SIGS < 0xff);
+        static_assert(NUM_SIGS < 0xff, "This code requires 0xff to be an invalid signal number");
         int sig = __atomic_exchange_n(&g_host_injected_signal.siginfo.si_signo, 0xff,
                                       __ATOMIC_RELAXED);
         if (sig != 0xff) {

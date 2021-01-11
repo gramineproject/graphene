@@ -220,7 +220,8 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
     /* x64 SysV ABI requires that stack is aligned to 8 mod 0x10 after function call, so we have to
      * mimic that in signal handler. `sigframe` will be aligned to 0x10 and we will push a return
      * value (restorer address) on top of that later on. */
-    static_assert(__alignof__(*sigframe) % 0x10 == 0 || 0x10 % __alignof__(*sigframe) == 0);
+    static_assert(__alignof__(*sigframe) % 0x10 == 0 || 0x10 % __alignof__(*sigframe) == 0,
+                  "Incorrect sigframe alignment");
     stack = ALIGN_DOWN(stack, 0x10);
 
     sigframe = (struct sigframe*)stack;
@@ -240,8 +241,10 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
 
     /* XXX: Currently we assume that `struct shim_xstate`, `PAL_XREGS_STATE` and `struct _fpstate`
      * (just the header) are the very same sturcture. This mess needs to be fixed. */
-    static_assert(sizeof(struct shim_xstate) == sizeof(PAL_XREGS_STATE));
-    static_assert(sizeof(struct shim_fpstate) == sizeof(struct _fpstate));
+    static_assert(sizeof(struct shim_xstate) == sizeof(PAL_XREGS_STATE),
+                  "sse state structs differ");
+    static_assert(sizeof(struct shim_fpstate) == sizeof(struct _fpstate),
+                  "sse state structs differ");
     if (shim_xstate_copy(xstate, (struct shim_xstate*)sigframe->uc.uc_mcontext.fpstate)) {
         sigframe->uc.uc_flags |= UC_FP_XSTATE;
     }

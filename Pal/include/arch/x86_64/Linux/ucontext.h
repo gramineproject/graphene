@@ -75,7 +75,8 @@ typedef struct ucontext {
 
 /* fpregs is shallow copied by only setting a pointer */
 static inline void ucontext_to_pal_context(PAL_CONTEXT* context, ucontext_t* uc) {
-    static_assert(offsetof(PAL_CONTEXT, fpregs) == offsetof(struct sigcontext, fpstate));
+    static_assert(offsetof(PAL_CONTEXT, fpregs) == offsetof(struct sigcontext, fpstate),
+                  "This requires `PAL_CONTEXT` and `sigcontext` to have same layout");
     memcpy(context, &uc->uc_mcontext, offsetof(struct sigcontext, fpstate));
     context->fpregs = (PAL_XREGS_STATE*)uc->uc_mcontext.fpstate;
     context->is_fpregs_used = context->fpregs ? 1 : 0;
