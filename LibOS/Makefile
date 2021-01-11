@@ -45,7 +45,7 @@ endif
 GLIBC_TARGET = $(addprefix $(BUILD_DIR)/, $(GLIBC_LIBS))
 GLIBC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GLIBC_TARGET)))
 
-GLIBC_CFLAGS = -O2 -Wp,-U_FORTIFY_SOURCE -fno-stack-protector -Wno-unused-value
+GLIBC_CFLAGS = -O2 -Wp,-U_FORTIFY_SOURCE -Wno-unused-value
 ifeq ($(DEBUG),1)
 	GLIBC_CFLAGS += -g
 endif
