@@ -1,6 +1,6 @@
 TESTCASES ?= python3 python3-trusted-args base-python3 hello-world nodejs bash numpy pytorch
 DISTRIBUTIONS ?= ubuntu18.04
-GRAPHENE_BRANCH ?= master
+GRAPHENE_BRANCH ?= a37a85baf5ab6e0901a777313072d62b4e75fc3a # the last working commit. TODO: update
 DOCKER_BUILD_FLAGS ?= --rm --no-cache
 GSC_BUILD_FLAGS ?= --rm --no-cache
 TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
