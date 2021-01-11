@@ -152,43 +152,58 @@ static int insert_envs_from_manifest(const char*** envpp) {
 
 static void set_debug_type(void) {
     int ret = 0;
+    int log_level = PAL_LOG_DEFAULT_LEVEL;
 
     char* debug_type = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_type", &debug_type);
     if (ret < 0)
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.debug_type'");
-
-    if (!debug_type)
-        return;
-
-    bool enable_debug_log = false;
-
-    if (!strcmp(debug_type, "inline")) {
-        // TODO: use /dev/stderr instead?
-        ret = _DkInitDebugStream("/dev/stdout");
-        enable_debug_log = true;
-    } else if (!strcmp(debug_type, "file")) {
-        char* debug_file = NULL;
-        ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_file", &debug_file);
-        if (ret < 0 || !debug_file)
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot find/parse 'loader.debug_file'");
-
-        ret = _DkInitDebugStream(debug_file);
-        free(debug_file);
-        enable_debug_log = true;
-    } else if (!strcmp(debug_type, "none")) {
-        ret = 0;
-    } else {
-        INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Unknown 'loader.debug_type' "
-                           "(allowed: `inline`, `file`, `none`)");
+    if (debug_type) {
+        free(debug_type);
+        INIT_FAIL_MANIFEST(
+            PAL_ERROR_DENIED,
+            "'loader.debug_type' has been replaced by 'loader.log_level' and 'loader.log_file'");
     }
 
-    free(debug_type);
-
+    char* log_level_str = NULL;
+    ret = toml_string_in(g_pal_state.manifest_root, "loader.log_level", &log_level_str);
     if (ret < 0)
-        INIT_FAIL(-ret, "Cannot open debug stream");
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.log_level'");
 
-    g_pal_control.enable_debug_log = enable_debug_log;
+    if (log_level_str) {
+        if (!strcmp(log_level_str, "none")) {
+            log_level = PAL_LOG_NONE;
+        } else if (!strcmp(log_level_str, "error")) {
+            log_level = PAL_LOG_ERROR;
+        } else if (!strcmp(log_level_str, "info")) {
+            log_level = PAL_LOG_INFO;
+        } else if (!strcmp(log_level_str, "debug")) {
+            log_level = PAL_LOG_DEBUG;
+        } else if (!strcmp(log_level_str, "trace")) {
+            log_level = PAL_LOG_TRACE;
+        } else if (!strcmp(log_level_str, "all")) {
+            log_level = PAL_LOG_ALL;
+        } else {
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Unknown 'loader.log_level'");
+        }
+
+        free(log_level_str);
+    }
+
+    char* log_file = NULL;
+    ret = toml_string_in(g_pal_state.manifest_root, "loader.log_file", &log_file);
+    if (ret < 0)
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.log_file'");
+
+    if (log_level > PAL_LOG_NONE && log_file) {
+        ret = _DkInitDebugStream(log_file);
+        free(log_file);
+
+        if (ret < 0)
+            INIT_FAIL(-ret, "Cannot open log file");
+    }
+
+    g_pal_control.log_level = log_level;
 }
 
 /* Loads a file containing a concatenation of C-strings. The resulting array of pointers is

@@ -2,7 +2,6 @@
 
 loader.preload = file:@GRAPHENEDIR@/Runtime/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib
-loader.debug_type = none
 loader.syscall_symbol = syscalldb
 loader.insecure__use_cmdline_argv = 1
 

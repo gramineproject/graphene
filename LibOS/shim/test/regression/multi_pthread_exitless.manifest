@@ -1,6 +1,5 @@
 loader.preload = "file:../../src/libsysdb.so"
 loader.env.LD_LIBRARY_PATH = "/lib"
-loader.debug_type = "none"
 libos.entrypoint = "file:multi_pthread"
 loader.argv0_override = "multi_pthread"
 

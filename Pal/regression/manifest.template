@@ -1,5 +1,5 @@
 pal.entrypoint = "file:$(ENTRYPOINT)"
-loader.debug_type = "inline"
+loader.log_level = "info"
 loader.insecure__use_cmdline_argv = 1
 
 fs.mount.root.uri = "file:"

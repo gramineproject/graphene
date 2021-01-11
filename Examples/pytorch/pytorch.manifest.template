@@ -6,7 +6,7 @@
 # option (inline/none)
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 libos.entrypoint = "file:$(PYTHON3)"
-loader.debug_type = "$(GRAPHENEDEBUG)"
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1

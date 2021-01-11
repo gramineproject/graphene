@@ -4,7 +4,7 @@ loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/lib:/usr/lib64"
 loader.env.PATH = "/bin:/usr/bin:."
 loader.env.LD_PRELOAD = "$(COREUTILS_LIBDIR)/libstdbuf.so"
 loader.env._STDBUF_O = "L"
-loader.debug_type = "none"
+loader.log_level = "error"
 loader.insecure__use_cmdline_argv = 1
 
 fs.mount.shm.type = "chroot"

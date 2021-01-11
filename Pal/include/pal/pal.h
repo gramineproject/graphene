@@ -89,6 +89,16 @@ typedef union pal_handle {
 
 #include "pal-arch.h"
 
+/*! Log level */
+enum {
+    PAL_LOG_NONE   = 0,
+    PAL_LOG_ERROR  = 1,
+    PAL_LOG_INFO   = 2,
+    PAL_LOG_DEBUG  = 3,
+    PAL_LOG_TRACE  = 4,
+    PAL_LOG_ALL    = 5,
+};
+
 /********** PAL TYPE DEFINITIONS **********/
 enum {
     pal_type_file,
@@ -136,7 +146,7 @@ typedef struct PAL_CONTROL_ {
     PAL_STR executable;          /*!< initial executable name. TODO: remove from PAL */
     PAL_HANDLE parent_process;   /*!< handle of parent process */
     PAL_HANDLE first_thread;     /*!< handle of first thread */
-    PAL_BOL enable_debug_log;    /*!< enable debug log calls */
+    PAL_NUM log_level;           /*!< what log messsages to enable */
 
     /*
      * Memory layout
@@ -659,9 +669,6 @@ void DkObjectClose(PAL_HANDLE objectHandle);
 
 /*!
  * \brief Output a message to the debug stream.
- *
- * Works only if the debug stream has been initialized, which can be checked by looking at
- * `g_pal_control.enable_debug_log`.
  *
  * \return number of bytes written if succeeded, PAL_STREAM_ERROR on failure (in which case
  *  PAL_ERRNO() is set)

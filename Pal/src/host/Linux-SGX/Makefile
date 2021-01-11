@@ -72,6 +72,7 @@ urts-objs = \
 	sgx_exception.o \
 	sgx_framework.o \
 	sgx_graphene.o \
+	sgx_log.o \
 	sgx_main.o \
 	sgx_perf_data.o \
 	sgx_platform.o \

@@ -370,7 +370,7 @@ static int read_environs(const char** envp) {
     } while (0)
 
 noreturn void* shim_init(int argc, void* args) {
-    g_debug_log_enabled = PAL_CB(enable_debug_log);
+    g_log_level = PAL_CB(log_level);
     g_process_ipc_info.vmid = (IDTYPE)PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */

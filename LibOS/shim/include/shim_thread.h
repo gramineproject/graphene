@@ -146,7 +146,7 @@ void debug_setprefix(shim_tcb_t* tcb);
 /* Set `debug_buf` for `tcb`. If `debug_buf` is `NULL`, then new one is allocated. If `debug_buf`
  * is not NULL, this function cannot fail. */
 static inline int debug_setbuf(shim_tcb_t* tcb, struct debug_buf* debug_buf) {
-    if (!g_debug_log_enabled)
+    if (g_log_level <= PAL_LOG_NONE)
         return 0;
 
     tcb->debug_buf = debug_buf ? debug_buf : malloc(sizeof(struct debug_buf));
