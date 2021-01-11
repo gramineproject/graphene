@@ -64,7 +64,6 @@ static void parse_pointer_ret(va_list* ap);
 
 struct parser_table {
     int slow;
-    int stop;
     const char* name;
     void (*parser[7])(va_list*);
 } syscall_parser_table[LIBOS_SYSCALL_BOUND] = {
@@ -83,7 +82,7 @@ struct parser_table {
     [__NR_brk]      = {.slow = 0, .name = "brk", .parser = {&parse_pointer_ret, &parse_pointer_arg}},
     [__NR_rt_sigaction]   = {.slow = 0, .name = "rt_sigaction", .parser = {&parse_long_arg, &parse_signum, &parse_pointer_arg, &parse_pointer_arg, &parse_pointer_arg}},
     [__NR_rt_sigprocmask] = {.slow = 0, .name = "rt_sigprocmask", .parser = {&parse_long_arg, &parse_sigprocmask_how, &parse_sigmask, &parse_sigmask}},
-    [__NR_rt_sigreturn]   = {.slow = 0, .name = "rt_sigreturn", .parser = {&parse_long_arg, &parse_integer_arg}},
+    [__NR_rt_sigreturn]   = {.slow = 0, .name = "rt_sigreturn", .parser = {NULL}},
     [__NR_ioctl]          = {.slow = 1, .name = "ioctl", .parser = {&parse_long_arg, &parse_integer_arg, &parse_ioctlop, &parse_pointer_arg}},
     [__NR_pread64]        = {.slow = 1, .name = "pread64", .parser = {&parse_long_arg, &parse_integer_arg, &parse_pointer_arg, &parse_pointer_arg, &parse_long_arg}},
     [__NR_pwrite64]       = {.slow = 0, .name = "pwrite64", .parser = {&parse_long_arg, &parse_integer_arg, &parse_pointer_arg, &parse_pointer_arg, &parse_long_arg}},
@@ -121,7 +120,7 @@ struct parser_table {
     [__NR_listen]      = {.slow = 0, .name = "listen", .parser = {&parse_long_arg, &parse_integer_arg, &parse_integer_arg}},
     [__NR_getsockname] = {.slow = 0, .name = "getsockname", .parser = {&parse_long_arg, &parse_integer_arg, &parse_pointer_arg, &parse_pointer_arg}},
     [__NR_getpeername] = {.slow = 0, .name = "getpeername", .parser = {&parse_long_arg, &parse_integer_arg, &parse_pointer_arg, &parse_pointer_arg}},
-    [__NR_socketpair]  = {.slow = 0, .stop = 3, .name = "socketpair", .parser = {&parse_long_arg, &parse_domain, &parse_socktype, &parse_integer_arg, &parse_pipe_fds}},
+    [__NR_socketpair]  = {.slow = 0, .name = "socketpair", .parser = {&parse_long_arg, &parse_domain, &parse_socktype, &parse_integer_arg, &parse_pipe_fds}},
     [__NR_setsockopt]  = {.slow = 0, .name = "setsockopt", .parser = {&parse_long_arg, &parse_integer_arg, &parse_integer_arg, &parse_integer_arg, &parse_pointer_arg, &parse_integer_arg}},
     [__NR_getsockopt]  = {.slow = 0, .name = "getsockopt", .parser = {&parse_long_arg, &parse_integer_arg, &parse_integer_arg, &parse_integer_arg, &parse_pointer_arg, &parse_pointer_arg}},
     [__NR_clone]    = {.slow = 1, .name = "clone", .parser = {&parse_long_arg, &parse_clone_flags, &parse_pointer_arg, &parse_pointer_arg, &parse_pointer_arg, &parse_pointer_arg}},
@@ -1377,36 +1376,32 @@ static void parse_pointer_ret(va_list* ap) {
     }
 }
 
+static void print_syscall_name(const char* name, int sysno) {
+    PUTS("shim_");
+    if (name) {
+        PRINTF("%s", name);
+    } else {
+        PRINTF("syscall%d", sysno);
+    }
+}
+
 void debug_print_syscall_before(int sysno, ...) {
     if (!g_debug_log_enabled)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
-    if (!parser->parser[0]) {
-        PUTS("---- syscall ");
-        if (parser->name) {
-            PRINTF("%s", parser->name);
-        } else {
-            PRINTF("%d", sysno);
-        }
-        PUTS(" has no parser");
-        /* Apparently `PUTS` does not flush buffer if it's ended with '\n'. */
-        PUTCH('\n');
-        return;
-    }
 
-    if (!parser->slow && !parser->stop)
+    if (!parser->slow)
         return;
 
     va_list ap;
     va_start(ap, sysno);
 
-    PRINTF("---- shim_%s(", parser->name);
+    PUTS("---- ");
+    print_syscall_name(parser->name, sysno);
+    PUTS("(");
 
     for (int i = 0; i < 6; i++) {
-        if (parser->stop && parser->stop == i)
-            goto dotdotdot;
-
         if (parser->parser[i + 1]) {
             if (i)
                 PUTCH(',');
@@ -1416,9 +1411,7 @@ void debug_print_syscall_before(int sysno, ...) {
         }
     }
 
-    PUTCH(')');
-dotdotdot:
-    PUTS(" ...");
+    PUTS(") ...");
     /* Apparently `PUTS` does not flush buffer if it's ended with '\n'. */
     PUTCH('\n');
     va_end(ap);
@@ -1429,32 +1422,26 @@ void debug_print_syscall_after(int sysno, ...) {
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
-    if (!parser->parser[0]) {
-        return;
-    }
 
     va_list ap;
     va_start(ap, sysno);
 
-    if (parser->slow || parser->stop)
-        PRINTF("---- return from shim_%s(...", parser->name);
-    else
-        PRINTF("---- shim_%s(", parser->name);
-
     int i = 0;
-    if (!parser->slow || parser->stop) {
-        for (; i < 6; i++) {
-            if (parser->stop && i < parser->stop) {
-                va_arg(ap, long);
-                continue;
-            }
+    if (parser->slow) {
+        PUTS("---- return from ");
+        print_syscall_name(parser->name, sysno);
+        PUTS("(...");
+    } else {
+        PUTS("---- ");
+        print_syscall_name(parser->name, sysno);
+        PUTS("(");
 
+        for (; i < 6; i++) {
             if (parser->parser[i + 1]) {
                 if (i)
                     PUTCH(',');
                 parser->parser[i + 1](&ap);
             } else {
-                va_arg(ap, long);
                 break;
             }
         }
@@ -1464,8 +1451,11 @@ void debug_print_syscall_after(int sysno, ...) {
         va_arg(ap, long);
     }
 
-    PUTS(") = ");
-    parser->parser[0](&ap);
+    PUTS(")");
+    if (parser->parser[0]) {
+        PUTS(" = ");
+        parser->parser[0](&ap);
+    }
     PUTCH('\n');
 
     va_end(ap);
