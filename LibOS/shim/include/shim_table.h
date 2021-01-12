@@ -384,7 +384,7 @@ long shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfd
                     struct __kernel_timeval* timeout);
 long shim_do_sched_yield(void);
 void* shim_do_mremap(void* addr, size_t old_len, size_t new_len, int flags, void* new_addr);
-int shim_do_msync(void* start, size_t len, int flags);
+long shim_do_msync(void* start, size_t len, int flags);
 long shim_do_mincore(void* start, size_t len, unsigned char* vec);
 long shim_do_madvise(unsigned long start, size_t len_in, int behavior);
 long shim_do_dup(unsigned int fd);
