@@ -153,6 +153,7 @@ long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
     unlock(&cur->lock);
     return 0;
 }
+
 long shim_do_sigsuspend(const __sigset_t* mask_ptr) {
     if (!mask_ptr || test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
         return -EFAULT;
