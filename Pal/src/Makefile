@@ -1,7 +1,7 @@
-export RUNTIME_DIR = $(CURDIR)/../../Runtime
-
 include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
+
+export RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 # Customizable PAL Targets
 # (specify in Makefile.am in host-specific directories)

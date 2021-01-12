@@ -1,7 +1,6 @@
 stage('build') {
     sh '''
         make ${MAKEOPTS}
-        make ${MAKEOPTS} test
         make ${MAKEOPTS} -C Pal/src PAL_HOST=Skeleton
     '''
 
@@ -22,4 +21,8 @@ stage('build') {
 
     // prevent cheating and testing from repo
     sh 'make ${MAKEOPTS} -C Runtime clean'
+
+    sh '''
+        make ${MAKEOPTS} test
+    '''
 }

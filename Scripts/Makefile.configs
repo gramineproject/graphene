@@ -69,5 +69,17 @@ CFLAGS += -Werror
 CXXFLAGS += -Werror
 endif
 
+PREFIX ?= /usr
+ifneq ($(SGX),)
+GRAPHENE = graphene-sgx
+GRAPHENEDIR = $(PREFIX)/lib/graphene/sgx
+else
+GRAPHENE = graphene-direct
+GRAPHENEDIR = $(PREFIX)/lib/graphene/direct
+endif
+RUNTIMEDIR = $(GRAPHENEDIR)/runtime
+RUNTIME_DIR = $(RUNTIMEDIR)
+export PREFIX GRAPHENE RUNTIMEDIR RUNTIME_DIR
+
 MAKEFILE_CONFIGS_INCLUDED = y
 include $(MAKEFILE_CONFIGS_DIR)/Makefile.Host

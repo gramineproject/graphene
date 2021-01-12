@@ -1,6 +1,6 @@
-RUNTIME_DIR = $(CURDIR)/../../../Runtime
-
 include ../../../Scripts/Makefile.configs
+
+RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
 CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes $(call cc-option,-Wtrampolines) \
