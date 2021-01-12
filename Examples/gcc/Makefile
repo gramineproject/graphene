@@ -9,9 +9,9 @@ GZIP_URL ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/gzip
 GZIP_HASH ?= 7ec7d87822e6497648580064756f64e47dbd085727910ebbc52a7c240a88dc27
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENELOGLEVEL = info
 else
-GRAPHENEDEBUG = none
+GRAPHENELOGLEVEL = error
 endif
 
 include ../../Scripts/Makefile.configs
@@ -32,7 +32,7 @@ endif
 
 %.manifest: %.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(BINUTILS_VERSION)|'"$(BINUTILS_VERSION)"'|g' \
 		-e 's|$$(GCC_MAJOR_VERSION)|'"$(GCC_MAJOR_VERSION)"'|g' \
 		-e 's|$$(GCC_LIB_PATH)|'"$(GCC_LIB_PATH)"'|g' \

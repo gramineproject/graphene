@@ -4,7 +4,7 @@
 
 loader.argv0_override = "server"
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
-loader.debug_type = "$(GRAPHENEDEBUG)"
+loader.log_level = "$(GRAPHENELOGLEVEL)"
 
 loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu"
 

@@ -3,7 +3,7 @@ loader.argv0_override = "ld"
 loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)"
 loader.env.PATH = "/"
 loader.env.COMPILER_PATH = "/:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/"
-loader.debug_type = "$(GRAPHENEDEBUG)"
+loader.log_level = "$(GRAPHENELOGLEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1

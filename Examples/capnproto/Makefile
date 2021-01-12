@@ -25,9 +25,9 @@ ADDRESSBOOK_CAP_URL    ?= $(CAPNPROTO_SRC_URL)/c%2B%2B/samples/addressbook.capnp
 ADDRESSBOOK_CAP_SHA256 ?= cf309b8b277881c95aaa785f4d0154f46f82575fdb9dea49fb10ee072b7c3ae6
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENELOGLEVEL = info
 else
-GRAPHENEDEBUG = none
+GRAPHENELOGLEVEL = error
 endif
 
 .PHONY=all
@@ -78,7 +78,7 @@ addressbook-trusted-libs: addressbook-deps
 
 addressbook.manifest: addressbook.manifest.template addressbook-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(TRUSTEDLIBS)|'"`cat addressbook-trusted-libs`"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@

@@ -15,9 +15,9 @@ GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENELOGLEVEL = info
 else
-GRAPHENEDEBUG = none
+GRAPHENELOGLEVEL = error
 endif
 
 .PHONY: all
@@ -54,7 +54,7 @@ curl-trusted-libs: curl-deps
 
 curl.manifest: curl.manifest.template curl-trusted-libs
 	@sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(CURL_DIR)|'"$(CURL_DIR)"'|g' \
 		-e 's|$$(CURL_TRUSTED_LIBS)|'"`cat curl-trusted-libs`"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \

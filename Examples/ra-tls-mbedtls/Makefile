@@ -22,10 +22,10 @@ RA_CLIENT_SPID ?=
 RA_CLIENT_LINKABLE ?= 0
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG=inline
+GRAPHENELOGLEVEL = info
 CFLAGS += -O0 -ggdb3
 else
-GRAPHENEDEBUG=none
+GRAPHENELOGLEVEL = error
 CFLAGS += -O2
 endif
 
@@ -125,7 +125,7 @@ libra_tls_verify_dcap_graphene.so: libmbedcrypto.so libmbedx509.so libsgx_util.s
 
 server.manifest: server.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
 		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 		$< > $@
@@ -176,7 +176,7 @@ client_dcap-trusted-libs: client_dcap-deps
 
 client_dcap.manifest: client.manifest.template client_dcap-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(CLIENT_TRUSTED_LIBS)|'"`cat client_dcap-trusted-libs`"'|g' \
 		-e 's|$$(RA_TLS_VERIFY_LIB)|'"libra_tls_verify_dcap_graphene.so"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
@@ -218,7 +218,7 @@ client_epid-trusted-libs: client_epid-deps
 
 client_epid.manifest: client.manifest.template client_epid-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(CLIENT_TRUSTED_LIBS)|'"`cat client_epid-trusted-libs`"'|g' \
 		-e 's|$$(RA_TLS_VERIFY_LIB)|'"libra_tls_verify_epid.so"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \

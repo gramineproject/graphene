@@ -18,9 +18,9 @@ GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENELOGLEVEL = info
 else
-GRAPHENEDEBUG = none
+GRAPHENELOGLEVEL = error
 endif
 
 LD_LIBRARY_PATH := $(LD_LIBRARY_PATH):$(R_HOME)/lib
@@ -78,7 +78,7 @@ R-trusted-libs: R-deps
 
 R.manifest: R.manifest.template R-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(R_HOME)|'"$(R_HOME)"'|g' \
 		-e 's|$$(R_EXEC)|'"$(R_EXEC)"'|g' \
 		-e 's|$$(R_TRUSTED_LIBS)|'"`cat R-trusted-libs`"'|g' \
@@ -87,7 +87,7 @@ R.manifest: R.manifest.template R-trusted-libs
 
 %.manifest: %.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		$< > $@
 
 # R manifests for SGX:

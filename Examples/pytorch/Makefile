@@ -14,9 +14,9 @@ SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 PYTHON3 ?= /usr/bin/python3
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENELOGLEVEL = info
 else
-GRAPHENEDEBUG = none
+GRAPHENELOGLEVEL = error
 endif
 
 DISTRIB_ID ?= $(shell lsb_release --short --id)
@@ -44,7 +44,7 @@ python3.sig: python3_child.sig
 # those lines based on the Ubuntu version detected.
 %.manifest: %.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(HOME)|'"$(HOME)"'|g' \
 		-e 's|# '"$(UBUNTU_VERSION)"' ||g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \

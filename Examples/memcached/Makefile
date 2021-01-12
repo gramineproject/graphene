@@ -29,9 +29,9 @@ $(error This example requires Ubuntu 16.04 or 18.04)
 endif
 
 ifeq ($(DEBUG),1)
-GRAPHENEDEBUG = inline
+GRAPHENELOGLEVEL = info
 else
-GRAPHENEDEBUG = none
+GRAPHENELOGLEVEL = error
 endif
 
 .PHONY: all
@@ -67,7 +67,7 @@ $(SRCDIR)/memcached: $(SRCDIR)/configure
 
 memcached.manifest: memcached.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		-e 's|# \['"$(UBUNTU_VER)"'\] ||g' \
 		$< > $@

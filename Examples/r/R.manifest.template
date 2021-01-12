@@ -5,7 +5,7 @@
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
-loader.debug_type = "$(GRAPHENEDEBUG)"
+loader.log_level = "$(GRAPHENELOGLEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
