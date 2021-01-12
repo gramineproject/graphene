@@ -65,9 +65,6 @@ $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 
 $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
-ifeq ($(ARCH),x86_64)
-STACK_PROTECTOR=--enable-stack-protector=strong
-endif
 $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 	mkdir -p $(BUILD_DIR)
 	(cd $(BUILD_DIR) || exit 1; \
@@ -77,7 +74,6 @@ $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 		--without-selinux \
 		--disable-test \
 		--disable-nscd \
-		$(STACK_PROTECTOR) \
 	)
 
 $(foreach lib,$(GLIBC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib))))
