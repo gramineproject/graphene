@@ -121,30 +121,28 @@ static inline int64_t get_cur_preempt(void) {
     r func(PROTO_ARGS_##n(args));
 
 #define PARSE_SYSCALL1(name, ...) \
-    if (g_debug_log_enabled)      \
-        parse_syscall_before(__NR_##name, #name, ##__VA_ARGS__);
+    debug_print_syscall_before(__NR_##name, ##__VA_ARGS__);
 
-#define PARSE_SYSCALL2(name, ...) \
-    if (g_debug_log_enabled)      \
-        parse_syscall_after(__NR_##name, #name, ##__VA_ARGS__);
+#define PARSE_SYSCALL2(name, ret_val, ...) \
+    debug_print_syscall_after(__NR_##name, ret_val, ##__VA_ARGS__);
 
-void parse_syscall_before(int sysno, const char* name, int nr, ...);
-void parse_syscall_after(int sysno, const char* name, int nr, ...);
+void debug_print_syscall_before(int sysno, ...);
+void debug_print_syscall_after(int sysno, ...);
 
 #define SHIM_SYSCALL_0(name, func, r)       \
     BEGIN_SHIM(name, void)                  \
-        PARSE_SYSCALL1(name, 0);            \
+        PARSE_SYSCALL1(name);               \
         r __ret = (func)();                 \
-        PARSE_SYSCALL2(name, 0, #r, __ret); \
+        PARSE_SYSCALL2(name, __ret);        \
         ret = (SHIM_ARG_TYPE)__ret;         \
     END_SHIM(name)
 
 #define SHIM_SYSCALL_1(name, func, r, t1, a1)        \
     BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1)           \
         t1 a1 = (t1)__arg1;                          \
-        PARSE_SYSCALL1(name, 1, #t1, a1);            \
+        PARSE_SYSCALL1(name, a1);                    \
         r __ret = (func)(a1);                        \
-        PARSE_SYSCALL2(name, 1, #r, __ret, #t1, a1); \
+        PARSE_SYSCALL2(name, __ret, a1);             \
         ret = (SHIM_ARG_TYPE)__ret;                  \
     END_SHIM(name)
 
@@ -152,9 +150,9 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
     BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2)     \
         t1 a1 = (t1)__arg1;                                          \
         t2 a2 = (t2)__arg2;                                          \
-        PARSE_SYSCALL1(name, 2, #t1, a1, #t2, a2);                   \
+        PARSE_SYSCALL1(name, a1, a2);                                \
         r __ret = (func)(a1, a2);                                    \
-        PARSE_SYSCALL2(name, 2, #r, __ret, #t1, a1, #t2, a2);        \
+        PARSE_SYSCALL2(name, __ret, a1, a2);                         \
         ret = (SHIM_ARG_TYPE)__ret;                                  \
     END_SHIM(name)
 
@@ -163,9 +161,9 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
         t1 a1 = (t1)__arg1;                                                                \
         t2 a2 = (t2)__arg2;                                                                \
         t3 a3 = (t3)__arg3;                                                                \
-        PARSE_SYSCALL1(name, 3, #t1, a1, #t2, a2, #t3, a3);                                \
+        PARSE_SYSCALL1(name, a1, a2, a3);                                                  \
         r __ret = (func)(a1, a2, a3);                                                      \
-        PARSE_SYSCALL2(name, 3, #r, __ret, #t1, a1, #t2, a2, #t3, a3);                     \
+        PARSE_SYSCALL2(name, __ret, a1, a2, a3);                                           \
         ret = (SHIM_ARG_TYPE)__ret;                                                        \
     END_SHIM(name)
 
@@ -176,9 +174,9 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
         t2 a2 = (t2)__arg2;                                                                \
         t3 a3 = (t3)__arg3;                                                                \
         t4 a4 = (t4)__arg4;                                                                \
-        PARSE_SYSCALL1(name, 4, #t1, a1, #t2, a2, #t3, a3, #t4, a4);                       \
+        PARSE_SYSCALL1(name, a1, a2, a3, a4);                                              \
         r __ret = (func)(a1, a2, a3, a4);                                                  \
-        PARSE_SYSCALL2(name, 4, #r, __ret, #t1, a1, #t2, a2, #t3, a3, #t4, a4);            \
+        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4);                                       \
         ret = (SHIM_ARG_TYPE)__ret;                                                        \
     END_SHIM(name)
 
@@ -190,9 +188,9 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
         t3 a3 = (t3)__arg3;                                                                \
         t4 a4 = (t4)__arg4;                                                                \
         t5 a5 = (t5)__arg5;                                                                \
-        PARSE_SYSCALL1(name, 5, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5);              \
+        PARSE_SYSCALL1(name, a1, a2, a3, a4, a5);                                          \
         r __ret = (func)(a1, a2, a3, a4, a5);                                              \
-        PARSE_SYSCALL2(name, 5, #r, __ret, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5);   \
+        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4, a5);                                   \
         ret = (SHIM_ARG_TYPE)__ret;                                                        \
     END_SHIM(name)
 
@@ -205,9 +203,9 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
         t4 a4 = (t4)__arg4;                                                                       \
         t5 a5 = (t5)__arg5;                                                                       \
         t6 a6 = (t6)__arg6;                                                                       \
-        PARSE_SYSCALL1(name, 6, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5, #t6, a6);            \
+        PARSE_SYSCALL1(name, a1, a2, a3, a4, a5, a6);                                             \
         r __ret = (func)(a1, a2, a3, a4, a5, a6);                                                 \
-        PARSE_SYSCALL2(name, 6, #r, __ret, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5, #t6, a6); \
+        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4, a5, a6);                                      \
         ret = (SHIM_ARG_TYPE)__ret;                                                               \
     END_SHIM(name)
 
