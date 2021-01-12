@@ -444,6 +444,9 @@ sub-region is described via the following keys:
   default. Unit of measurement must be a constant integer. For example,
   ``size = "strlen"`` and ``unit = 2`` denote a wide-char string (where each
   character is 2B long) of a dynamically calculated length.
+- ``adjust`` is an optional integer adjustment for ``size``. It is 0 bytes by
+  default. This field must be a constant (possibly negative) integer. For
+  example, ``adjust = -8`` and ``size = 12`` results in a total size of 4B.
 - ``type = ["none" | "out" | "in" | "inout"]`` is an optional direction of copy
   for this sub-region. For example, ``type = "out"`` denotes a sub-region to be
   copied out of the enclave to untrusted memory, i.e., this sub-region is an
@@ -451,17 +454,19 @@ sub-region is described via the following keys:
   e.g. padding of structs.  This field may be ommitted if the ``ptr`` field is
   specified for this sub-region (pointer sub-regions contain the pointer value
   which must be rewired to point to untrusted memory).
-- ``ptr = [ another memory region ]`` specifies a pointer to another, nested
-  memory region. This field is required when describing complex IOCTL structs.
-  Such pointer memory region always has the implicit size of 8B, and the
-  pointer value is always rewired to the memory region in untrusted memory
-  (containing a copied-out nested memory region). If ``ptr`` is specified
-  together with ``size``, it describes not just a pointer but an array of these
-  memory regions.
+- ``ptr = [ another memory region ]`` or ``ptr = "another-memory-region"``
+  specifies a pointer to another, nested memory region. This field is required
+  when describing complex IOCTL structs.  Such pointer memory region always has
+  the implicit size of 8B, and the pointer value is always rewired to the memory
+  region in untrusted memory (containing a copied-out nested memory region). If
+  ``ptr`` is specified together with ``size``, it describes not just a pointer
+  but an array of these memory regions.
 - ``onlyif = "simple boolean expression"`` allows to condition the sub region
   based on a boolean expression. The only currently supported format of
-  expressions is ``token1 == token2`` or ``token1 != token2``, where ``token1``
-  and ``token2`` may be constant integers or sub region names.
+  expressions is ``token1 == token2``, ``token1 != token2``,
+  ``token1 &= token2`` (all bits of ``token2`` are set in ``token1``) and
+  ``token1 |= token2`` (at least one bit of ``token2`` is set in ``token1``),
+  where ``token1`` and ``token2`` may be constant integers or sub region names.
 
 Consider this simple example::
 

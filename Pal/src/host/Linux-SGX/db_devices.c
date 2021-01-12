@@ -259,7 +259,7 @@ struct handle_ops g_dev_ops = {
  *     { align = 128, ptr = [ {name="pascal-str-len", size=1, type="out"},
  *                            {name="pascal-str", size="pascal-str-len", type="out"} ] },
  *     { ptr = [ {name="c-str", size="c-str-len", type="inout"} ], size = 1 },
- *     { name = "c-str-len", size = 8, unit = 1, type = "in" },
+ *     { name = "c-str-len", size = 8, unit = 1, adjust = 0, type = "in" },
  *     { onlyif = "c-str-len == pascal-str-len", size = 2, type = "in" }
  *     { onlyif = "c-str-len != pascal-str-len", size = 2, type = "none" }
  *   ]
@@ -283,12 +283,16 @@ struct handle_ops g_dev_ops = {
  *     "inout" to copy in both directions, "none" to not copy at all (useful for e.g. padding).
  *     Note that pointer sub-regions do not have a type.
  *  8. The first sub-region (and only the first!) may specify the alignment of the memory region.
- *  9. The total size of a sub-region is calculated as `size * unit`. By default `unit` is 1 byte.
+ *  9. The total size of a sub-region is calculated as `size * unit + adjust`. By default `unit` is
+ *     1 byte and `adjust` is 0. Note that `adjust` may be a negative number.
  * 10. Sub-regions may be conditioned using `onlyif = "simple boolean expression"`. In the example
  *     above, `x` and `y` will be copied back into the enclave only if the two strings have the
  *     same length; otherwise `x` and `y` will not be modified. The only currently supported format
- *     of expressions is "token1 == token2" or "token1 != token2", where `token1` and `token2` may
- *     be constant integers or sub region names.
+ *     of expressions are (`token1` and `token2` may be constant integers or sub region names):
+ *     - "token1 == token2"
+ *     - "token1 != token2"
+ *     - "token1 &= token2" (all bits set, same as `token1 & token2 == token2` in C)
+ *     - "token1 |= token2" (at least one bit set, same as `token1 & token2 != 0` in C)
  *
  * The diagram below shows how this complex object is copied from enclave memory (left side) to
  * untrusted memory (right side). MR stands for "memory region", SR stands for "sub-region". Note
@@ -318,10 +322,11 @@ struct handle_ops g_dev_ops = {
  *
  */
 
-/* for simplicity and thread-safety, we allocate mem_regions and sub_regions on stack; we assume
- * that deep copy of objects doesn't exceed the specified limits of memory and sub regions */
-#define MAX_MEM_REGIONS 32
-#define MAX_SUB_REGIONS 64
+/* for simplicity, we allocate limited number of mem_regions on stack */
+#define MAX_MEM_REGIONS 128
+
+/* for simplicity, we allocate limited number of sub_regions on heap */
+#define MAX_SUB_REGIONS 1024
 
 /* direction of copy: none (used for padding), out of enclave, inside enclave, both or a special
  * "pointer" sub-region; default is COPY_NONE_ENCLAVE */
@@ -341,16 +346,36 @@ struct sub_region {
     ssize_t size;            /* may be dynamically determined from another sub-region */
     char* size_name;         /* needed if "size" sub region is defined after this sub region */
     ssize_t unit;            /* total size in bytes is calculated as `size * unit` */
+    ssize_t adjust;          /* may be negative; total size in bytes is `size * unit + adjust` */
     void* encl_addr;         /* base address of this sub region in enclave memory */
     void* untrusted_addr;    /* base address of the corresponding sub region in untrusted memory */
     toml_array_t* mem_ptr;   /* for pointers/arrays, specifies pointed-to mem region */
 };
 
+/* finds a sub region with name `sub_region_name` among `sub_regions` and return its index */
+static int get_sub_region_idx(struct sub_region* sub_regions, int sub_regions_cnt,
+                              const char* sub_region_name, int* idx) {
+    /* it is important to iterate in reverse order because there may be an array of mem regions
+     * with same-named sub regions, and we want to find the latest sub region */
+    for (int i = sub_regions_cnt - 1; i >= 0; i--) {
+        if (sub_regions[i].name && !strcmp(sub_regions[i].name, sub_region_name)) {
+            /* found corresponding sub region */
+            if (sub_regions[i].type != COPY_PTR_ENCLAVE || !sub_regions[i].mem_ptr) {
+                /* sub region is not a valid pointer to a memory region */
+                return -EFAULT;
+            }
+            *idx = i;
+            return 0;
+        }
+    }
+    return -ENOENT;
+}
+
 /* finds a sub region with name `sub_region_name` among `sub_regions` and reads the value in it */
 static int get_sub_region_value(struct sub_region* sub_regions, int sub_regions_cnt,
                                 const char* sub_region_name, ssize_t* value) {
     /* it is important to iterate in reverse order because there may be an array of mem regions
-     * with same-named sub regions, and we want to find the "latest size" sub region, i.e. the one
+     * with same-named sub regions, and we want to find the "latest value" sub region, i.e. the one
      * belonging to the same mem region */
     for (int i = sub_regions_cnt - 1; i >= 0; i--) {
         if (sub_regions[i].name && !strcmp(sub_regions[i].name, sub_region_name)) {
@@ -383,8 +408,9 @@ static int get_sub_region_value(struct sub_region* sub_regions, int sub_regions_
 }
 
 /* Parses a simple boolean expression in `expr`, finds corresponding values from sub regions and
- * calculates the resulting boolean value. NOTE: currently supports only "x == y" and "x != y"
- * where both "x" and "y" can be sub region names or constant integers. */
+ * calculates the resulting boolean value. NOTE: currently supports only "x == y", "x != y",
+ * "x &= y" (all bits of y set in x) and "x |= y" (at least one bit of y set in x) where both "x"
+ * and "y" can be sub region names or constant integers. */
 static int calculate_boolean_expr(struct sub_region* sub_regions, int sub_regions_cnt, char* expr,
                                   bool* value) {
     int ret;
@@ -401,7 +427,7 @@ static int calculate_boolean_expr(struct sub_region* sub_regions, int sub_region
 
     /* read comparator */
     char* compar = cur;
-    while (*cur == '=' || *cur == '!') { cur++; }
+    while (*cur == '=' || *cur == '!' || *cur == '&' || *cur == '|') { cur++; }
     size_t compar_len = cur - compar;
 
     while (*cur == ' ' || *cur == '\t') { cur++; }
@@ -413,10 +439,11 @@ static int calculate_boolean_expr(struct sub_region* sub_regions, int sub_region
 
     while (*cur == ' ' || *cur == '\t') { cur++; }
 
-    /* make sure the whole string is in format "token1 == token2" or "token1 != token2" */
-    if (compar_len != 2 || (memcmp(compar, "==", 2) && (memcmp(compar, "!=", 2)))) {
-        SGX_DBG(DBG_E, "Invalid deep-copy syntax (the only supported comparators are \'==\' and "
-                       "\'!=\' but they are not found in expression \'%s\')\n", expr);
+    /* make sure the whole string is in allowed format "token1 {==, !=, &=, |=} token2" */
+    if (compar_len != 2 || (memcmp(compar, "==", 2) && memcmp(compar, "!=", 2) &&
+                            memcmp(compar, "&=", 2) && memcmp(compar, "|=", 2))) {
+        SGX_DBG(DBG_E, "Invalid deep-copy syntax (the only supported comparators are '==', '!=', "
+                       "'&=' and '!=' but they are not found in expression \'%s\')\n", expr);
         return -EINVAL;
     }
 
@@ -453,8 +480,14 @@ static int calculate_boolean_expr(struct sub_region* sub_regions, int sub_region
 
     if (!(memcmp(compar, "==", 2))) {
         *value = val1 == val2;
-    } else {
+    } else if (!(memcmp(compar, "!=", 2))) {
         *value = val1 != val2;
+    } else if (!(memcmp(compar, "&=", 2))) {
+        *value = (val1 & val2) == val2;  /* all bits set */
+    } else if (!(memcmp(compar, "|=", 2))) {
+        *value = (val1 & val2) != 0;     /* at least one bit set */
+    } else {
+        assert(0); /* impossible because we verify compar above */
     }
     return 0;
 }
@@ -474,6 +507,7 @@ static int collect_sub_regions(toml_array_t* root_toml_array, void* root_encl_ad
     for (int i = 0; i < max_sub_regions; i++) {
         sub_regions[i].align = 0;
         sub_regions[i].unit = 0;
+        sub_regions[i].adjust = 0;
         sub_regions[i].size = -1;
         sub_regions[i].name = NULL;
         sub_regions[i].size_name = NULL;
@@ -533,7 +567,39 @@ static int collect_sub_regions(toml_array_t* root_toml_array, void* root_encl_ad
             toml_raw_t sub_region_align_raw  = toml_raw_in(sub_region_info, "align");
             toml_raw_t sub_region_size_raw   = toml_raw_in(sub_region_info, "size");
             toml_raw_t sub_region_unit_raw   = toml_raw_in(sub_region_info, "unit");
+            toml_raw_t sub_region_adjust_raw = toml_raw_in(sub_region_info, "adjust");
+
             toml_array_t* sub_region_ptr_arr = toml_array_in(sub_region_info, "ptr");
+            if (!sub_region_ptr_arr) {
+                /* "ptr" to another sub-region doesn't use TOML's inline array syntax, maybe it
+                 * is a reference to already-defined sub-region (e.g. `ptr = "my-struct"`) */
+                toml_raw_t sub_region_ptr_raw = toml_raw_in(sub_region_info, "ptr");
+                if (sub_region_ptr_raw) {
+                    char* sub_region_name = NULL;
+                    ret = toml_rtos(sub_region_ptr_raw, &sub_region_name);
+                    if (ret < 0) {
+                        SGX_DBG(DBG_E, "Invalid deep-copy syntax (\'ptr\' of a deep-copy sub-entry "
+                                "must be a TOML array or a string surrounded by double quotes)\n");
+                        ret = -EINVAL;
+                        goto out;
+                    }
+
+                    int idx = -1;
+                    ret = get_sub_region_idx(sub_regions, sub_regions_cnt, sub_region_name, &idx);
+                    if (ret < 0) {
+                        SGX_DBG(DBG_E, "Invalid deep-copy syntax (cannot find sub region \'%s\')\n",
+                                sub_region_name);
+                        free(sub_region_name);
+                        goto out;
+                    }
+
+                    assert(idx >= 0 && idx < sub_regions_cnt);
+                    assert(sub_regions[idx].type == COPY_PTR_ENCLAVE && sub_regions[idx].mem_ptr);
+
+                    sub_region_ptr_arr = sub_regions[idx].mem_ptr;
+                    free(sub_region_name);
+                }
+            }
 
             if (sub_region_align_raw && i != 0) {
                 SGX_DBG(DBG_E, "Invalid deep-copy syntax (\'align\' may be specified only for the "
@@ -673,7 +739,23 @@ static int collect_sub_regions(toml_array_t* root_toml_array, void* root_encl_ad
                     goto out;
                 }
             }
-            cur_sub_region->size *= cur_sub_region->unit;
+
+            cur_sub_region->adjust = 0;
+            if (sub_region_adjust_raw) {
+                ret = toml_rtoi(sub_region_adjust_raw, &cur_sub_region->adjust);
+                if (ret < 0) {
+                    SGX_DBG(DBG_E, "Invalid deep-copy syntax (\'adjust\' of a deep-copy sub-entry "
+                                   "is not a valid number)\n");
+                    ret = -EINVAL;
+                    goto out;
+                }
+            }
+
+            if (cur_sub_region->size >= 0) {
+                cur_sub_region->size *= cur_sub_region->unit;
+                cur_sub_region->size += cur_sub_region->adjust;
+            }
+
             cur_encl_addr += cur_sub_region->type == COPY_PTR_ENCLAVE ? 8 : cur_sub_region->size;
         }
 
@@ -696,7 +778,7 @@ static int collect_sub_regions(toml_array_t* root_toml_array, void* root_encl_ad
                 }
                 sub_regions[i].size = val;
             } else {
-                /* size is not specified at all for this sub region, assume it is 1 */
+                /* size is not specified at all for this sub region, assume it is 1 item */
                 sub_regions[i].size = 1;
             }
 
@@ -762,6 +844,9 @@ static void copy_sub_regions_to_untrusted(struct sub_region* sub_regions, int su
                                          void* untrusted_addr) {
     char* cur_untrusted_addr = untrusted_addr; /* char* type for pointer arithmetic */
     for (int i = 0; i < sub_regions_cnt; i++) {
+        if (sub_regions[i].size <= 0 || !sub_regions[i].encl_addr)
+            continue;
+
         if (sub_regions[i].align > 0)
             cur_untrusted_addr = ALIGN_UP_PTR(cur_untrusted_addr, sub_regions[i].align);
 
@@ -772,6 +857,9 @@ static void copy_sub_regions_to_untrusted(struct sub_region* sub_regions, int su
     }
 
     for (int i = 0; i < sub_regions_cnt; i++) {
+        if (sub_regions[i].size <= 0 || !sub_regions[i].encl_addr)
+            continue;
+
         if (sub_regions[i].type == COPY_PTR_ENCLAVE) {
             void* encl_ptr_value = *((void**)sub_regions[i].encl_addr);
             /* rewire pointer value in untrusted memory to a corresponding untrusted sub-region */
@@ -787,6 +875,9 @@ static void copy_sub_regions_to_untrusted(struct sub_region* sub_regions, int su
 
 static void copy_sub_regions_to_enclave(struct sub_region* sub_regions, int sub_regions_cnt) {
     for (int i = 0; i < sub_regions_cnt; i++) {
+        if (sub_regions[i].size <= 0 || !sub_regions[i].encl_addr)
+            continue;
+
         if (sub_regions[i].type == COPY_IN_ENCLAVE || sub_regions[i].type == COPY_INOUT_ENCLAVE)
             memcpy(sub_regions[i].encl_addr, sub_regions[i].untrusted_addr, sub_regions[i].size);
     }
@@ -874,30 +965,34 @@ int _DkDeviceIoControl(PAL_HANDLE handle, unsigned int cmd, uint64_t arg) {
                 return ret < 0 ? unix_to_pal_error(ERRNO(ret)) : 0;
             }
 
+            int sub_regions_cnt = MAX_SUB_REGIONS;
+            struct sub_region* sub_regions = malloc(sub_regions_cnt * sizeof(*sub_regions));
+            if (!sub_regions)
+                return -PAL_ERROR_NOMEM;
+
             /* typical case of used IOCTL argument: deep-copy the IOCTL argument's input data
              * outside of enclave, execute the IOCTL OCALL, and deep-copy the IOCTL argument's
              * output data back into enclave */
-            struct sub_region sub_regions[MAX_SUB_REGIONS];
-            int sub_regions_cnt = MAX_SUB_REGIONS;
             ret = collect_sub_regions(toml_ioctl_struct, (void*)arg, sub_regions, &sub_regions_cnt);
             if (ret < 0) {
                 if (ret != -EFAULT) {
                     SGX_DBG(DBG_E, "Invalid struct format of allowed ioctl \'%s\' in manifest\n",
                             toml_allowed_ioctl_key);
                 }
+                free(sub_regions);
                 return unix_to_pal_error(ERRNO(ret));
             }
 
             void* untrusted_addr  = NULL;
             size_t untrusted_size = 0;
             for (int i = 0; i < sub_regions_cnt; i++) {
-                assert(sub_regions[i].size > 0);
                 untrusted_size += sub_regions[i].size + sub_regions[i].align;
             }
 
             ret = ocall_mmap_untrusted(/*fd=*/-1, /*offset=*/0, untrusted_size,
                                        PROT_READ | PROT_WRITE, &untrusted_addr);
             if (ret < 0) {
+                free(sub_regions);
                 return -PAL_ERROR_NOMEM;
             }
 
@@ -906,11 +1001,13 @@ int _DkDeviceIoControl(PAL_HANDLE handle, unsigned int cmd, uint64_t arg) {
             ret = ocall_ioctl(handle->dev.fd, cmd, (uint64_t)untrusted_addr);
             if (ret < 0) {
                 ocall_munmap_untrusted(untrusted_addr, untrusted_size);
+                free(sub_regions);
                 return unix_to_pal_error(ERRNO(ret));
             }
 
             copy_sub_regions_to_enclave(sub_regions, sub_regions_cnt);
             ocall_munmap_untrusted(untrusted_addr, untrusted_size);
+            free(sub_regions);
             return 0;
         }
     }
