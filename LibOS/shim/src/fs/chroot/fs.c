@@ -316,6 +316,9 @@ static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, mode_t*
 
         memset(stat, 0, sizeof(struct stat));
 
+        /* Dmitrii Kuvaiskii: hard-code 226:0 for rdev for now; TODO: get it from underlying dev */
+        stat->st_rdev  = makedev(226, 0);
+
         stat->st_mode  = (mode_t)data->mode;
         stat->st_dev   = (dev_t)mdata->ino_base;
         stat->st_ino   = (ino_t)dent->ino;
