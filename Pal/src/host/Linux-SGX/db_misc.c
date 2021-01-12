@@ -282,48 +282,54 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
 }
 
 struct cpuid_leaf {
-    unsigned int idx;
-    bool zero_subleaf; /* if subleaf is not used, then must explicitly zero it out */
-    bool cache;        /* if leaf is constant on all cores, then can add to cache */
+    unsigned int leaf;
+    bool zero_subleaf; /* if subleaf is not used by this leaf, then CPUID instruction expects it to
+                          be explicitly zeroed out (see _DkCpuIdRetrieve() implementation below) */
+    bool cache;        /* if leaf + subleaf pair is constant across all cores and sockets, then we
+                          can add the returned CPUID values of this pair to the local cache (see
+                          _DkCpuIdRetrieve() implementation below) */
 };
 
-static struct cpuid_leaf cpuid_known_leaves[] = {
-    {.idx = 0x00, .zero_subleaf = true,  .cache = true},  /* Highest Func Param and Manufacturer */
-    {.idx = 0x01, .zero_subleaf = true,  .cache = false}, /* Processor Info and Feature Bits */
-    {.idx = 0x02, .zero_subleaf = true,  .cache = true},  /* Cache and TLB Descriptor */
-    {.idx = 0x03, .zero_subleaf = true,  .cache = true},  /* Processor Serial Number */
-    {.idx = 0x04, .zero_subleaf = false, .cache = false}, /* Deterministic Cache Parameters */
-    {.idx = 0x05, .zero_subleaf = true,  .cache = true},  /* MONITOR/MWAIT */
-    {.idx = 0x06, .zero_subleaf = true,  .cache = true},  /* Thermal and Power Management */
-    {.idx = 0x07, .zero_subleaf = false, .cache = true},  /* Structured Extended Feature Flags */
-    {.idx = 0x09, .zero_subleaf = true,  .cache = true},  /* Direct Cache Access Information */
-    {.idx = 0x0A, .zero_subleaf = true,  .cache = true},  /* Architectural Performance Monitoring */
-    {.idx = 0x0B, .zero_subleaf = false, .cache = false}, /* Extended Topology Enumeration */
-    {.idx = 0x0D, .zero_subleaf = false, .cache = true},  /* Processor Extended State Enumeration */
-    {.idx = 0x0F, .zero_subleaf = false, .cache = true},  /* Intel RDT Monitoring */
-    {.idx = 0x10, .zero_subleaf = false, .cache = true},  /* RDT/L2/L3 Cache Allocation Tech */
-    {.idx = 0x12, .zero_subleaf = false, .cache = true},  /* Intel SGX Capability */
-    {.idx = 0x14, .zero_subleaf = false, .cache = true},  /* Intel Processor Trace Enumeration */
-    {.idx = 0x15, .zero_subleaf = true, .cache = true},   /* Time Stamp Counter/Core Clock */
-    {.idx = 0x16, .zero_subleaf = true, .cache = true},   /* Processor Frequency Information */
-    {.idx = 0x17, .zero_subleaf = false, .cache = true},  /* System-On-Chip Vendor Attribute */
-    {.idx = 0x1F, .zero_subleaf = false, .cache = false}, /* Intel V2 Ext Topology Enumeration */
+static const struct cpuid_leaf cpuid_known_leaves[] = {
+    {.leaf = 0x00, .zero_subleaf = true,  .cache = true},  /* Highest Func Param and Manufacturer */
+    {.leaf = 0x01, .zero_subleaf = true,  .cache = false}, /* Processor Info and Feature Bits */
+    {.leaf = 0x02, .zero_subleaf = true,  .cache = true},  /* Cache and TLB Descriptor */
+    {.leaf = 0x03, .zero_subleaf = true,  .cache = true},  /* Processor Serial Number */
+    {.leaf = 0x04, .zero_subleaf = false, .cache = false}, /* Deterministic Cache Parameters */
+    {.leaf = 0x05, .zero_subleaf = true,  .cache = true},  /* MONITOR/MWAIT */
+    {.leaf = 0x06, .zero_subleaf = true,  .cache = true},  /* Thermal and Power Management */
+    {.leaf = 0x07, .zero_subleaf = false, .cache = true},  /* Structured Extended Feature Flags */
+    {.leaf = 0x09, .zero_subleaf = true,  .cache = true},  /* Direct Cache Access Information */
+    {.leaf = 0x0A, .zero_subleaf = true,  .cache = true},  /* Architectural Performance Monitoring */
+    {.leaf = 0x0B, .zero_subleaf = false, .cache = false}, /* Extended Topology Enumeration */
+    {.leaf = 0x0D, .zero_subleaf = false, .cache = true},  /* Processor Extended State Enumeration */
+    {.leaf = 0x0F, .zero_subleaf = false, .cache = true},  /* Intel RDT Monitoring */
+    {.leaf = 0x10, .zero_subleaf = false, .cache = true},  /* RDT/L2/L3 Cache Allocation Tech */
+    {.leaf = 0x12, .zero_subleaf = false, .cache = true},  /* Intel SGX Capability */
+    {.leaf = 0x14, .zero_subleaf = false, .cache = true},  /* Intel Processor Trace Enumeration */
+    {.leaf = 0x15, .zero_subleaf = true,  .cache = true},  /* Time Stamp Counter/Core Clock */
+    {.leaf = 0x16, .zero_subleaf = true,  .cache = true},  /* Processor Frequency Information */
+    {.leaf = 0x17, .zero_subleaf = false, .cache = true},  /* System-On-Chip Vendor Attribute */
+    {.leaf = 0x18, .zero_subleaf = false, .cache = true},  /* Deterministic Address Translation */
+    {.leaf = 0x19, .zero_subleaf = true,  .cache = true},  /* Key Locker */
+    {.leaf = 0x1A, .zero_subleaf = true,  .cache = false}, /* Hybrid Information Enumeration */
+    {.leaf = 0x1F, .zero_subleaf = false, .cache = false}, /* Intel V2 Ext Topology Enumeration */
 
-    {.idx = 0x80000000, .zero_subleaf = true, .cache = true}, /* Get Highest Extended Function */
-    {.idx = 0x80000001, .zero_subleaf = true, .cache = true}, /* Extended Processor Info */
-    {.idx = 0x80000002, .zero_subleaf = true, .cache = true}, /* Processor Brand String 1 */
-    {.idx = 0x80000003, .zero_subleaf = true, .cache = true}, /* Processor Brand String 2 */
-    {.idx = 0x80000004, .zero_subleaf = true, .cache = true}, /* Processor Brand String 3 */
-    {.idx = 0x80000005, .zero_subleaf = true, .cache = true}, /* L1 Cache and TLB Identifiers */
-    {.idx = 0x80000006, .zero_subleaf = true, .cache = true}, /* Extended L2 Cache Features */
-    {.idx = 0x80000007, .zero_subleaf = true, .cache = true}, /* Advanced Power Management */
-    {.idx = 0x80000008, .zero_subleaf = true, .cache = true}, /* Virtual/Physical Address Sizes */
+    {.leaf = 0x80000000, .zero_subleaf = true, .cache = true}, /* Get Highest Extended Function */
+    {.leaf = 0x80000001, .zero_subleaf = true, .cache = true}, /* Extended Processor Info */
+    {.leaf = 0x80000002, .zero_subleaf = true, .cache = true}, /* Processor Brand String 1 */
+    {.leaf = 0x80000003, .zero_subleaf = true, .cache = true}, /* Processor Brand String 2 */
+    {.leaf = 0x80000004, .zero_subleaf = true, .cache = true}, /* Processor Brand String 3 */
+    {.leaf = 0x80000005, .zero_subleaf = true, .cache = true}, /* L1 Cache and TLB Identifiers */
+    {.leaf = 0x80000006, .zero_subleaf = true, .cache = true}, /* Extended L2 Cache Features */
+    {.leaf = 0x80000007, .zero_subleaf = true, .cache = true}, /* Advanced Power Management */
+    {.leaf = 0x80000008, .zero_subleaf = true, .cache = true}, /* Virtual/Physical Address Sizes */
 };
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    struct cpuid_leaf* known_leaf = NULL;
+    const struct cpuid_leaf* known_leaf = NULL;
     for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
-        if (leaf == cpuid_known_leaves[i].idx) {
+        if (leaf == cpuid_known_leaves[i].leaf) {
             known_leaf = &cpuid_known_leaves[i];
             break;
         }
