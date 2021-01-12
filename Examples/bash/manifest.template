@@ -11,7 +11,7 @@ loader.insecure__use_cmdline_argv = 1
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
-loader.log_level = "$(GRAPHENELOGLEVEL)"
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Environment variables
 loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR)"

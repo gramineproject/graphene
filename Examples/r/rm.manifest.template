@@ -3,7 +3,7 @@
 # This manifest was prepared and tested on Ubuntu 16.04.
 
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
-loader.log_level = "$(GRAPHENELOGLEVEL)"
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Don't use this on production!
 loader.insecure__use_cmdline_argv = 1

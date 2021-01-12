@@ -25,9 +25,9 @@ COMMIT = 6.0.5
 TAR_SHA256 = f7ded6c27d48c20bc78e797046c79b6bc411121f0c2d7eead9fea50d6b0b6290
 
 ifeq ($(DEBUG),1)
-GRAPHENELOGLEVEL = info
+GRAPHENE_LOG_LEVEL = info
 else
-GRAPHENELOGLEVEL = error
+GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
@@ -69,7 +69,7 @@ endif
 
 redis-server.manifest: redis-server.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 

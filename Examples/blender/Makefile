@@ -21,9 +21,9 @@ $(error This example requires Ubuntu 16.04 or 18.04)
 endif
 
 ifeq ($(DEBUG),1)
-GRAPHENE_DEBUG = inline
+GRAPHENE_LOG_LEVEL = info
 else
-GRAPHENE_DEBUG = none
+GRAPHENE_LOG_LEVEL = error
 endif
 
 
@@ -46,7 +46,7 @@ $(RUN_DIR):
 
 $(BLENDER_DIR)/blender.manifest: blender.manifest.template $(BLENDER_DIR)/blender | $(RUN_DIR)
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-		-e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
 		-e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
 		-e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \

@@ -32,9 +32,9 @@ GRAPHENEDIR ?= $(THIS_DIR)../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENELOGLEVEL = info
+GRAPHENE_LOG_LEVEL = info
 else
-GRAPHENELOGLEVEL = error
+GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
@@ -116,7 +116,7 @@ httpd-trusted-libs: httpd-deps httpd-modules $(INSTALL_DIR)/bin/httpd
 
 httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 	    -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
 	    -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
 	    -e 's|$$(HTTPD_TRUSTED_MODS)|'"`cat httpd-trusted-mods`"'|g' \

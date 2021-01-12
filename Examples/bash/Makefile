@@ -15,9 +15,9 @@ GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENELOGLEVEL = info
+GRAPHENE_LOG_LEVEL = info
 else
-GRAPHENELOGLEVEL = error
+GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
@@ -66,7 +66,7 @@ trusted-children:
 
 bash.manifest: manifest.template trusted-children bash.trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(ARGV0_OVERRIDE)|bash|g' \
 		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which bash))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat bash.trusted-libs`"'|g' \
@@ -76,7 +76,7 @@ bash.manifest: manifest.template trusted-children bash.trusted-libs
 
 $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENELOGLEVEL)|'"$(GRAPHENELOGLEVEL)"'|g' \
+		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(ARGV0_OVERRIDE)|'"$(basename $@)"'|g' \
 		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which $(basename $@)))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat $(basename $@).trusted-libs`"'|g' \

@@ -7,7 +7,7 @@ loader.argv0_override = "object_detection_sample_ssd"
 # Graphene environment, including the path to the library OS and the debug
 # option (inline/none).
 loader.preload = "file:$(GRAPHENE_DIR)/Runtime/libsysdb.so"
-loader.debug_type = "$(GRAPHENE_DEBUG)"
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1

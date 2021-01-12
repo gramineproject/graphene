@@ -23,10 +23,10 @@ GRAPHENE_DIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENE_DEBUG = inline
+GRAPHENE_LOG_LEVEL = info
 OPENVINO_BUILD = Debug
 else
-GRAPHENE_DEBUG = none
+GRAPHENE_LOG_LEVEL = error
 OPENVINO_BUILD = Release
 endif
 
@@ -65,7 +65,7 @@ $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_
 
 object_detection_sample_ssd.manifest: object_detection_sample_ssd.manifest.template
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-	    -e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 	    -e 's|$$(OPENVINO_DIR)|'"$(OPENVINO_DIR)"'|g' \
 	    -e 's|$$(OPENVINO_DIR_ABSPATH)|'"$(abspath $(OPENVINO_DIR))"'|g' \
 	    -e 's|$$(MODEL_DIR)|'"$(MODEL_DIR)"'|g' \

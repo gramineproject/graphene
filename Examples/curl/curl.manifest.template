@@ -9,7 +9,7 @@ loader.argv0_override = "curl"
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
 # Show/hide debug log of Graphene ('inline' or 'none' respectively).
-loader.log_level = "$(GRAPHENELOGLEVEL)"
+loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
