@@ -313,6 +313,15 @@ static inline int try_create_data(struct shim_dentry* dent, const char* uri, siz
     return 0;
 }
 
+static dev_t makedev(unsigned int major, unsigned int minor) {
+    dev_t dev;
+    dev  = (((dev_t)(major & 0x00000fffu)) <<  8);
+    dev |= (((dev_t)(major & 0xfffff000u)) << 32);
+    dev |= (((dev_t)(minor & 0x000000ffu)) <<  0);
+    dev |= (((dev_t)(minor & 0xffffff00u)) << 12);
+    return dev;
+}
+
 static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, struct stat* stat) {
     int ret = 0;
 
@@ -339,6 +348,9 @@ static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, struct 
         stat->st_mtime = (time_t)data->mtime;
         stat->st_ctime = (time_t)data->ctime;
         stat->st_nlink = data->nlink;
+
+        /* Dmitrii Kuvaiskii: hard-code 226:0 for rdev for now; TODO: get it from underlying dev */
+        stat->st_rdev  = makedev(226, 0);
     }
 
     unlock(&data->lock);

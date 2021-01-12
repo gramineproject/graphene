@@ -141,6 +141,11 @@ static int init_main_thread(void) {
         return -ENOMEM;
     }
 
+    cur_thread->uid  = 1001;
+    cur_thread->euid = 1001;
+    cur_thread->gid  = 1002;
+    cur_thread->egid = 1002;
+
     cur_thread->tid = get_new_id(/*remove_from_owned=*/false);
     if (!cur_thread->tid) {
         log_error("Cannot allocate pid for the initial thread!");

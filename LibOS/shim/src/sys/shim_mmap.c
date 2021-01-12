@@ -258,6 +258,12 @@ long shim_do_mprotect(void* addr, size_t length, int prot) {
         return -EINVAL;
     }
 
+    if (!strcmp(g_pal_control->host_type, "Linux-SGX") && (addr < g_pal_control->user_address.start
+            || (uintptr_t)g_pal_control->user_address.end < (uintptr_t)addr + length)) {
+        /* Assume that this is an mprotect on untrusted memory outside SGX enclave */
+        return 0;
+    }
+
     /* `bkeep_mprotect` and then `DkVirtualMemoryProtect` is racy, but it's hard to do it properly.
      * On the other hand if this race happens, it means user app is buggy, so not a huge problem. */
 

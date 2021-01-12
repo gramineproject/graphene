@@ -105,6 +105,12 @@ long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     if (!is_user_memory_writable(buf, bufsize))
         return -EFAULT;
 
+    /* Dmitrii Kuvaiskii: hard-code a link of "/sys/dev/char/226:0/device; TODO: remove! */
+    if (!strcmp(file, "device")) {
+        memcpy(buf, "../../../0000:03:00.0", sizeof("../../../0000:03:00.0"));
+        return 21;
+    }
+
     struct shim_dentry* dent = NULL;
     struct shim_dentry* dir = NULL;
 

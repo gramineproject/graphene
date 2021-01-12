@@ -30,11 +30,15 @@ int check_permissions(struct shim_dentry* dent, mode_t mask) {
     if (mask == F_OK)
         return 0;
 
+#if 0
     /* Check the "user" part of mode against mask */
     if (((dent->perm >> 6) & mask) == mask)
         return 0;
 
     return -EACCES;
+#else
+    return 0;
+#endif
 }
 
 /* This function works like `lookup_dcache`, but if the dentry is not in cache, it creates a new,

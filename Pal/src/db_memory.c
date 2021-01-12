@@ -27,9 +27,11 @@ int DkVirtualMemoryAlloc(PAL_PTR* addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FL
         return -PAL_ERROR_INVAL;
     }
 
+#if 0
     if (!(alloc_type & PAL_ALLOC_INTERNAL) && !map_addr) {
         return -PAL_ERROR_INVAL;
     }
+#endif
 
     return _DkVirtualMemoryAlloc(addr, size, alloc_type, prot);
 }

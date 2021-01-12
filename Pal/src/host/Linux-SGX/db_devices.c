@@ -121,8 +121,9 @@ static int dev_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, ui
 
     assert(WITHIN_MASK(prot, PAL_PROT_MASK));
 
-    int ret = ocall_mmap_untrusted(addr, size, PAL_PROT_TO_LINUX(prot), MAP_SHARED, handle->dev.fd,
-                                   offset);
+    int ret = ocall_mmap_untrusted(addr, size, PAL_PROT_TO_LINUX(prot),
+		                   *addr ? MAP_SHARED | MAP_FIXED : MAP_SHARED,
+				   handle->dev.fd, offset);
     return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 

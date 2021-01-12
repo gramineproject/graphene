@@ -364,8 +364,15 @@ static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) 
             uintptr_t eof_in_vma = (uintptr_t)vma_info.addr
                                    + (file->info.file.size - vma_info.file_offset);
             if (addr > eof_in_vma) {
+#if 0
                 info.si_signo = SIGBUS;
                 info.si_code = BUS_ADRERR;
+#else
+                log_debug("============== file->info.file.size = %lu  vma_info.file_offset = %lu",
+                          file->info.file.size, vma_info.file_offset);
+                info.si_signo = SIGSEGV;
+                info.si_code = SEGV_ACCERR;
+#endif
             } else {
                 info.si_signo = SIGSEGV;
                 info.si_code = SEGV_ACCERR;
