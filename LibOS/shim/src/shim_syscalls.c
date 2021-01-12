@@ -417,7 +417,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(capget, 2, long, cap_user_header_t, header, cap_user_
 
 SHIM_SYSCALL_RETURN_ENOSYS(capset, 2, long, cap_user_header_t, header, const cap_user_data_t, data)
 
-DEFINE_SHIM_SYSCALL(rt_sigpending, 2, shim_do_sigpending, long, __sigset_t*, set, size_t, sigsetsize)
+DEFINE_SHIM_SYSCALL(rt_sigpending, 2, shim_do_sigpending, long, __sigset_t*, set, size_t,
+                    sigsetsize)
 
 SHIM_SYSCALL_RETURN_ENOSYS(rt_sigtimedwait, 4, long, const __sigset_t*, uthese, siginfo_t*, uinfo,
                            const struct timespec*, uts, size_t, sigsetsize)
@@ -454,8 +455,8 @@ DEFINE_SHIM_SYSCALL(sched_setparam, 2, shim_do_sched_setparam, long, pid_t, pid,
 DEFINE_SHIM_SYSCALL(sched_getparam, 2, shim_do_sched_getparam, long, pid_t, pid,
                     struct __kernel_sched_param*, param)
 
-DEFINE_SHIM_SYSCALL(sched_setscheduler, 3, shim_do_sched_setscheduler, long, pid_t, pid, int, policy,
-                    struct __kernel_sched_param*, param)
+DEFINE_SHIM_SYSCALL(sched_setscheduler, 3, shim_do_sched_setscheduler, long, pid_t, pid, int,
+                    policy, struct __kernel_sched_param*, param)
 
 DEFINE_SHIM_SYSCALL(sched_getscheduler, 1, shim_do_sched_getscheduler, long, pid_t, pid)
 
@@ -524,7 +525,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(sync, 0, long)
 
 SHIM_SYSCALL_RETURN_ENOSYS(acct, 1, long, const char*, name)
 
-SHIM_SYSCALL_RETURN_ENOSYS(settimeofday, 2, long, struct timeval*, tv, struct __kernel_timezone*, tz)
+SHIM_SYSCALL_RETURN_ENOSYS(settimeofday, 2, long, struct timeval*, tv, struct __kernel_timezone*,
+                           tz)
 
 SHIM_SYSCALL_RETURN_ENOSYS(mount, 5, long, char*, dev_name, char*, dir_name, char*, type,
                            unsigned long, flags, void*, data)
@@ -549,14 +551,16 @@ SHIM_SYSCALL_RETURN_ENOSYS(ioperm, 3, long, unsigned long, from, unsigned long, 
 
 SHIM_SYSCALL_RETURN_ENOSYS(create_module, 2, long, const char*, name, size_t, size)
 
-SHIM_SYSCALL_RETURN_ENOSYS(init_module, 3, long, void*, umod, unsigned long, len, const char*, uargs)
+SHIM_SYSCALL_RETURN_ENOSYS(init_module, 3, long, void*, umod, unsigned long, len, const char*,
+                           uargs)
 
 SHIM_SYSCALL_RETURN_ENOSYS(delete_module, 2, long, const char*, name_user, unsigned int, flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(query_module, 5, long, const char*, name, int, which, void*, buf, size_t,
                            bufsize, size_t*, retsize)
 
-SHIM_SYSCALL_RETURN_ENOSYS(quotactl, 4, long, int, cmd, const char*, special, qid_t, id, void*, addr)
+SHIM_SYSCALL_RETURN_ENOSYS(quotactl, 4, long, int, cmd, const char*, special, qid_t, id, void*,
+                           addr)
 
 /* gettid: sys/shim_getpid.c */
 DEFINE_SHIM_SYSCALL(gettid, 0, shim_do_gettid, long)
@@ -630,12 +634,13 @@ SHIM_SYSCALL_RETURN_ENOSYS(io_cancel, 3, long, aio_context_t, ctx_id, struct ioc
 SHIM_SYSCALL_RETURN_ENOSYS(get_thread_area, 1, long, struct user_desc*, u_info)
 #endif
 
-SHIM_SYSCALL_RETURN_ENOSYS(lookup_dcookie, 3, long, unsigned long, cookie64, char*, buf, size_t, len)
+SHIM_SYSCALL_RETURN_ENOSYS(lookup_dcookie, 3, long, unsigned long, cookie64, char*, buf, size_t,
+                           len)
 
 DEFINE_SHIM_SYSCALL(epoll_create, 1, shim_do_epoll_create, long, int, size)
 
-SHIM_SYSCALL_RETURN_ENOSYS(remap_file_pages, 5, long, void*, start, size_t, size, int, prot, ssize_t,
-                           pgoff, int, flags)
+SHIM_SYSCALL_RETURN_ENOSYS(remap_file_pages, 5, long, void*, start, size_t, size, int, prot,
+                           ssize_t, pgoff, int, flags)
 
 /* getdents64: sys/shim_open.c */
 DEFINE_SHIM_SYSCALL(getdents64, 3, shim_do_getdents64, long, int, fd, struct linux_dirent64*, buf,
@@ -683,8 +688,8 @@ DEFINE_SHIM_SYSCALL(clock_nanosleep, 4, shim_do_clock_nanosleep, long, clockid_t
 /* exit_group: sys/shim_exit.c */
 DEFINE_SHIM_SYSCALL(exit_group, 1, shim_do_exit_group, long, int, error_code)
 
-DEFINE_SHIM_SYSCALL(epoll_wait, 4, shim_do_epoll_wait, long, int, epfd, struct __kernel_epoll_event*,
-                    events, int, maxevents, int, timeout_ms)
+DEFINE_SHIM_SYSCALL(epoll_wait, 4, shim_do_epoll_wait, long, int, epfd,
+                    struct __kernel_epoll_event*, events, int, maxevents, int, timeout_ms)
 
 DEFINE_SHIM_SYSCALL(epoll_ctl, 4, shim_do_epoll_ctl, long, int, epfd, int, op, int, fd,
                     struct __kernel_epoll_event*, event)
@@ -768,8 +773,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(linkat, 5, long, int, olddfd, const char*, oldname, i
 SHIM_SYSCALL_RETURN_ENOSYS(symlinkat, 3, long, const char*, oldname, int, newdfd, const char*,
                            newname)
 
-DEFINE_SHIM_SYSCALL(readlinkat, 4, shim_do_readlinkat, long, int, dfd, const char*, path, char*, buf,
-                    int, bufsiz)
+DEFINE_SHIM_SYSCALL(readlinkat, 4, shim_do_readlinkat, long, int, dfd, const char*, path, char*,
+                    buf, int, bufsiz)
 
 /* fchmodat: sys/shim_fs.c */
 DEFINE_SHIM_SYSCALL(fchmodat, 3, shim_do_fchmodat, long, int, dfd, const char*, filename, mode_t,
@@ -860,8 +865,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(preadv, 5, long, unsigned long, fd, const struct iove
 SHIM_SYSCALL_RETURN_ENOSYS(pwritev, 5, long, unsigned long, fd, const struct iovec*, vec,
                            unsigned long, vlen, unsigned long, pos_l, unsigned long, pos_h)
 
-SHIM_SYSCALL_RETURN_ENOSYS(rt_tgsigqueueinfo, 4, long, pid_t, tgid, pid_t, pid, int, sig, siginfo_t*,
-                           uinfo)
+SHIM_SYSCALL_RETURN_ENOSYS(rt_tgsigqueueinfo, 4, long, pid_t, tgid, pid_t, pid, int, sig,
+                           siginfo_t*, uinfo)
 
 SHIM_SYSCALL_RETURN_ENOSYS(perf_event_open, 5, long, struct perf_event_attr*, attr_uptr, pid_t, pid,
                            int, cpu, int, group_fd, int, flags)
@@ -871,8 +876,8 @@ DEFINE_SHIM_SYSCALL(recvmmsg, 5, shim_do_recvmmsg, long, int, fd, struct mmsghdr
 
 SHIM_SYSCALL_RETURN_ENOSYS(fanotify_init, 2, long, int, flags, int, event_f_flags)
 
-SHIM_SYSCALL_RETURN_ENOSYS(fanotify_mark, 5, long, int, fanotify_fd, int, flags, unsigned long, mask,
-                           int, fd, const char*, pathname)
+SHIM_SYSCALL_RETURN_ENOSYS(fanotify_mark, 5, long, int, fanotify_fd, int, flags, unsigned long,
+                           mask, int, fd, const char*, pathname)
 
 DEFINE_SHIM_SYSCALL(prlimit64, 4, shim_do_prlimit64, long, pid_t, pid, int, resource,
                     const struct __kernel_rlimit64*, new_rlim, struct __kernel_rlimit64*, old_rlim)
