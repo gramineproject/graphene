@@ -37,7 +37,7 @@ DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
 
 /* This does not return */
 noreturn void __abort(void) {
-    _DkProcessExit(-ENOTRECOVERABLE);
+    _DkProcessExit(ENOTRECOVERABLE);
 }
 
 void warn(const char* format, ...) {

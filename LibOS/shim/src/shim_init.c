@@ -365,7 +365,7 @@ static int read_environs(const char** envp) {
         int _err = CALL_INIT(func, ##__VA_ARGS__);                       \
         if (_err < 0) {                                                  \
             debug("Error during shim_init() in " #func " (%d)\n", _err); \
-            DkProcessExit(_err);                                         \
+            DkProcessExit(-_err);                                        \
         }                                                                \
     } while (0)
 
