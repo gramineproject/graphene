@@ -290,6 +290,9 @@ struct cpuid_leaf {
                           _DkCpuIdRetrieve() implementation below) */
 };
 
+/* NOTE: some CPUID leaves/subleaves may theoretically return different values when accessed from
+ *       different sockets in a multisocket system and thus should not be declared with
+ *       `.cache = true` below, but we don't know of any such systems and currently ignore this */
 static const struct cpuid_leaf cpuid_known_leaves[] = {
     {.leaf = 0x00, .zero_subleaf = true,  .cache = true},  /* Highest Func Param and Manufacturer */
     {.leaf = 0x01, .zero_subleaf = true,  .cache = false}, /* Processor Info and Feature Bits */
