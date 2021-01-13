@@ -1430,7 +1430,6 @@ void debug_print_syscall_after(int sysno, ...) {
     /* Skip return value, as it's passed as first argument. */
     va_arg(ap, long);
 
-    int i = 0;
     if (parser->slow) {
         PUTS("---- return from ");
         print_syscall_name(parser->name, sysno);
@@ -1440,7 +1439,7 @@ void debug_print_syscall_after(int sysno, ...) {
         print_syscall_name(parser->name, sysno);
         PUTS("(");
 
-        for (; i < 6; i++) {
+        for (int i = 0; i < 6; i++) {
             if (parser->parser[i + 1]) {
                 if (i)
                     PUTS(", ");
