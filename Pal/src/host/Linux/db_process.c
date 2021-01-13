@@ -133,9 +133,7 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
                              g_linux_state.host_environ);
     /* execve failed, but we're after vfork, so we can't do anything more than just exit */
     INLINE_SYSCALL(exit_group, 1, ERRNO(res));
-    /* UNREACHABLE */
-    while (1) {
-    }
+    die_or_inf_loop();
 }
 
 int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args) {
@@ -342,9 +340,7 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
 
 noreturn void _DkProcessExit(int exitcode) {
     INLINE_SYSCALL(exit_group, 1, exitcode);
-    while (true) {
-        /* nothing */;
-    }
+    die_or_inf_loop();
 }
 
 static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {

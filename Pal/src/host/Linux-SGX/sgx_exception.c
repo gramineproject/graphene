@@ -23,6 +23,7 @@
 #include <stdbool.h>
 
 #include "api.h"
+#include "cpu.h"
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "pal_linux.h"
@@ -152,7 +153,8 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
             SGX_DBG(DBG_E, "Memory Mapping Exception in Untrusted Code (RIP = %08lx)\n", rip);
             break;
     }
-    INLINE_SYSCALL(exit, 1, 1);
+    INLINE_SYSCALL(exit_group, 1, 1);
+    die_or_inf_loop();
 }
 
 static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {

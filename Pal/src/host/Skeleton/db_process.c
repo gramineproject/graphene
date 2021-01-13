@@ -21,9 +21,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
 }
 
 noreturn void _DkProcessExit(int exitcode) {
-    while (true) {
-        /* nothing */;
-    }
+    die_or_inf_loop();
 }
 
 static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {

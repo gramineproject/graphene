@@ -61,8 +61,7 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
     do {                                            \
         warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
         DEBUG_BREAK_ON_FAILURE();                   \
-        /* Crash the process. */                    \
-        CRASH_PROCESS();                            \
+        die_or_inf_loop();                          \
     } while (0)
 
 #define DEBUG_HERE()                                         \

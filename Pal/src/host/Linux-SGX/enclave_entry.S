@@ -675,6 +675,7 @@ __morestack:
 .Locall_about_to_eexit_end:
 
 	ud2 # We should never get here.
+	jmp .Locall_about_to_eexit_end
 	.cfi_endproc
 
 .Lreturn_from_ocall:
