@@ -54,7 +54,7 @@ int sys_match_resource_num(const char* pathname) {
         goto out;
     }
 
-    num = extract_first_num_from_string (token);
+    num = extract_first_num_from_string(token);
     if (num < 0) {
         ret = 0;
         goto out;

@@ -19,11 +19,11 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     if (ret < 0 || (strlen(filename) != size))
         return -ENOENT;
 
-    int cpunum = extract_first_num_from_string (name);
+    int cpunum = extract_first_num_from_string(name);
     if (cpunum < 0)
         return -ENOENT;
 
-    int idx = extract_first_num_from_string (strstr(name, "index"));
+    int idx = extract_first_num_from_string(strstr(name, "index"));
     if (idx < 0)
         return -ENOENT;
 

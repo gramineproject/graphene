@@ -552,7 +552,7 @@ int str_flush(struct shim_handle* hdl);
 /* /sys fs related common APIs */
 /* This function extracts first number from the file path. For example, "3" will be extracted
  * from "cpu/cpu3/topology/core_siblings" path */
-int extract_first_num_from_string (const char* path);
+int extract_first_num_from_string(const char* path);
 int sys_info_mode(const char* name, mode_t* mode);
 int sys_info_stat(const char* name, struct stat* buf);
 int sys_dir_open(struct shim_handle* hdl, const char* name, int flags);

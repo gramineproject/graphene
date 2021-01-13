@@ -172,7 +172,6 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
-#define IS_BOOL(data) (data == 1) ? true : ((data == 0) ? true : false)
 #define IS_IN_RANGE(value, start, end) (value < start || value > end) ? false : true
 
 /* This function extract an integer present in the buffer. For example 31 will be returned when
@@ -209,13 +208,13 @@ static int count_bits_set_from_resource_map(const char* buf) {
     if (!buf)
         return -EINVAL;
 
-    char* end;
     const char* ptr = buf;
     int count = 0;
     while (*ptr) {
         while (*ptr == ' ' || *ptr == '\t' || *ptr == ',' || *ptr == '\n')
             ptr++;
 
+        char* end;
         uint64_t bitmap = (uint64_t)strtoll(ptr, &end, 16);
         if (ptr == end) {
             if (*ptr == '\0')                       /* case where buffer is terminated by \n\0 */
@@ -296,42 +295,35 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int cache_lv
     if (!cache)
         return -EINVAL;
 
-    int shared_cpu_map;
-    int level;
-    char* type;
-    char qual;
-    int size;
-    int coherency_line_size;
-    int number_of_sets;
-    int physical_line_partition;
     for (int lvl = 0; lvl < cache_lvls; lvl++) {
-        shared_cpu_map = count_bits_set_from_resource_map(cache[lvl].shared_cpu_map);
+        int shared_cpu_map = count_bits_set_from_resource_map(cache[lvl].shared_cpu_map);
         if (!IS_IN_RANGE(shared_cpu_map, 1, num_cores))
             return -EINVAL;
 
-        level = extract_int_from_buffer(cache[lvl].level, NULL);
+        int level = extract_int_from_buffer(cache[lvl].level, NULL);
         if (!IS_IN_RANGE(level, 1, 4))      /* x86 processors has max of 3 cache levels */
             return -EINVAL;
 
-        type = cache[lvl].type;
+        char* type = cache[lvl].type;
         if (!strstartswith(type, "Data") && !strstartswith(type, "Instruction") &&
             !strstartswith(type, "Unified")) {
             return -EINVAL;
         }
 
-        size = extract_int_from_buffer(cache[lvl].size, &qual);
+        char qual;
+        int size = extract_int_from_buffer(cache[lvl].size, &qual);
         if (!IS_IN_RANGE(size, 1, 1 << 16) || ((qual !='K') && (qual !='M') && (qual !='G')))
             return -EINVAL;
 
-        coherency_line_size = extract_int_from_buffer(cache[lvl].coherency_line_size, NULL);
+        int coherency_line_size = extract_int_from_buffer(cache[lvl].coherency_line_size, NULL);
         if (!IS_IN_RANGE(coherency_line_size, 1, 1 << 16))
             return -EINVAL;
 
-        number_of_sets = extract_int_from_buffer(cache[lvl].number_of_sets, NULL);
+        int number_of_sets = extract_int_from_buffer(cache[lvl].number_of_sets, NULL);
         if (!IS_IN_RANGE(number_of_sets, 1, 1 << 16))
             return -EINVAL;
 
-        physical_line_partition = extract_int_from_buffer(cache[lvl].physical_line_partition, NULL);
+        int physical_line_partition = extract_int_from_buffer(cache[lvl].physical_line_partition, NULL);
         if (!IS_IN_RANGE(physical_line_partition, 1, 1 << 16))
             return -EINVAL;
     }
@@ -343,26 +335,23 @@ static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int nu
     if ((!core_topology) || (num_cores == 0) || (cache_lvls == 0))
         return -ENOENT;
 
-    int is_core_online;
-    int core_id;
-    int core_siblings;
-    int thread_siblings;
     for (int idx = 0; idx < num_cores; idx++) {
         if (idx != 0) {     /* core 0 is always online */
-            is_core_online = extract_int_from_buffer(core_topology[idx].is_logical_core_online, NULL);
-            if (!IS_BOOL(is_core_online))
+            int is_core_online = extract_int_from_buffer(core_topology[idx].is_logical_core_online,
+                                                         NULL);
+            if (is_core_online != 0 && is_core_online != 1)
                 return -EINVAL;
         }
 
-        core_id = extract_int_from_buffer(core_topology[idx].core_id, NULL);
+        int core_id = extract_int_from_buffer(core_topology[idx].core_id, NULL);
         if (!IS_IN_RANGE(core_id, 0, (num_cores - 1)))
             return -EINVAL;
 
-        core_siblings = count_bits_set_from_resource_map(core_topology[idx].core_siblings);
+        int core_siblings = count_bits_set_from_resource_map(core_topology[idx].core_siblings);
         if (!IS_IN_RANGE(core_siblings, 1, num_cores))
             return -EINVAL;
 
-        thread_siblings = count_bits_set_from_resource_map(core_topology[idx].thread_siblings);
+        int thread_siblings = count_bits_set_from_resource_map(core_topology[idx].thread_siblings);
         if (!IS_IN_RANGE(thread_siblings, 1, 4)) /* x86 processors has max of 4 SMT siblings */
             return -EINVAL;
 
