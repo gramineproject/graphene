@@ -218,11 +218,7 @@ void signal_setup(void) {
     if (ret < 0)
         goto err;
 
-    /* Even though SIG_DFL defaults to "ignore", this is not the same as SIG_IGN; man waitpid says:
-     * "...if the disposition of SIGCHLD is set to SIG_IGN ..., then children that terminate do not
-     * become zombies". In other words, if we would set_signal_handler(SIGCHLD, SIG_IGN) here,
-     * children would not become zombies and would die before the parent checks their status. */
-    ret = set_signal_handler(SIGCHLD, SIG_DFL);
+    ret = set_signal_handler(SIGCHLD, SIG_IGN);
     if (ret < 0)
         goto err;
 
