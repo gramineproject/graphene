@@ -64,6 +64,14 @@ static inline void wrfsbase(uint64_t addr) {
         :: "D"(addr) : "memory");
 }
 
+static inline noreturn void die_or_inf_loop(void) {
+    __asm__ volatile (
+        "1: \n"
+        "ud2 \n"
+        "jmp 1b \n"
+    );
+    __builtin_unreachable();
+}
 
 #define CPU_RELAX() __asm__ volatile("pause")
 

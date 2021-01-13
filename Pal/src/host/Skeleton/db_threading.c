@@ -32,9 +32,7 @@ void _DkThreadYieldExecution(void) {
 /* _DkThreadExit for internal use: Thread exiting */
 noreturn void _DkThreadExit(int* clear_child_tid) {
     /* needs to be implemented */
-    while (true) {
-        /* nothing */
-    }
+    die_or_inf_loop();
 }
 
 int _DkThreadResume(PAL_HANDLE threadHandle) {

@@ -1081,7 +1081,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     unmap_tcs();
     INLINE_SYSCALL(munmap, 2, alt_stack, ALT_STACK_SIZE);
     INLINE_SYSCALL(exit, 1, 0);
-    return 0;
+    die_or_inf_loop();
 }
 
 /* Grow the stack of the main thread to THREAD_STACK_SIZE by probing each stack page above current
@@ -1099,8 +1099,8 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
            "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
            self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
-    INLINE_SYSCALL(exit, 1, 1);
-    __builtin_unreachable();
+    INLINE_SYSCALL(exit_group, 1, 1);
+    die_or_inf_loop();
 }
 
 int main(int argc, char* argv[], char* envp[]) {

@@ -282,9 +282,7 @@ noreturn void _DkProcessExit(int exitcode) {
     if (exitcode)
         SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
     ocall_exit(exitcode, /*is_exitgroup=*/true);
-    while (true) {
-        /* nothing */;
-    }
+    /* Unreachable. */
 }
 
 static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {

@@ -47,6 +47,7 @@ static long sgx_ocall_exit(void* pms) {
         sgx_profile_finish();
 #endif
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
+        die_or_inf_loop();
     }
 
     /* otherwise call SGX-related thread reset and exit this thread */
@@ -62,6 +63,7 @@ static long sgx_ocall_exit(void* pms) {
         sgx_profile_finish();
 #endif
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
+        die_or_inf_loop();
     }
 
     thread_exit((int)ms->ms_exitcode);
@@ -869,8 +871,6 @@ int ecall_thread_reset(void) {
 }
 
 noreturn void __abort(void) {
-    INLINE_SYSCALL(exit_group, 1, -1);
-    while (true) {
-        /* nothing */;
-    }
+    INLINE_SYSCALL(exit_group, 1, 1);
+    die_or_inf_loop();
 }

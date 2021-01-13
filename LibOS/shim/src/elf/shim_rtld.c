@@ -1586,8 +1586,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
 
     CALL_ELF_ENTRY(entry, argp);
 
-    while (true)
-        /* nothing */;
+    die_or_inf_loop();
 }
 
 BEGIN_CP_FUNC(library) {
