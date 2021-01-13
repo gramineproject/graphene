@@ -805,7 +805,7 @@ void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr) {
     __UNUSED(uri);
     __UNUSED(start_addr);
 #else
-    if (!strstartswith(uri, URI_PREFIX_FILE) || !start_addr)
+    if (!strstartswith(uri, URI_PREFIX_FILE))
         return;
 
     const char* realname = uri + URI_PREFIX_FILE_LEN;

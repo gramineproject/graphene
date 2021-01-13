@@ -974,7 +974,7 @@ static int __load_elf_object(struct shim_handle* file, void* addr, int type) {
         if (type == OBJECT_REMAP)
             remove_r_debug((void*)map->l_addr);
 
-        append_r_debug(qstrgetstr(&map->l_file->uri), (void*)map->l_map_start,
+        append_r_debug(qstrgetstr(&map->l_file->uri), (void*)map->l_addr,
                        (void*)map->l_real_ld);
     }
 
