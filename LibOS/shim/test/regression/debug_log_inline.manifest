@@ -12,5 +12,3 @@ fs.mount.lib.uri = "file:../../../../Runtime"
 sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 sgx.trusted_files.bootstrap = "file:bootstrap"
-
-sgx.nonpie_binary = 1

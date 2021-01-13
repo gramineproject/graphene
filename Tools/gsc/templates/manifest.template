@@ -16,9 +16,6 @@ fs.root.uri = "file:/"
 # working directory to the desired location
 fs.start_dir = "{{working_dir}}"
 
-# Start at static addresses (otherwise breaks when non-relocatable executables are used)
-sgx.nonpie_binary = 1
-
 {% if insecure_args %}
 # !! INSECURE !! Allow passing command-line arguments from the host without validation
 # Most Docker images rely on runtime arguments and hence, a more general technique is required.

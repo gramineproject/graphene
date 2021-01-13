@@ -72,8 +72,6 @@ sgx.enclave_size = "1G"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 8
 
-sgx.nonpie_binary = 1
-
 # SGX trusted libraries
 
 sgx.trusted_files.python = "file:$(PYTHONEXEC)"

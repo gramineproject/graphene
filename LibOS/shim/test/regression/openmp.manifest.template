@@ -33,5 +33,3 @@ sgx.trusted_files.libgomp_native = "file:/usr$(ARCH_LIBDIR)/libgomp.so.1"
 # native one because Graphene's Runtime path has priority in LD_LIBRARY_PATH.
 
 #sgx.trusted_files.libgomp_graphene = "file:../../../../Runtime/libgomp.so.1"
-
-sgx.nonpie_binary = 1

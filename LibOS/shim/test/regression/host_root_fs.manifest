@@ -17,5 +17,3 @@ sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 sgx.trusted_files.libdl = "file:../../../../Runtime/libdl.so.2"
 sgx.trusted_files.host_root_fs = "file:host_root_fs"
-
-sgx.nonpie_binary = 1

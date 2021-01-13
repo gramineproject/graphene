@@ -62,8 +62,6 @@ sgx.enclave_size = "256M"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 3
 
-sgx.nonpie_binary = 1
-
 # SGX trusted files
 
 sgx.trusted_files.lighttpd = "file:$(INSTALL_DIR)/sbin/lighttpd"

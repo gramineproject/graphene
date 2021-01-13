@@ -65,8 +65,6 @@ sys.stack.size = "2M"
 
 # SGX general options
 
-sgx.nonpie_binary = 1
-
 # Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
 # size must be specified during signing. If Python needs more virtual memory
 # than the enclave size, Graphene will not be able to allocate it.

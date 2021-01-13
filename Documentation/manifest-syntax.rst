@@ -270,17 +270,6 @@ The PAL and library OS code/data count towards this size value, as well as the
 application memory itself: application's code, stack, heap, loaded application
 libraries, etc. The application cannot allocate memory that exceeds this limit.
 
-Non-PIE binaries
-^^^^^^^^^^^^^^^^
-
-::
-
-    sgx.nonpie_binary = [1|0]
-    (Default: 0)
-
-This setting tells Graphene whether to use a specially crafted memory layout,
-which is required to support non-relocatable binaries (non-PIE).
-
 Number of threads
 ^^^^^^^^^^^^^^^^^
 

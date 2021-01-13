@@ -14,8 +14,6 @@ fs.mount.lib1.uri = "file:$(GRAPHENEDIR)/Runtime"
 # Minimum amount of memory to make it work.
 sgx.enclave_size = "512M"
 
-sgx.nonpie_binary = 1
-
 # We test with 4 TensorFlow threads, so over-approximate to 16 enclave threads.
 sgx.thread_num = 16
 

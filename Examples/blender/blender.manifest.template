@@ -53,7 +53,6 @@ sys.stack.size = "8M"
 
 sgx.enclave_size = "2048M"
 sgx.thread_num = 64
-sgx.nonpie_binary = 1
 
 sgx.trusted_files.blender = "file:$(BLENDER_DIR)/blender"
 sgx.trusted_files.ld = "file:$(GRAPHENE_DIR)/Runtime/ld-linux-x86-64.so.2"

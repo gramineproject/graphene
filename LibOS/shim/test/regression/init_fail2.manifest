@@ -13,8 +13,6 @@ sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 sgx.trusted_files.init_fail = "file:init_fail"
 
-sgx.nonpie_binary = 1
-
 # this is an impossible combination of options, LibOS must fail very early in init process
 sgx.enclave_size = "256M"
 sys.brk.max_size = "512M"

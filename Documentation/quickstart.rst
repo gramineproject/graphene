@@ -72,13 +72,6 @@ second command should list the process status of :command:`aesm_service`.
       # the console will prompt you for the path to the Intel SGX driver code
       # (simply press ENTER if you use the in-kernel Intel SGX driver)
 
-#. Set ``vm.mmap_min_addr=0`` in the system (*only required for the legacy SGX
-   driver and not needed for newer DCAP/in-kernel drivers*)::
-
-      sudo sysctl vm.mmap_min_addr=0
-
-   Note that this is an inadvisable configuration for production systems.
-
 #. Build and run :program:`helloworld`::
 
       cd $GRAPHENE_DIR/LibOS/shim/test/native

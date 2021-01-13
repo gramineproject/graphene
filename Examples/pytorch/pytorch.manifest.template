@@ -164,8 +164,6 @@ sgx.allowed_files.resolv = "file:/etc/resolv.conf"
 # System's file system table
 sgx.allowed_files.fstab = "file:/etc/fstab"
 
-sgx.nonpie_binary = 1
-
 # Graphene optionally provides patched OpenMP runtime library that runs faster
 # inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment
 # the lines below to use the patched library. PyTorch's SGX perf overhead

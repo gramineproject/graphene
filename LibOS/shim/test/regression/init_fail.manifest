@@ -17,5 +17,3 @@ fs.mount.test.uri = "file:I_DONT_EXIST"
 sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 sgx.trusted_files.init_fail = "file:init_fail"
-
-sgx.nonpie_binary = 1

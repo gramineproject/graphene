@@ -17,5 +17,3 @@ sgx.trusted_files.libm = file:@GRAPHENEDIR@/Runtime/libm.so.6
 sgx.trusted_files.libpthread = file:@GRAPHENEDIR@/Runtime/libpthread.so.0
 
 sgx.thread_num = 3
-
-#sgx.nonpie_binary = 1

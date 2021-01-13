@@ -146,14 +146,11 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     uint64_t request_mmap_addr = secs->base;
     uint64_t request_mmap_size = secs->size;
 
-#ifdef SGX_DCAP
-    /* newer DCAP/in-kernel SGX drivers allow starting enclave address space with non-zero;
-     * the below trick to start from MMAP_MIN_ADDR is to avoid vm.mmap_min_addr==0 issue */
+    /* We have to avoid mapping below MMAP_MIN_ADDR, it's usually not allowed on Linux. */
     if (request_mmap_addr < MMAP_MIN_ADDR) {
         request_mmap_size -= MMAP_MIN_ADDR - request_mmap_addr;
         request_mmap_addr  = MMAP_MIN_ADDR;
     }
-#endif
 
     uint64_t addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
                                    PROT_NONE, /* newer DCAP driver requires such initial mmap */
@@ -164,11 +161,6 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
 #endif
 
     if (IS_ERR_P(addr)) {
-        if (ERRNO_P(addr) == EPERM) {
-            pal_printf("Permission denied on mapping enclave. "
-                       "You may need to set sysctl vm.mmap_min_addr to zero\n");
-        }
-
         SGX_DBG(DBG_I, "ECREATE failed in allocating EPC memory (errno = %ld)\n", ERRNO_P(addr));
         return -ENOMEM;
     }

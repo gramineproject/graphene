@@ -45,8 +45,6 @@ fs.mount.cwd.uri = "file:$(INSTALL_DIR)"
 # than the enclave size, Graphene will not be able to allocate it.
 sgx.enclave_size = "256M"
 
-sgx.nonpie_binary = 1
-
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
 # threads than the number of TCSes. Note that Graphene also creates an internal

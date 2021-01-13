@@ -17,5 +17,3 @@ sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 sgx.trusted_files.file_check_policy = "file:file_check_policy"
 
 sgx.trusted_files.test = "file:trusted_testfile"
-
-sgx.nonpie_binary = 1

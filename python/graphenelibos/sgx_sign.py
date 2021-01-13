@@ -781,12 +781,8 @@ def main_sign(args):
     # Try populate memory areas
     memory_areas = get_memory_areas(attr, args)
 
-    if manifest.get('sgx.nonpie_binary', None) == '1':
-        enclave_base = offs.DEFAULT_ENCLAVE_BASE
-        enclave_heap_min = offs.MMAP_MIN_ADDR
-    else:
-        enclave_base = attr['enclave_size']
-        enclave_heap_min = enclave_base
+    enclave_base = offs.DEFAULT_ENCLAVE_BASE
+    enclave_heap_min = offs.MMAP_MIN_ADDR
 
     if manifest.get('sgx.enable_stats', None) is None:
         manifest['sgx.enable_stats'] = '0'

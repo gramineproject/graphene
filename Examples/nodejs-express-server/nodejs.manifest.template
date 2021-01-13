@@ -37,8 +37,6 @@ fs.mount.lib3.uri = "file:/usr/$(ARCH_LIBDIR)"
 # time.
 sgx.enclave_size = "2G"
 
-sgx.nonpie_binary = 1
-
 # Set maximum number of in-enclave threads to 8. Recall that SGX v1 requires to specify the maximum
 # number of simultaneous threads at enclave creation time.
 sgx.thread_num = 8

@@ -20,5 +20,3 @@ sgx.trusted_files.large_mmap = "file:large_mmap"
 sgx.allowed_files.testfile = "file:testfile"
 
 sgx.enclave_size = "8G"
-
-sgx.nonpie_binary = 1

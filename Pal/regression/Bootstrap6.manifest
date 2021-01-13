@@ -6,6 +6,5 @@ loader.argv0_override = "Bootstrap"
 fs.mount.root.uri = "file:"
 
 sgx.enclave_size = "8192M"
-sgx.nonpie_binary = 1
 
 sgx.trusted_files.entrypoint = "file:Bootstrap"

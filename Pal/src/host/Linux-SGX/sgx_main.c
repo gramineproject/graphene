@@ -233,18 +233,21 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         goto out;
     }
 
-    if (enclave->nonpie_binary) {
-        /* executable is non-PIE: enclave base address must cover code segment loaded at some
-         * hardcoded address (usually 0x400000), and heap cannot start at zero (modern OSes do not
-         * allow this) */
-        enclave->baseaddr = DEFAULT_ENCLAVE_BASE;
-        enclave_heap_min  = MMAP_MIN_ADDR;
-    } else {
-        /* executable is PIE: enclave base address can be arbitrary (we choose it same as
-         * enclave_size), and heap can start immediately at this base address */
-        enclave->baseaddr = enclave->size;
-        enclave_heap_min  = enclave->baseaddr;
-    }
+    /* We reserve address range [0; size) for the enclave (ELRANGE in SGX docs). The reasons for
+     * this choice are:
+     *    - For non-PIE binaries it must cover some hardcoded address range (usually starting at
+     *      0x400000).
+     *    - SGX requires enclave size to be a power of 2 and the enclave base address to be
+     *      divisible by the size.
+     *    - Having low addresses reserved for enclave makes NULL-deref bugs exploitation much
+     *      harder.
+     * In the past starting ELRANGE at 0 was problematic, because the driver checked this range
+     * against vm.mmap_min_addr setting, which is 0x10000 by default (even if we didn't really map
+     * any pages at 0). This was fixed in the newer SGX drivers, so now we can just always use this
+     * range.
+     */
+    enclave->baseaddr = DEFAULT_ENCLAVE_BASE;
+    enclave_heap_min = MMAP_MIN_ADDR;
 
     ret = read_enclave_token(enclave->token, &enclave_token);
     if (ret < 0) {
@@ -696,15 +699,6 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         ret = -EINVAL;
         goto out;
     }
-
-    int64_t nonpie_binary;
-    ret = toml_int_in(manifest_root, "sgx.nonpie_binary", /*defaultval=*/0, &nonpie_binary);
-    if (ret < 0 || (nonpie_binary != 0 && nonpie_binary != 1)) {
-        SGX_DBG(DBG_E, "Cannot parse 'sgx.nonpie_binary' (the value must be 0 or 1)\n");
-        ret = -EINVAL;
-        goto out;
-    }
-    enclave_info->nonpie_binary = !!nonpie_binary;
 
     int64_t enable_stats_int64;
     ret = toml_int_in(manifest_root, "sgx.enable_stats", /*defaultval=*/0, &enable_stats_int64);
