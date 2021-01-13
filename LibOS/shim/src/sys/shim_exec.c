@@ -121,7 +121,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     cur_thread->stack     = NULL;
     cur_thread->stack_red = NULL;
 
-    migrated_argv = NULL;
     migrated_envp = NULL;
 
     const char** new_argp;
@@ -157,6 +156,7 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
             return -EFAULT;
     }
 
+    /* TODO: This should be removed, but: https://github.com/oscarlab/graphene/issues/2081 */
     if (!envp)
         envp = migrated_envp;
 
