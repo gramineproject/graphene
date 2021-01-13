@@ -19,9 +19,6 @@
 #include "cpu.h"
 #include "pal.h"
 
-#define PAGE_SIZE       (1 << 12)
-#define PRESET_PAGESIZE PAGE_SIZE
-
 typedef struct pal_tcb PAL_TCB;
 
 #define PAL_LIBOS_TCB_SIZE 256
