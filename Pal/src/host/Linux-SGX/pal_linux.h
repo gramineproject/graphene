@@ -320,10 +320,10 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 
 #ifdef IN_ENCLAVE
 #undef uthash_fatal
-#define uthash_fatal(msg)                \
-    do {                                 \
-        __UNUSED(msg);                   \
-        DkProcessExit(-PAL_ERROR_NOMEM); \
+#define uthash_fatal(msg)               \
+    do {                                \
+        __UNUSED(msg);                  \
+        DkProcessExit(PAL_ERROR_NOMEM); \
     } while (0)
 
 #define SGX_DBG(class, fmt...)   \

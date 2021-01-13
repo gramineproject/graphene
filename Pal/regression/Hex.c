@@ -13,7 +13,7 @@ char hex_buf[sizeof(y) * 2 + 1];
 
 noreturn void __abort(void) {
     // ENOTRECOVERABLE = 131
-    DkProcessExit(-131);
+    DkProcessExit(131);
 }
 
 int main(void) {
