@@ -1,0 +1,288 @@
+# Python3 manifest example
+#
+# This manifest was prepared and tested on Ubuntu 16.04/18.04 and tested with
+# Python 3.5 and 3.6.
+
+# Graphene environment, including the path of the library OS and the debug
+# option (inline/none).
+loader.preload = "file:{{ libos() }}"
+libos.entrypoint = "file:{{ entrypoint }}"
+loader.debug_type = "{{ debug_type }}"
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
+[loader.env]
+#LD_LIBRARY_PATH = "{{ python_stdlib }})/lib:/lib:{{ libdir }}:/usr/lib:/usr/{{ libdir }}"
+#PATH = "$(PYTHON_STDLIB)/bin:/usr/bin:/bin"
+HOME = "/home/user"
+
+# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
+# guest. Other parts of the host FS will not be available in the guest.
+
+# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+[fs.mount.lib]
+type = "chroot"
+path = "/lib"
+uri = "file:{{ runtimedir }}"
+
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the Python executable
+[fs.mount.lib2]
+type = "chroot"
+path = "{{ libdir }}"
+uri = "file:{{ libdir }}"
+
+# Host-level directory (/usr) required by the Python executable
+[fs.mount.usr]
+type = "chroot"
+path = "/usr"
+uri = "file:/usr"
+
+[fs.mount.stdlib]
+type = "chroot"
+path = "{{ python_stdlib }}"
+uri = "file:{{ python_stdlib }}"
+
+[fs.mount.distlib]
+type = "chroot"
+path = "{{ python_distlib }})"
+uri = "file:{{ python_distlib }})"
+
+# Mount /tmp
+[fs.mount.tmp]
+type = "chroot"
+path = "/tmp"
+uri = "file:/tmp"
+
+# Mount /etc
+[fs.mount.etc]
+type = "chroot"
+path = "/etc"
+uri = "file:/etc"
+
+# SGX general options
+[sgx]
+
+# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
+# size must be specified during signing. If Python needs more virtual memory
+# than the enclave size, Graphene will not be able to allocate it.
+enclave_size = "1G"
+
+# Set the maximum number of enclave threads. For SGX v1, the number of enclave
+# TCSes must be specified during signing, so the application cannot use more
+# threads than the number of TCSes. Note that Graphene also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+thread_num = 8
+
+nonpie_binary = 1
+
+# SGX trusted libraries
+
+[sgx.trusted_files]
+entrypoint = "file:{{ entrypoint }}"
+
+# Glibc libraries
+ld = "file:{{ runtimedir }}/ld-linux-x86-64.so.2"
+libc = "file:{{ runtimedir }}/libc.so.6"
+libm = "file:{{ runtimedir }}/libm.so.6"
+libdl = "file:{{ runtimedir }}/libdl.so.2"
+librt = "file:{{ runtimedir }}/librt.so.1"
+libutil = "file:{{ runtimedir }}/libutil.so.1"
+libpthread = "file:{{ runtimedir }}/libpthread.so.0"
+libnssdns = "file:{{ runtimedir }}/libnss_dns.so.2"
+libresolve = "file:{{ runtimedir }}/libresolv.so.2"
+
+# Other libraries
+libexpat = "file:{{ libdir }}/libexpat.so.1"
+libnssfiles = "file:{{ libdir }}/libnss_files.so.2"
+libnssmdns4 = "file:{{ libdir }}/libnss_mdns4_minimal.so.2"
+
+hashlib = "file:{{ python_stdlib }}/lib-dynload/_hashlib{{ python_ext_suffix }}"
+ctypes = "file:{{ python_stdlib }}/lib-dynload/_ctypes{{ python_ext_suffix }}"
+ssl = "file:{{ python_stdlib }}/lib-dynload/_ssl{{ python_ext_suffix }}"
+bz2 = "file:{{ python_stdlib }}/lib-dynload/_bz2{{ python_ext_suffix }}"
+lzma = "file:{{ python_stdlib }}/lib-dynload/_lzma{{ python_ext_suffix }}"
+json = "file:{{ python_stdlib }}/lib-dynload/_json{{ python_ext_suffix }}"
+aptpkg = "file:{{ python_stdlib }})/apt_pkg{{ python_ext_suffix }}"
+
+# Python scripts required for helloworld.py/fibonacci.py
+# NOTE: we ignore precompiled .pyc files since they are for optimization purposes only
+python01 = "file:{{ python_stdlib }}/io.py"
+python02 = "file:{{ python_stdlib }}/encodings/__init__.py"
+python03 = "file:{{ python_stdlib }}/abc.py"
+python04 = "file:{{ python_stdlib }}/codecs.py"
+python05 = "file:{{ python_stdlib }}/_weakrefset.py"
+python06 = "file:{{ python_stdlib }}/encodings/aliases.py"
+python07 = "file:{{ python_stdlib }}/encodings/ascii.py"
+python08 = "file:{{ python_stdlib }}/encodings/utf_8.py"
+python09 = "file:{{ python_stdlib }}/encodings/latin_1.py"
+python10 = "file:{{ python_stdlib }}/_bootlocale.py"
+python11 = "file:{{ python_stdlib }}/site.py"
+python12 = "file:{{ python_stdlib }}/os.py"
+python13 = "file:{{ python_stdlib }}/stat.py"
+python14 = "file:{{ python_stdlib }}/posixpath.py"
+python15 = "file:{{ python_stdlib }}/genericpath.py"
+python16 = "file:{{ python_stdlib }}/_collections_abc.py"
+python17 = "file:{{ python_stdlib }}/_sitebuiltins.py"
+python18 = "file:{{ python_stdlib }}/sysconfig.py"
+python19 = "file:{{ python_stdlib }}/sitecustomize.py"
+
+# Python scripts required for dummy-web-server.py
+pythonhttp001 = "file:{{ python_stdlib }}/http/__init__.py"
+pythonhttp002 = "file:{{ python_stdlib }}/enum.py"
+pythonhttp003 = "file:{{ python_stdlib }}/collections/__init__.py"
+pythonhttp004 = "file:{{ python_stdlib }}/operator.py"
+pythonhttp005 = "file:{{ python_stdlib }}/keyword.py"
+pythonhttp006 = "file:{{ python_stdlib }}/heapq.py"
+pythonhttp007 = "file:{{ python_stdlib }}/reprlib.py"
+pythonhttp008 = "file:{{ python_stdlib }}/types.py"
+pythonhttp009 = "file:{{ python_stdlib }}/functools.py"
+pythonhttp010 = "file:{{ python_stdlib }}/weakref.py"
+pythonhttp011 = "file:{{ python_stdlib }}/collections/abc.py"
+pythonhttp012 = "file:{{ python_stdlib }}/http/server.py"
+pythonhttp013 = "file:{{ python_stdlib }}/html/__init__.py"
+pythonhttp014 = "file:{{ python_stdlib }}/re.py"
+pythonhttp015 = "file:{{ python_stdlib }}/sre_compile.py"
+pythonhttp016 = "file:{{ python_stdlib }}/sre_parse.py"
+pythonhttp017 = "file:{{ python_stdlib }}/sre_constants.py"
+pythonhttp018 = "file:{{ python_stdlib }}/copyreg.py"
+pythonhttp019 = "file:{{ python_stdlib }}/html/entities.py"
+pythonhttp020 = "file:{{ python_stdlib }}/http/client.py"
+pythonhttp021 = "file:{{ python_stdlib }}/email/__init__.py"
+pythonhttp022 = "file:{{ python_stdlib }}/email/parser.py"
+pythonhttp023 = "file:{{ python_stdlib }}/email/feedparser.py"
+pythonhttp024 = "file:{{ python_stdlib }}/email/errors.py"
+pythonhttp025 = "file:{{ python_stdlib }}/email/message.py"
+pythonhttp026 = "file:{{ python_stdlib }}/uu.py"
+pythonhttp027 = "file:{{ python_stdlib }}/quopri.py"
+pythonhttp028 = "file:{{ python_stdlib }}/warnings.py"
+pythonhttp029 = "file:{{ python_stdlib }}/email/utils.py"
+pythonhttp030 = "file:{{ python_stdlib }}/random.py"
+pythonhttp031 = "file:{{ python_stdlib }}/hashlib.py"
+pythonhttp032 = "file:{{ python_stdlib }}/socket.py"
+pythonhttp033 = "file:{{ python_stdlib }}/selectors.py"
+pythonhttp034 = "file:{{ python_stdlib }}/datetime.py"
+pythonhttp035 = "file:{{ python_stdlib }}/urllib/__init__.py"
+pythonhttp036 = "file:{{ python_stdlib }}/urllib/parse.py"
+pythonhttp037 = "file:{{ python_stdlib }}/email/_parseaddr.py"
+pythonhttp038 = "file:{{ python_stdlib }}/calendar.py"
+pythonhttp039 = "file:{{ python_stdlib }}/locale.py"
+pythonhttp040 = "file:{{ python_stdlib }}/email/charset.py"
+pythonhttp041 = "file:{{ python_stdlib }}/email/base64mime.py"
+pythonhttp042 = "file:{{ python_stdlib }}/base64.py"
+pythonhttp043 = "file:{{ python_stdlib }}/struct.py"
+pythonhttp044 = "file:{{ python_stdlib }}/email/quoprimime.py"
+pythonhttp045 = "file:{{ python_stdlib }}/string.py"
+pythonhttp046 = "file:{{ python_stdlib }}/email/encoders.py"
+pythonhttp047 = "file:{{ python_stdlib }}/email/_policybase.py"
+pythonhttp048 = "file:{{ python_stdlib }}/email/header.py"
+pythonhttp049 = "file:{{ python_stdlib }}/email/_encoded_words.py"
+pythonhttp050 = "file:{{ python_stdlib }}/email/iterators.py"
+pythonhttp051 = "file:{{ python_stdlib }}/ssl.py"
+pythonhttp052 = "file:{{ python_stdlib }}/ipaddress.py"
+pythonhttp053 = "file:{{ python_stdlib }}/textwrap.py"
+pythonhttp054 = "file:{{ python_stdlib }}/mimetypes.py"
+pythonhttp055 = "file:{{ python_stdlib }}/shutil.py"
+pythonhttp056 = "file:{{ python_stdlib }}/fnmatch.py"
+pythonhttp057 = "file:{{ python_stdlib }}/tarfile.py"
+pythonhttp058 = "file:{{ python_stdlib }}/copy.py"
+pythonhttp059 = "file:{{ python_stdlib }}/bz2.py"
+pythonhttp060 = "file:{{ python_stdlib }}/_compression.py"
+pythonhttp061 = "file:{{ python_stdlib }}/threading.py"
+pythonhttp062 = "file:{{ python_stdlib }}/traceback.py"
+pythonhttp063 = "file:{{ python_stdlib }}/linecache.py"
+pythonhttp064 = "file:{{ python_stdlib }}/tokenize.py"
+pythonhttp065 = "file:{{ python_stdlib }}/token.py"
+pythonhttp066 = "file:{{ python_stdlib }}/lzma.py"
+pythonhttp067 = "file:{{ python_stdlib }}/socketserver.py"
+pythonhttp068 = "file:{{ python_stdlib }}/argparse.py"
+pythonhttp069 = "file:{{ python_stdlib }}/gettext.py"
+pythonhttp072 = "file:{{ python_stdlib }}/subprocess.py"
+pythonhttp073 = "file:{{ python_stdlib }}/signal.py"
+pythonhttp074 = "file:{{ python_stdlib }}/tempfile.py"
+pythonhttp075 = "file:{{ python_stdlib }}/glob.py"
+pythonhttp076 = "file:{{ python_stdlib }}/imp.py"
+pythonhttp077 = "file:{{ python_stdlib }}/importlib/__init__.py"
+pythonhttp078 = "file:{{ python_stdlib }}/importlib/machinery.py"
+pythonhttp079 = "file:{{ python_stdlib }}/importlib/util.py"
+pythonhttp080 = "file:{{ python_stdlib }}/importlib/abc.py"
+pythonhttp081 = "file:{{ python_stdlib }}/contextlib.py"
+pythonhttp082 = "file:{{ python_stdlib }}/xml/__init__.py"
+pythonhttp083 = "file:{{ python_stdlib }}/xml/dom/__init__.py"
+pythonhttp084 = "file:{{ python_stdlib }}/xml/dom/domreg.py"
+pythonhttp085 = "file:{{ python_stdlib }}/xml/dom/minidom.py"
+pythonhttp086 = "file:{{ python_stdlib }}/xml/dom/minicompat.py"
+pythonhttp087 = "file:{{ python_stdlib }}/xml/dom/xmlbuilder.py"
+pythonhttp088 = "file:{{ python_stdlib }}/xml/dom/NodeFilter.py"
+pythonhttp089 = "file:{{ python_stdlib }}/xml/parsers/__init__.py"
+pythonhttp090 = "file:{{ python_stdlib }}/xml/parsers/expat.py"
+pythonhttp091 = "file:{{ python_stdlib }}/urllib/error.py"
+pythonhttp092 = "file:{{ python_stdlib }}/urllib/response.py"
+pythonhttp093 = "file:{{ python_stdlib }}/urllib/request.py"
+pythonhttp094 = "file:{{ python_stdlib }}/bisect.py"
+pythonhttp096 = "file:{{ python_stdlib }}/gzip.py"
+pythonhttp097 = "file:{{ python_stdlib }}/email/mime/__init__.py"
+pythonhttp098 = "file:{{ python_stdlib }}/email/mime/multipart.py"
+pythonhttp099 = "file:{{ python_stdlib }}/email/mime/base.py"
+pythonhttp100 = "file:{{ python_stdlib }}/email/mime/text.py"
+pythonhttp101 = "file:{{ python_stdlib }}/email/mime/nonmultipart.py"
+pythonhttp103 = "file:{{ python_stdlib }}/configparser.py"
+pythonhttp105 = "file:{{ python_stdlib }}/json/__init__.py"
+pythonhttp106 = "file:{{ python_stdlib }}/json/decoder.py"
+pythonhttp107 = "file:{{ python_stdlib }}/json/scanner.py"
+pythonhttp108 = "file:{{ python_stdlib }}/json/encoder.py"
+pythonhttp110 = "file:{{ python_stdlib }}/__future__.py"
+pythonhttp117 = "file:{{ python_stdlib }}/pickle.py"
+pythonhttp118 = "file:{{ python_stdlib }}/_compat_pickle.py"
+pythonhttp120 = "file:{{ python_stdlib }}/encodings/idna.py"
+pythonhttp121 = "file:{{ python_stdlib }}/stringprep.py"
+
+pythonhttp109 = "file:{{ python_distlib }}/apt/__init__.py"
+pythonhttp111 = "file:{{ python_distlib }}/apt/package.py"
+pythonhttp112 = "file:{{ python_distlib }}/apt/progress/__init__.py"
+pythonhttp113 = "file:{{ python_distlib }}/apt/progress/text.py"
+pythonhttp114 = "file:{{ python_distlib }}/apt/progress/base.py"
+pythonhttp115 = "file:{{ python_distlib }}/apt/cache.py"
+pythonhttp116 = "file:{{ python_distlib }}/apt/cdrom.py"
+python20 = "file:{{ python_distlib }}/apport_python_hook.py"
+pythonhttp070 = "file:{{ python_distlib }}/apport/__init__.py"
+pythonhttp102 = "file:{{ python_distlib }}/apport/fileutils.py"
+pythonhttp119 = "file:{{ python_distlib }}/apport/packaging.py"
+pythonhttp104 = "file:{{ python_distlib }}/apport/packaging_impl.py"
+pythonhttp071 = "file:{{ python_distlib }}/apport/report.py"
+pythonhttp095 = "file:{{ python_distlib }}/problem_report.py"
+
+{% for lib in ldd(
+    python_stdlib / 'lib-dynload' / '_hashlib' + python_ext_suffix,
+    python_stdlib / 'lib-dynload' / '_ctypes' + python_ext_suffix,
+    python_stdlib / 'lib-dynload' / '_ssl' + python_ext_suffix,
+    python_stdlib / 'lib-dynload' / '_bz2' + python_ext_suffix,
+    python_stdlib / 'lib-dynload' / '_lzma' + python_ext_suffix,
+    python_stdlib / 'lib-dynload' / '_json' + python_ext_suffix,
+    python_stdlib / 'lib-dynload' / 'apt_pkg' + python_ext_suffix,
+) %}
+    "{{ lib }}" = "file:{{ lib }}"
+{% endfor %}
+
+# User scripts
+user01 = "file:scripts/benchrun.py"
+user02 = "file:scripts/dummy-web-server.py"
+user03 = "file:scripts/fibonacci.py"
+user04 = "file:scripts/helloworld.py"
+user05 = "file:scripts/test-http.py"
+
+# Python-required etc files
+mimetypes = "file:/etc/mime.types"
+defapport = "file:/etc/default/apport"
+
+# Name Service Switch (NSS) and getaddrinfo(3) configuration files
+nsswitch = "file:/etc/nsswitch.conf"
+ethers = "file:/etc/ethers"
+hosts = "file:/etc/hosts"
+group = "file:/etc/group"
+passwd = "file:/etc/passwd"
+gaiconf = "file:/etc/gai.conf"
+hostconf = "file:/etc/host.conf"
+resolv = "file:/etc/resolv.conf"

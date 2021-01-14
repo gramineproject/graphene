@@ -1,0 +1,132 @@
+# Python3 manifest example
+#
+# This manifest was prepared and tested on Ubuntu 16.04.
+
+libos.entrypoint = "file:{{ entrypoint }}"
+
+# Graphene environment, including the path of the library OS and the debug
+# option (inline/none).
+loader.preload = "file:{{ get_libos() }}"
+loader.debug_type = "{{ debug_type }}"
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
+# Environment variables for Python
+#loader.env.LD_LIBRARY_PATH = "$(PYTHON_STDLIB)/lib:/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)"
+#loader.env.PATH = "$(PYTHON_STDLIB)/bin:/usr/bin:/bin"
+loader.env.HOME = "/home/user"
+
+# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
+# guest. Other parts of the host FS will not be available in the guest.
+
+# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+[fs.mount.lib]
+type = "chroot"
+path = "/lib"
+uri = "file:{{ get_runtimedir() }}"
+
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the Python executable
+[fs.mount.lib2]
+type = "chroot"
+path = "{{ libdir }}"
+uri = "file:{{ libdir }}"
+
+# Host-level directory (/usr) required by the Python executable
+[fs.mount.usr]
+type = "chroot"
+path = "/usr"
+uri = "file:/usr"
+
+# Mount $PYTHONHOME
+[fs.mount.pyhome]
+type = "chroot"
+path = "{{ python_stdlib }}"
+uri = "file:{{ python_stdlib }}"
+
+# Mount $PYTHONDISTHOME
+[fs.mount.pydisthome]
+type = "chroot"
+path = "{{ python_distlib }}"
+uri = "file:{{ python_distlib }}"
+
+# Mount /tmp
+[fs.mount.tmp]
+type = "chroot"
+path = "/tmp"
+uri = "file:/tmp"
+
+# Mount /etc
+[fs.mount.etc]
+type = "chroot"
+path = "/etc"
+uri = "file:/etc"
+
+# Graphene general options
+
+# Graphene creates stacks of 256KB by default. It is not enough for SciPy/NumPy
+# packages, e.g., libopenblas dependency assumes more than 512KB-sized stacks.
+[sys]
+stack.size = "2M"
+
+# SGX general options
+
+[sgx]
+nonpie_binary = 1
+
+# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
+# size must be specified during signing. If Python needs more virtual memory
+# than the enclave size, Graphene will not be able to allocate it.
+enclave_size = "1G"
+
+# Set the maximum number of enclave threads. For SGX v1, the number of enclave
+# TCSes must be specified during signing, so the application cannot use more
+# threads than the number of TCSes. Note that Graphene also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+thread_num = 32
+
+# SGX trusted files
+
+[sgx.trusted_files]
+entrypoint = "file:{{ entrypoint }}"
+
+# Glibc libraries
+ld = "file:{{ get_runtimedir() }}/ld-linux-x86-64.so.2"
+libc = "file:{{ get_runtimedir() }}/libc.so.6"
+libm = "file:{{ get_runtimedir() }}/libm.so.6"
+libdl = "file:{{ get_runtimedir() }}/libdl.so.2"
+librt = "file:{{ get_runtimedir() }}/librt.so.1"
+libutil = "file:{{ get_runtimedir() }}/libutil.so.1"
+libpthread = "file:{{ get_runtimedir() }}/libpthread.so.0"
+
+# Other libraries
+libz = "file:{{ libdir }}/libz.so.1"
+libbz2 = "file:{{ libdir }}/libbz2.so.1.0"
+liblzma = "file:{{ libdir }}/liblzma.so.5"
+libexpat = "file:{{ libdir }}/libexpat.so.1"
+ctypes = "file:{{ python_stdlib }}/lib-dynload/_ctypes$(PYTHON_EXT_SUFFIX)"
+hashlib = "file:{{ python_stdlib }}/lib-dynload/_hashlib$(PYTHON_EXT_SUFFIX)"
+ssl = "file:{{ python_stdlib }}/lib-dynload/_ssl$(PYTHON_EXT_SUFFIX)"
+lapack_lite = "file:{{ python_distlib }}/numpy/linalg/lapack_lite$(PYTHON_EXT_SUFFIX)"
+multiarray = "file:{{ python_distlib }}/numpy/core/multiarray$(PYTHON_EXT_SUFFIX)"
+sparsetools = "file:{{ python_distlib }}/scipy/sparse/_sparsetools$(PYTHON_EXT_SUFFIX)"
+
+# SGX untrusted (allowed) files/directories
+scripts = "file:scripts"
+tmp = "file:/tmp"
+etc = "file:/etc"
+pyhome = "file:{{ python_stdlib }}"
+pydisthome = "file:{{ python_distlib }}"
+
+{% for lib in ldd(
+    python_stdlib / 'lib-dynload/_hashlib' + python_ext_suffix,
+    python_stdlib / 'lib-dynload/_ctypes' + python_ext_suffix,
+    python_stdlib / 'lib-dynload/_ssl' + python_ext_suffix,
+    python_distlib / 'numpy/linalg/lapack_lite' + python_ext_suffix,
+    python_distlib / 'numpy/core/multiarray' + python_ext_suffix,
+    python_distlib / 'scipy/sparse/_sparsetools' + python_ext_suffix,
+) %}
+    "{{ lib }}" = "file:{{ lib }}"
+{% endfor %}

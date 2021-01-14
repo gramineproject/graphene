@@ -13,8 +13,7 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.python
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -25,46 +24,25 @@ endif
 UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --release)
 
 .PHONY: all
-all: python.manifest pal_loader
+all: python.manifest
 ifeq ($(SGX),1)
 all: python.manifest.sgx python.sig python.token
 endif
 
-# Python libraries which are dynamically loaded.
-PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so
-
-# Generate manifest rules for Python dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
-	../common_tools/get_deps.sh $(PYTHONEXEC) $(PY_LIBS) > $@
-
-python.manifest: python.manifest.template trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-	     -e 's|$$(PYTHONDISTHOME)|'"$(PYTHONDISTHOME)"'|g' \
-	     -e 's|$$(PYTHONHOME)|'"$(PYTHONHOME)"'|g' \
-	     -e 's|$$(PYTHONEXEC)|'"$(PYTHONEXEC)"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     -e 's|$$(PYTHONSHORTVERSION)|'"$(PYTHONSHORTVERSION)"'|g' \
-	     -e 's|$$(PYTHON_ARCH_LONG)|'"$(PYTHON_ARCH_LONG)"'|g' \
-	     -e 's|$$(SYS)|'"$(SYS)"'|g' \
-	     $<; \
-	cat trusted-libs) > $@
+python.manifest: python.toml.in
+	graphene-manifest \
+		-Dsgx=$(SGX) \
+		-Ddebug_type=$(GRAPHENEDEBUG) \
+		-Dentrypoint=$(PYTHONEXEC) \
+		$< $@
 
 # Python manifests for SGX:
 #   Generating the SGX-specific manifest (python.manifest.sgx), the enclave signature,
 #   and the token for enclave initialization.
 
 python.manifest.sgx: python.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
+	graphene-sgx-sign \
+		-libpal $(RUNTIMEDIR)/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
 		-manifest python.manifest \
 		-output $@
@@ -72,19 +50,16 @@ python.manifest.sgx: python.manifest
 python.sig: python.manifest.sgx
 
 python.token: python.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+	graphene-sgx-get-token -output $@ -sig $<
 
 .PHONY: check
 check: all
-	./pal_loader ./python scripts/test-numpy.py > OUTPUT 2> /dev/null
+	$(GRAPHENE) ./python scripts/test-numpy.py > OUTPUT 2> /dev/null
 	@sleep 1  # to make sure Bash child processes flush output under Graphene-SGX
 	@grep -q "dot: " OUTPUT && echo "[ Success 1/2 ]"
 	@rm OUTPUT
 
-	./pal_loader ./python scripts/test-scipy.py > OUTPUT 2> /dev/null
+	$(GRAPHENE) ./python scripts/test-scipy.py > OUTPUT 2> /dev/null
 	@sleep 1
 	@grep -q "cholesky: " OUTPUT && echo "[ Success 2/2 ]"
 	@rm OUTPUT

@@ -14,3 +14,9 @@ env.DOCKER_ARGS_SGX = '''
     --device=/dev/gsgx:/dev/gsgx
     --device=/dev/isgx:/dev/isgx
 '''
+
+python_test_purelib = sh(returnStdout: true, script: '''python3 -c "
+import os, sysconfig
+print(sysconfig.get_paths(vars={'base': os.environ['PREFIX']})['purelib'])
+"''').trim()
+env.PYTHONPATH = python_test_purelib + ':' + env.WORKSPACE + '/Scripts'
