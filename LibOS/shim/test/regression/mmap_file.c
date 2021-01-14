@@ -7,8 +7,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "cpu.h"
-
 static const char* message;
 
 static void SIGBUS_handler(int sig) {
@@ -33,6 +31,8 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
+    long page_size = sysconf(_SC_PAGESIZE);
+
     volatile unsigned char* a =
         mmap(NULL, 9162, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FILE, fileno(fp), 0);
     if (a == MAP_FAILED) {
@@ -41,7 +41,7 @@ int main(int argc, const char** argv) {
     }
 
     a[1023] = 0xff;
-    a[PAGE_SIZE - 1] = 0xff;
+    a[page_size - 1] = 0xff;
 
     __asm__ volatile("nop" ::: "memory");
 
@@ -70,7 +70,7 @@ int main(int argc, const char** argv) {
     if (pid == 0) {
         if (a[1023] == 0xff)
             printf("mmap test 3 passed\n");
-        if (a[PAGE_SIZE - 1] == 0xff)
+        if (a[page_size - 1] == 0xff)
             printf("mmap test 4 passed\n");
     }
 
@@ -82,9 +82,9 @@ int main(int argc, const char** argv) {
     }
 
     message = pid == 0 ? "mmap test 5 passed\n" : "mmap test 8 passed\n";
-    /* need a barrier to assign message before SIGBUS due to a[PAGE_SIZE] */
+    /* need a barrier to assign message before SIGBUS due to a[page_size] */
     __asm__ volatile("nop" ::: "memory");
-    a[PAGE_SIZE] = 0xff;
+    a[page_size] = 0xff;
 
     if (signal(SIGBUS, SIG_DFL) == SIG_ERR) {
         perror("signal");

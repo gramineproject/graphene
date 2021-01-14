@@ -142,7 +142,6 @@ CFLAGS-eventfd = -pthread
 CFLAGS-futex_bitset = -pthread
 CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
-CFLAGS-mmap_file += -I$(PALDIR)/../include/arch/$(ARCH)
 CFLAGS-proc_common = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -I$(PALDIR)/../include/arch/$(ARCH) -pthread
 CFLAGS-sigaction_per_process += -pthread
