@@ -64,16 +64,14 @@ class TC_01_Bootstrap(RegressionTestCase):
             'PWD': '/some_dir',
             'some weir:d\nvar_name': ' even we\nirder\tvalue',
         }
-        manifest_envs = {'LD_LIBRARY_PATH': '/lib'}
         stdout, _ = self.run_binary(['env_from_host'], env=host_envs)
-        self.assertIn('# of envs: %d\n' % (len(host_envs) + len(manifest_envs)), stdout)
-        for _, (key, val) in enumerate({**host_envs, **manifest_envs}.items()):
+        self.assertIn('# of envs: %d\n' % (len(host_envs) + 1), stdout)
+        for _, (key, val) in enumerate({**host_envs}.items()):
             # We don't enforce any specific order of envs, so we skip checking the index.
             self.assertIn('] = %s\n' % (key + '=' + val), stdout)
 
     def test_104_env_from_file(self):
         envs = ['A=123', 'PWD=/some_dir', 'some weir:d\nvar_name= even we\nirder\tvalue']
-        manifest_envs = ['LD_LIBRARY_PATH=/lib']
         host_envs = {'THIS_SHOULDNT_BE_PASSED': '1234'}
         result = subprocess.run(['../../../../Tools/argv_serializer'] + envs,
                                 stdout=subprocess.PIPE, check=True)
@@ -81,8 +79,8 @@ class TC_01_Bootstrap(RegressionTestCase):
             f.write(result.stdout)
         try:
             stdout, _ = self.run_binary(['env_from_file'], env=host_envs)
-            self.assertIn('# of envs: %d\n' % (len(envs) + len(manifest_envs)), stdout)
-            for _, arg in enumerate(envs + manifest_envs):
+            self.assertIn('# of envs: %d\n' % (len(envs) + 1), stdout)
+            for _, arg in enumerate(envs):
                 # We don't enforce any specific order of envs, so we skip checking the index.
                 self.assertIn('] = %s\n' % arg, stdout)
         finally:
@@ -103,6 +101,8 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('argv[0] = bootstrap_pie', stdout)
 
     def test_110_basic_bootstrapping_cpp(self):
+        if not os.path.exists('bootstrap_cpp'):
+            return
         stdout, _ = self.run_binary(['bootstrap_cpp'])
         self.assertIn('User Program Started', stdout)
 
@@ -624,7 +624,8 @@ class TC_50_GDB(RegressionTestCase):
         #
         # While the stack trace in SGX is unbroken, it currently starts at _start inside
         # enclave, instead of including eclave entry.
-
+        if not os.path.exists('debug'):
+            return
         stdout, _ = self.run_gdb(['debug'], 'debug.gdb')
 
         backtrace_1 = self.find('backtrace 1', stdout)
@@ -652,6 +653,8 @@ class TC_50_GDB(RegressionTestCase):
     def test_010_regs_x86_64(self):
         # To run this test manually, use:
         # GDB=1 GDB_SCRIPT=debug_regs-x86_64.gdb ./pal_loader debug_regs-x86_64
+        if not os.path.exists('debug_regs-x86_64'):
+            return
 
         stdout, _ = self.run_gdb(['debug_regs-x86_64'], 'debug_regs-x86_64.gdb')
 

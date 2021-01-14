@@ -3,17 +3,19 @@ include ../../../../Scripts/Makefile.configs
 c_executables-x86_64 = \
 	attestation \
 	cpuid \
-	debug_regs-x86_64 \
 	rdtsc \
 	sighandler_divbyzero
+
+ifneq ($(UBSAN),1)
+c_executables-x86_64 += \
+	debug_regs-x86_64
+endif
 
 c_executables = \
 	abort \
 	abort_multithread \
 	bootstrap \
 	bootstrap_pie \
-	bootstrap_static \
-	debug \
 	dev \
 	device \
 	epoll_wait_timeout \
@@ -87,27 +89,33 @@ c_executables = \
 	vfork_and_exec \
 	$(c_executables-$(ARCH))
 
+ifneq ($(UBSAN),1)
+c_executables += \
+	bootstrap_static \
+	debug
+
 cxx_executables = bootstrap_cpp
+endif
 
 repo_manifests = \
+	file_check_policy_allow_all_but_log.manifest \
+	file_check_policy_strict.manifest \
+	init_fail.manifest \
+	init_fail2.manifest \
+	multi_pthread_exitless.manifest
+
+templated_manifests = \
 	argv_from_file.manifest \
 	debug_log_file.manifest \
 	debug_log_inline.manifest \
 	env_from_file.manifest \
-	env_from_host.manifest \
-	file_check_policy_allow_all_but_log.manifest \
-	file_check_policy_strict.manifest \
-	host_root_fs.manifest \
-	init_fail.manifest \
-	init_fail2.manifest \
-	large_mmap.manifest \
-	multi_pthread.manifest \
-	multi_pthread_exitless.manifest
+	env_from_host.manifest
 
 # Empty rule to prevent overriding them using "%.manifest: manifest.template" rule.
 $(repo_manifests): ;
 
-gen_manifests = $(filter-out $(repo_manifests),$(addsuffix .manifest,$(c_executables) $(cxx_executables)))
+gen_manifests = $(templated_manifests)
+gen_manifests += $(filter-out $(repo_manifests),$(addsuffix .manifest,$(c_executables) $(cxx_executables)))
 all_manifests = $(repo_manifests) $(gen_manifests)
 
 exec_target = \

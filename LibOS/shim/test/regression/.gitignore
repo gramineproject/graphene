@@ -1,17 +1,17 @@
 /*.manifest
 /*.xml
 
-!argv_from_file.manifest
-!debug_log_file.manifest
-!debug_log_inline.manifest
-!env_from_file.manifest
-!env_from_host.manifest
+argv_from_file.manifest
+debug_log_file.manifest
+debug_log_inline.manifest
+env_from_file.manifest
+env_from_host.manifest
 !file_check_policy_allow_all_but_log.manifest
 !file_check_policy_strict.manifest
-!host_root_fs.manifest
+host_root_fs.manifest
 !init_fail.manifest
 !init_fail2.manifest
-!large_mmap.manifest
+large_mmap.manifest
 
 /pal_loader
 

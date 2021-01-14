@@ -2,7 +2,7 @@ loader.preload = "file:../../src/libsysdb.so"
 libos.entrypoint = "file:large_mmap"
 loader.argv0_override = "large_mmap"
 
-loader.env.LD_LIBRARY_PATH = "/lib"
+loader.env.LD_LIBRARY_PATH = "/lib:/usr/$(ARCH_LIBDIR)"
 loader.debug_type = "none"
 
 # application allocates 2GB and 4GB memory regions which may occasionally fail
@@ -12,6 +12,10 @@ loader.insecure__disable_aslr = 1
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:../../../../Runtime"
+
+fs.mount.host_usr_lib.type = "chroot"
+fs.mount.host_usr_lib.path = "/usr/$(ARCH_LIBDIR)"
+fs.mount.host_usr_lib.uri = "file:/usr/$(ARCH_LIBDIR)"
 
 sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
