@@ -3,9 +3,11 @@ THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 # Relative path to Graphene root
 GRAPHENEDIR ?= $(THIS_DIR)/../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
-BZIP2_URL ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/bzip2.c
+BZIP2_MIRRORS ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/bzip2.c \
+                 https://borysp.com/graphene/bzip2.c
 BZIP2_HASH ?= 89f331ce93cbf0ee7318802f440f1d7594bb78cf1a82069f2288e0459ec8d729
-GZIP_URL ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/gzip.c
+GZIP_MIRRORS ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/gzip.c \
+                https://borysp.com/graphene/gzip.c
 GZIP_HASH ?= 7ec7d87822e6497648580064756f64e47dbd085727910ebbc52a7c240a88dc27
 
 ifeq ($(DEBUG),1)
@@ -66,11 +68,11 @@ pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
 test_files/bzip2.c:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(BZIP2_HASH) --url $(BZIP2_URL)
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(BZIP2_HASH) $(foreach mirror,$(BZIP2_MIRRORS),--url $(mirror))
 
 # the file hosted by the authors doesn't compile...
 test_files/gzip_broken.c:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(GZIP_HASH) --url $(GZIP_URL)
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(GZIP_HASH) $(foreach mirror,$(GZIP_MIRRORS),--url $(mirror))
 
 test_files/gzip.c: test_files/gzip_broken.c test_files/gzip.patch
 	patch test_files/gzip_broken.c -i test_files/gzip.patch -o $@
