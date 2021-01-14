@@ -75,8 +75,10 @@ int main(int argc, char** argv, char** envp) {
         /* DEP 11/24/17: For SGX writecopy exercises a different path in the PAL */
         void* mem2;
         if (PAGE_SIZE == 4096) {
-            mem2 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 4096, PAGE_SIZE);
+            /* memory at 4096 is on 2nd page */
+            mem2 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, PAGE_SIZE, PAGE_SIZE);
         } else {
+            /* assuming page > 4096 bytes, memory at 4096 is still on 1st page */
             mem2 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, PAGE_SIZE);
             if (mem2)
                 mem2 += 4096;
