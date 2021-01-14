@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <linux/fcntl.h>
+#include <stdalign.h>
 
 #include "pal.h"
 #include "pal_error.h"
@@ -328,8 +329,12 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
             goto out;
     }
 
+/* Size calculation for dirent considering alignment restrictions for b->d_ino */
+// TODO: This "+ 1" below is most likely not needed (NULL byte is already included in
+//       linux_dirent_tail).
 #define DIRENT_SIZE(len) \
-    (sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + (len) + 1)
+    ALIGN_UP(sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + (len) + 1, \
+             alignof(struct linux_dirent))
 
 #define ASSIGN_DIRENT(dent, name, type)                                                  \
     do {                                                                                 \
@@ -337,7 +342,7 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
         if (bytes + DIRENT_SIZE(len) > count)                                            \
             goto done;                                                                   \
                                                                                          \
-        struct linux_dirent_tail* bt = (void*)b + sizeof(struct linux_dirent) + len + 1; \
+        struct linux_dirent_tail* bt = (void*)b + DIRENT_SIZE(len) - sizeof(*bt);        \
                                                                                          \
         b->d_ino    = (dent)->ino;                                                       \
         b->d_off    = ++dirhdl->offset;                                                  \
@@ -348,8 +353,8 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
         bt->pad    = 0;                                                                  \
         bt->d_type = (type);                                                             \
                                                                                          \
-        b = (void*)bt + sizeof(struct linux_dirent_tail);                                \
-        bytes += DIRENT_SIZE(len);                                                       \
+        bytes += b->d_reclen;                                                            \
+        b = (void*)b + b->d_reclen;                                                      \
     } while (0)
 
     if (dirhdl->dot) {
@@ -430,7 +435,9 @@ long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
             goto out;
     }
 
-#define DIRENT_SIZE(len) (sizeof(struct linux_dirent64) + (len) + 1)
+/* Size calculation for dirent considering alignment restrictions for b->d_ino */
+#define DIRENT_SIZE(len) ALIGN_UP(sizeof(struct linux_dirent64) + (len) + 1, \
+                                  alignof(struct linux_dirent64))
 
 #define ASSIGN_DIRENT(dent, name, type)       \
     do {                                      \
@@ -445,8 +452,8 @@ long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
                                               \
         memcpy(b->d_name, name, len + 1);     \
                                               \
-        b = (void*)b + DIRENT_SIZE(len);      \
-        bytes += DIRENT_SIZE(len);            \
+        bytes += b->d_reclen;                 \
+        b = (void*)b + b->d_reclen;           \
     } while (0)
 
     if (dirhdl->dot) {
