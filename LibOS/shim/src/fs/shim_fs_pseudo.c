@@ -9,6 +9,8 @@
  * This file contains common code for pseudo-filesystems (e.g., /dev and /proc).
  */
 
+#include <stdalign.h>
+
 #include "shim_fs.h"
 #include "stat.h"
 
@@ -92,7 +94,9 @@ static int populate_dirent(const char* path, const struct pseudo_dir* dir, struc
         if (ent->name) {
             /* directory entry has a hardcoded name */
             size_t name_size   = strlen(ent->name) + 1;
-            size_t dirent_size = sizeof(struct shim_dirent) + name_size;
+            /* all directory entries must be aligned on the *dirent::next alignment */
+            size_t dirent_size = ALIGN_UP(sizeof(struct shim_dirent) + name_size,
+                                          alignof(*dirent_in_buf->next));
 
             total_size += dirent_size;
             if (total_size > buf_size)
