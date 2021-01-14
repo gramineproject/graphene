@@ -17,8 +17,6 @@ static void SIGBUS_handler(int sig) {
 int main(int argc, const char** argv) {
     int rv;
 
-    /* Initalization: create a 1025-byte file */
-
     FILE* fp = fopen("testfile", "w+");
     if (!fp) {
         perror("fopen");
@@ -32,6 +30,10 @@ int main(int argc, const char** argv) {
     }
 
     long page_size = sysconf(_SC_PAGESIZE);
+    if (page_size < 0) {
+        perror("sysconf");
+        return 1;
+    }
 
     volatile unsigned char* a =
         mmap(NULL, 9162, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FILE, fileno(fp), 0);
