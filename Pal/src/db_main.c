@@ -160,8 +160,7 @@ static void set_debug_type(void) {
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.debug_type'");
     if (debug_type) {
         free(debug_type);
-        INIT_FAIL_MANIFEST(
-            PAL_ERROR_DENIED,
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED,
             "'loader.debug_type' has been replaced by 'loader.log_level' and 'loader.log_file'");
     }
 
