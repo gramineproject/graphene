@@ -674,12 +674,14 @@ static int walk_cb(struct shim_thread* thread, void* arg) {
     for (; p; p /= 10, l++)
         ;
 
-    if ((void*)(args->buf + 1) + l + 1 > (void*)args->buf_end)
+    int buflen = ROUND_UP(l + 1, 8); /* rounding for pointer-alignment */
+
+    if ((void*)(args->buf + 1) + buflen > (void*)args->buf_end)
         return -ENOMEM;
 
     struct shim_dirent* buf = args->buf;
 
-    buf->next      = (void*)(buf + 1) + l + 1;
+    buf->next      = (void*)(buf + 1) + buflen;
     buf->ino       = 1;
     buf->type      = LINUX_DT_DIR;
     buf->name[l--] = 0;
