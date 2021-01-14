@@ -10,7 +10,7 @@ ASFLAGS += -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 LDFLAGS += -shared -nostdlib -z combreloc -z defs \
 	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal-$(ARCH).lds \
 	  --eh-frame-hdr \
-	  -z relro -z now
+	  -z relro -z now $(UBSAN_LDFLAGS)
 
 pal_loader = $(HOST_DIR)/libpal.so
 pal_lib = $(HOST_DIR)/libpal.so

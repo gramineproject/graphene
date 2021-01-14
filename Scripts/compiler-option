@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+
+DIR=$(dirname "$0")
+
+enable_ubsan() {
+	local runtimedir="$1"
+	local libdir="$2"
+
+	local out src
+	local libubsan="${libdir}/libubsan.so"
+	local compiler_opts="${runtimedir}/.compiler-options"
+
+	if [ -z "${libdir}" ]; then
+		echo "Missing libdir parameter."
+		return 1
+	fi
+
+	if [ -z "${runtimedir}" ]; then
+		echo "Missing runtimedir parameter."
+		return 1
+	fi
+
+	out=$(readlink -f "${libubsan}" 2>&1)
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not find libubsan at ${libubsan}." >&2
+		echo "${out}" >&2
+		return 1
+	fi
+
+	cp ${out} "${runtimedir}/libubsan.so"
+	cp ${out} "${runtimedir}/$(basename $(readlink "${libubsan}"))"
+	# Copy over all known dependencies that Graphene's glibc won't build
+	for dep in libstdc++ libgcc_s; do
+		src="$(ldd ${libubsan} | grep ${dep} | gawk '{print $3}')"
+		cp "${src}" "${runtimedir}/$(basename "${src}")"
+	done
+
+	touch "${compiler_opts}"
+	if [ -z "$(grep ubsan "${compiler_opts}")" ]; then
+		echo "ubsan" >> "${compiler_opts}"
+	fi
+
+	return 0
+}
+
+is_enabled_ubsan() {
+	local runtimedir="$1"
+	local compiler_opts="${runtimedir}/.compiler-options"
+
+	if [ -z "${runtimedir}" ]; then
+		echo "Missing runtimedir parameter."
+		return 1
+	fi
+
+	if [ -n "$(grep -E "^ubsan$" "${compiler_opts}" 2>/dev/null)" ]; then
+		echo "1"
+	else
+		echo "0"
+	fi
+	return 0
+}
+
+usage() {
+	cat <<_EOF_
+Usage: $0 [options]
+
+--runtimedir <dir>  : Path to the Runtime dir
+--libdir <dir>      : Directory where libraries such as libubsan can be found
+--is-enabled <opt>  : Check whether the compile-time options is enabled;
+                      valid options are: ubsan
+--enable <opt>      : Enable this compile-time option;
+                      valid options are: ubsan
+--help|-h|-?        : Display this help screen and exit
+
+_EOF_
+}
+
+main() {
+	local runtimedir libdir
+
+	while [ $# -ne 0 ]; do
+		case $1 in
+		--enable) shift 1; enable="$1";;
+		--is-enabled) shift 1; is_enabled="$1";;
+		--runtimedir) shift 1; runtimedir="$1";;
+		--libdir) shift 1; libdir="$1";;
+		--help|-h|-?) usage "$0"; exit 0;;
+		*) echo "Unkown option $1." >&2; exit 1;;
+		esac
+		shift
+	done
+
+	if [ -n "$enable" ]; then
+		case "$enable" in
+		ubsan) enable_ubsan "${runtimedir}" "${libdir}";;
+		*) echo "Unsupported feature $enable." >&2; exit 1;;
+		esac
+	fi
+
+	if [ -n "$is_enabled" ]; then
+		case "$is_enabled" in
+		ubsan) is_enabled_ubsan "${runtimedir}";;
+		*) echo "Unsupported features $is_enabled." >&2; exit 1;;
+		esac
+	fi
+
+	exit $?
+}
+
+main "$@"
