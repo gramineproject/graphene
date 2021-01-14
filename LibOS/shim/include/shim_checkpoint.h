@@ -100,8 +100,8 @@ typedef int (*cp_func)(CP_FUNC_ARGS);
 typedef int (*rs_func)(RS_FUNC_ARGS);
 
 extern const char* __cp_name;
-extern const cp_func __cp_func;
-extern const rs_func __rs_func;
+extern const cp_func __cp_func; // TODO: This should be declared as an array of unspecified size.
+extern const rs_func __rs_func[];
 
 enum {
     CP_NULL = 0,
