@@ -5,9 +5,9 @@ import string
 import sys
 
 DRIVER_VERSIONS = {
-        'sgx_user.h':                 '/dev/isgx',
-        'include/uapi/asm/sgx_oot.h': '/dev/sgx/enclave',
-        'sgx_in_kernel.h':            '/dev/sgx/enclave',
+        'sgx_user.h':                 '/dev/isgx',         # For Non-DCAP, older versions of legacy OOT SGX driver 
+        'include/sgx_user.h':         '/dev/sgx/enclave',  # For Dcap driver from version 1.10+
+        'include/uapi/asm/sgx.h':     '/dev/sgx_enclave',  # For upstreamed in-kernel SGX driver, kernel version 5.11+
 }
 
 def find_intel_sgx_driver(isgx_driver_path):
@@ -15,10 +15,10 @@ def find_intel_sgx_driver(isgx_driver_path):
     Graphene only needs one header from the Intel SGX Driver:
       - sgx_user.h for non-DCAP, older version of the driver
         (https://github.com/intel/linux-sgx-driver)
-      - include/uapi/asm/sgx_oot.h for DCAP 1.6+ version of the driver
+      - include/sgx_user.h for DCAP 1.10+ version of the driver
         (https://github.com/intel/SGXDataCenterAttestationPrimitives)
-      - default sgx_in_kernel.h for in-kernel 32+ version of the driver
-        (https://lore.kernel.org/linux-sgx/20200716135303.276442-1-jarkko.sakkinen@linux.intel.com)
+      - default sgx.h for upstreamed SGX in-kernel driver from mainline kernel version 5.11
+        (https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git)
 
     This function returns the required header from the SGX driver.
     '''
@@ -54,10 +54,24 @@ def main():
             file=sys.stderr)
         sys.exit(1)
 
-    if not isgx_driver_path:
+    if not isgx_driver_path: #using in-kernel SGX driver from kernel version 5.11
         # user did not specify any driver path, use default in-kernel driver's C header
-        isgx_driver_path = os.path.dirname(os.path.abspath(__file__))
-
+        # isgx_driver_path = os.path.dirname(os.path.abspath(__file__))
+        in_kernel_dev_path = '/dev/sgx_enclave'
+        in_kernel_dev_node = '/dev/sgx/enclave'
+        if os.path.exists(in_kernel_dev_path):
+            try:
+                if not os.path.exists(in_kernel_dev_node):
+                    raise FileNotFoundError
+            except FileNotFoundError:
+                print('SGX in-kernel driver upstreamed in mainline from kernel 5.11.\n'
+                        'can\'t find SGX dev node /dev/sgx/enclave, '
+                        'you need to apply udev rules to remap SGX devices by following steps:\n'
+                        'sudo cp ${GRAPHENE_PROJECT_DIR}/Pal/src/host/Linux-SGX/91-sgx-enclave.rules /etc/udev/rules.d\n'
+                        'sudo udevadm trigger',
+                        file=sys.stderr)
+                sys.exit(1)
+    
     header_path, dev_path = find_intel_sgx_driver(isgx_driver_path)
 
     with sys.stdin:

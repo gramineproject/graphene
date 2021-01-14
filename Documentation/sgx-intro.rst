@@ -80,7 +80,7 @@ Installation Instructions
 Linux kernel drivers
 ^^^^^^^^^^^^^^^^^^^^
 
-For historical reasons, there are three SGX drivers currently (March 2020):
+For historical reasons, there are three SGX drivers currently (January 2021):
 
 - https://github.com/intel/linux-sgx-driver -- old one, does not support DCAP,
   deprecated
@@ -90,13 +90,12 @@ For historical reasons, there are three SGX drivers currently (March 2020):
   old EPID remote-attestation technique) and the new DCAP (with new ECDSA and
   more "normal" PKI infrastructure).
 
-- Upstreaming in-kernel SGX driver (see LKML patches) -- will be upstreamed one
-  day, supports both non-DCAP and DCAP. The DCAP driver closely matches this
-  upstreaming version.
-
-  The in-tree driver will not be a |~| module
-  (https://lore.kernel.org/linux-sgx/20190401225717.GA13450@linux.intel.com/),
-  so "installation instructions" will likely be minimal.
+- SGX driver is upstreamed to linux mainline from 5.11+ (see LKML patches). 
+  The current SGX driver upstreamed only supports DCAP. SGX device is exposed 
+  as /dev/sgx_enclave at current stage, to make it compatible with older versions
+  of SGX driver, user need to apply udev rules the first time rebooting the kernel.
+  For information in detail, please refer to:
+  https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/master/driver/linux/README.kernel.md#udev-rules
 
   Also it will not require :term:`IAS` and kernel maintainers consider
   non-writable :term:`FLC` MSRs as non-functional SGX:
