@@ -106,11 +106,11 @@ CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 
 LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib)
 $(preloads): %.so: %.c $(LDLIBS-preloads)
-	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads)
+	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads) $(UBSAN_LDFLAGS)
 
 LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
 $(executables): %: %.c $(LDLIBS-executables)
-	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
+	$(call cmd,csingle) -no-pie $(LDLIBS-executables) $(UBSAN_LDFLAGS)
 
 pal_loader:
 	ln -s ../../Runtime/pal_loader $@
