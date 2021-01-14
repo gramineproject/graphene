@@ -7,7 +7,6 @@
 
 char buffer1[BUF_SIZE];
 char buffer2[BUF_SIZE];
-char buffer3[BUF_SIZE];
 char hex_buf[BUF_SIZE * 2 + 1];
 
 static void print_hex(char* fmt, const void* data, int len) {
@@ -67,19 +66,6 @@ int main(int argc, char** argv, char** envp) {
             DkStreamUnmap(mem1, PAGE_SIZE);
         } else {
             pal_printf("Map Test 1 & 2: Failed to map buffer\n");
-        }
-
-        /* DEP 11/24/17: For SGX writecopy exercises a different path in the PAL */
-        void* mem2 =
-            (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 4096, PAGE_SIZE);
-        if (mem2) {
-            memcpy(buffer3, mem2, 40);
-            print_hex("Map Test 3 (4096th - 4136th): %s\n", buffer3, 40);
-
-            memcpy(buffer3, mem2 + 200, 40);
-            print_hex("Map Test 4 (4296th - 4336th): %s\n", buffer3, 40);
-
-            DkStreamUnmap(mem2, PAGE_SIZE);
         }
 
         DkObjectClose(file1);

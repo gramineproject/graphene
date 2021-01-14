@@ -361,12 +361,6 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn(
             'Map Test 2 (200th - 240th): {}'.format(file_exist[200:240].hex()),
             stderr)
-        self.assertIn(
-            'Map Test 3 (4096th - 4136th): {}'.format(file_exist[4096:4136].hex()),
-            stderr)
-        self.assertIn(
-            'Map Test 4 (4296th - 4336th): {}'.format(file_exist[4296:4336].hex()),
-            stderr)
 
         # Set File Length
         self.assertEqual(
