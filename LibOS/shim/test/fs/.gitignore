@@ -18,6 +18,7 @@
 /seek_tell
 /stat
 /truncate
+
 /.cache
 
 /bin

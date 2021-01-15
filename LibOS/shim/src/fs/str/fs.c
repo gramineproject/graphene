@@ -85,8 +85,8 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
     struct shim_str_data* data = strhdl->data;
 
     if (!data->str) {
-        log_error("str_data has no str\n");
-        ret = -EACCES;
+        log_warning("str_read: str_data has no str\n");
+        ret = 0;
         goto out;
     }
 
@@ -94,6 +94,12 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
         strhdl->ptr = data->str;
 
     off_t offset  = strhdl->ptr - data->str;
+
+    if (data->len <= offset) {
+        ret = 0;
+        goto out;
+    }
+
     size_t remain = data->len - offset;
 
     if (count >= remain) {
@@ -113,43 +119,50 @@ out:
     return ret;
 }
 
+static ssize_t str_maybe_expand_buf(struct shim_str_handle* strhdl, size_t size) {
+    struct shim_str_data* data = strhdl->data;
+
+    if (!data->str || size > data->buf_size) {
+        size_t new_size = 0;
+
+        if (data->str) {
+            new_size = data->buf_size * 2;
+
+            while (size > new_size) {
+                new_size *= 2;
+            }
+        } else {
+            new_size = size;
+        }
+
+        char* new_data_str = calloc(1, new_size);
+        if (!new_data_str)
+            return -ENOMEM;
+
+        if (data->str) {
+            memcpy(new_data_str, data->str, data->len);
+            free(data->str);
+        }
+
+        strhdl->ptr    = new_data_str + (strhdl->ptr - data->str);
+        data->str      = new_data_str;
+        data->buf_size = new_size;
+    }
+    return 0;
+}
+
 ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    ssize_t ret = 0;
     if (!(hdl->acc_mode & MAY_WRITE))
         return -EACCES;
 
     struct shim_str_handle* strhdl = &hdl->info.str;
-
-    assert(hdl->dentry);
     assert(strhdl->data);
-
     struct shim_str_data* data = strhdl->data;
 
-    if (!data->str || strhdl->ptr + count > data->str + data->buf_size) {
-        int newlen = 0;
-
-        if (data->str) {
-            newlen = data->buf_size * 2;
-
-            while (strhdl->ptr + count > data->str + newlen) {
-                newlen *= 2;
-            }
-        } else {
-            newlen = count;
-        }
-
-        char* newbuf = malloc(newlen);
-        if (!newbuf)
-            return -ENOMEM;
-
-        if (data->str) {
-            memcpy(newbuf, data->str, data->len);
-            free(data->str);
-        }
-
-        strhdl->ptr    = newbuf + (strhdl->ptr - data->str);
-        data->str      = newbuf;
-        data->buf_size = newlen;
-    }
+    ret = str_maybe_expand_buf(strhdl, strhdl->ptr - data->str + count);
+    if (ret < 0)
+        return ret;
 
     memcpy(strhdl->ptr, buf, count);
 
@@ -173,29 +186,19 @@ off_t str_seek(struct shim_handle* hdl, off_t offset, int whence) {
         case SEEK_SET:
             if (offset < 0)
                 return -EINVAL;
-            strhdl->ptr = data->str;
-            if (strhdl->ptr > data->str + data->len)
-                strhdl->ptr = data->str + data->len;
+            strhdl->ptr = data->str + offset;
             break;
 
         case SEEK_CUR:
-            if (offset >= 0) {
-                strhdl->ptr += offset;
-                if (strhdl->ptr > data->str + data->len)
-                    strhdl->ptr = data->str + data->len;
-            } else {
-                strhdl->ptr -= offset;
-                if (strhdl->ptr < data->str)
-                    strhdl->ptr = data->str;
-            }
+            if (strhdl->ptr + offset < data->str)
+                return -EINVAL;
+            strhdl->ptr += offset;
             break;
 
         case SEEK_END:
-            if (offset < 0)
+            if (data->len + offset < 0)
                 return -EINVAL;
-            strhdl->ptr = data->str + data->len - offset;
-            if (strhdl->ptr < data->str)
-                strhdl->ptr = data->str;
+            strhdl->ptr = data->str + data->len + offset;
             break;
     }
 
@@ -219,12 +222,36 @@ int str_flush(struct shim_handle* hdl) {
     return data->modify(hdl);
 }
 
+int str_truncate(struct shim_handle* hdl, off_t len) {
+    int ret = 0;
+
+    if (!(hdl->acc_mode & MAY_WRITE))
+        return -EACCES;
+
+    struct shim_str_handle* strhdl = &hdl->info.str;
+
+    assert(strhdl->data);
+
+    struct shim_str_data* data = strhdl->data;
+    if (!data->str && len == 0)
+        return 0;
+
+    ret = str_maybe_expand_buf(strhdl, (size_t)len);
+    if (ret < 0)
+        return ret;
+
+    data->len   = len;
+    data->dirty = true;
+    return ret;
+}
+
 struct shim_fs_ops str_fs_ops = {
-    .close = &str_close,
-    .read  = &str_read,
-    .write = &str_write,
-    .seek  = &str_seek,
-    .flush = &str_flush,
+    .close    = &str_close,
+    .read     = &str_read,
+    .write    = &str_write,
+    .seek     = &str_seek,
+    .flush    = &str_flush,
+    .truncate = &str_truncate,
 };
 
 struct shim_d_ops str_d_ops = {

@@ -23,6 +23,10 @@ fs.mount.output.type = "chroot"
 fs.mount.output.path = "/mounted"
 fs.mount.output.uri = "file:tmp"
 
+fs.mount.tmpfs.type = "tmpfs"
+fs.mount.tmpfs.path = "/mnt-tmpfs"
+fs.mount.tmpfs.uri = "file:dummy-unused-by-tmpfs-uri"
+
 sgx.trusted_files.entrypoint = "file:$(ENTRYPOINT)"
 
 sgx.trusted_files.runtime = "file:../../../../Runtime/"

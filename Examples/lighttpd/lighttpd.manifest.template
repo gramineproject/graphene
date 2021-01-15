@@ -47,9 +47,9 @@ fs.mount.cwd.path = "$(INSTALL_DIR_ABSPATH)"
 fs.mount.cwd.uri = "file:$(INSTALL_DIR)"
 
 # Mount lighttpd's default server.upload-dirs path
-fs.mount.var_tmp.type = "chroot"
+fs.mount.var_tmp.type = "tmpfs"
 fs.mount.var_tmp.path = "/var/tmp"
-fs.mount.var_tmp.uri = "file:/var/tmp"
+fs.mount.var_tmp.uri = "file:dummy-unused-by-tmpfs-uri"
 
 # SGX general options
 
