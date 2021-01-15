@@ -33,19 +33,16 @@ int main(int argc, char** argv, char** envp) {
 
         ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
         if (ret > 0) {
-            buffer1[ret] = 0;
             print_hex("Read Test 1 (0th - 40th): %s\n", buffer1, 40);
         }
 
         ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
         if (ret > 0) {
-            buffer1[ret] = 0;
             print_hex("Read Test 2 (0th - 40th): %s\n", buffer1, 40);
         }
 
         ret = DkStreamRead(file1, 200, 40, buffer2, NULL, 0);
         if (ret > 0) {
-            buffer2[ret] = 0;
             print_hex("Read Test 3 (200th - 240th): %s\n", buffer2, 40);
         }
 
