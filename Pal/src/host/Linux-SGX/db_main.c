@@ -172,29 +172,27 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
-#define IS_IN_RANGE(value, start, end) (value < start || value > end) ? false : true
-
 /* This function extract an integer present in the buffer. For example 31 will be returned when
- * input "31" is provided. If buffer contains size like "48K", then 48 is returned with "size"
- * containing either "K", "M" or "G". Returns negative unix error code if the buffer is malformed
- * Eg. 20abc or 3,4,5 or xyz123 or 512H.
+ * input "31" is provided. If buffer contains valid size indicators such as "48K", then just
+ * numeric value (48 in this case) is returned. Returns negative unix error code if the buffer is
+ * malformed Eg. 20abc or 3,4,5 or xyz123 or 512H.
  * Use case: To extract int from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
-static int extract_int_from_buffer(const char* buf, char* size) {
+static int64_t extract_int_from_buffer(const char* buf) {
     if (!buf)
         return -ENOENT;
 
-    char* end;
-    const char* ptr = buf;
-    int intval = (int)strtol(ptr, &end, 10);
+    char* end = NULL;
+    int64_t intval = strtol(buf, &end, 10);
 
-    if (ptr == end) {
+    if ((buf == end) || (intval < 0))
         return -EINVAL;
-    } else if (*end != '\0') {
-        if ((size) && ((*end =='K') || (*end =='M') || (*end =='G')))
-            *size = *end;
 
-        ptr = end + 1;
-        if ((*ptr != '\0') && (strcmp(ptr, "\n\0") != 0))
+    if (end[0] != '\0') {
+        if (end[0] != '\n' && (end[0] != 'K' && end[0] != 'M' && end[0] != 'G'))
+            return -EINVAL;
+
+        end += 1;
+        if (end[0] != '\0' && (end[0] != '\n' && end[1] != '\0'))
             return -EINVAL;
     }
     return intval;
@@ -208,27 +206,24 @@ static int count_bits_set_from_resource_map(const char* buf) {
     if (!buf)
         return -EINVAL;
 
-    const char* ptr = buf;
     int count = 0;
-    while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',' || *ptr == '\n')
-            ptr++;
+    while (*buf) {
+        while (*buf == ' ' || *buf == '\t' || *buf == ',' || *buf == '\n')
+            buf++;
 
-        char* end;
-        uint64_t bitmap = (uint64_t)strtoll(ptr, &end, 16);
-        if (ptr == end) {
-            if (*ptr == '\0')                       /* case where buffer is terminated by \n\0 */
-                break;
-            else
-                return -EINVAL;                     /* poorly formed resource map. Eg. "Xfff" */
-        }
+        if (*buf == '\0')
+            break;        /* case where buffer is terminated by \n\0 */
 
-        if (*end == '\0' || *end == ',' || *end == '\n') {
-            count += count_bits_set(bitmap);
-        } else {
+        char* end = NULL;
+        uint64_t bitmap = (uint64_t)strtol(buf, &end, 16);
+        if (buf == end)
             return -EINVAL;
-        }
-        ptr = end;
+
+        if (*end != '\0' && *end != ',' && *end != '\n')
+            return -EINVAL;
+
+        count += count_bits_set(bitmap);
+        buf = end;
     }
     return count;
 }
@@ -244,28 +239,24 @@ static int sanitize_hw_resource_count(const char* buf, bool ordered) {
     if (!buf)
         return -ENOENT;
 
-    const char* ptr = buf;
-    char* end;
+    char* end = NULL;
     int resource_cnt   = 0;
     int current_maxint = 0;
-    while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',' || *ptr == '\n')
-            ptr++;
+    while (*buf) {
+        while (*buf == ' ' || *buf == '\t' || *buf == ',' || *buf == '\n')
+            buf++;
 
-        int firstint = (int)strtol(ptr, &end, 10);
-        if (ptr == end) {
-            if (*ptr == '\0')                       /* case where buffer is terminated by \n\0 */
-                break;
-            else
-                return -EINVAL;                     /* poorly formed HW resource. Eg. "10abc" */
-        }
+        if (*buf == '\0')
+            break;          /* case where buffer is terminated by \n\0 */
+
+        int firstint = (int)strtol(buf, &end, 10);
+        if (buf == end)
+            return -EINVAL;
 
         if (ordered) {
-            if (firstint < current_maxint) {
-                return -EINVAL;                     /* poorly formed HW resource. Eg. "1-5,3-4" */
-            } else {
-                current_maxint = firstint;
-            }
+            if (firstint < current_maxint)
+                return -EINVAL;
+            current_maxint = firstint;
         }
 
         /* count the number of HW resources */
@@ -274,19 +265,19 @@ static int sanitize_hw_resource_count(const char* buf, bool ordered) {
             resource_cnt++;
         } else if (*end == '-') {
             /* HW resource range, count how many HW resources are in range */
-            ptr = end + 1;
-            int secondint = (int)strtol(ptr, &end, 10);
+            buf = end + 1;
+            int secondint = (int)strtol(buf, &end, 10);
             if (secondint > firstint) {
                 if (ordered)
                     current_maxint = secondint;
-                resource_cnt += secondint - firstint + 1;  /* inclusive (e.g., 0-7, or 8-16) */
+                resource_cnt += secondint - firstint + 1;   /* inclusive (e.g., 0-7, or 8-16) */
             } else {
                 if (ordered)
-                    return -EINVAL;                 /* poorly formed HW resource. Eg. "1-5,7-1" */
+                    return -EINVAL;
                 resource_cnt += firstint - secondint + 1;
             }
         }
-        ptr = end;
+        buf = end;
     }
     return resource_cnt;
 }
@@ -300,8 +291,8 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int cache_lv
         if (!IS_IN_RANGE(shared_cpu_map, 1, num_cores))
             return -EINVAL;
 
-        int level = extract_int_from_buffer(cache[lvl].level, NULL);
-        if (!IS_IN_RANGE(level, 1, 4))      /* x86 processors has max of 3 cache levels */
+        int level = extract_int_from_buffer(cache[lvl].level);
+        if (!IS_IN_RANGE(level, 1, 3))      /* x86 processors has max of 3 cache levels */
             return -EINVAL;
 
         char* type = cache[lvl].type;
@@ -310,20 +301,19 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int cache_lv
             return -EINVAL;
         }
 
-        char qual;
-        int size = extract_int_from_buffer(cache[lvl].size, &qual);
-        if (!IS_IN_RANGE(size, 1, 1 << 16) || ((qual !='K') && (qual !='M') && (qual !='G')))
+        int size = extract_int_from_buffer(cache[lvl].size);
+        if (!IS_IN_RANGE(size, 1, 1 << 16))
             return -EINVAL;
 
-        int coherency_line_size = extract_int_from_buffer(cache[lvl].coherency_line_size, NULL);
+        int coherency_line_size = extract_int_from_buffer(cache[lvl].coherency_line_size);
         if (!IS_IN_RANGE(coherency_line_size, 1, 1 << 16))
             return -EINVAL;
 
-        int number_of_sets = extract_int_from_buffer(cache[lvl].number_of_sets, NULL);
+        int number_of_sets = extract_int_from_buffer(cache[lvl].number_of_sets);
         if (!IS_IN_RANGE(number_of_sets, 1, 1 << 16))
             return -EINVAL;
 
-        int physical_line_partition = extract_int_from_buffer(cache[lvl].physical_line_partition, NULL);
+        int physical_line_partition = extract_int_from_buffer(cache[lvl].physical_line_partition);
         if (!IS_IN_RANGE(physical_line_partition, 1, 1 << 16))
             return -EINVAL;
     }
@@ -337,14 +327,13 @@ static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int nu
 
     for (int idx = 0; idx < num_cores; idx++) {
         if (idx != 0) {     /* core 0 is always online */
-            int is_core_online = extract_int_from_buffer(core_topology[idx].is_logical_core_online,
-                                                         NULL);
+            int is_core_online = extract_int_from_buffer(core_topology[idx].is_logical_core_online);
             if (is_core_online != 0 && is_core_online != 1)
                 return -EINVAL;
         }
 
-        int core_id = extract_int_from_buffer(core_topology[idx].core_id, NULL);
-        if (!IS_IN_RANGE(core_id, 0, (num_cores - 1)))
+        int core_id = extract_int_from_buffer(core_topology[idx].core_id);
+        if (!IS_IN_RANGE(core_id, 0, num_cores - 1))
             return -EINVAL;
 
         int core_siblings = count_bits_set_from_resource_map(core_topology[idx].core_siblings);
