@@ -155,7 +155,7 @@ noreturn void process_exit(int error_code, int term_signal) {
     thread_exit(error_code, term_signal);
 }
 
-noreturn long shim_do_exit_group(int error_code) {
+long shim_do_exit_group(int error_code) {
     assert(!is_internal(get_cur_thread()));
 
     error_code &= 0xFF;

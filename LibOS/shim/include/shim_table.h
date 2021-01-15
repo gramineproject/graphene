@@ -501,7 +501,7 @@ long shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp);
 long shim_do_clock_getres(clockid_t which_clock, struct timespec* tp);
 long shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
                              struct __kernel_timespec* rmtp);
-noreturn long shim_do_exit_group(int error_code);
+long shim_do_exit_group(int error_code);
 long shim_do_tgkill(int tgid, int pid, int sig);
 long shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,
                    unsigned long maxnode, int flags);
