@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <linux/fcntl.h>
+#include <stdalign.h>
 
 #include "pal.h"
 #include "pal_error.h"
@@ -331,7 +332,7 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
 /* Size calculation for dirent considering alignment restrictions for b->d_ino */
 #define DIRENT_SIZE(len) \
     ALIGN_UP(sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + (len) + 1, \
-             sizeof(b->d_ino))
+             alignof(b->d_ino))
 
 #define ASSIGN_DIRENT(dent, name, type)                                                  \
     do {                                                                                 \
@@ -434,7 +435,7 @@ long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
 
 /* Size calculation for dirent considering alignment restrictions for b->d_ino */
 #define DIRENT_SIZE(len) ALIGN_UP(sizeof(struct linux_dirent64) + (len) + 1, \
-                                  sizeof(b->d_ino))
+                                  alignof(b->d_ino))
 
 #define ASSIGN_DIRENT(dent, name, type)       \
     do {                                      \
