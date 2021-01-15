@@ -26,8 +26,8 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-long shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
-                       struct __kernel_sigaction* oldact, size_t sigsetsize) {
+long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
+                          struct __kernel_sigaction* oldact, size_t sigsetsize) {
     /* SIGKILL and SIGSTOP cannot be caught or ignored */
     if (signum == SIGKILL || signum == SIGSTOP || signum <= 0 || signum > NUM_SIGS ||
             sigsetsize != sizeof(__sigset_t))
@@ -57,13 +57,13 @@ long shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
     return 0;
 }
 
-long shim_do_sigreturn(int __unused) {
+long shim_do_rt_sigreturn(int __unused) {
     __UNUSED(__unused);
     /* do nothing */
     return 0;
 }
 
-long shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
+long shim_do_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
     __sigset_t old;
 
     if (how != SIG_BLOCK && how != SIG_UNBLOCK && how != SIG_SETMASK)
@@ -154,7 +154,7 @@ long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
     return 0;
 }
 
-long shim_do_sigsuspend(const __sigset_t* mask_ptr) {
+long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr) {
     if (!mask_ptr || test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
         return -EFAULT;
 
@@ -189,7 +189,7 @@ long shim_do_sigsuspend(const __sigset_t* mask_ptr) {
     return -EINTR;
 }
 
-long shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
+long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;
 

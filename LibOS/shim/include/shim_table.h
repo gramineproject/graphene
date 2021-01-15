@@ -369,10 +369,10 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
 long shim_do_mprotect(void* addr, size_t len, int prot);
 long shim_do_munmap(void* addr, size_t len);
 void* shim_do_brk(void* brk);
-long shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
-                       struct __kernel_sigaction* oldact, size_t sigsetsize);
-long shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset);
-long shim_do_sigreturn(int __unused);
+long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
+                          struct __kernel_sigaction* oldact, size_t sigsetsize);
+long shim_do_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset);
+long shim_do_rt_sigreturn(int __unused);
 long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos);
 long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos);
@@ -468,7 +468,7 @@ long shim_do_getpgrp(void);
 long shim_do_setsid(void);
 long shim_do_getpgid(pid_t pid);
 long shim_do_getsid(pid_t pid);
-long shim_do_sigpending(__sigset_t* set, size_t sigsetsize);
+long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize);
 long shim_do_sigaltstack(const stack_t* ss, stack_t* oss);
 long shim_do_setpriority(int which, int who, int niceval);
 long shim_do_getpriority(int which, int who);
@@ -479,7 +479,7 @@ long shim_do_sched_getscheduler(pid_t pid);
 long shim_do_sched_get_priority_max(int policy);
 long shim_do_sched_get_priority_min(int policy);
 long shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval);
-long shim_do_sigsuspend(const __sigset_t* mask);
+long shim_do_rt_sigsuspend(const __sigset_t* mask);
 long shim_do_arch_prctl(int code, void* addr);
 long shim_do_setrlimit(int resource, struct __kernel_rlimit* rlim);
 long shim_do_chroot(const char* filename);

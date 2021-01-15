@@ -67,16 +67,16 @@ DEFINE_SHIM_SYSCALL(munmap, 2, shim_do_munmap, long, void*, addr, size_t, len)
 DEFINE_SHIM_SYSCALL(brk, 1, shim_do_brk, void*, void*, brk)
 
 /* rt_sigaction: sys/shim_sigaction.c */
-DEFINE_SHIM_SYSCALL(rt_sigaction, 4, shim_do_sigaction, long, int, signum,
+DEFINE_SHIM_SYSCALL(rt_sigaction, 4, shim_do_rt_sigaction, long, int, signum,
                     const struct __kernel_sigaction*, act, struct __kernel_sigaction*, oldact,
                     size_t, sigsetsize)
 
 /* rt_sigprocmask: sys/shim_sigaction.c */
-DEFINE_SHIM_SYSCALL(rt_sigprocmask, 3, shim_do_sigprocmask, long, int, how, const __sigset_t*, set,
+DEFINE_SHIM_SYSCALL(rt_sigprocmask, 3, shim_do_rt_sigprocmask, long, int, how, const __sigset_t*, set,
                     __sigset_t*, oldset)
 
 /* rt_sigreturn: sys/shim_sigaction.c */
-DEFINE_SHIM_SYSCALL(rt_sigreturn, 1, shim_do_sigreturn, long, int, __unused)
+DEFINE_SHIM_SYSCALL(rt_sigreturn, 1, shim_do_rt_sigreturn, long, int, __unused)
 
 /* ioctl: sys/shim_ioctl.c */
 DEFINE_SHIM_SYSCALL(ioctl, 3, shim_do_ioctl, long, unsigned int, fd, unsigned int, cmd, unsigned
@@ -417,7 +417,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(capget, 2, long, cap_user_header_t, header, cap_user_
 
 SHIM_SYSCALL_RETURN_ENOSYS(capset, 2, long, cap_user_header_t, header, const cap_user_data_t, data)
 
-DEFINE_SHIM_SYSCALL(rt_sigpending, 2, shim_do_sigpending, long, __sigset_t*, set, size_t,
+DEFINE_SHIM_SYSCALL(rt_sigpending, 2, shim_do_rt_sigpending, long, __sigset_t*, set, size_t,
                     sigsetsize)
 
 SHIM_SYSCALL_RETURN_ENOSYS(rt_sigtimedwait, 4, long, const __sigset_t*, uthese, siginfo_t*, uinfo,
@@ -425,7 +425,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(rt_sigtimedwait, 4, long, const __sigset_t*, uthese, 
 
 SHIM_SYSCALL_RETURN_ENOSYS(rt_sigqueueinfo, 3, long, int, pid, int, sig, siginfo_t*, uinfo)
 
-DEFINE_SHIM_SYSCALL(rt_sigsuspend, 1, shim_do_sigsuspend, long, const __sigset_t*, mask)
+DEFINE_SHIM_SYSCALL(rt_sigsuspend, 1, shim_do_rt_sigsuspend, long, const __sigset_t*, mask)
 
 DEFINE_SHIM_SYSCALL(sigaltstack, 2, shim_do_sigaltstack, long, const stack_t*, ss, stack_t*, oss)
 
