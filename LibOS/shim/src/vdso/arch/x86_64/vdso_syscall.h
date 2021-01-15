@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
+ */
 #ifndef _VDSO_SYSCALL_H
 #define _VDSO_SYSCALL_H
 
