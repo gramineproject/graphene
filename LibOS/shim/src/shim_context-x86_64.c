@@ -179,7 +179,7 @@ static bool shim_xstate_copy(struct shim_xstate* dst, const struct shim_xstate* 
     memcpy(dst, src, copy_size);
 
     if (!src_is_xstate) {
-        memset(&dst->fpstate.sw_reserved, '\0', sizeof(dst->fpstate.sw_reserved));
+        memset(&dst->fpstate.sw_reserved, 0, sizeof(dst->fpstate.sw_reserved));
     }
 
     return src_is_xstate;
@@ -231,7 +231,7 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
 
     sigframe = (struct sigframe*)stack;
     /* This could probably be omited as we set all fields explicitly below. */
-    memset(sigframe, '\0', sizeof(*sigframe));
+    memset(sigframe, 0, sizeof(*sigframe));
 
     sigframe->siginfo = *siginfo;
 

@@ -73,7 +73,7 @@ typedef enum {
     SIGHANDLER_CORE,
 } SIGHANDLER_T;
 
-static SIGHANDLER_T default_sighandler[NUM_SIGS] = {
+static const SIGHANDLER_T default_sighandler[NUM_SIGS] = {
         [SIGHUP    - 1] = SIGHANDLER_KILL,
         [SIGINT    - 1] = SIGHANDLER_KILL,
         [SIGQUIT   - 1] = SIGHANDLER_CORE,
