@@ -62,6 +62,7 @@
 /getsockname
 /getsockopt
 /groups
+/helloworld
 /host_root_fs
 /init_fail
 /init_fail2

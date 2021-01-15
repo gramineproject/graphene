@@ -39,7 +39,7 @@ After rebuilding Graphene with ``DEBUG=1``, you need to re-sign the manifest of
 the application. For instance, if you want to debug the ``helloworld`` program,
 run the following commands::
 
-    cd LibOS/shim/test/native
+    cd LibOS/shim/test/regression
     make SGX=1
     make SGX=1 sgx-tokens
 

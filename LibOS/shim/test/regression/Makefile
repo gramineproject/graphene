@@ -41,6 +41,7 @@ c_executables = \
 	getsockname \
 	getsockopt \
 	groups \
+	helloworld \
 	host_root_fs \
 	init_fail \
 	large_mmap \
