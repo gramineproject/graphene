@@ -674,7 +674,7 @@ static int walk_cb(struct shim_thread* thread, void* arg) {
     for (; p; p /= 10, l++)
         ;
 
-    int buflen = ROUND_UP(l + 1, 8); /* rounding for pointer-alignment */
+    size_t buflen = ALIGN_UP(l + 1, 8); /* rounding for pointer-alignment */
 
     if ((void*)(args->buf + 1) + buflen > (void*)args->buf_end)
         return -ENOMEM;
