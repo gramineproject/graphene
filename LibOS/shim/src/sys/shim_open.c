@@ -329,7 +329,7 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
     }
 
 #define DIRENT_SIZE(len) \
-    ROUND_UP(sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + (len) + 1, 8)
+    ALIGN_UP(sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + (len) + 1, 8)
 
 #define ASSIGN_DIRENT(dent, name, type)                                                  \
     do {                                                                                 \
@@ -337,7 +337,7 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
         if (bytes + DIRENT_SIZE(len) > count)                                            \
             goto done;                                                                   \
                                                                                          \
-        struct linux_dirent_tail* bt = (void*)b + DIRENT_SIZE(len) - 2;                  \
+        struct linux_dirent_tail* bt = (void*)b + DIRENT_SIZE(len) - sizeof(*bt);        \
                                                                                          \
         b->d_ino    = (dent)->ino;                                                       \
         b->d_off    = ++dirhdl->offset;                                                  \
@@ -430,7 +430,7 @@ long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
             goto out;
     }
 
-#define DIRENT_SIZE(len) ROUND_UP(sizeof(struct linux_dirent64) + (len) + 1, 8)
+#define DIRENT_SIZE(len) ALIGN_UP(sizeof(struct linux_dirent64) + (len) + 1, 8)
 
 #define ASSIGN_DIRENT(dent, name, type)       \
     do {                                      \
