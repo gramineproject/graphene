@@ -18,7 +18,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-typedef long int __fd_mask;
+typedef unsigned long __fd_mask;
 
 #ifndef __NFDBITS
 #define __NFDBITS (8 * (int)sizeof(__fd_mask))
