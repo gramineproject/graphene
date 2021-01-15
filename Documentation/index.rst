@@ -69,6 +69,7 @@ Table of Contents
    :maxdepth: 1
 
    devel/contributing
+   devel/DCO/index
    devel/howto-doc
    devel/coding-style
    devel/setup
