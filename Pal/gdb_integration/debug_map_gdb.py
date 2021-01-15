@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-3.0-or-later */
 # Copyright (C) 2020 Intel Corporation
-#                    Paweł Marczewski <mkow@invisiblethingslab.com>
+#                    Paweł Marczewski <pawel@invisiblethingslab.com>
 
 import os
 import shlex
@@ -28,14 +28,14 @@ def load_elf_sections(file_name, load_addr):
     '''
     Open an ELF file and determine a list of sections along with addresses.
 
-    Returns a dict with {name: addr} elements.
+    Returns a list of (name, addr) elements.
     '''
 
     if not os.path.exists(file_name):
         print('file not found: {}'.format(file_name))
         return {}
 
-    sections = {}
+    sections = []
     with open(file_name, 'rb') as f:
         elf = ELFFile(f)
 
@@ -47,7 +47,8 @@ def load_elf_sections(file_name, load_addr):
                 if isinstance(name, bytes):
                     name = name.decode('ascii')
 
-                sections[name] = load_addr + section.header['sh_addr']
+                addr = load_addr + section.header['sh_addr']
+                sections.append((name, addr))
 
     return sections
 
@@ -57,7 +58,7 @@ def retrieve_debug_maps():
     Retrieve the debug_map structure from the inferior process. The result is a dict with the
     following structure:
 
-    {load_addr: (file_name, {name: addr})}
+    {load_addr: (file_name, text_addr, [(name, addr)])}
     '''
 
     debug_maps = {}
@@ -68,9 +69,14 @@ def retrieve_debug_maps():
         load_addr = int(val_map['addr'])
 
         sections = load_elf_sections(file_name, load_addr)
+        text_addr = None
+        for name, addr in sections:
+            if name == '.text':
+                text_addr = addr
+                break
         # We need the text_addr to use add-symbol-file (at least until GDB 8.2).
-        if '.text' in sections:
-            debug_maps[load_addr] = (file_name, sections)
+        if text_addr is not None:
+            debug_maps[load_addr] = (file_name, text_addr, sections)
 
         val_map = val_map['next']
 
@@ -104,7 +110,7 @@ class UpdateDebugMaps(gdb.Command):
             if load_addr in old:
                 # Log the removing, because remove-symbol-file itself doesn't produce helpful output
                 # on errors.
-                file_name, sections = old[load_addr]
+                file_name, text_addr, sections = old[load_addr]
                 print("Removing symbol file (was {}) from addr: 0x{:x}".format(
                     file_name, load_addr))
                 try:
@@ -116,12 +122,11 @@ class UpdateDebugMaps(gdb.Command):
             # using shlex.quote(), because GDB commands use a shell-like argument syntax.
 
             if load_addr in new:
-                file_name, sections = new[load_addr]
-                text_addr = sections['.text']
+                file_name, text_addr, sections = new[load_addr]
                 cmd = 'add-symbol-file {} 0x{:x} '.format(
                     shlex.quote(file_name), text_addr)
                 cmd += ' '.join('-s {} 0x{:x}'.format(shlex.quote(name), addr)
-                                for name, addr in sections.items()
+                                for name, addr in sections
                                 if name != '.text')
                 gdb.execute(cmd)
 
@@ -130,7 +135,7 @@ class UpdateDebugMaps(gdb.Command):
 
 class DebugMapBreakpoint(gdb.Breakpoint):
     def __init__(self):
-        gdb.Breakpoint.__init__(self, spec="debug_map_update_debugger", internal=1)
+        gdb.Breakpoint.__init__(self, spec="debug_map_update_debugger", internal=True)
 
     def stop(self):
         gdb.execute('update-debug-maps')

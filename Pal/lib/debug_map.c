@@ -3,9 +3,10 @@
  *                    Paweł Marczewski <pawel@invisiblethingslab.com>
  */
 
+#include "debug_map.h"
+
 #include <asm/errno.h>
 
-#include "debug_map.h"
 #include "spinlock.h"
 
 struct debug_map* _Atomic g_debug_map = NULL;

@@ -28,4 +28,4 @@ void debug_map_update_debugger(void);
 int debug_map_add(const char* name, void* addr);
 int debug_map_remove(void* addr);
 
-#endif
+#endif /* PAL_DEBUG_MAP_H */
