@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "pal.h"
 #include "pal_debug.h"
 
