@@ -18,7 +18,6 @@ c_executables = \
 	fs \
 	futextest \
 	get_time \
-	helloworld \
 	helloworld_pthread \
 	kill \
 	malloc \
