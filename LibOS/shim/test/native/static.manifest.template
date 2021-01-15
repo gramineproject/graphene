@@ -1,8 +1,0 @@
-loader.preload = "file:$(SHIMPATH)"
-loader.env.LD_LIBRARY_PATH = "/lib"
-loader.debug_type = "inline"
-loader.insecure__use_cmdline_argv = 1
-
-fs.mount.lib.type = "chroot"
-fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(LIBCDIR)"
