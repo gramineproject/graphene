@@ -29,7 +29,7 @@ thread/process exit. Here is an example:
 
 ::
 
-   LibOS/shim/test/native$ SGX=1 perf stat graphene/Runtime/pal_loader helloworld
+   LibOS/shim/test/regression$ SGX=1 perf stat graphene/Runtime/pal_loader helloworld
    Hello world (helloworld)!
    ----- SGX stats for thread 87219 -----
    # of EENTERs:        224

@@ -20,6 +20,10 @@ class TC_00_Unittests(RegressionTestCase):
         self.assertIn('Test successful!', stdout)
 
 class TC_01_Bootstrap(RegressionTestCase):
+    def test_001_helloworld(self):
+        stdout, _ = self.run_binary(['helloworld'])
+        self.assertIn('Hello world!', stdout)
+
     def test_100_basic_bootstrapping(self):
         stdout, _ = self.run_binary(['bootstrap'])
 

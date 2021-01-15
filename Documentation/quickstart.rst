@@ -18,7 +18,7 @@ Quick start without SGX support
 
 #. Build and run :program:`helloworld`::
 
-      cd LibOS/shim/test/native
+      cd LibOS/shim/test/regression
       make
       ./pal_loader helloworld
 
@@ -81,7 +81,7 @@ second command should list the process status of :command:`aesm_service`.
 
 #. Build and run :program:`helloworld`::
 
-      cd $GRAPHENE_DIR/LibOS/shim/test/native
+      cd $GRAPHENE_DIR/LibOS/shim/test/regression
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
 
