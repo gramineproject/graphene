@@ -462,7 +462,8 @@ static int restore_checkpoint(struct checkpoint_hdr* hdr, uintptr_t base) {
             continue;
         }
 
-        const void *addr = &(&__rs_func)[cpent->cp_type - CP_FUNC_BASE]; /* ubsan */
+        /* avoid pointer alignment issues on 'rs' with additional pointer */
+        const void *addr = &(&__rs_func)[cpent->cp_type - CP_FUNC_BASE];
         rs_func rs;
         memcpy(&rs, addr, sizeof(rs));
         int ret = (*rs)(cpent, base, offset, rebase);
