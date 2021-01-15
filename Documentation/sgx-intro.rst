@@ -90,10 +90,10 @@ For historical reasons, there are three SGX drivers currently (January 2021):
   old EPID remote-attestation technique) and the new DCAP (with new ECDSA and
   more "normal" PKI infrastructure).
 
-- SGX driver is upstreamed to linux mainline from 5.11+ (see LKML patches). 
-  The current SGX driver upstreamed only supports DCAP. SGX device is exposed 
-  as /dev/sgx_enclave at current stage, to make it compatible with older versions
-  of SGX driver, user need to apply udev rules the first time rebooting the kernel.
+- SGX driver is upstreamed to linux mainline from 5.11+ (see LKML patches).
+  The current SGX driver upstreamed only supports DCAP. SGX device is exposed
+  as /dev/sgx_enclave at current stage; to make it compatible with older versions
+  of SGX driver, user must apply udev rules the first time rebooting the kernel.
   For information in detail, please refer to:
   https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/master/driver/linux/README.kernel.md#udev-rules
 
