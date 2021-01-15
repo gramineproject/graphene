@@ -2,8 +2,8 @@ THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 INSTALL_DIR ?= $(THIS_DIR)install
 
-LIGHTTPD_SRC ?= $(THIS_DIR)lighttpd-1.4.54
-LIGHTTPD_HASH ?= 5151d38cb7c4c40effa13710e77ebdbef899f945b062cf32befc02d128ac424c
+LIGHTTPD_SRC ?= $(THIS_DIR)lighttpd-1.4.59
+LIGHTTPD_HASH ?= e266e389ddb79bf17b8e8d9022aec95ae839c6f3159822f402df8d8df8a13f65
 
 LIGHTTPD_MIRRORS ?= \
     https://download.lighttpd.net/lighttpd/releases-1.4.x \
@@ -37,7 +37,7 @@ include ../../Scripts/Makefile.configs
 # installing the binaries.
 $(INSTALL_DIR)/sbin/lighttpd: $(LIGHTTPD_SRC)/configure
 	cd $(LIGHTTPD_SRC) && ./configure --prefix=$(abspath $(INSTALL_DIR)) \
-		--without-openssl --without-pcre --without-zlib --without-bzip2
+		--without-openssl --without-pcre --without-bzip2
 	cd $(LIGHTTPD_SRC) && $(MAKE)
 	cd $(LIGHTTPD_SRC) && $(MAKE) install
 
@@ -85,8 +85,8 @@ lighttpd-server.conf:
 
 lighttpd.conf:
 	@$(RM) $@
-	@echo "include \"lighttpd-server.conf\""                >> $@
-	@echo "include \"lighttpd-generic.conf\""               >> $@
+	@echo "include \"./lighttpd-server.conf\""              >> $@
+	@echo "include \"./lighttpd-generic.conf\""             >> $@
 
 # Generate variously-sized HTML files in $(RANDOM_DIR)
 RANDOM_DIR = $(INSTALL_DIR)/html/random

@@ -39,7 +39,7 @@ stage('test') {
         }
     }
 
-    timeout(time: 5, unit: 'MINUTES') {
+    timeout(time: 15, unit: 'MINUTES') {
         sh '''
             cd LibOS/shim/test/fs
             make ${MAKEOPTS} all
