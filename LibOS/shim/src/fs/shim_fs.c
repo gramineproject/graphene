@@ -42,6 +42,11 @@ struct shim_fs mountable_fs[] = {
         .fs_ops = &dev_fs_ops,
         .d_ops  = &dev_d_ops,
     },
+    {
+        .name   = "tmpfs",
+        .fs_ops = &tmp_fs_ops,
+        .d_ops  = &tmp_d_ops,
+    },
 };
 
 struct shim_mount* builtin_fs[] = {

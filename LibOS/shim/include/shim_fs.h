@@ -464,6 +464,9 @@ extern struct shim_d_ops chroot_d_ops;
 extern struct shim_fs_ops str_fs_ops;
 extern struct shim_d_ops str_d_ops;
 
+extern struct shim_fs_ops tmp_fs_ops;
+extern struct shim_d_ops tmp_d_ops;
+
 extern struct shim_mount chroot_builtin_fs;
 extern struct shim_mount pipe_builtin_fs;
 extern struct shim_mount fifo_builtin_fs;

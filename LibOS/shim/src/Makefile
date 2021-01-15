@@ -87,6 +87,7 @@ objs = \
 	fs/proc/thread.o \
 	fs/socket/fs.o \
 	fs/str/fs.o \
+	fs/tmpfs/fs.o \
 	ipc/shim_ipc.o \
 	ipc/shim_ipc_child.o \
 	ipc/shim_ipc_helper.o \
