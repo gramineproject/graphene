@@ -10,11 +10,11 @@
 
 static HASHTYPE __hash(const char* p, size_t len) {
     HASHTYPE hash = 0;
-    unsigned char buf[sizeof(hash)];
+    HASHTYPE tmp;
 
     for (; len >= sizeof(hash); p += sizeof(hash), len -= sizeof(hash)) {
-        memcpy(buf, p, sizeof(hash)); /* ubsan */
-        hash += *((HASHTYPE*)buf);
+        memcpy(&tmp, p, sizeof(tmp)); /* avoid pointer alignment issues */
+        hash += *((HASHTYPE*)&tmp);
         hash *= 9;
     }
 
