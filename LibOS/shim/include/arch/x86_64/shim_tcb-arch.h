@@ -186,7 +186,7 @@ static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num
         }                                                               \
     } while (0)
 
-static inline void shim_arch_update_tls_base(unsigned long tls_base) {
+static inline void set_tls_base(unsigned long tls_base) {
     DkSegmentRegisterSet(PAL_SEGMENT_FS, (PAL_PTR)tls_base);
 }
 

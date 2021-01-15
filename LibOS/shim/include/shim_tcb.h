@@ -80,7 +80,7 @@ static inline bool shim_tcb_check_canary(void) {
 static inline void update_tls_base(unsigned long tls_base) {
     shim_tcb_t* shim_tcb = shim_get_tcb();
     shim_tcb->context.tls_base = tls_base;
-    shim_arch_update_tls_base(tls_base);
+    set_tls_base(tls_base);
     assert(shim_tcb_check_canary());
 }
 
