@@ -322,7 +322,9 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (flags & CLONE_CHILD_CLEARTID)
         thread->clear_child_tid = child_tidptr;
 
-    unsigned long tls = flags & CLONE_SETTLS ? tls : get_tls();
+    if (!(flags & CLONE_SETTLS)) {
+        tls = get_tls();
+    }
 
     if (!(flags & CLONE_VM)) {
         /* New process has its own address space - currently in Graphene that means it's just
