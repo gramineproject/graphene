@@ -28,7 +28,7 @@ struct shim_clone_args {
     PAL_HANDLE initialize_event;
     struct shim_thread* thread;
     void* stack;
-    unsigned long tls_base;
+    unsigned long tls;
     PAL_CONTEXT* regs;
 };
 
@@ -94,7 +94,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     pal_context_copy(&regs, arg->regs);
     pal_context_set_sp(&regs, (unsigned long)stack);
     tcb->context.regs = &regs;
-    tcb->context.tls_base = arg->tls_base;
+    tcb->context.tls = arg->tls;
 
     /* Inform the parent thread that we finished initialization. */
     DkEventSet(arg->initialize_event);
@@ -129,7 +129,7 @@ static int migrate_fork(struct shim_cp_store* store, struct shim_process* proces
     return START_MIGRATE(store, fork, process_description, thread_description, process_ipc_info);
 }
 
-static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long tls_base,
+static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long tls,
                             unsigned long user_stack_addr, int* set_parent_tid) {
     assert(!(flags & CLONE_VM));
 
@@ -147,7 +147,7 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
     /* We are copying our own tcb, which should be ok to do, even without any locks. Note this is
      * a shallow copy, so `shim_tcb.context.regs` will be shared with the parent. */
     shim_tcb.context.regs = self->shim_tcb->context.regs;
-    shim_tcb.context.tls_base = tls_base;
+    shim_tcb.context.tls = tls;
 
     thread->shim_tcb = &shim_tcb;
 
@@ -322,14 +322,14 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (flags & CLONE_CHILD_CLEARTID)
         thread->clear_child_tid = child_tidptr;
 
-    unsigned long tls_base = flags & CLONE_SETTLS ? tls : get_tls_base();
+    unsigned long tls = flags & CLONE_SETTLS ? tls : get_tls();
 
     if (!(flags & CLONE_VM)) {
         /* New process has its own address space - currently in Graphene that means it's just
          * another process. */
         assert(!(flags & CLONE_THREAD));
 
-        ret = do_clone_new_vm(flags, thread, tls_base, user_stack_addr, set_parent_tid);
+        ret = do_clone_new_vm(flags, thread, tls, user_stack_addr, set_parent_tid);
 
         /* We should not have saved any references to this thread anywhere and `put_thread` below
          * should free it. */
@@ -389,10 +389,10 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     /* Increasing refcount due to copy below. Passing ownership of the new copy
      * of this pointer to the new thread (receiver of new_args). */
     get_thread(thread);
-    new_args.thread     = thread;
-    new_args.stack      = (void*)(user_stack_addr ?: pal_context_get_sp(self->shim_tcb->context.regs));
-    new_args.tls_base   = tls_base;
-    new_args.regs       = self->shim_tcb->context.regs;
+    new_args.thread = thread;
+    new_args.stack  = (void*)(user_stack_addr ?: pal_context_get_sp(self->shim_tcb->context.regs));
+    new_args.tls    = tls;
+    new_args.regs   = self->shim_tcb->context.regs;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child

@@ -46,7 +46,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
-    set_tls_base(0);
+    set_default_tls();
 
     thread_sigaction_reset_on_execve(cur_thread);
 

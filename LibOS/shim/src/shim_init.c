@@ -458,7 +458,7 @@ noreturn void* shim_init(int argc, void* args) {
         /* UNREACHABLE */
     }
 
-    set_tls_base(0);
+    set_default_tls();
 
     lock(&g_process.fs_lock);
     struct shim_handle* exec = g_process.exec;

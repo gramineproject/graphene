@@ -197,7 +197,7 @@ noreturn void restore_child_context_after_clone(struct shim_context* context) {
 
     context->syscall_nr = -1;
 
-    set_tls_base(context->tls_base);
+    set_tls(context->tls);
 
     PAL_CONTEXT* regs = context->regs;
     context->regs = NULL;

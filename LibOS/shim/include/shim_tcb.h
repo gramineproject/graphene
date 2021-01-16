@@ -12,7 +12,7 @@
 struct shim_context {
     PAL_CONTEXT* regs;
     long syscall_nr;
-    unsigned long tls_base; /* Used only in clone. */
+    unsigned long tls; /* Used only in clone. */
 };
 
 struct debug_buf;

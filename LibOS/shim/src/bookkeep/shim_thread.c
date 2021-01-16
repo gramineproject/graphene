@@ -637,7 +637,7 @@ BEGIN_RS_FUNC(thread) {
     __shim_tcb_init(tcb);
 
     assert(tcb->context.regs);
-    set_tls_base(tcb->context.tls_base);
+    set_tls(tcb->context.tls);
 
     thread->pal_handle = PAL_CB(first_thread);
 
