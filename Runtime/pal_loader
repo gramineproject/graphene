@@ -108,21 +108,21 @@ done
 
 if [ "$APPLICATION" == "" ]; then
 	echo "Usage: $0 [<application>] <args>..."
-	exit 1
+	exit 2
 fi
 
 if [ "$SGX" == "1" ] && [ ! -e "$APPLICATION.manifest.sgx" ]; then
-    echo -n "Invalid application path specified ($APPLICATION.manifest.sgx does not exist). "
-    echo -n "The path should point to application configuration files, so that they can be found "
-    echo    "after appending corresponding extensions."
-    exit 1
+    echo -n "Invalid application path specified ($APPLICATION.manifest.sgx does not exist). " >&2
+    echo -n "The path should point to application configuration files, so that they can be " >&2
+    echo    "found after appending corresponding extensions." >&2
+    exit 2
 fi
 
 if [ ! "$SGX" == "1" ] && [ ! -e "$APPLICATION.manifest" ]; then
-    echo -n "Invalid application path specified ($APPLICATION.manifest does not exist). "
-    echo -n "The path should point to application configuration files, so that they can be found "
-    echo    "after appending corresponding extensions."
-    exit 1
+    echo -n "Invalid application path specified ($APPLICATION.manifest does not exist). " >&2
+    echo -n "The path should point to application configuration files, so that they can be " >&2
+    echo    "found after appending corresponding extensions." >&2
+    exit 2
 fi
 
 if [ ! -f "$PAL_CMD" ]; then
