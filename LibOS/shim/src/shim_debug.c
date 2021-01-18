@@ -81,8 +81,6 @@ void remove_r_debug(void* addr) {
 
     if (m->l_next) {
         m->l_next->l_prev = m->l_prev;
-    } else {
-        link_map_list = m->l_prev;
     }
 
     DkDebugMapRemove(addr);
