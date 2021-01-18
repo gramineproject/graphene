@@ -441,10 +441,11 @@ class TestSuite:
         ]
         self.sgx = self.config.getboolean(config.default_section, 'sgx')
 
-        self.loader = [
-            fspath(config.getpath(config.default_section, 'loader').resolve())]
-        if self.sgx:
-            self.loader.append('SGX')
+        try:
+            loader = fspath(config.getpath(config.default_section, 'loader').resolve())
+        except configparser.NoOptionError:
+            loader = 'graphene-sgx' if self.sgx else 'graphene-direct'
+        self.loader = [loader]
 
         self.bindir = (
             config.getpath(config.default_section, 'ltproot') / 'testcases/bin')
@@ -574,7 +575,6 @@ def load_config(files):
         defaults={
             'timeout': '30',
             'sgx': 'false',
-            'loader': './pal_loader',
             'ltproot': './install',
             'junit-classname': 'apps.LTP',
         })

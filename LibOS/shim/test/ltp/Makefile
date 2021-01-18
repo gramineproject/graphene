@@ -35,7 +35,6 @@ $(BUILDDIR)/BUILD_SUCCESS: $(SRCDIR)/configure
 .SECONDARY: $(INSTALLDIR)/INSTALL_SUCCESS
 $(INSTALLDIR)/INSTALL_SUCCESS: $(BUILDDIR)/BUILD_SUCCESS
 	$(MAKE) -C $(BUILDDIR) -f $(SRCDIR)/Makefile top_srcdir=$(SRCDIR) top_builddir=$(BUILDDIR) SKIP_IDCHECK=1 install
-	ln -sf $(call relative-to,$(TESTCASEDIR),../../../Runtime/pal_loader) $(TESTCASEDIR)/pal_loader
 	ln -sf $(abspath Makefile.testcases) $(TESTCASEDIR)/Makefile
 	touch $@
 

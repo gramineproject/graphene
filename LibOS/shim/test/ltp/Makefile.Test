@@ -8,9 +8,7 @@ SHIMDIR = $(LTP_DIR)/../../src
 RUNTIME = $(LTP_DIR)/../../../../Runtime
 
 ifeq ($(SGX),1)
-PAL_LOADER = pal_loader SGX
-else
-PAL_LOADER = pal_loader
+$(error No SGX support)
 endif
 
 CC = gcc
@@ -31,7 +29,7 @@ expand_target = $(1)
 endif
 
 .PHONY: all
-all: pal_loader $(target) | $(call expand_target,$(exec_target))
+all: $(target) | $(call expand_target,$(exec_target))
 
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(exec_target))
@@ -73,9 +71,6 @@ manifest_rules= \
 	-e 's:\$$(COREUTILS_LIBDIR):$(COREUTILS_LIBDIR):g' \
 	$(extra_rules)
 endif
-
-pal_loader:
-	ln -sf $(RUNTIME)/pal_loader
 
 relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspath $2)\",\"$(abspath $1)\")")
 
@@ -124,4 +119,4 @@ endif
 
 .PHONY: clean
 clean: $(clean-extra)
-	$(RM) -r pal_loader $(manifests) *.token *.sig *.manifest.sgx $(target) $(wildcard *.d) .output.*
+	$(RM) -r $(manifests) *.token *.sig *.manifest.sgx $(target) $(wildcard *.d) .output.*
