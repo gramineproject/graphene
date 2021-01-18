@@ -113,7 +113,7 @@ fi
 
 if [ "$SGX" == "1" ] && [ ! -e "$APPLICATION.manifest.sgx" ]; then
     echo "Invalid application path specified ($APPLICATION.manifest.sgx does not exist)." >&2
-    echo "The path should point to application configuration files, so that they can be " >&2
+    echo "The path should point to application configuration files, so that they can be" >&2
     echo "found after appending corresponding extensions." >&2
     exit 2
 fi
