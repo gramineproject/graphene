@@ -1,4 +1,4 @@
-loader.preload = "file:../../src/libsysdb.so"
+loader.preload = "file:{{ get_libos() }}"
 libos.entrypoint = "file:bootstrap"
 loader.argv0_override = "bootstrap"
 
@@ -8,12 +8,12 @@ loader.argv_src_file = "file:argv_test_input"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:../../../../Runtime"
+fs.mount.lib.uri = "file:{{ get_runtimedir() }}"
 
 sgx.allowed_files.argv = "file:argv_test_input"
 
-sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
-sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
+sgx.trusted_files.ld = "file:{{ get_runtimedir() }}/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:{{ get_runtimedir() }}/libc.so.6"
 sgx.trusted_files.bootstrap = "file:bootstrap"
 
 sgx.nonpie_binary = 1
