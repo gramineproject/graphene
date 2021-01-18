@@ -114,9 +114,9 @@ class UpdateDebugMaps(gdb.Command):
                 print("Removing symbol file (was {}) from addr: 0x{:x}".format(
                     file_name, load_addr))
                 try:
-                    gdb.execute('remove-symbol-file -a 0x{:x}'.format(load_addr))
-                except gdb.error:
-                    print('warning: failed to remove symbol file')
+                    gdb.execute('remove-symbol-file -a 0x{:x}'.format(text_addr))
+                except gdb.error as e:
+                    print('warning: failed to remove symbol file: {}'.format(e))
 
             # Note that we escape text arguments to 'add-symbol-file' (file name and section names)
             # using shlex.quote(), because GDB commands use a shell-like argument syntax.
