@@ -675,7 +675,7 @@ static int walk_cb(struct shim_thread* thread, void* arg) {
         ;
 
     /* buf->next below must be pointer-aligned */
-    size_t buflen = ALIGN_UP(l + 1, sizeof(struct shim_dirent*));
+    size_t buflen = ALIGN_UP(l + 1, alignof(struct shim_dirent));
 
     if ((void*)(args->buf + 1) + buflen > (void*)args->buf_end)
         return -ENOMEM;
