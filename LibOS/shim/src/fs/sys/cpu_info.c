@@ -16,19 +16,21 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     if (ret < 0 || (strlen(filename) != size))
         return -ENOENT;
 
-    int cpunum = extract_first_num_from_string (name);
+    int cpunum = extract_first_num_from_string(name);
     if (cpunum < 0)
         return -ENOENT;
 
-    /* temp_buf needs to stay on stack for the whole duration of this function. */
     char temp_buf[16];
     const char* cpu_filebuf;
     if (!strcmp(filename, "online")) {
         /* distinguish /sys/devices/system/cpu/online from /sys/devices/system/cpu/cpuX/online */
-        if (strstr(name, "cpu/cpu"))
+        if (strstr(name, "cpu/cpu")) {
+            if (cpunum == 0)
+                return -ENOENT;
             cpu_filebuf = pal_control.topo_info.core_topology[cpunum].is_logical_core_online;
-        else
+        } else {
             cpu_filebuf = pal_control.topo_info.online_logical_cores;
+        }
     } else if (!strcmp(filename, "possible")) {
         cpu_filebuf = pal_control.topo_info.possible_logical_cores;
     } else if (!strcmp(filename, "core_id")) {

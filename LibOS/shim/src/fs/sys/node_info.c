@@ -15,7 +15,7 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
     if (ret < 0 || (strlen(filename) != size))
         return -ENOENT;
 
-    int nodenum = extract_first_num_from_string (name);
+    int nodenum = extract_first_num_from_string(name);
     if (nodenum < 0)
         return -ENOENT;
 

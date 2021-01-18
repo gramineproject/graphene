@@ -13,7 +13,7 @@
 extern const struct pseudo_dir sys_cpu_dir;
 extern const struct pseudo_dir sys_node_dir;
 
-int extract_first_num_from_string (const char* pathname) {
+int extract_first_num_from_string(const char* pathname) {
     const char* str = pathname;
 
     while (*str) {
@@ -27,21 +27,19 @@ int extract_first_num_from_string (const char* pathname) {
 }
 
 /* This function will extract "cpu105" from "cpu105/cache/index0/type". If string doesn't have "/"
- * delimiter, a copy of original string is returned. Note: Caller's responsibility to free returned
- * buffer.*/
+ * delimiter, a copy of original string is returned. */
 static char* extract_first_token_from_path(const char* pathname) {
     if (pathname == NULL)
         return NULL;
 
-    char* name = strdup(pathname);
-    if (!name)
-        return NULL;
-
-    char *delim_ptr = strchr(name, '/');
+    int len;
+    char *delim_ptr = strchr(pathname, '/');
     if (delim_ptr)
-        *delim_ptr = '\0';
+        len = delim_ptr - pathname;
+    else
+        len = strlen(pathname);
 
-    return name;
+    return alloc_substr(pathname, len);
 }
 
 int sys_match_resource_num(const char* pathname) {
@@ -60,11 +58,27 @@ int sys_match_resource_num(const char* pathname) {
         goto out;
     }
 
+    char dirname[32];
     if (strstartswith(token, "node")) {
+        snprintf(dirname, sizeof(dirname), "node%d", num);
+        if (strcmp(token, dirname)) {
+            ret = 0;
+            goto out;
+        }
         totalcnt = pal_control.topo_info.num_online_nodes;
     } else if (strstartswith(token, "cpu")) {
+        snprintf(dirname, sizeof(dirname), "cpu%d", num);
+        if (strcmp(token, dirname)) {
+            ret = 0;
+            goto out;
+        }
         totalcnt = pal_control.cpu_info.online_logical_cores;
     } else if (strstartswith(token, "index")) {
+        snprintf(dirname, sizeof(dirname), "index%d", num);
+        if (strcmp(token, dirname)) {
+            ret = 0;
+            goto out;
+        }
         totalcnt = pal_control.topo_info.num_cache_index;
     } else {
         debug("Invalid resource %s in file %s!", token, pathname);
@@ -89,13 +103,19 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
     struct shim_dirent* dirent_in_buf = *buf;
     size_t total_size = 0;
 
-    if (strendswith(pathname, "node")) {
+    char filename[32];
+    size_t fsize = sizeof(filename);
+    int ret = get_base_name(pathname, filename, &fsize);
+    if (ret < 0 || (strlen(filename) != fsize))
+        return -ENOENT;
+
+    if (!strcmp(filename, "node")) {
         snprintf(res_name, sizeof(res_name), "node");
         totalcnt = pal_control.topo_info.num_online_nodes;
-    } else if (strendswith(pathname, "index")) {
+    } else if (!strcmp(filename, "cache")) {
         snprintf(res_name, sizeof(res_name), "index");
         totalcnt = pal_control.topo_info.num_cache_index;
-    } else if (strendswith(pathname, "cpu")) {
+    } else if (!strcmp(filename, "cpu")) {
         snprintf(res_name, sizeof(res_name), "cpu");
         totalcnt = pal_control.cpu_info.online_logical_cores;
     } else {

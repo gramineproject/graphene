@@ -5,9 +5,9 @@
  * This file contains the APIs to expose host topology information.
  */
 
-#include "api.h"
 #include <asm/errno.h>
 #include <asm/fcntl.h>
+#include "api.h"
 #include "pal_linux.h"
 #include "topo_info.h"
 
@@ -76,9 +76,9 @@ int read_file_buffer(const char* filename, char* buf, size_t count) {
     return ret;
 }
 
-#define READ_FILE_BUFFER(filepath, buf, size, failure_label)                     \
+#define READ_FILE_BUFFER(filepath, buf, failure_label)                           \
     ({                                                                           \
-        ret = read_file_buffer(filepath, buf, size);                             \
+        ret = read_file_buffer(filepath, buf, ARRAY_SIZE(buf)-1);                \
         if (ret < 0)                                                             \
             goto failure_label;                                                  \
         buf[ret] = '\0';                                                         \
@@ -107,7 +107,7 @@ static int get_num_cache_level(const char* path) {
 
         for (bpos = 0; bpos < nread;) {
             dirent64 = (struct linux_dirent64*)(buf + bpos);
-            if (dirent64->d_type == DT_DIR && strncmp(dirent64->d_name, "index", 5) == 0)
+            if (dirent64->d_type == DT_DIR && strstartswith(dirent64->d_name, "index") == 0)
                 num_dirs++;
             bpos += dirent64->d_reclen;
         }
@@ -130,35 +130,32 @@ static int get_cache_topo_info(int num_cache_lvl, int core_idx, PAL_CORE_CACHE_I
     for (int lvl = 0; lvl < num_cache_lvl; lvl++) {
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/shared_cpu_map", core_idx, lvl);
-        READ_FILE_BUFFER(filename, core_cache[lvl].shared_cpu_map, PAL_SYSFS_MAP_FILESZ - 1,
-                         out_cache);
+        READ_FILE_BUFFER(filename, core_cache[lvl].shared_cpu_map, /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/level", core_idx, lvl);
-        READ_FILE_BUFFER(filename, core_cache[lvl].level, PAL_SYSFS_INT_FILESZ - 1, out_cache);
+        READ_FILE_BUFFER(filename, core_cache[lvl].level, /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/type", core_idx, lvl);
-        READ_FILE_BUFFER(filename, core_cache[lvl].type, PAL_SYSFS_BUF_FILESZ - 1, out_cache);
+        READ_FILE_BUFFER(filename, core_cache[lvl].type, /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/size", core_idx, lvl);
-        READ_FILE_BUFFER(filename, core_cache[lvl].size, PAL_SYSFS_BUF_FILESZ - 1, out_cache);
+        READ_FILE_BUFFER(filename, core_cache[lvl].size, /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/coherency_line_size", core_idx, lvl);
-        READ_FILE_BUFFER(filename, core_cache[lvl].coherency_line_size,
-                         PAL_SYSFS_INT_FILESZ - 1, out_cache);
+        READ_FILE_BUFFER(filename, core_cache[lvl].coherency_line_size, /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/number_of_sets", core_idx, lvl);
-        READ_FILE_BUFFER(filename, core_cache[lvl].number_of_sets, PAL_SYSFS_INT_FILESZ - 1,
-                         out_cache);
+        READ_FILE_BUFFER(filename, core_cache[lvl].number_of_sets, /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/physical_line_partition", core_idx, lvl);
         READ_FILE_BUFFER(filename, core_cache[lvl].physical_line_partition,
-                         PAL_SYSFS_INT_FILESZ - 1, out_cache);
+                         /*failure_label=*/out_cache);
     }
     *cache_info = core_cache;
     return 0;
@@ -169,13 +166,13 @@ out_cache:
 }
 
 /* Get core topology-related info */
-int get_core_topo_info(PAL_TOPO_INFO* topo_info) {
+static int get_core_topo_info(PAL_TOPO_INFO* topo_info) {
     int ret;
     READ_FILE_BUFFER("/sys/devices/system/cpu/online", topo_info->online_logical_cores,
-                     PAL_SYSFS_BUF_FILESZ - 1, out);
+                     /*failure_label=*/out);
 
     READ_FILE_BUFFER("/sys/devices/system/cpu/possible", topo_info->possible_logical_cores,
-                     PAL_SYSFS_BUF_FILESZ - 1, out);
+                     /*failure_label=*/out);
 
     int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
     if (online_logical_cores < 0)
@@ -197,22 +194,20 @@ int get_core_topo_info(PAL_TOPO_INFO* topo_info) {
         if (idx != 0) {
             snprintf(filename, sizeof(filename), "/sys/devices/system/cpu/cpu%d/online", idx);
             READ_FILE_BUFFER(filename, core_topology[idx].is_logical_core_online,
-                             PAL_SYSFS_INT_FILESZ - 1, out_topology);
+                             /*failure_label=*/out_topology);
         }
 
         snprintf(filename, sizeof(filename), "/sys/devices/system/cpu/cpu%d/topology/core_id", idx);
-        READ_FILE_BUFFER(filename, core_topology[idx].core_id, PAL_SYSFS_INT_FILESZ - 1,
-                         out_topology);
+        READ_FILE_BUFFER(filename, core_topology[idx].core_id, /*failure_label=*/out_topology);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/core_siblings", idx);
-        READ_FILE_BUFFER(filename, core_topology[idx].core_siblings, PAL_SYSFS_MAP_FILESZ - 1,
-                         out_topology);
+        READ_FILE_BUFFER(filename, core_topology[idx].core_siblings, /*failure_label=*/out_topology);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", idx);
-        READ_FILE_BUFFER(filename, core_topology[idx].thread_siblings, PAL_SYSFS_MAP_FILESZ - 1,
-                         out_topology);
+        READ_FILE_BUFFER(filename, core_topology[idx].thread_siblings,
+                         /*failure_label=*/out_topology);
 
         ret = get_cache_topo_info(num_cache_lvl, idx, &core_topology[idx].cache);
         if (ret < 0)
@@ -228,10 +223,10 @@ out:
 }
 
 /* Get NUMA topology-related info */
-int get_numa_topo_info(PAL_TOPO_INFO* topo_info) {
+static int get_numa_topo_info(PAL_TOPO_INFO* topo_info) {
     int ret;
     READ_FILE_BUFFER("/sys/devices/system/node/online", topo_info->online_nodes,
-                     PAL_SYSFS_BUF_FILESZ - 1, out);
+                     /*failure_label=*/out);
 
     int num_nodes = get_hw_resource("/sys/devices/system/node/online", /*count=*/true);
     if (num_nodes < 0)
@@ -246,12 +241,10 @@ int get_numa_topo_info(PAL_TOPO_INFO* topo_info) {
     char filename[128];
     for (int idx = 0; idx < num_nodes; idx++) {
         snprintf(filename, sizeof(filename), "/sys/devices/system/node/node%d/cpumap", idx);
-        READ_FILE_BUFFER(filename, numa_topology[idx].cpumap, PAL_SYSFS_MAP_FILESZ - 1,
-                         out_topology);
+        READ_FILE_BUFFER(filename, numa_topology[idx].cpumap, /*failure_label=*/out_topology);
 
         snprintf(filename, sizeof(filename), "/sys/devices/system/node/node%d/distance", idx);
-        READ_FILE_BUFFER(filename, numa_topology[idx].distance, PAL_SYSFS_INT_FILESZ - 1,
-                         out_topology);
+        READ_FILE_BUFFER(filename, numa_topology[idx].distance, /*failure_label=*/out_topology);
 
         /* Since our /sys fs doesn't support writes, set persistent hugepages to their default value
          * of zero */
@@ -265,4 +258,18 @@ out_topology:
     free(numa_topology);
 out:
     return ret;
+}
+
+int get_topology_info(PAL_TOPO_INFO* topo_info) {
+    /* Get CPU topology information */
+    int ret = get_core_topo_info(topo_info);
+    if (ret < 0)
+        return ret;
+
+    /* Get NUMA topology information */
+    ret = get_numa_topo_info(topo_info);
+    if (ret < 0)
+        return ret;
+
+    return 0;
 }

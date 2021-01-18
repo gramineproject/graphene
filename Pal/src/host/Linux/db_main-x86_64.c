@@ -256,13 +256,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 }
 
 int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
-    /* Get CPU topology information */
-    int ret = get_core_topo_info(topo_info);
-    if (ret < 0)
-        return unix_to_pal_error(ERRNO(ret));
-
-    /* Get NUMA topology information */
-    ret = get_numa_topo_info(topo_info);
+    int ret = get_topology_info(topo_info);
     if (ret < 0)
         return unix_to_pal_error(ERRNO(ret));
 
