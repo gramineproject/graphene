@@ -14,6 +14,7 @@
 #include "list.h"
 #include "pal.h"
 #include "shim_checkpoint.h"
+#include "shim_defs.h"
 #include "shim_flags_conv.h"
 #include "shim_handle.h"
 #include "shim_internal.h"

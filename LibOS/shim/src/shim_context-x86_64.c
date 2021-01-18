@@ -235,8 +235,8 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
 
     sigframe->siginfo = *siginfo;
 
-    /* Graphene does not change SS and assumes that it is constant so these flags are not strictly
-     * needed, but we do store SS in ucontext so let's just set them. */
+    /* Graphene does not change SS (stack segment register) and assumes that it is constant so
+     * these flags are not strictly needed, but we do store SS in ucontext so let's just set them. */
     sigframe->uc.uc_flags = UC_SIGCONTEXT_SS | UC_STRICT_RESTORE_SS;
     sigframe->uc.uc_link = NULL;
     /* TODO: add support for SA_AUTODISARM */
@@ -245,12 +245,13 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
     pal_context_to_ucontext(&sigframe->uc, context);
 
     /* XXX: Currently we assume that `struct shim_xstate`, `PAL_XREGS_STATE` and `struct _fpstate`
-     * (just the header) are the very same sturcture. This mess needs to be fixed. */
+     * (just the header) are the very same structure. This mess needs to be fixed. */
     static_assert(sizeof(struct shim_xstate) == sizeof(PAL_XREGS_STATE),
                   "sse state structs differ");
     static_assert(sizeof(struct shim_fpstate) == sizeof(struct _fpstate),
                   "sse state structs differ");
     if (shim_xstate_copy(xstate, (struct shim_xstate*)sigframe->uc.uc_mcontext.fpstate)) {
+        /* This is a xsave-made xstate - it has the extended state info. */
         sigframe->uc.uc_flags |= UC_FP_XSTATE;
     }
     sigframe->uc.uc_mcontext.fpstate = (struct _fpstate*)xstate;
@@ -268,10 +269,11 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
 
     context->rip = handler;
     context->rsp = stack;
-    /* x64 SysV ABI mandates that DF flag is cleard and states that rest of flags is *not* preserved
-     * across functions calls, hence we just set flags to a default value (IF). */
+    /* x64 SysV ABI mandates that DF flag is cleared and states that rest of flags is *not*
+     * preserved across function calls, hence we just set flags to a default value (IF). */
     context->efl = 0x202;
-    /* In case handler was defined as variadic/without prototype. */
+    /* If handler was defined as variadic/without prototype it would expect the number of vector
+     * register arguments in `rax`. */
     context->rax = 0;
 }
 

@@ -30,6 +30,8 @@
 .global syscalldb
 .type syscalldb, @function
 syscalldb:
+    # on entry to this function rcx contains the return value (next instruction after syscall)
+    # all other register can have arbitrary values
     .cfi_startproc
     .cfi_def_cfa %rsp, 0
     .cfi_register %rip, %rcx
@@ -42,20 +44,18 @@ syscalldb:
     .cfi_undefined %r11
     .cfi_register %rsp, %r11
     .cfi_def_cfa_register %r11
-    mov %gs:(SHIM_TCB_OFFSET + SHIM_TCB_LIBOS_STACK), %rsp
+    mov %gs:(SHIM_TCB_OFFSET + SHIM_TCB_LIBOS_STACK_OFF), %rsp
 
     # Create PAL_CONTEXT struct on the stack.
 
-    # reserve space for mxcsr + fpcw
+    # reserve space for mxcsr + fpcw + is_fpregs_used
     pushq $0
 
     # fpregs, but for now we use this to store rax - to get a scratch register
     push %rax
 
-    # zero rax as we will be storing some 0 on the stack
-    mov $0, %eax
-
     # err + trapno + oldmask + cr2 are cleared for a syscall frame
+    mov $0, %eax
     push %rax
     push %rax
     push %rax
@@ -67,9 +67,8 @@ syscalldb:
 
     # after this we can use instructions changing flags
     pushfq
-    # Under GDB, single-stepping sets Trap Flag (TP) of EFLAGS,
-    # thus TP=1 is stored on pushfq above. Upon consequent popfq,
-    # TP is 1, resulting in spurious trap. Reset TP here.
+    # Debuggers use Trap Flag (TF) of EFLAGS to do single-stepping - otherwise it is unused by normal
+    # applications. If the previous instruction was single-stepped, it stored TF, so reset it here.
     andq $~0x100, (%rsp)
 
     # Set default rflags value (just IF set).
@@ -103,17 +102,17 @@ syscalldb:
     # PAL_CONTEXT struct ends here.
 
     # save FP Control Word & MXCSR into current thread's TCB
-    stmxcsr 0xc0(%rsp)
-    fnstcw 0xc4(%rsp)
+    stmxcsr PAL_CONTEXT_MXCSR_OFF(%rsp)
+    fnstcw PAL_CONTEXT_FPCW_OFF(%rsp)
 
-    # fpregs is not populated
-    movb $0, 0xc6(%rsp)
+    # fpregs is not populated, so is_fpregs_used should be 0.
+    movb $0, PAL_CONTEXT_FPREGS_USED_OFF(%rsp)
 
     call shim_xstate_size
-    lea 0xb8(%rsp), %rcx    # get pointer to fpregs
-    mov %rsp, %rdi          # save pointer to PAL_CONTEXT
-    sub %rax, %rsp          # allocate space for xstate
-    and $~(0x40 - 1), %rsp
+    lea PAL_CONTEXT_FPREGS_OFF(%rsp), %rcx  # get address where to store fpregs pointer
+    mov %rsp, %rdi                          # save pointer to PAL_CONTEXT
+    sub %rax, %rsp                          # allocate space for xstate
+    and $~(SHIM_XSTATE_ALIGN - 1), %rsp
     mov %rsp, (%rcx)
 
     and $~0xF, %rsp  # Required by System V AMD64 ABI.
@@ -128,22 +127,23 @@ syscalldb:
 .global return_from_syscall
 .type return_from_syscall, @function
 return_from_syscall:
+    # expects one argument (in `rdi`) - pointer to PAL_CONTEXT
     .cfi_startproc
 
     mov %rdi, %rbx
 
-    movb 0xc6(%rbx), %al
+    movb PAL_CONTEXT_FPREGS_USED_OFF(%rbx), %al
     test %al, %al
     je .Lrestore_fpu_state
 
-    mov 0xb8(%rbx), %rdi
+    mov PAL_CONTEXT_FPREGS_OFF(%rbx), %rdi
     call shim_xstate_restore
     jmp .Lrestore_context
 
 .Lrestore_fpu_state:
     # restore FP Control Word & MXCSR from TCB
-    fldcw 0xc4(%rbx)
-    ldmxcsr 0xc0(%rbx)
+    fldcw PAL_CONTEXT_FPCW_OFF(%rbx)
+    ldmxcsr PAL_CONTEXT_MXCSR_OFF(%rbx)
 
 .Lrestore_context:
     mov %rbx, %rsp
@@ -176,10 +176,10 @@ return_from_syscall:
     pop %rax
     pop %rcx # rip
     popfq
-    mov %rcx, %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SCRATCH_PC)
+    mov %rcx, %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SCRATCH_PC_OFF)
     pop %rcx
     pop %rsp
-    jmp *%gs:(SHIM_TCB_OFFSET + SHIM_TCB_SCRATCH_PC)
+    jmp *%gs:(SHIM_TCB_OFFSET + SHIM_TCB_SCRATCH_PC_OFF)
 
     .cfi_endproc
     .size return_from_syscall, .-return_from_syscall

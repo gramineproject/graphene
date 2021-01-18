@@ -63,8 +63,6 @@ struct shim_thread {
     /* Field for inserting threads on global `g_thread_list`. */
     LIST_TYPE(shim_thread) list;
 
-/* Internal LibOS stack size: 3 pages + one guard page. */
-#define SHIM_THREAD_LIBOS_STACK_SIZE (3 * PAGE_SIZE  + PAGE_SIZE)
     /* Pointer to the bottom of the internal LibOS stack. */
     void* libos_stack_bottom;
 
@@ -279,9 +277,8 @@ struct shim_thread* get_new_internal_thread(void);
 /*!
  * \brief Allocate a new stack for LibOS calls (emulated syscalls).
  *
- * \param thread Thread to get the stack.
+ * \param thread Thread for which to allocate a new stack.
  *
- * Allocates a new stack used to handle LibOS calls (emulated sysacalls).
  * On success returns `0`, on failure - negative error code.
  * Should be called only once per thread.
  */

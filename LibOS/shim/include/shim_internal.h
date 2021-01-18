@@ -71,6 +71,7 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
         debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
     } while (0)
 
+/**/
 void syscalldb(void);
 noreturn void shim_do_syscall(PAL_CONTEXT* context);
 noreturn void return_from_syscall(PAL_CONTEXT* regs);

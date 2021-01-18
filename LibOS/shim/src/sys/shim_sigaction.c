@@ -204,7 +204,7 @@ long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr, size_t setsize) {
     }
 
     /* XXX: This basicaly doubles the work of `shim_do_syscall`. The alternative would be to add
-     * handling of saved signal maks (probably inside `current`) to `shim_do_syscall`, but as it
+     * handling of saved signal mask (probably inside `current`) to `shim_do_syscall`, but as it
      * is specific to sigsuspend I'm leaving this here for now. */
     int ret = -EINTR;
     PAL_CONTEXT* context = SHIM_TCB_GET(context.regs);

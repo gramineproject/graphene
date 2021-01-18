@@ -11,8 +11,6 @@
 #include "vdso.h"
 #include "vdso_syscall.h"
 
-/* XXX(borysp): What's the point of manual relocations/emulation of GOT here? Why cannot this be
- * just normal, generic relocation? Wouldn't loading vdso as first library be enough? */
 /*
  * The symbol below needs to be exported for libsysdb to inject those values,
  * but relocation (.rela.dyn section) isn't wanted in the code generation.
