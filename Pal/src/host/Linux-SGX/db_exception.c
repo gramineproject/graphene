@@ -249,6 +249,11 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
     ctx.oldmask = 0;
     ctx.cr2     = 0;
 
+    /*
+     * For sync exceptions `arg` in `upcall` is the address of the exception, for async it is
+     * (when cast to `bool`) `true` if exception happened while in Pal, `false` otherwise (user
+     * app or LibOS).
+     */
     PAL_NUM arg = 0;
     switch (event_num) {
         case PAL_EVENT_ILLEGAL:

@@ -100,7 +100,12 @@ static int get_pal_event(int sig) {
     }
 }
 
-/* This function must be reentrant and thread-safe - this includes `upcall` too! */
+/*
+ * This function must be reentrant (but only from Pal) and thread-safe - this includes `upcall`
+ * too!
+ * For sync exceptions `arg` is the address of the exception, for async it is (when cast to `bool`)
+ * `true` if exception happened while in Pal, `false` otherwise (user app or LibOS).
+ */
 static void perform_signal_handling(int event, PAL_NUM arg, ucontext_t* uc) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
     if (!upcall)

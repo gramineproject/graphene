@@ -636,8 +636,6 @@ int init_signal(void) {
     }
     g_inject_host_signal_enabled = !!allow_injection;
 
-    /* TODO: document somewhere that async upcalls get in first argument whether event happened in
-     * Pal */
     DkSetExceptionHandler(&arithmetic_error_upcall, PAL_EVENT_ARITHMETIC_ERROR);
     DkSetExceptionHandler(&memfault_upcall,         PAL_EVENT_MEMFAULT);
     DkSetExceptionHandler(&illegal_upcall,          PAL_EVENT_ILLEGAL);

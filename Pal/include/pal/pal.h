@@ -555,7 +555,14 @@ enum PAL_EVENT {
     PAL_EVENT_NUM_BOUND,
 };
 
-typedef void (*PAL_EVENT_HANDLER)(PAL_NUM arg, PAL_CONTEXT*);
+/*!
+ * \brief Type of exception handlers (upcalls).
+ *
+ * \param arg For async exceptions this is `bool is_in_pal` (true if exception happened in Pal),
+ *            for sync exceptions this is the address of the exception.
+ * \param context CPU context at the moment of exception.
+ */
+typedef void (*PAL_EVENT_HANDLER)(PAL_NUM arg, PAL_CONTEXT* context);
 
 /*!
  * \brief Set the handler for the specific exception event.

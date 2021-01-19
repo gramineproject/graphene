@@ -31,7 +31,7 @@
 .type syscalldb, @function
 syscalldb:
     # on entry to this function rcx contains the return value (next instruction after syscall)
-    # all other register can have arbitrary values
+    # all other registers can have arbitrary values
     .cfi_startproc
     .cfi_def_cfa %rsp, 0
     .cfi_register %rip, %rcx
