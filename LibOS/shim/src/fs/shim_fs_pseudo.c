@@ -9,6 +9,8 @@
  * This file contains common code for pseudo-filesystems (e.g., /dev and /proc).
  */
 
+#include <stdalign.h>
+
 #include "shim_fs.h"
 #include "stat.h"
 

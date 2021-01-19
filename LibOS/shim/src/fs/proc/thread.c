@@ -3,6 +3,7 @@
 #include <asm/unistd.h>
 #include <errno.h>
 #include <linux/fcntl.h>
+#include <stdalign.h>
 
 #include "pal.h"
 #include "pal_error.h"
