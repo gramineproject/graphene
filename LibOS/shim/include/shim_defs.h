@@ -27,4 +27,9 @@
 #define REQUIRED_ELF_AUXV_SPACE 16 /* extra memory space (in bytes) */
 #define LIBOS_SYSCALL_BOUND __NR_syscalls
 
+/* Offsets for patched code calling into Graphene (see patches for glibc and gcc). If you change
+ * this, update the patches too. */
+#define SHIM_SYSCALLDB_OFFSET         32
+#define SHIM_REGISTER_LIBRARY_OFFSET  40
+
 #endif /* _SHIM_DEFS_H_ */
