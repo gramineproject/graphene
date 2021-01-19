@@ -5,7 +5,7 @@
 #ifndef _VDSO_SYSCALL_H
 #define _VDSO_SYSCALL_H
 
-static inline long arch_syscall(long (*syscalldb)(void), long nr, long arg1, long arg2) {
+static inline long vdso_arch_syscall(long (*syscalldb)(void), long nr, long arg1, long arg2) {
     long ret;
     __asm__ volatile(
         "lea .Lret%=(%%rip), %%rcx\n"

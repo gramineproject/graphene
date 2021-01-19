@@ -228,7 +228,22 @@ long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (!set || test_user_memory(set, sigsetsize, false))
         return -EFAULT;
 
-    get_pending_signals(set);
+    get_all_pending_signals(set);
+
+    struct shim_thread* current = get_cur_thread();
+    /* We are interested only in blocked signals... */
+    lock(&current->lock);
+    __sigandset(set, set, &current->signal_mask);
+    unlock(&current->lock);
+
+    /* ...and not ignored. */
+    lock(&current->signal_dispositions->lock);
+    for (int sig = 1; sig <= NUM_SIGS; sig++) {
+        if (current->signal_dispositions->actions[sig - 1].k_sa_handler == SIG_IGN) {
+            __sigdelset(set, sig);
+        }
+    }
+    unlock(&current->signal_dispositions->lock);
 
     return 0;
 }

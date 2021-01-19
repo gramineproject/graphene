@@ -87,7 +87,7 @@ struct shim_thread {
     struct shim_signal_dispositions* signal_dispositions;
     struct shim_signal_queue signal_queue;
     /* For the field below, see the explanation in "LibOS/shim/src/bookkeep/shim_signal.c" near
-     * `process_pending_signals_cnt`. */
+     * `g_process_pending_signals_cnt`. */
     uint64_t pending_signals;
 
     struct shim_signal forced_signal;

@@ -107,7 +107,7 @@ struct shim_signal {
     siginfo_t siginfo;
 };
 
-void get_pending_signals(__sigset_t* set);
+void get_all_pending_signals(__sigset_t* set);
 bool have_pending_signals(void);
 
 /*!

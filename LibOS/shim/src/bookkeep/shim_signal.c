@@ -146,7 +146,7 @@ static void recalc_pending_mask(struct shim_signal_queue* queue, int sig) {
     }
 }
 
-void get_pending_signals(__sigset_t* set) {
+void get_all_pending_signals(__sigset_t* set) {
     struct shim_thread* current = get_cur_thread();
 
     __sigemptyset(set);
@@ -168,7 +168,7 @@ void get_pending_signals(__sigset_t* set) {
 bool have_pending_signals(void) {
     struct shim_thread* current = get_cur_thread();
     __sigset_t set;
-    get_pending_signals(&set);
+    get_all_pending_signals(&set);
 
     lock(&current->lock);
     __signotset(&set, &set, &current->signal_mask);
@@ -329,7 +329,7 @@ static void arithmetic_error_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
             .si_addr = (void*)arg,
         };
         force_signal(&info);
-        handle_signal(context, NULL);
+        handle_signal(context, /*old_mask_ptr=*/NULL);
     }
 }
 
@@ -388,7 +388,7 @@ static void memfault_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     }
 
     force_signal(&info);
-    handle_signal(context, NULL);
+    handle_signal(context, /*old_mask_ptr=*/NULL);
 }
 
 /*
@@ -574,7 +574,7 @@ static void illegal_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
             .si_addr = (void*)arg,
         };
         force_signal(&info);
-        handle_signal(context, NULL);
+        handle_signal(context, /*old_mask_ptr=*/NULL);
     }
     /* else syscall was emulated. */
 }
@@ -610,7 +610,7 @@ static void quit_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     if (is_internal(get_cur_thread()) || context_is_libos(context) || is_in_pal) {
         return;
     }
-    handle_signal(context, NULL);
+    handle_signal(context, /*old_mask_ptr=*/NULL);
 }
 
 static void interrupted_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
@@ -619,7 +619,7 @@ static void interrupted_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     if (is_internal(get_cur_thread()) || context_is_libos(context) || is_in_pal) {
         return;
     }
-    handle_signal(context, NULL);
+    handle_signal(context, /*old_mask_ptr=*/NULL);
 }
 
 int init_signal(void) {
@@ -663,7 +663,7 @@ void set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
     thread->signal_mask = *set;
 }
 
-/* XXX: This function assumes that stack is growning down.  */
+/* XXX: This function assumes that stack is growing down.  */
 bool is_on_altstack(uint64_t sp, stack_t* alt_stack) {
     uint64_t alt_sp = (uint64_t)alt_stack->ss_sp;
     uint64_t alt_sp_end = alt_sp + alt_stack->ss_size;
@@ -673,7 +673,7 @@ bool is_on_altstack(uint64_t sp, stack_t* alt_stack) {
     return false;
 }
 
-/* XXX: This function assumes that stack is growning down.  */
+/* XXX: This function assumes that stack is growing down.  */
 uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack) {
     struct shim_thread* current = get_cur_thread();
     stack_t* alt_stack = &current->signal_altstack;

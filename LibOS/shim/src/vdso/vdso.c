@@ -25,21 +25,21 @@ EXPORT_SYMBOL(syscalldb);
     __typeof__(__vdso_##name) name __attribute__((weak, alias("__vdso_" #name)))
 
 int __vdso_clock_gettime(clockid_t clock, struct timespec* t) {
-    return arch_syscall(syscalldb, __NR_clock_gettime, (long)clock, (long)t);
+    return vdso_arch_syscall(syscalldb, __NR_clock_gettime, (long)clock, (long)t);
 }
 EXPORT_WEAK_SYMBOL(clock_gettime);
 
 int __vdso_gettimeofday(struct timeval* tv, struct timezone* tz) {
-    return arch_syscall(syscalldb, __NR_gettimeofday, (long)tv, (long)tz);
+    return vdso_arch_syscall(syscalldb, __NR_gettimeofday, (long)tv, (long)tz);
 }
 EXPORT_WEAK_SYMBOL(gettimeofday);
 
 time_t __vdso_time(time_t* t) {
-    return arch_syscall(syscalldb, __NR_time, (long)t, 0);
+    return vdso_arch_syscall(syscalldb, __NR_time, (long)t, 0);
 }
 EXPORT_WEAK_SYMBOL(time);
 
 long __vdso_getcpu(unsigned* cpu, struct getcpu_cache* unused) {
-    return arch_syscall(syscalldb, __NR_getcpu, (long)cpu, (long)unused);
+    return vdso_arch_syscall(syscalldb, __NR_getcpu, (long)cpu, (long)unused);
 }
 EXPORT_WEAK_SYMBOL(getcpu);

@@ -275,6 +275,9 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
     /* If handler was defined as variadic/without prototype it would expect the number of vector
      * register arguments in `rax`. */
     context->rax = 0;
+
+    debug("Created sigframe for sig: %d at %p (handler: 0x%lx, restorer: 0x%lx)\n",
+          siginfo->si_signo, sigframe, handler, restorer);
 }
 
 void restart_syscall(PAL_CONTEXT* context, uint64_t syscall_nr) {

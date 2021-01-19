@@ -47,7 +47,7 @@ out:
 
     /* Some syscalls e.g. `sigreturn` could have changed context and in reality we might be not
      * returning from a syscall. */
-    if (!handle_signal(context, NULL) && SHIM_TCB_GET(context.syscall_nr) >= 0) {
+    if (!handle_signal(context, /*old_mask_ptr=*/NULL) && SHIM_TCB_GET(context.syscall_nr) >= 0) {
         switch (ret) {
             case -ERESTARTNOHAND:
             case -ERESTARTSYS:
