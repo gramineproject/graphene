@@ -37,7 +37,6 @@ typedef unsigned long __fd_mask;
     } while (0)
 
 #define __FD_ELT(d)        ((d) / __NFDBITS)
-/* ubsan requires the mask to be an unsigned long */
 #define __FD_MASK(d)       ((__fd_mask)1 << ((d) % __NFDBITS))
 #define __FD_SET(d, set)   ((void)(__FDS_BITS(set)[__FD_ELT(d)] |= __FD_MASK(d)))
 #define __FD_CLR(d, set)   ((void)(__FDS_BITS(set)[__FD_ELT(d)] &= ~__FD_MASK(d)))
