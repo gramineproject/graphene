@@ -101,7 +101,8 @@ struct shim_ipc_msg {
     size_t size;
     IDTYPE src, dst;
     unsigned long seq;
-    char msg[];
+    /* msg must for example be aligned to struct shim_ipc_sysv_tellkey */
+    char msg[] __attribute__((aligned(alignof(8))));
 } __attribute__((packed));
 
 struct shim_ipc_port;
