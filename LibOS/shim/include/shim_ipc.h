@@ -101,7 +101,8 @@ struct shim_ipc_msg {
     size_t size;
     IDTYPE src, dst;
     unsigned long seq;
-    char msg[];
+    /* msg is used to store and read various structures, we need to ensure its proper alignment */
+    char msg[] __attribute__((aligned(16)));
 } __attribute__((packed));
 
 struct shim_ipc_port;
