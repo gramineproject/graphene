@@ -462,8 +462,7 @@ static int restore_checkpoint(struct checkpoint_hdr* hdr, uintptr_t base) {
             continue;
         }
 
-        /* avoid pointer alignment issues on 'rs' with additional pointer */
-        rs_func rs = (__rs_func)[cpent->cp_type - CP_FUNC_BASE];
+        rs_func rs = __rs_func[cpent->cp_type - CP_FUNC_BASE];
         int ret = (*rs)(cpent, base, offset, rebase);
         if (ret < 0) {
             debug("failed restoring checkpoint at %s (%d)\n", CP_FUNC_NAME(cpent->cp_type), ret);
