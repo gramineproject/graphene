@@ -94,7 +94,7 @@ static int populate_dirent(const char* path, const struct pseudo_dir* dir, struc
         if (ent->name) {
             /* directory entry has a hardcoded name */
             size_t name_size   = strlen(ent->name) + 1;
-            /* all directory entries must be aligned on the dirent::next pointer size */
+            /* all directory entries must be aligned on the *dirent::next pointer size */
             size_t dirent_size = ALIGN_UP(sizeof(struct shim_dirent) + name_size,
                                           alignof(*dirent_in_buf->next));
 
