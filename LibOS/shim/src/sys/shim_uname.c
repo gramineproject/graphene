@@ -44,7 +44,7 @@ long shim_do_sethostname(char* name, int len) {
     if (len < 0 || (size_t)len >= sizeof(g_current_uname.nodename))
         return -EINVAL;
 
-    if (test_user_memory(name, len, /*write=*/false))
+    if (!name || test_user_memory(name, len, /*write=*/false))
         return -EFAULT;
 
     memcpy(&g_current_uname.nodename, name, len);
@@ -56,7 +56,7 @@ long shim_do_setdomainname(char* name, int len) {
     if (len < 0 || (size_t)len >= sizeof(g_current_uname.domainname))
         return -EINVAL;
 
-    if (test_user_memory(name, len, /*write=*/false))
+    if (!name || test_user_memory(name, len, /*write=*/false))
         return -EFAULT;
 
     memcpy(&g_current_uname.domainname, name, len);
