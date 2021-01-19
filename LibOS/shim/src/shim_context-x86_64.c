@@ -13,6 +13,7 @@
 #include "asm-offsets.h"
 #include "pal.h"
 #include "shim_context.h"
+#include "shim_entry.h"
 #include "shim_internal.h"
 #include "shim_thread.h"
 #include "ucontext.h"

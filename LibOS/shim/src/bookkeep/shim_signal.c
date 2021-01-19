@@ -18,6 +18,7 @@
 #include "cpu.h"
 #include "pal.h"
 #include "shim_checkpoint.h"
+#include "shim_entry.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"

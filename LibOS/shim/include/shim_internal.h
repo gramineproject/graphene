@@ -79,13 +79,6 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
     } while (0)
 
 /*!
- * \brief LibOS syscall emulation entrypoint.
- *
- * Actual implementation and ABI are architecture-specific, but generally should dump the CPU
- * context and call `shim_emulate_syscall`.
- */
-void syscalldb(void);
-/*!
  * \brief High-level syscall emulation entrypoint.
  *
  * \param context CPU context at syscall entry.

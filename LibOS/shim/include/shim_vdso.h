@@ -11,6 +11,4 @@
 extern const uint8_t vdso_so[];
 extern const size_t vdso_so_size;
 
-int vdso_map_migrate(void);
-
 #endif /* _SHIM_VDSO_H_ */

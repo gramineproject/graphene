@@ -90,8 +90,10 @@ GLIBC_PATCHES_2.31 = \
 
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
+GLIBC_DEPS = shim/include/shim_entry_offsets.h
+
 .SECONDARY: $(GLIBC_SRC)/.configured
-$(GLIBC_SRC)/.configured: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
+$(GLIBC_SRC)/.configured: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz $(GLIBC_DEPS)
 	$(RM) -r $(GLIBC_SRC)
 	tar -mxzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
@@ -152,8 +154,10 @@ $(foreach lib,$(GCC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib)))
 GCC_PATCHES = \
 	gcc-patches/libgomp-replace-futex-instruction.patch
 
+GCC_DEPS = shim/include/shim_entry_offsets.h
+
 .SECONDARY: $(GCC_SRC)/.configured
-$(GCC_SRC)/.configured: $(GCC_PATCHES) $(GCC_SRC).tar.gz
+$(GCC_SRC)/.configured: $(GCC_PATCHES) $(GCC_SRC).tar.gz $(GCC_DEPS)
 	$(RM) -r $(GCC_SRC)
 	tar -mxzf $(GCC_SRC).tar.gz
 	cd $(GCC_SRC) && \

@@ -14,8 +14,8 @@
 
 #include "elf.h"
 #include "elf/ldsodefs.h"
-#include "glibc-version.h"
 #include "shim_checkpoint.h"
+#include "shim_entry.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
@@ -1334,18 +1334,8 @@ int remove_loaded_libraries(void) {
  * parent. Just treat vdso page as user-program data and adjust function pointers for vdso
  * functions after migration.
  */
-static void* vdso_addr __attribute_migratable = NULL;
-static ElfW(Addr)* __vdso_syscalldb __attribute_migratable = NULL;
 
-static const struct {
-    const char* name;
-    ElfW(Addr) value;
-    ElfW(Addr)** func;
-} vsyms[] = {{
-                 .name  = "__vdso_syscalldb",
-                 .value = (ElfW(Addr))&syscalldb,
-                 .func  = &__vdso_syscalldb,
-             }};
+static void* vdso_addr __attribute_migratable = NULL;
 
 static int vdso_map_init(void) {
     /*
@@ -1374,39 +1364,10 @@ static int vdso_map_init(void) {
     __load_elf_object(NULL, addr, OBJECT_VDSO);
     vdso_map->l_name = "vDSO";
 
-    for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
-        ElfW(Sym)* sym = __do_lookup(vsyms[i].name, NULL, vdso_map);
-        if (sym == NULL) {
-            debug("vDSO: symbol value for %s not found\n", vsyms[i].name);
-            continue;
-        }
-        *vsyms[i].func  = (ElfW(Addr)*)(vdso_map->l_addr + sym->st_value);
-        **vsyms[i].func = vsyms[i].value;
-    }
-
     if (!DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
         return -PAL_ERRNO();
 
     vdso_addr = addr;
-    return 0;
-}
-
-int vdso_map_migrate(void) {
-    if (!vdso_addr)
-        return 0;
-
-    if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
-                                PAL_PROT_READ | PAL_PROT_WRITE))
-        return -PAL_ERRNO();
-
-    /* adjust funcs to loaded address for newly loaded libsysdb */
-    for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
-        **vsyms[i].func = vsyms[i].value;
-    }
-
-    if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
-                                PAL_PROT_READ | PAL_PROT_EXEC))
-        return -PAL_ERRNO();
     return 0;
 }
 
