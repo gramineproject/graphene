@@ -1,20 +1,12 @@
 diff --git a/libgomp/config/linux/x86/futex.h b/libgomp/config/linux/x86/futex.h
-index ead74d1496736a49694ef6b9b2b4da50f9852664..917412326135b9e9da3e14da3765868d217f1ed3 100644
+index ead74d1496736a49694ef6b9b2b4da50f9852664..6f7406684f700867ac78a1588a7ede190666ca86 100644
 --- a/libgomp/config/linux/x86/futex.h
 +++ b/libgomp/config/linux/x86/futex.h
-@@ -30,13 +30,23 @@
+@@ -30,13 +30,15 @@
  #  define SYS_futex	202
  # endif
  
-+asm(
-+".weak syscalldb\n"
-+".type syscalldb, @function\n"
-+".macro SYSCALLDB\n"
-+"leaq .Lafter_syscalldb\\@(%rip), %rcx\n"
-+"jmpq *syscalldb@GOTPCREL(%rip)\n"
-+".Lafter_syscalldb\\@:\n"
-+".endm\n"
-+);
++#include "shim_entry_api.h"
 +
  static inline void
  futex_wait (int *addr, int val)
@@ -27,7 +19,7 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..917412326135b9e9da3e14da3765868d
  		  : "=a" (res)
  		  : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wait),
  		    "d" (val), "r" (r10)
-@@ -45,7 +55,7 @@ futex_wait (int *addr, int val)
+@@ -45,7 +47,7 @@ futex_wait (int *addr, int val)
      {
        gomp_futex_wait &= ~FUTEX_PRIVATE_FLAG;
        gomp_futex_wake &= ~FUTEX_PRIVATE_FLAG;
@@ -36,7 +28,7 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..917412326135b9e9da3e14da3765868d
  		      : "=a" (res)
  		      : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wait),
  			"d" (val), "r" (r10)
-@@ -58,7 +68,7 @@ futex_wake (int *addr, int count)
+@@ -58,7 +60,7 @@ futex_wake (int *addr, int count)
  {
    long res;
  
@@ -45,7 +37,7 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..917412326135b9e9da3e14da3765868d
  		  : "=a" (res)
  		  : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wake),
  		    "d" (count)
-@@ -67,7 +77,7 @@ futex_wake (int *addr, int count)
+@@ -67,7 +69,7 @@ futex_wake (int *addr, int count)
      {
        gomp_futex_wait &= ~FUTEX_PRIVATE_FLAG;
        gomp_futex_wake &= ~FUTEX_PRIVATE_FLAG;
@@ -54,3 +46,11 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..917412326135b9e9da3e14da3765868d
  		      : "=a" (res)
  		      : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wake),
  			"d" (count)
+diff --git a/libgomp/config/linux/x86/shim_entry_api.h b/libgomp/config/linux/x86/shim_entry_api.h
+new file mode 120000
+index 0000000000000000000000000000000000000000..3d9b3b4733c21849804515f0dd05d23076f68dcf
+--- /dev/null
++++ b/libgomp/config/linux/x86/shim_entry_api.h
+@@ -0,0 +1 @@
++../../../../../shim/include/arch/x86_64/shim_entry_api.h
+\ No newline at end of file

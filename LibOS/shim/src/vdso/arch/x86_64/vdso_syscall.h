@@ -5,14 +5,16 @@
 #ifndef VDSO_SYSCALL_H_
 #define VDSO_SYSCALL_H_
 
-static inline long vdso_arch_syscall(long (*syscalldb)(void), long nr, long arg1, long arg2) {
+#include "shim_entry_api.h"
+
+static inline long vdso_arch_syscall(long nr, long arg1, long arg2) {
     long ret;
     __asm__ volatile(
         "lea .Lret%=(%%rip), %%rcx\n"
-        "jmp *%[syscalldb]\n"
+        "jmp *%%gs:%c[syscalldb]\n"
         ".Lret%=:\n"
         : "=a" (ret)
-        : "0" (nr), "D"(arg1), "S"(arg2), [syscalldb] "rm" (syscalldb)
+        : "0" (nr), "D"(arg1), "S"(arg2), [syscalldb] "i"(SHIM_SYSCALLDB_OFFSET)
         : "memory", "rcx", "r11"
     );
     return ret;

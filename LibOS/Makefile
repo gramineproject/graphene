@@ -51,6 +51,11 @@ ifeq ($(DEBUG),1)
 endif
 export GLIBC_CFLAGS
 
+# For LibOS entry API
+GLIBC_CPPFLAGS = -I$(abspath $(SHIM_DIR))/include -I$(abspath $(SHIM_DIR))/include/arch/$(ARCH)
+export GLIBC_CPPFLAGS
+GLIBC_DEPS = shim/include/arch/$(ARCH)/shim_entry_api.h
+
 .PHONY: all
 all: $(GLIBC_TARGET) $(GLIBC_RUNTIME)
 	$(MAKE) -C $(SHIM_DIR) all
@@ -69,7 +74,8 @@ $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 	mkdir -p $(BUILD_DIR)
 	(cd $(BUILD_DIR) || exit 1; \
 	CC=gcc CXX=g++ AS=gcc \
-	CFLAGS=$$GLIBC_CFLAGS ../$(GLIBC_SRC)/configure --prefix=$(RUNTIME_DIR) \
+	CFLAGS=$$GLIBC_CFLAGS CPPFLAGS=$$GLIBC_CPPFLAGS \
+	../$(GLIBC_SRC)/configure --prefix=$(RUNTIME_DIR) \
 		--with-tls \
 		--without-selinux \
 		--disable-test \
@@ -79,8 +85,7 @@ $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 $(foreach lib,$(GLIBC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib))))
 
 GLIBC_PATCHES = \
-	glibc-patches/$(GLIBC_SRC).patch \
-	glibc-patches/syscalldb-api.patch
+	glibc-patches/$(GLIBC_SRC).patch
 
 GLIBC_PATCHES_2.27 = \
 	glibc-patches/hp-timing-2.27.patch
@@ -91,7 +96,7 @@ GLIBC_PATCHES_2.31 = \
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
 .SECONDARY: $(GLIBC_SRC)/.configured
-$(GLIBC_SRC)/.configured: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
+$(GLIBC_SRC)/.configured: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz $(GLIBC_DEPS)
 	$(RM) -r $(GLIBC_SRC)
 	tar -mxzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
@@ -152,8 +157,11 @@ $(foreach lib,$(GCC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib)))
 GCC_PATCHES = \
 	gcc-patches/libgomp-replace-futex-instruction.patch
 
+# For LibOS entry API (file symlinked in patch)
+GCC_DEPS = shim/include/arch/$(ARCH)/shim_entry_api.h
+
 .SECONDARY: $(GCC_SRC)/.configured
-$(GCC_SRC)/.configured: $(GCC_PATCHES) $(GCC_SRC).tar.gz
+$(GCC_SRC)/.configured: $(GCC_PATCHES) $(GCC_SRC).tar.gz $(GCC_DEPS)
 	$(RM) -r $(GCC_SRC)
 	tar -mxzf $(GCC_SRC).tar.gz
 	cd $(GCC_SRC) && \
