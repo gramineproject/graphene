@@ -1154,7 +1154,7 @@ static int check_msghdr(struct msghdr* msg, bool is_recv) {
         return -EMSGSIZE;
     }
 
-    if (test_user_memory(msg->msg_iov, size, /*write=*/false)) {
+    if (!msg->msg_iov || test_user_memory(msg->msg_iov, size, /*write=*/false)) {
         return -EFAULT;
     }
 
