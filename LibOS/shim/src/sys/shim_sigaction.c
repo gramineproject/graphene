@@ -245,6 +245,7 @@ static int _wakeup_one_thread(struct shim_thread* thread, void* arg) {
 
     if (!__sigismember(&thread->signal_mask, sig)) {
         thread_wakeup(thread);
+        DkThreadResume(thread->pal_handle);
         ret = 1;
     }
 
@@ -379,6 +380,7 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
         }
         if (thread != get_cur_thread()) {
             thread_wakeup(thread);
+            DkThreadResume(thread->pal_handle);
         }
 
         put_thread(thread);

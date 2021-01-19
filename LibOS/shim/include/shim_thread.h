@@ -219,7 +219,6 @@ static inline int thread_sleep(uint64_t timeout_us, bool ignore_pending_signals)
 
 static inline void thread_wakeup(struct shim_thread* thread) {
     DkEventSet(thread->scheduler_event);
-    DkThreadResume(thread->pal_handle);
 }
 
 /* Adds the thread to the wake-up queue.
