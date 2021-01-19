@@ -134,13 +134,8 @@ return_from_syscall:
 
     movb PAL_CONTEXT_FPREGS_USED_OFF(%rbx), %al
     test %al, %al
-    je .Lrestore_fpu_state
+    jne .Lrestore_xstate
 
-    mov PAL_CONTEXT_FPREGS_OFF(%rbx), %rdi
-    call shim_xstate_restore
-    jmp .Lrestore_context
-
-.Lrestore_fpu_state:
     # restore FP Control Word & MXCSR from TCB
     fldcw PAL_CONTEXT_FPCW_OFF(%rbx)
     ldmxcsr PAL_CONTEXT_MXCSR_OFF(%rbx)
@@ -180,6 +175,11 @@ return_from_syscall:
     pop %rcx
     pop %rsp
     jmp *%gs:(SHIM_TCB_OFFSET + SHIM_TCB_SCRATCH_PC_OFF)
+
+.Lrestore_xstate:
+    mov PAL_CONTEXT_FPREGS_OFF(%rbx), %rdi
+    call shim_xstate_restore
+    jmp .Lrestore_context
 
     .cfi_endproc
     .size return_from_syscall, .-return_from_syscall
