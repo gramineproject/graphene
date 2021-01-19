@@ -21,6 +21,11 @@ typedef struct shim_tcb shim_tcb_t;
 struct shim_tcb {
     uint64_t            canary;
     shim_tcb_t*         self;
+
+    /* Function pointers for patched code calling into Graphene. */
+    void*               syscalldb;
+    void*               register_library;
+
     struct shim_thread* tp;
     void*               libos_stack_bottom;
     struct shim_context context;
@@ -42,9 +47,25 @@ struct shim_tcb {
     } test_range;
 };
 
+static_assert(
+    offsetof(PAL_TCB, libos_tcb) + offsetof(shim_tcb_t, syscalldb) == SHIM_SYSCALLDB_OFFSET,
+    "SHIM_SYSCALLDB_OFFSET must match");
+
+static_assert(
+    offsetof(PAL_TCB, libos_tcb) + offsetof(shim_tcb_t, register_library) ==
+        SHIM_REGISTER_LIBRARY_OFFSET,
+    "SHIM_REGISTER_LIBRARY_OFFSET must match");
+
 static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
-    shim_tcb->canary    = SHIM_TCB_CANARY;
-    shim_tcb->self      = shim_tcb;
+    /* These are declared in shim_internal.h, but we cannot include it because of a circular
+     * dependency (this file is included by shim_internal.h already. */
+    void syscalldb(void);
+    int register_library(const char* name, unsigned long load_address);
+
+    shim_tcb->canary = SHIM_TCB_CANARY;
+    shim_tcb->self = shim_tcb;
+    shim_tcb->syscalldb = &syscalldb;
+    shim_tcb->register_library = &register_library;
     shim_tcb->context.syscall_nr = -1;
     shim_tcb->vma_cache = NULL;
 }
