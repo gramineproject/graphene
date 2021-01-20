@@ -16,9 +16,10 @@ loader.insecure__use_cmdline_argv = 1
 # build process.
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
-# Show/hide debug log of Graphene ('inline' or 'none' respectively). Note that
-# GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
-# build process.
+# Verbosity of Graphene debug log (none/error/info/debug/trace/all). Note that
+# GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the building
+# process: the default is "error" for non-debug builds, and "debug" for debug
+# builds.
 loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 ################################# ENV VARS  ###################################

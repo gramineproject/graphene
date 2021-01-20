@@ -8,7 +8,7 @@ libos.entrypoint = "file:addressbook"
 # LibOS layer library of Graphene (currently only one implementation, libsysdb)
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
-# Show/hide debug log of Graphene ('inline' or 'none' respectively)
+# Graphene log level
 loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
