@@ -49,7 +49,7 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
     do {                                             \
         if ((level) <= g_log_level)                  \
             debug_printf(fmt);                       \
-    } while(0)
+    } while (0)
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
 #define log_info(fmt...)     _log(PAL_LOG_INFO, fmt)
