@@ -9,7 +9,7 @@
 libos.entrypoint = "file:$(INSTALL_DIR)/sbin/lighttpd"
 
 # Path to the library OS
-loader.preload = "file:$(GRAPHENE_DIR)/Runtime/libsysdb.so"
+loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
 # Graphene log level
 loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
