@@ -145,6 +145,7 @@ html_static_path = ['_static']
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
+    ('manpages/graphene-manifest', 'graphene-manifest', 'Graphene manifest preprocessor', [author], 1),
     ('manpages/pal_loader', 'pal_loader', 'FIXME Loader', [author], 1),
     ('manpages/gsc', 'gsc', 'Graphene Shielded Containers', [author], 1),
     ('manpages/is_sgx_available', 'is_sgx_available', 'Check SGX compatibility', [author], 1),
