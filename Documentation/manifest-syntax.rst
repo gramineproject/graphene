@@ -20,6 +20,9 @@ A typical integer entry looks similar to the above but without double quotes::
 Comments can be inlined in a |~| manifest by starting them with a |~| hash sign
 (``# comment...``).
 
+There is also a |~| preprocessor available: :ref:`graphene-manifest
+<graphene-manifest>`, which renders manifests from Jinja templates.
+
 Common syntax
 -------------
 
