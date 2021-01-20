@@ -1,5 +1,7 @@
 conf = configuration_data()
 conf.set('VERSION', meson.project_version())
+conf.set('PKGLIBDIR', join_paths(pkglibdir))
+conf.set('LIBDIR', join_paths(get_option('prefix'), get_option('libdir')))
 
 init_py = configure_file(
     input: '__init__.py',

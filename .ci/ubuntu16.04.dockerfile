@@ -41,6 +41,7 @@ RUN apt-get update \
        python \
        python3-apport \
        python3-apt \
+       python3-click \
        python3-pyelftools \
        python3-lxml \
        python3-minimal \

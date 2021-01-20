@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+
+import sys
+from graphenelibos.manifest import main
+sys.exit(main())
