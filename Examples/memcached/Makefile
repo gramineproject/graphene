@@ -28,7 +28,7 @@ $(error This example requires Ubuntu 16.04 or 18.04)
 endif
 
 ifeq ($(DEBUG),1)
-GRAPHENE_LOG_LEVEL = info
+GRAPHENE_LOG_LEVEL = debug
 else
 GRAPHENE_LOG_LEVEL = error
 endif

@@ -3,7 +3,7 @@ libos.entrypoint = "file:bootstrap"
 loader.argv0_override = "bootstrap"
 
 loader.env.LD_LIBRARY_PATH = "/lib"
-loader.log_level = "info"
+loader.log_level = "debug"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"

@@ -1,6 +1,6 @@
 pal.entrypoint = "file:File"
 loader.argv0_override = "File"
-loader.log_level = "info"
+loader.log_level = "debug"
 
 fs.mount.root.uri = "file:"
 

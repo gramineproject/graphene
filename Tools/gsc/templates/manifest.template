@@ -6,7 +6,7 @@ loader.arg0_override = "{{binary}}"
 libos.entrypoint = "file:{{binary}}"
 loader.env.LD_LIBRARY_PATH = "/graphene/Runtime:{{"{{library_paths}}"}}"
 loader.env.PATH = "{{"{{env_path}}"}}"
-loader.log_level = {% if debug %} "info" {% else %} "error" {% endif %}
+loader.log_level = {% if debug %} "debug" {% else %} "error" {% endif %}
 
 fs.root.type = "chroot"
 fs.root.path = "/"

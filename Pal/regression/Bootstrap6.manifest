@@ -1,5 +1,5 @@
 pal.entrypoint = "file:Bootstrap"
-loader.log_level = "info"
+loader.log_level = "debug"
 loader.preload = "file:Preload1.so,file:Preload2.so"
 loader.argv0_override = "Bootstrap"
 

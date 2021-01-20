@@ -17,7 +17,7 @@ GRAPHENEDIR ?= $(THIS_DIR)../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENE_LOG_LEVEL = info
+GRAPHENE_LOG_LEVEL = debug
 else
 GRAPHENE_LOG_LEVEL = error
 endif

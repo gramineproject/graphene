@@ -23,7 +23,7 @@ GRAPHENE_DIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
-GRAPHENE_LOG_LEVEL = info
+GRAPHENE_LOG_LEVEL = debug
 OPENVINO_BUILD = Debug
 else
 GRAPHENE_LOG_LEVEL = error

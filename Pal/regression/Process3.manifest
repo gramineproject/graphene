@@ -1,5 +1,5 @@
 pal.entrypoint = "file:Process3"
-loader.log_level = "info"
+loader.log_level = "debug"
 loader.preload = "file:Preload1.so,file:Preload2.so"
 loader.insecure__use_cmdline_argv = 1
 

@@ -21,7 +21,7 @@ BUSYBOX_URL ?= https://busybox.net/downloads/busybox-1.32.0.tar.bz2
 BUSYBOX_SHA256 ?= c35d87f1d04b2b153d33c275c2632e40d388a88f19a9e71727e0bbbff51fe689
 
 ifeq ($(DEBUG),1)
-GRAPHENE_LOG_LEVEL = info
+GRAPHENE_LOG_LEVEL = debug
 else
 GRAPHENE_LOG_LEVEL = error
 endif

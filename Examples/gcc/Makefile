@@ -11,7 +11,7 @@ GZIP_MIRRORS ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/
 GZIP_HASH ?= 7ec7d87822e6497648580064756f64e47dbd085727910ebbc52a7c240a88dc27
 
 ifeq ($(DEBUG),1)
-GRAPHENE_LOG_LEVEL = info
+GRAPHENE_LOG_LEVEL = debug
 else
 GRAPHENE_LOG_LEVEL = error
 endif
