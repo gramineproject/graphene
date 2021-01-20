@@ -18,6 +18,7 @@
 
 #include "api.h"
 
+#include <limits.h>
 #include <stdint.h>
 
 long strtol(const char* s, char** endptr, int base) {
@@ -64,6 +65,66 @@ long strtol(const char* s, char** endptr, int base) {
     if (endptr)
         *endptr = (char*)s;
     return (neg ? -val : val);
+}
+
+unsigned long strtoul(const char* str, char** endptr, int base) {
+    const char* s = str;
+    int neg  = 0;
+    int outrange;
+    unsigned long val;
+
+    // gobble initial whitespace
+    while (*s == ' ' || *s == '\t') {
+        s++;
+    }
+
+    // plus/minus sign
+    if (*s == '+')
+        s++;
+    else if (*s == '-')
+        s++, neg = 1;
+
+    // hex or octal base prefix
+    if ((base == 0 || base == 16) && (s[0] == '0' && s[1] == 'x'))
+        s += 2, base = 16;
+    else if (base == 0 && s[0] == '0')
+        s++, base = 8;
+    else if (base == 0)
+        base = 10;
+
+    unsigned long cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
+    int cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
+
+    // digits
+    for (val = 0, outrange = 0; ; s++) {
+        int dig;
+
+        if (*s >= '0' && *s <= '9')
+            dig = *s - '0';
+        else if (*s >= 'a' && *s <= 'z')
+            dig = *s - 'a' + 10;
+        else if (*s >= 'A' && *s <= 'Z')
+            dig = *s - 'A' + 10;
+        else
+            break;
+
+        if (dig >= base)
+            break;
+
+        if (outrange < 0 || val > cutoff || (val == cutoff && dig > cutlim))
+            outrange = -1;
+        else
+            outrange = 1, val = (val * base) + dig;
+    }
+
+    if(outrange < 0)
+        val = ULONG_MAX;
+    else if (neg)
+        val = -val;
+    if (endptr)
+        *endptr = (char*)(outrange ? s : str);
+
+    return val;
 }
 
 #ifdef __LP64__
