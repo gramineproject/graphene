@@ -146,14 +146,16 @@ static int get_cache_topo_info(int num_cache_lvl, int core_idx, PAL_CORE_CACHE_I
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/coherency_line_size", core_idx, lvl);
-        READ_FILE_BUFFER(filename, core_cache[lvl].coherency_line_size, /*failure_label=*/out_cache);
+        READ_FILE_BUFFER(filename, core_cache[lvl].coherency_line_size,
+                         /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/cache/index%d/number_of_sets", core_idx, lvl);
         READ_FILE_BUFFER(filename, core_cache[lvl].number_of_sets, /*failure_label=*/out_cache);
 
         snprintf(filename, sizeof(filename),
-                 "/sys/devices/system/cpu/cpu%d/cache/index%d/physical_line_partition", core_idx, lvl);
+                 "/sys/devices/system/cpu/cpu%d/cache/index%d/physical_line_partition", core_idx,
+                 lvl);
         READ_FILE_BUFFER(filename, core_cache[lvl].physical_line_partition,
                          /*failure_label=*/out_cache);
     }
@@ -202,7 +204,8 @@ static int get_core_topo_info(PAL_TOPO_INFO* topo_info) {
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/core_siblings", idx);
-        READ_FILE_BUFFER(filename, core_topology[idx].core_siblings, /*failure_label=*/out_topology);
+        READ_FILE_BUFFER(filename, core_topology[idx].core_siblings,
+                         /*failure_label=*/out_topology);
 
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", idx);

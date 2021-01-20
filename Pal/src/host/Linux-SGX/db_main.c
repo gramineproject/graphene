@@ -172,19 +172,17 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
-/* This function extract an integer present in the buffer. For example 31 will be returned when
- * input "31" is provided. If buffer contains valid size indicators such as "48K", then just
+/* This function extracts first found integer present in the buffer. For example 31 will be returned
+ * when input "31" is provided. If buffer contains valid size indicators such as "48K", then just
  * numeric value (48 in this case) is returned. Returns negative unix error code if the buffer is
  * malformed Eg. 20abc or 3,4,5 or xyz123 or 512H.
  * Use case: To extract int from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
-static int64_t extract_int_from_buffer(const char* buf) {
-    if (!buf)
-        return -ENOENT;
-
+static long extract_int_from_buffer(const char* buf) {
     char* end = NULL;
-    int64_t intval = strtol(buf, &end, 10);
+    long result;
+    unsigned long intval = strtoul(buf, &end, 10);
 
-    if (end == buf || intval < 0)
+    if (end == buf || intval > LONG_MAX)
         return -EINVAL;
 
     if (end[0] != '\0') {
@@ -195,37 +193,34 @@ static int64_t extract_int_from_buffer(const char* buf) {
         if (end[0] != '\0' && end[0] != '\n' && end[1] != '\0')
             return -EINVAL;
     }
-    return intval;
+    result = (long)intval;
+    return result;
 }
 
 /* This function counts bits set in buffer. For example 2 will be returned when input buffer
- * "00000000,80000000,00000000,80000000" is provided. Returns negative unix error code if buffer is
- * malformed Eg. xyz00000000 or fffffX or 00000000,4-5.
+ * "00000000,80000000,00000000,80000000" is provided. Returns 0 on error and actual count on success.
  * Use case: To count bits set in /sys/devices/system/cpu/cpu95/topology/core_siblings bitmaps */
-static int64_t count_bits_set_from_resource_map(const char* buf) {
-    if (!buf)
-        return -EINVAL;
-
-    int64_t count = 0;
+static uint64_t count_bits_set_from_resource_map(const char* buf) {
+    uint64_t count = 0;
     while (*buf) {
         while (*buf == ' ' || *buf == '\t' || *buf == ',' || *buf == '\n')
             buf++;
 
         if (*buf == '\0')
-            break;        /* case where buffer can be terminated by \n\0 */
+            break;
 
         char* end = NULL;
-        int64_t bitmap = (int64_t)strtol(buf, &end, 16);
-        if (end == buf || bitmap < 0)
-            return -EINVAL;
+        uint64_t bitmap = (uint64_t)strtoul(buf, &end, 16);
+        if (end == buf || bitmap == ULONG_MAX)
+            return 0;
 
         if (*end != '\0' && *end != ',' && *end != '\n')
-            return -EINVAL;
+            return 0;
 
-        count += count_signed64_bits_set(bitmap);
+        count += count_uint64_bits_set(bitmap);
         buf = end;
     }
-    return count < 0 ? -EINVAL : count;
+    return count;
 }
 
 /* This function counts number of hw resources present in buffer. There are 2 options available,
@@ -233,27 +228,25 @@ static int64_t count_bits_set_from_resource_map(const char* buf) {
  * malformed like "1-5,7-1".
  * 2) ordered == false which simply counts the range of numbers. For example "1-5, 3-4, 7-1" will
  * return 14 as count.
- * Returns negative unix error if buf contains invalid data and number of hw resources otherwise. */
-static int64_t sanitize_hw_resource_count(const char* buf, bool ordered) {
-    if (!buf)
-        return -ENOENT;
-
-    char* end = NULL;
-    int64_t resource_cnt = 0;
-    int64_t current_maxint = -1;
+ * Returns negative unix error if buf is empty or contains invalid data on failure and number of hw
+ * resources present in the buffer on success. */
+static long sanitize_hw_resource_count(const char* buf, bool ordered) {
+    unsigned long current_maxint = 0;
+    unsigned long resource_cnt = 0;
     while (*buf) {
         while (*buf == ' ' || *buf == '\t' || *buf == ',' || *buf == '\n')
             buf++;
 
         if (*buf == '\0')
-            break;          /* case where buffer can be terminated by \n\0 */
+            break;
 
-        int64_t firstint = (int64_t)strtol(buf, &end, 10);
-        if (end == buf || firstint < 0)
+        char* end = NULL;
+        unsigned long firstint = strtoul(buf, &end, 10);
+        if (end == buf || firstint > LONG_MAX)
             return -EINVAL;
 
         if (ordered) {
-            if (firstint <= current_maxint)
+            if (firstint != 0 && firstint <= current_maxint)
                 return -EINVAL;
             current_maxint = firstint;
         }
@@ -265,39 +258,41 @@ static int64_t sanitize_hw_resource_count(const char* buf, bool ordered) {
         } else if (*end == '-') {
             /* HW resource range, count how many HW resources are in range */
             buf = end + 1;
-            int64_t secondint = (int64_t)strtol(buf, &end, 10);
-            if (secondint < 0)
+            unsigned long secondint = strtoul(buf, &end, 10);
+            if (secondint > LONG_MAX)
                 return -EINVAL;
 
             if (secondint > firstint) {
                 if (ordered)
                     current_maxint = secondint;
-                resource_cnt += secondint - firstint + 1;   /* inclusive (e.g., 0-7, or 8-16) */
+                if ((secondint - firstint) >= LONG_MAX ||
+                    (resource_cnt + secondint - firstint + 1) > LONG_MAX)
+                     return -EINVAL;
+                resource_cnt += secondint - firstint + 1; /* inclusive (e.g. 0-7) */
             } else {
-                if (ordered)
-                    return -EINVAL;
+                if (ordered || (firstint - secondint) >= LONG_MAX ||
+                   (resource_cnt + firstint - secondint + 1) > LONG_MAX)
+                     return -EINVAL;
                 resource_cnt += firstint - secondint + 1;
             }
 
-            if (resource_cnt < 0)
+            if (resource_cnt == 0)
                 return -EINVAL;
         }
         buf = end;
     }
-    return resource_cnt;
+
+    return (long)resource_cnt;
 }
 
-static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cache_lvls,
-                                        int64_t num_cores) {
-    if (!cache)
-        return -EINVAL;
-
-    for (int64_t lvl = 0; lvl < cache_lvls; lvl++) {
-        int64_t shared_cpu_map = count_bits_set_from_resource_map(cache[lvl].shared_cpu_map);
-        if (!IS_IN_RANGE_INCL(shared_cpu_map, 1, num_cores))
+static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, long cache_lvls,
+                                        long num_cores) {
+    for (long lvl = 0; lvl < cache_lvls; lvl++) {
+        uint64_t shared_cpu_map = count_bits_set_from_resource_map(cache[lvl].shared_cpu_map);
+        if (!IS_IN_RANGE_INCL(shared_cpu_map, 1, (uint64_t)num_cores))
             return -EINVAL;
 
-        int64_t level = extract_int_from_buffer(cache[lvl].level);
+        long level = extract_int_from_buffer(cache[lvl].level);
         if (!IS_IN_RANGE_INCL(level, 1, 3))      /* x86 processors have max of 3 cache levels */
             return -EINVAL;
 
@@ -307,46 +302,48 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
             return -EINVAL;
         }
 
-        int64_t size = extract_int_from_buffer(cache[lvl].size);
-        if (!IS_IN_RANGE_INCL(size, 1, 1 << 16))
+        long size = extract_int_from_buffer(cache[lvl].size);
+        if (!IS_IN_RANGE_INCL(size, 1, (long)((1UL << 31) - 1)))
             return -EINVAL;
 
-        int64_t coherency_line_size = extract_int_from_buffer(cache[lvl].coherency_line_size);
+        long coherency_line_size = extract_int_from_buffer(cache[lvl].coherency_line_size);
         if (!IS_IN_RANGE_INCL(coherency_line_size, 1, 1 << 16))
             return -EINVAL;
 
-        int64_t number_of_sets = extract_int_from_buffer(cache[lvl].number_of_sets);
+        long number_of_sets = extract_int_from_buffer(cache[lvl].number_of_sets);
         if (!IS_IN_RANGE_INCL(number_of_sets, 1, 1 << 16))
             return -EINVAL;
 
-        int64_t physical_line_partition = extract_int_from_buffer(cache[lvl].physical_line_partition);
+        long physical_line_partition = extract_int_from_buffer(cache[lvl].physical_line_partition);
         if (!IS_IN_RANGE_INCL(physical_line_partition, 1, 1 << 16))
             return -EINVAL;
     }
     return 0;
 }
 
-static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int64_t num_cores,
-                                       int64_t cache_lvls) {
-    if (!core_topology || num_cores == 0 || cache_lvls == 0)
+static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, long num_cores,
+                                       long cache_lvls) {
+    if (num_cores == 0 || cache_lvls == 0)
         return -ENOENT;
 
-    for (int64_t idx = 0; idx < num_cores; idx++) {
+    for (long idx = 0; idx < num_cores; idx++) {
         if (idx != 0) {     /* core 0 is always online */
-            int64_t is_core_online = extract_int_from_buffer(core_topology[idx].is_logical_core_online);
-            if (is_core_online < 0 || (is_core_online != 0 && is_core_online != 1))
+            long is_core_online = extract_int_from_buffer(
+                                                         core_topology[idx].is_logical_core_online);
+            if (is_core_online != 0 && is_core_online != 1)
                 return -EINVAL;
         }
 
-        int64_t core_id = extract_int_from_buffer(core_topology[idx].core_id);
+        long core_id = extract_int_from_buffer(core_topology[idx].core_id);
         if (!IS_IN_RANGE_INCL(core_id, 0, num_cores - 1))
             return -EINVAL;
 
-        int64_t core_siblings = count_bits_set_from_resource_map(core_topology[idx].core_siblings);
-        if (!IS_IN_RANGE_INCL(core_siblings, 1, num_cores))
+        uint64_t core_siblings = count_bits_set_from_resource_map(core_topology[idx].core_siblings);
+        if (!IS_IN_RANGE_INCL(core_siblings, 1, (uint64_t)num_cores))
             return -EINVAL;
 
-        int64_t thread_siblings = count_bits_set_from_resource_map(core_topology[idx].thread_siblings);
+        uint64_t thread_siblings = count_bits_set_from_resource_map(
+                                                                core_topology[idx].thread_siblings);
         if (!IS_IN_RANGE_INCL(thread_siblings, 1, 4)) /* x86 processors have max of 4 SMT siblings */
             return -EINVAL;
 
@@ -356,35 +353,39 @@ static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int64_
     return 0;
 }
 
-static int sanitize_socket_info(int* cpu_socket, int64_t num_nodes, int64_t num_cores) {
-    if (!cpu_socket || num_nodes == 0 || num_cores == 0)
+/* TODO: Cross verify against numa_topology[idx].cpumap to ensure that one core cannot be present
+ * in 2 sockets */
+static int sanitize_socket_info(int* cpu_socket, long num_nodes, long num_cores) {
+    if (num_nodes == 0 || num_cores == 0)
         return -ENOENT;
 
-    for (int idx = 0; idx < num_cores; idx++) {
+    for (long idx = 0; idx < num_cores; idx++) {
         if (!IS_IN_RANGE_INCL(cpu_socket[idx], 0, num_nodes - 1))
             return -EINVAL;
     }
     return 0;
 }
 
-static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_t num_nodes,
-                                       int64_t num_cores) {
-    if (!numa_topology || num_nodes == 0 || num_cores == 0)
+static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, long num_nodes,
+                                       long num_cores) {
+    if (num_nodes == 0 || num_cores == 0)
         return -ENOENT;
 
-    for (int64_t idx = 0; idx < num_nodes; idx++) {
-        int64_t cpumap = count_bits_set_from_resource_map(numa_topology[idx].cpumap);
-        if (!IS_IN_RANGE_INCL(cpumap, 1, num_cores))
+    for (long idx = 0; idx < num_nodes; idx++) {
+        uint64_t cpumap = count_bits_set_from_resource_map(numa_topology[idx].cpumap);
+        if (!IS_IN_RANGE_INCL(cpumap, 1, (uint32_t)num_cores))
             return -EINVAL;
 
-        if (num_nodes != sanitize_hw_resource_count(numa_topology[idx].distance, /*ordered*/false))
+        if (num_nodes != sanitize_hw_resource_count(numa_topology[idx].distance, /*ordered=*/false))
             return -EINVAL;
     }
     return 0;
 }
 
 static int parse_host_topo_info(struct pal_sec* sec_info) {
-    int64_t online_logical_cores = (int64_t)sec_info->online_logical_cores;
+    if (sec_info->online_logical_cores > LONG_MAX)
+        return -1;
+    long online_logical_cores = (long)sec_info->online_logical_cores;
     if (!IS_IN_RANGE_INCL(online_logical_cores, 1, 1 << 16)) {
         SGX_DBG(DBG_E, "Invalid sec_info.online_logical_cores: %ld\n", online_logical_cores);
         return -1;
@@ -392,21 +393,24 @@ static int parse_host_topo_info(struct pal_sec* sec_info) {
     g_pal_sec.online_logical_cores = online_logical_cores;
 
     if (online_logical_cores != sanitize_hw_resource_count(sec_info->topo_info.online_logical_cores,
-                                                           /*ordered*/true)) {
+                                                           /*ordered=*/true)) {
         SGX_DBG(DBG_E, "Invalid sec_info.topo_info.online_logical_cores\n");
         return -1;
     }
     COPY_ARRAY(g_pal_sec.topo_info.online_logical_cores, sec_info->topo_info.online_logical_cores);
 
-    int64_t possible_logical_cores = (int64_t)sec_info->possible_logical_cores;
+    if (sec_info->possible_logical_cores > LONG_MAX)
+        return -1;
+    long possible_logical_cores = (long)sec_info->possible_logical_cores;
     if (!IS_IN_RANGE_INCL(possible_logical_cores, 1, 1 << 16)) {
         SGX_DBG(DBG_E, "Invalid sec_info.possible_logical_cores: %ld\n", possible_logical_cores);
         return -1;
     }
     g_pal_sec.possible_logical_cores = possible_logical_cores;
 
-    if (possible_logical_cores != sanitize_hw_resource_count(sec_info->topo_info.possible_logical_cores,
-                                                             /*ordered*/true)) {
+    if (possible_logical_cores != sanitize_hw_resource_count(
+                                                        sec_info->topo_info.possible_logical_cores,
+                                                        /*ordered=*/true)) {
         SGX_DBG(DBG_E, "Invalid sec_info.topo_info.possible_logical_cores\n");
         return -1;
     }
@@ -420,7 +424,9 @@ static int parse_host_topo_info(struct pal_sec* sec_info) {
     }
     g_pal_sec.physical_cores_per_socket = sec_info->physical_cores_per_socket;
 
-    int64_t num_online_nodes = (int64_t)sec_info->topo_info.num_online_nodes;
+    if (sec_info->topo_info.num_online_nodes > LONG_MAX)
+        return -1;
+    long num_online_nodes = (long)sec_info->topo_info.num_online_nodes;
     if (!IS_IN_RANGE_INCL(num_online_nodes, 1, 1 << 8)) {
         SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_online_nodes: %ld\n", num_online_nodes);
         return -1;
@@ -428,13 +434,15 @@ static int parse_host_topo_info(struct pal_sec* sec_info) {
     g_pal_sec.topo_info.num_online_nodes = num_online_nodes;
 
     if (num_online_nodes != sanitize_hw_resource_count(sec_info->topo_info.online_nodes,
-                                                       /*ordered*/true)) {
+                                                       /*ordered=*/true)) {
         SGX_DBG(DBG_E, "Invalid sec_info.topo_info.online_nodes\n");
         return -1;
     }
     COPY_ARRAY(g_pal_sec.topo_info.online_nodes, sec_info->topo_info.online_nodes);
 
-    int64_t num_cache_index = (int64_t)sec_info->topo_info.num_cache_index;
+    if (sec_info->topo_info.num_cache_index > LONG_MAX)
+        return -1;
+    long num_cache_index = (long)sec_info->topo_info.num_cache_index;
     if (!IS_IN_RANGE_INCL(num_cache_index, 1, 1 << 4)) {
         SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_cache_index: %ld\n", num_cache_index);
         return -1;

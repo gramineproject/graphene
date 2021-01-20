@@ -26,14 +26,11 @@ int extract_first_num_from_string(const char* pathname) {
     return -1;
 }
 
-/* This function will extract "cpu105" from "cpu105/cache/index0/type". If string doesn't have "/"
- * delimiter, a copy of original string is returned. */
+/* This function will extract "cpu105" from "cpu105/cache/index0/type" and return it in a newly
+ * created buffer. If string doesn't have "/" delimiter, a copy of original string is returned. */
 static char* extract_first_token_from_path(const char* pathname) {
-    if (pathname == NULL)
-        return NULL;
-
-    int len;
-    char *delim_ptr = strchr(pathname, '/');
+    size_t len;
+    char* delim_ptr = strchr(pathname, '/');
     if (delim_ptr)
         len = delim_ptr - pathname;
     else
@@ -98,7 +95,6 @@ out:
 
 int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t size) {
     int totalcnt;
-    char res_name[6];
     char ent_name[32];
     struct shim_dirent* dirent_in_buf = *buf;
     size_t total_size = 0;
@@ -106,17 +102,14 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
     char filename[32];
     size_t fsize = sizeof(filename);
     int ret = get_base_name(pathname, filename, &fsize);
-    if (ret < 0 || (strlen(filename) != fsize))
+    if (ret < 0)
         return -ENOENT;
 
     if (!strcmp(filename, "node")) {
-        snprintf(res_name, sizeof(res_name), "node");
         totalcnt = pal_control.topo_info.num_online_nodes;
     } else if (!strcmp(filename, "cache")) {
-        snprintf(res_name, sizeof(res_name), "index");
         totalcnt = pal_control.topo_info.num_cache_index;
     } else if (!strcmp(filename, "cpu")) {
-        snprintf(res_name, sizeof(res_name), "cpu");
         totalcnt = pal_control.cpu_info.online_logical_cores;
     } else {
         debug("Invalid resource name in file %s\n", pathname);
@@ -124,7 +117,7 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
     }
 
     for (int i = 0; i < totalcnt; i++) {
-        snprintf(ent_name, sizeof(ent_name), "%s%d", res_name, i);
+        snprintf(ent_name, sizeof(ent_name), "%s%d", filename, i);
         size_t name_size   = strlen(ent_name) + 1;
         size_t dirent_size = sizeof(struct shim_dirent) + name_size;
 

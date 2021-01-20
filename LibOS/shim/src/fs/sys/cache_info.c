@@ -16,7 +16,7 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
 
     size_t size = sizeof(filename);
     int ret = get_base_name(name, filename, &size);
-    if (ret < 0 || (strlen(filename) != size))
+    if (ret < 0)
         return -ENOENT;
 
     int cpunum = extract_first_num_from_string(name);

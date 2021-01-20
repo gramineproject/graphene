@@ -13,7 +13,7 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
 
     size_t size = sizeof(filename);
     int ret = get_base_name(name, filename, &size);
-    if (ret < 0 || (strlen(filename) != size))
+    if (ret < 0)
         return -ENOENT;
 
     int cpunum = extract_first_num_from_string(name);
@@ -25,6 +25,7 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     if (!strcmp(filename, "online")) {
         /* distinguish /sys/devices/system/cpu/online from /sys/devices/system/cpu/cpuX/online */
         if (strstr(name, "cpu/cpu")) {
+            /* core 0 is always online, so file /sys/devices/system/cpu/cpu0/online doesn't exist */
             if (cpunum == 0)
                 return -ENOENT;
             cpu_filebuf = pal_control.topo_info.core_topology[cpunum].is_logical_core_online;

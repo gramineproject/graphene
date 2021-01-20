@@ -47,8 +47,8 @@ static inline PAL_TCB* pal_get_tcb(void) {
     return tcb;
 }
 
-static inline int64_t count_signed64_bits_set(int64_t x) {
-    int64_t result;
+static inline uint64_t count_uint64_bits_set(uint64_t x) {
+    uint64_t result;
     __asm__("popcnt %1, %0" : "=r"(result) : "r"(x) : "cc");
     return result;
 }
@@ -234,7 +234,8 @@ typedef struct PAL_CORE_CACHE_INFO_ {
 } PAL_CORE_CACHE_INFO;
 
 typedef struct PAL_CORE_TOPO_INFO_ {
-    char is_logical_core_online[PAL_SYSFS_INT_FILESZ]; /* [0] element is uninitialized.*/
+    /* [0] element is uninitialized because core 0 is always online */
+    char is_logical_core_online[PAL_SYSFS_INT_FILESZ];
     char core_id[PAL_SYSFS_INT_FILESZ];
     char core_siblings[PAL_SYSFS_MAP_FILESZ];
     char thread_siblings[PAL_SYSFS_MAP_FILESZ];

@@ -550,7 +550,7 @@ off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
 
 /* /sys fs related common APIs */
-/* This function extracts first number from the string. For example, "3" will be extracted
+/* This function extracts first number from a string. For example, "3" will be extracted
  * from "cpu/cpu3/topology/core_siblings" */
 int extract_first_num_from_string(const char* path);
 int sys_info_mode(const char* name, mode_t* mode);
@@ -558,11 +558,10 @@ int sys_info_stat(const char* name, struct stat* buf);
 int sys_dir_open(struct shim_handle* hdl, const char* name, int flags);
 int sys_dir_mode(const char* name, mode_t* mode);
 int sys_dir_stat(const char* name, struct stat* buf);
-/* This function checks if the resource name (eg. directory) in the path is actually present.
- * Returns 1 on success and 0 on failure. */
+/* Checks if pathname is a valid path under /sys/; returns 1 on success and 0 on failure */
 int sys_match_resource_num(const char* pathname);
-/* This function lists resource entries (eg. directories) present in the pathname. Returns 0 on
- * success and negative UNIX error on failure. */
+/* Fills buf with an array of dirents for the given pathname (path under /sys/); returns 0 on
+ * success and negative error code otherwise */
 int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t len);
 
 #endif /* _SHIM_FS_H_ */
