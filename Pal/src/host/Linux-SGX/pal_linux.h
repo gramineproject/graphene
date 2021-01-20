@@ -308,8 +308,8 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 /*
  * Legacy logging system (SGX_DBG).
  *
- * TODO: replace all SGX_DBG invocations with log_* functions (in enclave) and sgx_log_* (outside of
- * enclave), remove SGX_DBG from here.
+ * TODO: replace all SGX_DBG invocations with log_* functions (in enclave) and urts_log_* (outside
+ * of enclave), remove SGX_DBG from here.
  */
 
 #define DBG_E PAL_LOG_ERROR
@@ -333,7 +333,7 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 
 #include "pal_debug.h"
 #include "sgx_log.h"
-#define SGX_DBG(class, fmt...) _sgx_log(class, fmt)
+#define SGX_DBG(class, fmt...) _urts_log(class, fmt)
 
 #endif
 

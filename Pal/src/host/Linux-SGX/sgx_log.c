@@ -11,15 +11,15 @@
 #include "perm.h"
 #include "sgx_log.h"
 
-int g_sgx_log_level = PAL_LOG_DEFAULT_LEVEL;
-int g_sgx_log_fd = PAL_LOG_DEFAULT_FD;
+int g_urts_log_level = PAL_LOG_DEFAULT_LEVEL;
+int g_urts_log_fd = PAL_LOG_DEFAULT_FD;
 
-int sgx_log_init(const char* path) {
+int urts_log_init(const char* path) {
     int ret;
 
-    if (g_sgx_log_fd != PAL_LOG_DEFAULT_FD) {
-        ret = INLINE_SYSCALL(close, 1, g_sgx_log_fd);
-        g_sgx_log_fd = PAL_LOG_DEFAULT_FD;
+    if (g_urts_log_fd != PAL_LOG_DEFAULT_FD) {
+        ret = INLINE_SYSCALL(close, 1, g_urts_log_fd);
+        g_urts_log_fd = PAL_LOG_DEFAULT_FD;
         if (ret < 0)
             return ret;
     }
@@ -27,6 +27,6 @@ int sgx_log_init(const char* path) {
     ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
     if (ret < 0)
         return ret;
-    g_sgx_log_fd = ret;
+    g_urts_log_fd = ret;
     return 0;
 }

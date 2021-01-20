@@ -14,21 +14,21 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-extern int g_sgx_log_level;
-extern int g_sgx_log_fd;
+extern int g_urts_log_level;
+extern int g_urts_log_fd;
 
-int sgx_log_init(const char* path);
-int sgx_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+int urts_log_init(const char* path);
+int urts_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
-#define _sgx_log(level, fmt...)                          \
+#define _urts_log(level, fmt...)                          \
     do {                                                 \
-        if ((level) <= g_sgx_log_level)                  \
-            pal_fdprintf(g_sgx_log_fd, fmt);             \
+        if ((level) <= g_urts_log_level)                  \
+            pal_fdprintf(g_urts_log_fd, fmt);             \
     }  while(0)
 
-#define sgx_log_error(fmt...)    _sgx_log(PAL_LOG_ERROR, fmt)
-#define sgx_log_info(fmt...)     _sgx_log(PAL_LOG_INFO, fmt)
-#define sgx_log_debug(fmt...)    _sgx_log(PAL_LOG_DEBUG, fmt)
-#define sgx_log_trace(fmt...)    _sgx_log(PAL_LOG_TRACE, fmt)
+#define urts_log_error(fmt...)    _urts_log(PAL_LOG_ERROR, fmt)
+#define urts_log_info(fmt...)     _urts_log(PAL_LOG_INFO, fmt)
+#define urts_log_debug(fmt...)    _urts_log(PAL_LOG_DEBUG, fmt)
+#define urts_log_trace(fmt...)    _urts_log(PAL_LOG_TRACE, fmt)
 
 #endif /* SGX_LOG_H_ */

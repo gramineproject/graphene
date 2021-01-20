@@ -863,7 +863,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         goto out;
     }
     if (log_level > PAL_LOG_NONE && log_file) {
-        ret = sgx_log_init(log_file);
+        ret = urts_log_init(log_file);
 
         if (ret < 0) {
             SGX_DBG(DBG_E, "Cannot open log file: %d\n", ret);
@@ -872,7 +872,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     }
     free(log_file);
 
-    g_sgx_log_level = log_level;
+    g_urts_log_level = log_level;
 
     ret = 0;
 
