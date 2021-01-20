@@ -69,8 +69,8 @@ def main():
                 if not os.path.exists(in_kernel_dev_node):
                     raise FileNotFoundError
             except FileNotFoundError:
-                print('SGX in-kernel driver was upstreamed in mainline kernel 5.11.\n'
-                        'Can not find SGX dev node /dev/sgx/enclave, '
+                print('SGX in-kernel driver was upstreamed in mainline kernel 5.11+.\n'
+                        'Can not find the SGX dev node /dev/sgx/enclave, '
                         'you must apply udev rules to remap SGX devices:\n'
                         'sudo cp ${GRAPHENE_PROJECT_DIR}/Pal/src/host/Linux-SGX/91-sgx-enclave.rules /etc/udev/rules.d\n'
                         'sudo udevadm trigger',
