@@ -692,7 +692,6 @@ uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack) {
 }
 
 bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
-    bool ret = false;
     struct shim_thread* current = get_cur_thread();
     assert(current);
     assert(!is_internal(current));
@@ -713,7 +712,7 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
             if (!__sigismember(&current->signal_mask, sig)) {
                 bool got = false;
                 bool was_process = false;
-                /* First try to handle thread targeted signals, then these proces wide targeted. */
+                /* First try to handle signals targeted at this thread, then processwide. */
                 if (sig < SIGRTMIN) {
                     got = pop_standard_signal(&current->signal_queue.standard_signals[sig - 1],
                                               &signal);
@@ -766,75 +765,83 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
     }
 
     int sig = signal.siginfo.si_signo;
-    if (sig) {
-        lock(&current->signal_dispositions->lock);
-        struct __kernel_sigaction* sa = &current->signal_dispositions->actions[sig - 1];
-
-        uintptr_t handler = (uintptr_t)sa->k_sa_handler;
-        if (handler == (uintptr_t)SIG_DFL) {
-            if (default_sighandler[sig - 1] == SIGHANDLER_KILL) {
-                unlock(&current->signal_dispositions->lock);
-                sighandler_kill(sig);
-                /* Unreachable. */
-            } else if (default_sighandler[sig - 1] == SIGHANDLER_CORE) {
-                unlock(&current->signal_dispositions->lock);
-                sighandler_core(sig);
-                /* Unreachable. */
-            }
-            assert(default_sighandler[sig - 1] == SIGHANDLER_NONE);
-            handler = (uintptr_t)SIG_IGN;
-        }
-        if (handler != (uintptr_t)SIG_IGN) {
-            /* User provided handler. */
-            assert(sa->sa_flags & SA_RESTORER);
-
-            long sysnr = shim_get_tcb()->context.syscall_nr;
-            if (sysnr >= 0) {
-                switch (pal_context_get_retval(context)) {
-                    case -ERESTARTNOHAND:
-                        pal_context_set_retval(context, -EINTR);
-                        break;
-                    case -ERESTARTSYS:
-                        if (!(sa->sa_flags & SA_RESTART)) {
-                            pal_context_set_retval(context, -EINTR);
-                            break;
-                        }
-                        /* Fallthrough */
-                    case -ERESTARTNOINTR:
-                        restart_syscall(context, (uint64_t)sysnr);
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            __sigset_t new_mask = sa->sa_mask;
-            if (!(sa->sa_flags & SA_NODEFER)) {
-                __sigaddset(&new_mask, sig);
-            }
-            clear_illegal_signals(&new_mask);
-
-            __sigset_t old_mask;
-            lock(&current->lock);
-            get_sig_mask(current, &old_mask);
-            set_sig_mask(current, &new_mask);
-            unlock(&current->lock);
-
-            prepare_sigframe(context, &signal.siginfo, handler, (uint64_t)sa->sa_restorer,
-                             !!(sa->sa_flags & SA_ONSTACK), old_mask_ptr ?: &old_mask);
-
-            if (sa->sa_flags & SA_RESETHAND) {
-                /* Imo it should be `sigaction_make_defaults(sa);`, but Linux does this and LTP
-                 * explicitly tests for this ... */
-                sa->k_sa_handler = SIG_DFL;
-            }
-
-            ret = true;
-        }
-        unlock(&current->signal_dispositions->lock);
+    if (!sig) {
+        return false;
     }
 
-    return ret;
+    bool ret = false;
+    lock(&current->signal_dispositions->lock);
+    struct __kernel_sigaction* sa = &current->signal_dispositions->actions[sig - 1];
+
+    uintptr_t handler = (uintptr_t)sa->k_sa_handler;
+    if (handler == (uintptr_t)SIG_DFL) {
+        if (default_sighandler[sig - 1] == SIGHANDLER_KILL) {
+            unlock(&current->signal_dispositions->lock);
+            sighandler_kill(sig);
+            /* Unreachable. */
+        } else if (default_sighandler[sig - 1] == SIGHANDLER_CORE) {
+            unlock(&current->signal_dispositions->lock);
+            sighandler_core(sig);
+            /* Unreachable. */
+        }
+        assert(default_sighandler[sig - 1] == SIGHANDLER_NONE);
+        handler = (uintptr_t)SIG_IGN;
+    }
+    if (handler != (uintptr_t)SIG_IGN) {
+        /* User provided handler. */
+        assert(sa->sa_flags & SA_RESTORER);
+
+        long sysnr = shim_get_tcb()->context.syscall_nr;
+        if (sysnr >= 0) {
+            switch (pal_context_get_retval(context)) {
+                case -ERESTARTNOHAND:
+                    pal_context_set_retval(context, -EINTR);
+                    break;
+                case -ERESTARTSYS:
+                    if (!(sa->sa_flags & SA_RESTART)) {
+                        pal_context_set_retval(context, -EINTR);
+                        break;
+                    }
+                    /* Fallthrough */
+                case -ERESTARTNOINTR:
+                    restart_syscall(context, (uint64_t)sysnr);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        __sigset_t new_mask = sa->sa_mask;
+        if (!(sa->sa_flags & SA_NODEFER)) {
+            __sigaddset(&new_mask, sig);
+        }
+        clear_illegal_signals(&new_mask);
+
+        __sigset_t old_mask;
+        lock(&current->lock);
+        get_sig_mask(current, &old_mask);
+        set_sig_mask(current, &new_mask);
+        unlock(&current->lock);
+
+        prepare_sigframe(context, &signal.siginfo, handler, (uint64_t)sa->sa_restorer,
+                         !!(sa->sa_flags & SA_ONSTACK), old_mask_ptr ?: &old_mask);
+
+        if (sa->sa_flags & SA_RESETHAND) {
+            /* Imo it should be `sigaction_make_defaults(sa);`, but Linux does this and LTP
+             * explicitly tests for this ... */
+            sa->k_sa_handler = SIG_DFL;
+        }
+
+        ret = true;
+    }
+    unlock(&current->signal_dispositions->lock);
+
+    if (!ret) {
+        /* We have seen an ignored signal, retry. */
+        return handle_signal(context, old_mask_ptr);
+    }
+
+    return true;
 }
 
 int append_signal(struct shim_thread* thread, siginfo_t* info) {
@@ -842,6 +849,8 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
 
     // TODO: ignore SIGCHLD even if it's masked, when handler is set to SIG_IGN (probably not here)
 
+    /* For real-time signal we save a pointer to a signal object, so we need to allocate it here.
+     * If this is a standard signal, this will be freed at return from this function. */
     struct shim_signal* signal = malloc(sizeof(*signal));
     if (!signal) {
         return -ENOMEM;

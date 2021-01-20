@@ -202,6 +202,20 @@ This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
 eventfd emulation currently relies on the host, these system calls are
 disallowed by default due to security concerns.
 
+External SIGTERM injection
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sys.enable_sigterm_injection = [1|0]
+    (Default: 0)
+
+This specifies whether to allow for a one time injection of `SIGTERM` signal
+into Graphene. Could be useful to handle graceful shutdown.
+Be careful! In SGX environment, the untrusted host could inject that signal in
+an arbitrary moment. Examine what your application `SIGTERM` handler does and
+whether it poses any security-treat.
+
 Root FS mount point
 ^^^^^^^^^^^^^^^^^^^
 

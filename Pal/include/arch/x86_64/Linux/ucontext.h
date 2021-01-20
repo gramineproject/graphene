@@ -2,8 +2,8 @@
 /* Copyright (C) 2020 Intel Corporation
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
-#ifndef _LINUX_X86_64_UCONTEXT_H
-#define _LINUX_X86_64_UCONTEXT_H
+#ifndef LINUX_X86_64_UCONTEXT_H_
+#define LINUX_X86_64_UCONTEXT_H_
 
 #include <stdint.h>
 
@@ -103,4 +103,4 @@ static inline void ucontext_set_function_parameters(ucontext_t* uc, void* func, 
     uc->uc_mcontext.rsi = arg2;
 }
 
-#endif /* _LINUX_X86_64_UCONTEXT_H */
+#endif /* LINUX_X86_64_UCONTEXT_H_ */

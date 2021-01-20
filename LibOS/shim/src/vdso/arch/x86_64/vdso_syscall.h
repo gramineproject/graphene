@@ -2,8 +2,8 @@
 /* Copyright (C) 2020 Intel Corporation
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
-#ifndef _VDSO_SYSCALL_H
-#define _VDSO_SYSCALL_H
+#ifndef VDSO_SYSCALL_H_
+#define VDSO_SYSCALL_H_
 
 static inline long vdso_arch_syscall(long (*syscalldb)(void), long nr, long arg1, long arg2) {
     long ret;
@@ -18,4 +18,4 @@ static inline long vdso_arch_syscall(long (*syscalldb)(void), long nr, long arg1
     return ret;
 }
 
-#endif // _VDSO_SYSCALL_H
+#endif // VDSO_SYSCALL_H_

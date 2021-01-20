@@ -90,6 +90,11 @@ struct shim_thread {
      * `g_process_pending_signals_cnt`. */
     uint64_t pending_signals;
 
+    /*
+     * Space to store a forced, synchronous signal. Needed to handle e.g. `SIGSEGV` caused by
+     * referencing an invalid address, which we need to handle before any user generated `SIGSEGV`
+     * (via `kill`), hence we cannot use a normal signal queue in such case.
+     */
     struct shim_signal forced_signal;
 
     /* This field can be accessed without any locks, but each thread can access only its own. */

@@ -163,7 +163,6 @@ __asm__(
     "ret\n"
 );
 
-
 /* Copies fpu state. Returns whether the copied state was xsave-made. */
 static bool shim_xstate_copy(struct shim_xstate* dst, const struct shim_xstate* src) {
     if (src == NULL) {

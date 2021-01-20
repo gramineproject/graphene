@@ -126,6 +126,7 @@ int alloc_thread_libos_stack(struct shim_thread* thread) {
     }
     need_mem_free = true;
 
+    /* Create a stack guard page. */
     if (!DkVirtualMemoryProtect(addr, PAGE_SIZE, PAL_PROT_NONE)) {
         ret = -PAL_ERRNO();
         goto unmap;
