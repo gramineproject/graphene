@@ -852,9 +852,8 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
             ret = -EINVAL;
             goto out;
         }
-
-        free(log_level_str);
     }
+    free(log_level_str);
 
     char* log_file = NULL;
     ret = toml_string_in(manifest_root, "loader.log_file", &log_file);
@@ -863,16 +862,16 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         ret = -EINVAL;
         goto out;
     }
-
     if (log_level > PAL_LOG_NONE && log_file) {
         ret = sgx_log_init(log_file);
-        free(log_file);
 
         if (ret < 0) {
             SGX_DBG(DBG_E, "Cannot open log file: %d\n", ret);
             goto out;
         }
     }
+    free(log_file);
+
     g_sgx_log_level = log_level;
 
     ret = 0;

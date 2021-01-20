@@ -8,8 +8,8 @@
  * initialized) should output at the level and to the file specified in manifest.
  */
 
-#ifndef _SGX_LOG_H
-#define _SGX_LOG_H
+#ifndef SGX_LOG_H_
+#define SGX_LOG_H_
 
 #include "pal.h"
 #include "pal_debug.h"
@@ -31,4 +31,4 @@ int sgx_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 #define sgx_log_debug(fmt...)    _sgx_log(PAL_LOG_DEBUG, fmt)
 #define sgx_log_trace(fmt...)    _sgx_log(PAL_LOG_TRACE, fmt)
 
-#endif /* _SGX_LOG_H */
+#endif /* SGX_LOG_H_ */

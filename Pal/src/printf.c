@@ -20,8 +20,9 @@ struct printbuf {
     char buf[PRINTBUF_SIZE];
 };
 
-static int fputch(void* f, int ch, struct printbuf* b) {
+static int fputch(void* f, int ch, void* putdat) {
     __UNUSED(f);
+    struct printbuf* b = putdat;
 
     b->buf[b->idx++] = ch;
     if (b->idx == PRINTBUF_SIZE - 1) {
@@ -37,7 +38,7 @@ int vprintf(const char* fmt, va_list ap) {
 
     b.idx = 0;
     b.cnt = 0;
-    vfprintfmt((void*)&fputch, NULL, &b, fmt, ap);
+    vfprintfmt(&fputch, NULL, &b, fmt, ap);
     _DkPrintConsole(b.buf, b.idx);
 
     return b.cnt;
@@ -48,7 +49,7 @@ int log_vprintf(const char* fmt, va_list ap) {
 
     b.idx = 0;
     b.cnt = 0;
-    vfprintfmt((void*)&fputch, NULL, &b, fmt, ap);
+    vfprintfmt(&fputch, NULL, &b, fmt, ap);
     _DkDebugLog(b.buf, b.idx);
 
     return b.cnt;

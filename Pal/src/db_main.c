@@ -185,22 +185,21 @@ static void set_debug_type(void) {
         } else {
             INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Unknown 'loader.log_level'");
         }
-
-        free(log_level_str);
     }
+    free(log_level_str);
 
     char* log_file = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.log_file", &log_file);
     if (ret < 0)
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.log_file'");
 
-    if (log_level > PAL_LOG_NONE && log_file) {
+    if (log_file && log_level > PAL_LOG_NONE) {
         ret = _DkInitDebugStream(log_file);
-        free(log_file);
 
         if (ret < 0)
             INIT_FAIL(-ret, "Cannot open log file");
     }
+    free(log_file);
 
     g_pal_control.log_level = log_level;
 }
