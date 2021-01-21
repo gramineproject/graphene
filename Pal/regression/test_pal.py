@@ -146,7 +146,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('argv[0] = Bootstrap', stderr)
 
         # Control Block: Debug Stream (Inline)
-        self.assertIn('Written to Debug Stream', stdout)
+        self.assertIn('Written to Debug Stream', stderr)
 
         # Control Block: Allocation Alignment
         self.assertIn('Allocation Alignment: {}'.format(mmap.ALLOCATIONGRANULARITY), stderr)
@@ -259,8 +259,9 @@ class TC_02_Symbols(RegressionTestCase):
 
     def test_000_symbols(self):
         _, stderr = self.run_binary(['Symbols'])
-        found_symbols = dict(line.split(' = ')
-            for line in stderr.strip().split('\n') if line.startswith('Dk'))
+        prefix = 'symbol: '
+        found_symbols = dict(line[len(prefix):].split(' = ')
+            for line in stderr.strip().split('\n') if line.startswith(prefix))
         self.assertCountEqual(found_symbols, self.ALL_SYMBOLS)
         for k, value in found_symbols.items():
             value = ast.literal_eval(value)
