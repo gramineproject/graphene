@@ -5,11 +5,12 @@
 #                         Dmitrii Kuvaiskii <dmitrii.kuvaiskii@intel.com>
 
 import argparse
-import jinja2
 import os
 import re
 import subprocess
 import sys
+
+import jinja2
 
 def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
@@ -54,7 +55,7 @@ def generate_library_paths():
 
     # Library paths start without whitespace (in contrast to libraries found under this path)
     ld_paths = (line for line in ld_paths if not re.match(r'(^\s)', line))
-    return ''.join(ld_paths) + os.getenv('LD_LIBRARY_PATH', default = '')
+    return ''.join(ld_paths) + os.getenv('LD_LIBRARY_PATH', default='')
 
 
 argparser = argparse.ArgumentParser()

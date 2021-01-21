@@ -5,13 +5,14 @@
 #                         Dmitrii Kuvaiskii <dmitrii.kuvaiskii@intel.com>
 
 import argparse
-import jinja2
 import json
 import os
 import pathlib
 import re
 import shutil
 import sys
+
+import jinja2
 
 import docker  # pylint: disable=import-error
 import yaml    # pylint: disable=import-error
@@ -36,8 +37,8 @@ def get_docker_image(docker_socket, image_name):
 
 def build_docker_image(build_path, image_name, dockerfile, **kwargs):
     build_path = str(build_path) # Docker API doesn't under PathLib's PosixPath type
-    docker_api = docker.APIClient(base_url = 'unix://var/run/docker.sock')
-    stream = docker_api.build(path = build_path, tag = image_name, dockerfile = dockerfile,
+    docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
+    stream = docker_api.build(path=build_path, tag=image_name, dockerfile=dockerfile,
                               **kwargs)
     for chunk in stream:
         encoding = sys.stdout.encoding if sys.stdout.encoding is not None else 'UTF-8'
@@ -47,7 +48,7 @@ def build_docker_image(build_path, image_name, dockerfile, **kwargs):
                 print(line)
 
 
-def extract_binary_cmd_from_image_config(config):
+def extract_binary_cmd_from_image_config(config, env):
     entrypoint = config['Entrypoint'] or []
     num_starting_entrypoint_items = len(entrypoint)
     cmd = config['Cmd'] or []
@@ -77,16 +78,16 @@ def extract_binary_cmd_from_image_config(config):
     cmd = entrypoint[last_bin_arg + 1:] if len(entrypoint) > last_bin_arg + 1 else ''
     cmd = [s.replace('\\', '\\\\').replace('"', '\\"') for s in cmd]
 
-    return binary, binary_arguments, cmd
+    env.globals.update({'binary': binary, 'binary_arguments': binary_arguments, 'cmd': cmd})
 
 
-def extract_working_dir_from_image_config(config):
+def extract_working_dir_from_image_config(config, env):
     working_dir = config['WorkingDir']
     if working_dir == '':
         working_dir = '/'
     elif working_dir[-1] != '/':
         working_dir = working_dir + '/'
-    return working_dir
+    env.globals.update({'working_dir': working_dir})
 
 
 def extract_build_args(args):
@@ -127,20 +128,13 @@ def gsc_build(args):
           f'application image `{original_image_name}`...')
 
     # initialize Jinja env with configurations extracted from the original Docker image
-    image_config = original_image.attrs['Config']
-    binary, binary_arguments, cmd = extract_binary_cmd_from_image_config(image_config)
-    working_dir = extract_working_dir_from_image_config(image_config)
 
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
     env.globals.update(yaml.safe_load(args.config_file))
     env.globals.update(vars(args))
-    env.globals.update({
-            'app_image': original_image_name,
-            'binary': binary,
-            'binary_arguments': binary_arguments,
-            'cmd': cmd,
-            'working_dir': working_dir,
-    })
+    env.globals.update({'app_image': original_image_name})
+    extract_binary_cmd_from_image_config(original_image.attrs['Config'], env)
+    extract_working_dir_from_image_config(original_image.attrs['Config'], env)
 
     os.makedirs(tmp_build_path, exist_ok=True)
 
@@ -171,8 +165,8 @@ def gsc_build(args):
     # copy helper script to finalize the manifest from within graphenized Docker image
     shutil.copyfile('finalize_manifest.py', tmp_build_path / 'finalize_manifest.py')
 
-    build_docker_image(tmp_build_path, unsigned_image_name, 'Dockerfile.build', rm = args.rm,
-                       nocache = args.no_cache, buildargs = extract_build_args(args))
+    build_docker_image(tmp_build_path, unsigned_image_name, 'Dockerfile.build', rm=args.rm,
+                       nocache=args.no_cache, buildargs=extract_build_args(args))
 
     # Check if docker build failed
     if get_docker_image(docker_socket, unsigned_image_name) is None:
@@ -219,7 +213,7 @@ def gsc_build_graphene(args):
         return
 
     build_docker_image(tmp_build_path, graphene_image_name, 'Dockerfile.compile', rm=args.rm,
-                       nocache=args.no_cache, buildargs = extract_build_args(args))
+                       nocache=args.no_cache, buildargs=extract_build_args(args))
 
     if get_docker_image(docker_socket, graphene_image_name) is None:
         print(f'Failed to build a base-Graphene image `{graphene_image_name}`.')
@@ -252,7 +246,7 @@ def gsc_sign_image(args):
 
     os.makedirs(tmp_build_path, exist_ok=True)
     with open(tmp_build_path / 'Dockerfile.sign', 'w') as dockerfile:
-        dockerfile.write(sign_template.render(image = unsigned_image_name))
+        dockerfile.write(sign_template.render(image=unsigned_image_name))
 
     # copy user-provided signing key to our tmp build dir (to copy it later inside Docker image)
     tmp_build_key_path = tmp_build_path / 'gsc-signer-key.pem'
