@@ -95,8 +95,6 @@ int ocall_debug_map_add(const char* name, void* addr);
 
 int ocall_debug_map_remove(void* addr);
 
-int ocall_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset);
-
 int ocall_eventfd(unsigned int initval, int flags);
 
 /*!

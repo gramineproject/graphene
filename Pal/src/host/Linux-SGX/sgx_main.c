@@ -46,9 +46,9 @@ char* g_libpal_path = NULL;
 struct pal_enclave g_pal_enclave;
 
 /*
- * FIXME: the ELF-parsing functions in this file (scan_enclave_binary, report_mmaps,
- * load_enclave_binary) assume that all the program headers will be found within first FILEBUF_SIZE
- * bytes. This will be true for most binaries, but is not guaranteed.
+ * FIXME: the ELF-parsing functions in this file (scan_enclave_binary, load_enclave_binary) assume
+ * that all the program headers will be found within first FILEBUF_SIZE bytes. This will be true for
+ * most binaries, but is not guaranteed.
  *
  * (Glibc also allocates such a buffer but recovers when it's too small, see elf/dl-load.c in glibc
  * sources.)
@@ -97,37 +97,6 @@ static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
         *entry = header->e_entry;
     return 0;
 }
-
-#ifdef DEBUG
-static int report_mmaps(int fd, const char* filename, uint64_t base) {
-    int ret = 0;
-
-    if (IS_ERR(ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET)))
-        return ret;
-
-    char filebuf[FILEBUF_SIZE];
-    ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
-    if (IS_ERR(ret))
-        return ret;
-
-    if ((size_t)ret < sizeof(ElfW(Ehdr)))
-        return -ENOEXEC;
-
-    const ElfW(Ehdr)* header = (void*)filebuf;
-    const ElfW(Phdr)* phdr   = (void*)filebuf + header->e_phoff;
-    const ElfW(Phdr)* ph;
-
-    for (ph = phdr; ph < &phdr[header->e_phnum]; ph++)
-        if (ph->p_type == PT_LOAD && ph->p_flags & PF_X) {
-            uint64_t mapstart  = ALLOC_ALIGN_DOWN(ph->p_vaddr);
-            uint64_t mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
-            uint64_t mapoff = ALLOC_ALIGN_DOWN(ph->p_offset);
-            sgx_profile_report_mmap(filename, base + mapstart, mapend - mapstart, mapoff);
-        }
-
-    return 0;
-}
-#endif /* DEBUG */
 
 static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base,
                                unsigned long prot) {
@@ -551,22 +520,16 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     }
 
 #ifdef DEBUG
-    if (enclave->profile_enable) {
-        /*
-         * Report libpal map. All subsequent files will be reported via DkDebugMapAdd(), but this
-         * one has to be handled separately.
-         *
-         * We report it here, before enclave start (as opposed to setup_pal_map()), because we want
-         * the mmap to appear in profiling data before the samples from libpal code, so that the
-         * addresses for these samples can be resolved to symbols.
-         */
-        ret = report_mmaps(enclave_image, enclave->libpal_uri + URI_PREFIX_FILE_LEN,
-                           pal_area->addr);
-        if (IS_ERR(ret))
-            goto out;
-    }
+    /*
+     * Report libpal map. All subsequent files will be reported via DkDebugMapAdd(), but this
+     * one has to be handled separately.
+     *
+     * We report it here, before enclave start (as opposed to setup_pal_map()), because we want both
+     * GDB integration and profiling to be active from the very beginning of enclave execution.
+     */
 
     debug_map_add(enclave->libpal_uri + URI_PREFIX_FILE_LEN, (void*)pal_area->addr);
+    sgx_profile_report_elf(enclave->libpal_uri + URI_PREFIX_FILE_LEN, (void*)pal_area->addr);
 #endif
 
     ret = 0;

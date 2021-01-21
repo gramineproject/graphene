@@ -800,6 +800,17 @@ static int relocate_elf_object(struct link_map* l) {
     return 0;
 }
 
+/*
+ * TODO: This function assumes that a "file:" URI describes a path that can be opened on a host
+ * directly (e.g. by GDB or other tools). This is mostly true, except for protected files in
+ * Linux-SGX, which are stored encrypted. As a result, if we load a binary that is a protected file,
+ * we will (incorrectly) report the encrypted file as the actual binary, and code that tries to
+ * parse this file will trip up.
+ *
+ * For now, this doesn't seem worth fixing, as there's no use case for running binaries from
+ * protected files system, and a workaround would be ugly. Instead, the protected files system needs
+ * rethinking.
+ */
 void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr) {
 #ifndef DEBUG
     __UNUSED(uri);
