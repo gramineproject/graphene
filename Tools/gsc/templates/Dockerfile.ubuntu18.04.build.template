@@ -1,19 +1,13 @@
-{% if not Graphene.Image %}
-
-{% include "Dockerfile.ubuntu18.04.compile.template" %}
-
+# Include previously-prepared Docker image with Graphene (if any) or compile Graphene from sources
+{% if Graphene.Image %}
+FROM gsc-{{Graphene.Image}} AS graphene
 {% else %}
-
-# Include graphene via Docker image
-From {{Graphene.Image}} AS graphene
-
+{% include "Dockerfile.ubuntu18.04.compile.template" %}
 {% endif %}
 
-# Integrate Graphene into the app image
-# This file is used in a multistage docker build process, in which the previous image is named "graphene"
+# Combine Graphene image with the original app image
 FROM {{app_image}}
 
-# Update any packages
 RUN apt-get update \
     && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
         python3 \
@@ -25,12 +19,7 @@ RUN apt-get update \
     && python3 -B -m pip install protobuf jinja2
 
 {% if debug %}
-# Install GDB and related tools when Debug is enabled
-RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    gdb \
-    less \
-    strace \
-    vim
+RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y gdb less strace vim
 {% endif %}
 
 # Copy Graphene runtime and signer tools to /graphene
@@ -43,6 +32,7 @@ COPY --from=graphene /graphene/Runtime/ /graphene/Runtime
 COPY --from=graphene /graphene/python /graphene/python
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/generated_offsets.py /graphene/python/
 COPY --from=graphene /graphene/Tools/argv_serializer /graphene/Tools
+
 {% if debug %}
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/sgx_gdb.so \
                      /graphene/Pal/src/host/Linux-SGX/gdb_integration/
@@ -52,21 +42,24 @@ COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/graphene_s
                      /graphene/Pal/src/host/Linux-SGX/gdb_integration/
 {% endif %}
 
-# Copy template scripts and manifests
-COPY apploader.sh ./
-COPY *.manifest ./
-COPY *.py ./
+# Copy helper scripts and Graphene manifest
+COPY *.py /
+COPY apploader.sh /
+COPY entrypoint.manifest /
 
+# Generate trusted arguments if required
 {% if not insecure_args %}
-# Generate trusted arguments
 RUN /graphene/Tools/argv_serializer {{binary}} {{binary_arguments}} "{{"\" \"".join(cmd)}}" > trusted_argv
 {% endif %}
 
-# Mark apploader.sh executable, finalize manifests, and remove intermediate scripts
+# Docker entrypoint/cmd typically contains only the basename of the executable so create a symlink
+RUN which {{binary}} | xargs ln -s || true
+
+# Mark apploader.sh executable, finalize manifest, and remove intermediate scripts
 RUN chmod u+x apploader.sh \
-    && python3 -B finalize_manifest.py / {{binary}} \
+    && python3 -B finalize_manifest.py \
     && rm -f finalize_manifest.py
 
 # Define default command
-ENTRYPOINT ["/bin/sh", "./apploader.sh"]
+ENTRYPOINT ["/bin/bash", "./apploader.sh"]
 CMD [{% if insecure_args %} "{{'", "'.join(cmd)}}" {% endif %}]

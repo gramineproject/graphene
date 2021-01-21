@@ -1,6 +1,11 @@
 TESTCASES ?= python3 python3-trusted-args base-python3 hello-world nodejs bash numpy pytorch
 DISTRIBUTIONS ?= ubuntu18.04
-GRAPHENE_BRANCH ?= a37a85baf5ab6e0901a777313072d62b4e75fc3a # the last working commit. TODO: update
+
+GRAPHENE_REPO ?= https://github.com/oscarlab/graphene.git
+GRAPHENE_BRANCH ?= master
+SGXDRIVER_REPO ?= https://github.com/01org/linux-sgx-driver.git
+SGXDRIVER_BRANCH ?= sgx_driver_1.9
+
 DOCKER_BUILD_FLAGS ?= --rm --no-cache
 GSC_BUILD_FLAGS ?= --rm --no-cache
 TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
@@ -18,9 +23,13 @@ IMAGE_SUFFIX ?=
 .PHONY: all
 all: $(KEY_FILE)
 	for d in $(DISTRIBUTIONS); do \
-		sed -e 's/Distro: \".*\"/Distro: \"'$${d}'\"/' \
-		    -e 's/Branch: \"master\"/Branch: \"'$(GRAPHENE_BRANCH)'\"/' \
-			../config.yaml.template > config-$${d}.yaml; \
+		echo "Distro: \"$${d}\"" > config-$${d}.yaml; \
+		echo "Graphene:" >> config-$${d}.yaml; \
+		echo "    Repository: \"$(GRAPHENE_REPO)\"" >> config-$${d}.yaml; \
+		echo "    Branch:     \"$(GRAPHENE_BRANCH)\"" >> config-$${d}.yaml; \
+		echo "SGXDriver:" >> config-$${d}.yaml; \
+		echo "    Repository: \"$(SGXDRIVER_REPO)\"" >> config-$${d}.yaml; \
+		echo "    Branch:     \"$(SGXDRIVER_BRANCH)\"" >> config-$${d}.yaml; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
 	done
 

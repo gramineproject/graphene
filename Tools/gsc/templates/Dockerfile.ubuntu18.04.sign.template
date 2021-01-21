@@ -1,0 +1,19 @@
+# Sign image in a separate stage to ensure that signing key is never part of the final image
+
+FROM {{image}} as unsigned_image
+
+COPY gsc-signer-key.pem /gsc-signer-key.pem
+
+RUN /graphene/python/graphene-sgx-sign \
+        -libpal /graphene/Runtime/libpal-Linux-SGX.so \
+        -key /gsc-signer-key.pem \
+        -manifest /entrypoint.manifest \
+        -output /entrypoint.manifest.sgx
+
+# This trick removes all temporary files from the previous commands (including gsc-signer-key.pem)
+FROM {{image}}
+
+COPY --from=unsigned_image /*.sig /
+COPY --from=unsigned_image /*.sgx /
+
+RUN rm /graphene/python/graphene-sgx-sign /graphene/python/graphenelibos/sgx_sign.py

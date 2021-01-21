@@ -94,9 +94,7 @@ Builds an unsigned graphenized Docker image of an application image called
 ``gsc-<IMAGE-NAME>-unsigned`` by compiling Graphene or relying on a prebuilt
 Graphene image.
 
-Synopsis:
-
-:command:`gsc build` [*OPTIONS*] <*IMAGE-NAME*> <*APP1.MANIFEST*> [<*APP2.MANIFEST*> ... <*APPN.MANIFEST*>]
+:command:`gsc build` [*OPTIONS*] <*IMAGE-NAME*> <*APP.MANIFEST*>
 
 .. option:: -d
 
@@ -150,8 +148,6 @@ Docker image called ``gsc-<IMAGE-NAME>``. :command:`gsc sign-image` always
 removes intermediate Docker images, if successful or not, to ensure the removal
 of the signing key in intermediate Docker images.
 
-Synopsis:
-
 :command:`gsc sign-image` [*OPTIONS*] <*IMAGE-NAME*> <*KEY-FILE*>
 
 .. option:: -c
@@ -174,8 +170,6 @@ Synopsis:
 Builds a base Docker image including the Graphene sources and compiled runtime.
 This base image can be used as input for :command:`gsc build` via configuration
 parameter `Graphene.Image`.
-
-Synopsis:
 
 :command:`gsc build-graphene` [*OPTIONS*] <*IMAGE-NAME*>
 
@@ -248,45 +242,43 @@ Stages of building graphenized SGX Docker images
 ------------------------------------------------
 
 The build process of a graphenized Docker image from image ``<image-name>``
-follows four main stages and produces an image named ``gsc-<image-name>``.
-:command:`gsc build` generates the first two stages (building/pulling Graphene
-and graphenizing the base image) and :command:`gsc sign-image` generates the
-last two stages (signing the Intel SGX enclave and generating the final Docker
-image).
+follows three main stages and produces an image named ``gsc-<image-name>``.
+:command:`gsc build-graphene` performs only the first stage,
+:command:`gsc build` performs the first two stages, and finally
+:command:`gsc sign-image` performs the last stage.
 
-Building or Pulling Graphene
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#. **Building Graphene.** The first stage builds Graphene from sources based on
+   the provided configuration (see :file:`config.yaml`) which includes the
+   distribution (e.g., Ubuntu 18.04), Graphene repository, and the Intel SGX
+   driver details. This stage can be skipped if :command:`gsc build` uses a
+   pre-built Graphene Docker image.
 
-The first stage either compiles Graphene based on the provided configuration
-(see :file:`config.yaml`) which includes the distribution (e.g., Ubuntu 18.04),
-Graphene repository, and the Intel SGX driver details, or pulls a prebuilt
-Docker image also defined via the configuration file. Prebuilt images will be
-provided for popular cloud-provider offerings or can be created via
-:command:`gsc build-graphene`.
+#. **Graphenizing the application image.** The second stage copies the important
+   Graphene artifacts (e.g., the runtime and signer tool) from the first stage
+   (or if the first stage was skipped, it pulls a prebuilt Docker image defined
+   via the configuration file).  It then prepares image-specific variables such
+   as the executable path and the library path, and scans the entire image to
+   generate a list of trusted files.  GSC excludes files and paths starting with
+   :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
+   :file:`/etc/rc`, since checksums are required which either don't exist or may
+   vary across different deployment machines. GSC combines these variables and
+   list of trusted files into a new manifest file. In a last step the entrypoint
+   is changed to launch the :file:`apploader.sh` script which generates an Intel
+   SGX token and starts the :program:`pal-Linux-SGX` loader. Note that the
+   generated image (``gsc-<image-name>-unsigned``) cannot successfully load an
+   Intel SGX enclave, since essential files and the signing of the enclave are
+   still missing (see next stage).
 
-Graphenizing the application image
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#. **Signing the Intel SGX enclave.** The third stage uses Graphene's signer
+   tool to generate SIGSTRUCT files for SGX enclave initialization. This tool
+   also generates an SGX-specific manifest file.  The required signing key is
+   provided by the user via the :command:`gsc sign-image` command and copied
+   into this Docker build stage. The generated image is called
+   ``gsc-<image-name>`` and includes all necessary files to start an Intel SGX
+   enclave.
 
-The second stage copies the important Graphene artifacts (e.g., the runtime and
-signer tool) from the first stage. It then prepares image-specific variables
-such as the executable path and the library path, and scans the entire image to
-generate a list of trusted files. GSC excludes files and paths starting with
-:file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
-:file:`/etc/rc`, since checksums are required which either don't exist or may
-vary across different deployment machines. GSC combines these variables and list
-of trusted files to a new manifest file. In a last step the entrypoint is
-changed to launch the :file:`apploader.sh` script which generates an Intel SGX
-token and starts the :program:`pal-Linux-SGX` loader. The generated image
-(``gsc-<image-name>-unsigned``) cannot successfully load an Intel SGX enclave,
-since essential files and the signing of the enclave are missing.
-
-Signing the Intel SGX enclave
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The third stage uses Graphene's signer tool to generate SIGSTRUCT files for SGX
-enclave initialization. This tool also generates an SGX-specific manifest files.
-The required signing key is provided by the user via the :command:`gsc
-sign-image` command and copied into this Docker build stage.
+Note that prebuilt Graphene images will be provided for popular cloud-provider
+offerings or can be created via :command:`gsc build-graphene`.
 
 Generating a signed graphenized Docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -294,8 +286,7 @@ Generating a signed graphenized Docker image
 The last stage combines the graphenized Docker image with the signed enclave and
 manifest files. Therefore it copies the SIGSTRUCT files and the SGX-specific
 manifest file from the previous stage into the graphenized Docker image from the
-second stage. The resulting image is called `gsc-<image-name>` and includes all
-necessary files to start an Intel SGX enclave.
+second stage.
 
 Configuration
 =============
@@ -313,11 +304,11 @@ in :file:`config.yaml.template`.
 
    Source repository of Graphene. Default value:
    `https://github.com/oscarlab/graphene.git
-   <https://github.com/oscarlab/graphene.git>`__
+   <https://github.com/oscarlab/graphene.git>`__.
 
 .. describe:: Graphene.Branch
 
-   Use this branch of the repository. Default value: master
+   Use this branch of the repository. Default value: master.
 
 .. describe:: Graphene.Image
 
@@ -330,17 +321,17 @@ in :file:`config.yaml.template`.
 
    Source repository of the Intel SGX driver. Default value:
    `https://github.com/01org/linux-sgx-driver.git
-   <https://github.com/01org/linux-sgx-driver.git>`__
+   <https://github.com/01org/linux-sgx-driver.git>`__.
 
 .. describe:: SGXDriver.Branch
 
-   Use this branch of the repository. Default value: sgx_driver_1.9
+   Use this branch of the repository. Default value: sgx_driver_1.9.
 
 Run graphenized Docker images
 =============================
 
 Execute :command:`docker run` command via Docker CLI and provide gsgx and
-isgx/sgx device, and the PSW/AESM socket. Additional Docker options and
+isgx/sgx devices and the PSW/AESM socket. Additional Docker options and
 executable arguments may be supplied to the :command:`docker run` command.
 
 .. warning::
@@ -350,12 +341,12 @@ executable arguments may be supplied to the :command:`docker run` command.
 
 .. program:: docker
 
-:command:`docker run` --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*> [<*ARGUMENTS*>]
+:command:`docker run` [*OPTIONS*] gsc-<*IMAGE-NAME*> [<*ARGUMENTS*>]
 
 .. option:: OPTIONS
 
    :command:`docker run` options. Common options include ``-it`` (interactive
-   with terminal) or ``-d`` (detached). Please see
+   with terminal), ``-d`` (detached), ``--device`` (forward device). Please see
    `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__
    for details.
 
@@ -382,7 +373,7 @@ sign the image via a :command:`gsc sign-image` command.
 
 .. envvar:: GSC_PAL
 
-   Specifies the pal loader
+   This environment variable specifies the pal loader.
 
 .. code-block:: sh
 
@@ -393,7 +384,7 @@ Example
 
 The :file:`test` folder in :file:`Tools/gsc` describes how to graphenize Docker
 images and test them with sample inputs. The samples include Ubuntu-based Docker
-images of Bash, Python, nodejs, Numpy, and Pytorch.
+images of Bash, Python, Node.js, Numpy and Pytorch.
 
 .. warning::
    All test images rely on insecure arguments to be able to set test-specific
@@ -403,20 +394,26 @@ images of Bash, Python, nodejs, Numpy, and Pytorch.
 The example below shows how to graphenize the public Docker image of Python3.
 This example assumes that all prerequisites are installed and configured.
 
-#. Pull public Python image from Dockerhub:
-
-   .. code-block:: sh
-
-      docker pull python
-
 #. Create a configuration file:
 
    .. code-block:: sh
 
       cd Tools/gsc
       cp config.yaml.template config.yaml
-      # Adopt config.yaml to the installed Intel SGX driver and desired Graphene
-      # repository.
+      # Manually adopt config.yaml to the installed Intel SGX driver and desired
+      # Graphene repository/version.
+
+#. Generate the signing key (if you don't already have a key):
+
+   .. code-block:: sh
+
+      openssl genrsa -3 -out enclave-key.pem 3072
+
+#. Pull public Python image from Dockerhub:
+
+   .. code-block:: sh
+
+      docker pull python
 
 #. Graphenize the Python image using :command:`gsc build`:
 
@@ -428,16 +425,13 @@ This example assumes that all prerequisites are installed and configured.
 
    .. code-block:: sh
 
-      # Generate signing key (if you don't already have a key)
-      openssl genrsa -3 -out enclave-key.pem 3072
-      # Sign graphenized Docker image with the key
       ./gsc sign-image python enclave-key.pem
 
 #. Test the graphenized Docker image:
 
    .. code-block:: sh
 
-      docker run --device=/dev/gsgx --device=/dev/*sgx \
+      docker run --device=/dev/gsgx --device=/dev/sgx/enclave \
          -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket \
          gsc-python -c 'print("HelloWorld!")'
 
@@ -455,10 +449,8 @@ Dependency on Ubuntu 18.04
 Docker images not based on Ubuntu 18.04 may not be compatible with GSC. GSC
 relies on Graphene to execute Linux applications inside Intel SGX enclaves and
 the installation of prerequisites depends on package manager and package
-repositories.
-
-GSC can simply be extended to support other distributions by providing a
-template for this distribution in :file:`Tools/gsc/templates`.
+repositories. GSC can simply be extended to support other distributions by
+providing a template for this distribution in :file:`Tools/gsc/templates`.
 
 Trusted data in Docker volumes
 ------------------------------
