@@ -177,8 +177,8 @@ void sgx_profile_finish(void);
 /* Record a sample */
 void sgx_profile_sample(void* tcs);
 
-/* Record a new mmap of executable region */
-void sgx_profile_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset);
+/* Record a new mapped ELF */
+void sgx_profile_report_elf(const char* filename, void* addr);
 #endif
 
 /* perf.data output (sgx_perf_data.h) */

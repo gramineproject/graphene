@@ -23,17 +23,6 @@
 
 void _DkDebugMapAdd(const char* name, void* addr) {
     ocall_debug_map_add(name, addr);
-
-    const ElfW(Ehdr)* ehdr = addr;
-    ElfW(Phdr)* phdr = (void*)(addr + ehdr->e_phoff);
-    const ElfW(Phdr)* ph;
-    for (ph = phdr; ph < &phdr[ehdr->e_phnum]; ++ph)
-        if (ph->p_type == PT_LOAD && ph->p_flags & PF_X) {
-            uint64_t mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
-            uint64_t mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
-            uint64_t offset = ALLOC_ALIGN_DOWN(ph->p_offset);
-            ocall_report_mmap(name, (uint64_t)addr + mapstart, mapend - mapstart, offset);
-        }
 }
 
 void _DkDebugMapRemove(void* addr) {

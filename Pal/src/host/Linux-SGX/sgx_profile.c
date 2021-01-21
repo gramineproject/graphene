@@ -16,7 +16,10 @@
 #include <stddef.h>
 
 #include "cpu.h"
+#include "elf-x86_64.h"
+#include "elf/elf.h"
 #include "sgx_internal.h"
+#include "sgx_log.h"
 #include "sgx_tls.h"
 #include "spinlock.h"
 #include "string.h"
@@ -264,7 +267,9 @@ void sgx_profile_sample(void* tcs) {
     }
 }
 
-void sgx_profile_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset) {
+void sgx_profile_report_elf(const char* filename, void* addr) {
+    int ret;
+
     if (!g_profile_enabled)
         return;
 
@@ -273,17 +278,65 @@ void sgx_profile_report_mmap(const char* filename, uint64_t addr, uint64_t len, 
     char buf[PATH_MAX];
     char* path = realpath(filename, buf);
     if (!path) {
-        SGX_DBG(DBG_E, "sgx_profile_report_mmap: realpath(%s) failed\n", filename);
+        urts_log_error("sgx_profile_report_elf(%s): realpath failed\n", filename);
         return;
     }
 
+    // Open the file and mmap it.
+
+    int fd = INLINE_SYSCALL(open, 3, path, O_RDONLY, 0);
+    if (IS_ERR(fd)) {
+        urts_log_error("sgx_profile_report_elf(%s): open failed: %d\n", filename, fd);
+        return;
+    }
+
+    off_t elf_length = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_END);
+    if (IS_ERR(elf_length)) {
+        urts_log_error("sgx_profile_report_elf(%s): lseek failed: %ld\n", filename, elf_length);
+        goto out_close;
+    }
+
+    void* elf_addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, elf_length, PROT_READ, MAP_SHARED, fd, 0);
+    if (IS_ERR_P(elf_addr)) {
+        urts_log_error("sgx_profile_report_elf(%s): mmap failed: %ld\n", filename, ERRNO_P(addr));
+        goto out_close;
+    }
+
+    // Read the program headers and record mmap events for the segments that should be mapped as
+    // executable.
+
     pid_t pid = g_pal_enclave.pal_sec.pid;
+    const ElfW(Ehdr)* ehdr = elf_addr;
+    const ElfW(Phdr)* phdr = (const ElfW(Phdr)*)((uintptr_t)elf_addr + ehdr->e_phoff);
+    ret = 0;
 
     spinlock_lock(&g_perf_data_lock);
-    int ret = pd_event_mmap(g_perf_data, path, pid, addr, len, offset);
+    for (unsigned int i = 0; i < ehdr->e_phnum; i++) {
+        if (phdr[i].p_type == PT_LOAD && phdr[i].p_flags & PF_X) {
+            uint64_t mapstart = ALLOC_ALIGN_DOWN(phdr[i].p_vaddr);
+            uint64_t mapend = ALLOC_ALIGN_UP(phdr[i].p_vaddr + phdr[i].p_filesz);
+            uint64_t offset = ALLOC_ALIGN_DOWN(phdr[i].p_offset);
+            ret = pd_event_mmap(g_perf_data, path, pid,
+                                (uint64_t)addr + mapstart, mapend - mapstart, offset);
+            if (IS_ERR(ret))
+                break;
+        }
+    }
     spinlock_unlock(&g_perf_data_lock);
+
     if (IS_ERR(ret))
-        SGX_DBG(DBG_E, "sgx_profile_report_mmap: pd_event_mmap failed: %d\n", ret);
+        urts_log_error("sgx_profile_report_elf(%s): pd_event_mmap failed: %d\n", filename, ret);
+
+    // Clean up.
+
+    ret = INLINE_SYSCALL(munmap, 2, elf_addr, elf_length);
+    if (IS_ERR(ret))
+        urts_log_error("sgx_profile_report_elf(%s): munmap failed: %d\n", filename, ret);
+
+out_close:
+    ret = INLINE_SYSCALL(close, 1, fd);
+    if (IS_ERR(ret))
+        urts_log_error("sgx_profile_report_elf(%s): close failed: %d\n", filename, ret);
 }
 
 #endif /* DEBUG */

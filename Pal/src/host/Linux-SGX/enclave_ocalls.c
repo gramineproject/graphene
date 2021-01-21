@@ -1523,42 +1523,6 @@ int ocall_debug_map_remove(void* addr) {
     return retval;
 }
 
-int ocall_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset) {
-    int retval = 0;
-
-#ifdef DEBUG
-    size_t filename_len = filename ? strlen(filename) + 1 : 0;
-    ms_ocall_report_mmap_t* ms;
-
-    void* old_ustack = sgx_prepare_ustack();
-    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
-    if (!ms) {
-        sgx_reset_ustack(old_ustack);
-        return -EPERM;
-    }
-    void* untrusted_filename = sgx_copy_to_ustack(filename, filename_len);
-    if (!untrusted_filename) {
-        sgx_reset_ustack(old_ustack);
-        return -EPERM;
-    }
-    WRITE_ONCE(ms->ms_filename, untrusted_filename);
-    WRITE_ONCE(ms->ms_addr, addr);
-    WRITE_ONCE(ms->ms_len, len);
-    WRITE_ONCE(ms->ms_offset, offset);
-
-    retval = sgx_exitless_ocall(OCALL_REPORT_MMAP, ms);
-
-    sgx_reset_ustack(old_ustack);
-#else
-    __UNUSED(filename);
-    __UNUSED(addr);
-    __UNUSED(len);
-    __UNUSED(offset);
-#endif
-
-    return retval;
-}
-
 int ocall_eventfd(unsigned int initval, int flags) {
     int retval = 0;
     ms_ocall_eventfd_t* ms;
