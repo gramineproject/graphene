@@ -58,7 +58,7 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     *end = SATURATED_P_SUB(*end, g_pal_internal_mem_size, *start);
 
     if (*end <= *start) {
-        SGX_DBG(DBG_E, "Not enough enclave memory, please increase enclave size!\n");
+        log_error("Not enough enclave memory, please increase enclave size!\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 }
@@ -152,7 +152,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     uint64_t start_time;
     ret = _DkSystemTimeQuery(&start_time);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", ret);
+        log_error("_DkSystemTimeQuery() failed: %d\n", ret);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -162,7 +162,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     struct pal_sec sec_info;
     if (!sgx_copy_to_enclave(&sec_info, sizeof(sec_info), uptr_sec_info, sizeof(*uptr_sec_info))) {
-        SGX_DBG(DBG_E, "Copying sec_info into the enclave failed\n");
+        log_error("Copying sec_info into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -171,7 +171,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     /* Skip URI_PREFIX_FILE. */
     if (libpal_uri_len < URI_PREFIX_FILE_LEN) {
-        SGX_DBG(DBG_E, "Invalid libpal_uri length (missing \"%s\" prefix?)\n", URI_PREFIX_FILE);
+        log_error("Invalid libpal_uri length (missing \"%s\" prefix?)\n", URI_PREFIX_FILE);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     libpal_uri_len -= URI_PREFIX_FILE_LEN;
@@ -182,7 +182,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     if (libpal_uri_len >= sizeof(libpal_path)
             || !sgx_copy_to_enclave(libpal_path, sizeof(libpal_path) - 1, uptr_libpal_uri,
                                     libpal_uri_len)) {
-        SGX_DBG(DBG_E, "Copying libpal_path into the enclave failed\n");
+        log_error("Copying libpal_path into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     libpal_path[libpal_uri_len] = '\0';
@@ -219,21 +219,21 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* ppid should be positive when interpreted as signed. It's 0 if we don't
      * have a graphene parent process. */
     if (sec_info.ppid > INT32_MAX) {
-        SGX_DBG(DBG_E, "Invalid sec_info.ppid: %u\n", sec_info.ppid);
+        log_error("Invalid sec_info.ppid: %u\n", sec_info.ppid);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.ppid = sec_info.ppid;
 
     /* As ppid but we always have a pid, so 0 is invalid. */
     if (sec_info.pid > INT32_MAX || sec_info.pid == 0) {
-        SGX_DBG(DBG_E, "Invalid sec_info.pid: %u\n", sec_info.pid);
+        log_error("Invalid sec_info.pid: %u\n", sec_info.pid);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.pid = sec_info.pid;
 
     /* -1 is treated as special value for example by chown. */
     if (sec_info.uid == (PAL_IDX)-1 || sec_info.gid == (PAL_IDX)-1) {
-        SGX_DBG(DBG_E, "Invalid sec_info.gid: %u\n", sec_info.gid);
+        log_error("Invalid sec_info.gid: %u\n", sec_info.gid);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.uid = sec_info.uid;
@@ -243,13 +243,13 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     if (online_logical_cores >= 1 && online_logical_cores <= (1 << 16)) {
         g_pal_sec.online_logical_cores = online_logical_cores;
     } else {
-        SGX_DBG(DBG_E, "Invalid sec_info.online_logical_cores: %d\n", online_logical_cores);
+        log_error("Invalid sec_info.online_logical_cores: %d\n", online_logical_cores);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     if (sec_info.physical_cores_per_socket <= 0) {
-        SGX_DBG(DBG_E, "Invalid sec_info.physical_cores_per_socket: %ld\n",
-                sec_info.physical_cores_per_socket);
+        log_error("Invalid sec_info.physical_cores_per_socket: %ld\n",
+                  sec_info.physical_cores_per_socket);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.physical_cores_per_socket = sec_info.physical_cores_per_socket;
@@ -269,22 +269,22 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* initialize enclave properties */
     ret = init_enclave();
     if (ret) {
-        SGX_DBG(DBG_E, "Failed to initialize enclave properties: %d\n", ret);
+        log_error("Failed to initialize enclave properties: %d\n", ret);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     if (args_size > MAX_ARGS_SIZE || env_size > MAX_ENV_SIZE) {
-        SGX_DBG(DBG_E, "Invalid args_size (%lu) or env_size (%lu)\n", args_size, env_size);
+        log_error("Invalid args_size (%lu) or env_size (%lu)\n", args_size, env_size);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     const char** arguments = make_argv_list(uptr_args, args_size);
     if (!arguments) {
-        SGX_DBG(DBG_E, "Creating arguments failed\n");
+        log_error("Creating arguments failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     const char** environments = make_argv_list(uptr_env, env_size);
     if (!environments) {
-        SGX_DBG(DBG_E, "Creating environments failed\n");
+        log_error("Creating environments failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -298,13 +298,13 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* Allocate enclave memory to store "logical core -> socket" mappings */
     int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
     if (!cpu_socket) {
-        SGX_DBG(DBG_E, "Allocation for logical core -> socket mappings failed\n");
+        log_error("Allocation for logical core -> socket mappings failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     if (!sgx_copy_to_enclave(cpu_socket, online_logical_cores * sizeof(int), sec_info.cpu_socket,
                              online_logical_cores * sizeof(int))) {
-        SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
+        log_error("Copying cpu_socket into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.cpu_socket = cpu_socket;
@@ -314,7 +314,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
      * this enclave is child */
     ret = _DkRandomBitsRead(&g_master_key, sizeof(g_master_key));
     if (ret < 0) {
-        SGX_DBG(DBG_E, "_DkRandomBitsRead failed: %d\n", ret);
+        log_error("_DkRandomBitsRead failed: %d\n", ret);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -322,7 +322,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     PAL_HANDLE parent = NULL;
     if (g_pal_sec.ppid) {
         if ((ret = init_child_process(&parent)) < 0) {
-            SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", ret);
+            log_error("Failed to initialize child process: %d\n", ret);
             ocall_exit(1, /*is_exitgroup=*/true);
         }
     }
@@ -337,9 +337,9 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     char errbuf[256];
     toml_table_t* manifest_root = toml_parse(manifest_addr, errbuf, sizeof(errbuf));
     if (!manifest_root) {
-        SGX_DBG(DBG_E, "PAL failed at parsing the manifest: %s\n"
-                "  Graphene switched to the TOML format recently, please update the manifest\n"
-                "  (in particular, string values must be put in double quotes)\n", errbuf);
+        log_error("PAL failed at parsing the manifest: %s\n"
+                  "  Graphene switched to the TOML format recently, please update the manifest\n"
+                  "  (in particular, string values must be put in double quotes)\n", errbuf);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_state.raw_manifest_data = manifest_addr;
@@ -348,23 +348,23 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",
                              /*defaultval=*/0, &g_pal_internal_mem_size);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot parse \'loader.pal_internal_mem_size\' "
-                       "(the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'loader.pal_internal_mem_size\' "
+                  "(the value must be put in double quotes!)\n");
         ocall_exit(1, true);
     }
 
     if ((ret = init_trusted_files()) < 0) {
-        SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", ret);
+        log_error("Failed to load the checksums of trusted files: %d\n", ret);
         ocall_exit(1, true);
     }
 
     if ((ret = init_file_check_policy()) < 0) {
-        SGX_DBG(DBG_E, "Failed to load the file check policy: %d\n", ret);
+        log_error("Failed to load the file check policy: %d\n", ret);
         ocall_exit(1, true);
     }
 
     if ((ret = init_protected_files()) < 0) {
-        SGX_DBG(DBG_E, "Failed to initialize protected files: %d\n", ret);
+        log_error("Failed to initialize protected files: %d\n", ret);
         ocall_exit(1, true);
     }
 
@@ -380,7 +380,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     uint64_t stack_protector_canary;
     ret = _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
     if (ret < 0) {
-        SGX_DBG(DBG_E, "_DkRandomBitsRead failed: %d\n", ret);
+        log_error("_DkRandomBitsRead failed: %d\n", ret);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     pal_set_tcb_stack_canary(stack_protector_canary);

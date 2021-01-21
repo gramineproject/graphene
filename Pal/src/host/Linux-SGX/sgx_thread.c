@@ -16,6 +16,7 @@
 #include "pal_security.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
+#include "sgx_log.h"
 #include "spinlock.h"
 
 struct thread_map {
@@ -177,11 +178,11 @@ int pal_thread_init(void* tcbptr) {
     map_tcs(tid); /* updates tcb->tcs */
 
     if (!tcb->tcs) {
-        SGX_DBG(DBG_E,
-                "There are no available TCS pages left for a new thread!\n"
-                "Please try to increase sgx.thread_num in the manifest.\n"
-                "The current value is %d\n",
-                g_enclave_thread_num);
+        urts_log_error(
+            "There are no available TCS pages left for a new thread!\n"
+            "Please try to increase sgx.thread_num in the manifest.\n"
+            "The current value is %d\n",
+            g_enclave_thread_num);
         ret = -ENOMEM;
         goto out;
     }

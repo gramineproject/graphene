@@ -305,20 +305,6 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 
 #endif /* IN_ENCLAVE */
 
-/*
- * Legacy logging system (SGX_DBG).
- *
- * TODO: replace all SGX_DBG invocations with log_* functions (in enclave) and urts_log_* (outside
- * of enclave), remove SGX_DBG from here.
- */
-
-#define DBG_E PAL_LOG_ERROR
-#define DBG_I PAL_LOG_INFO
-#define DBG_D PAL_LOG_DEBUG
-#define DBG_S PAL_LOG_DEBUG
-#define DBG_P PAL_LOG_DEBUG
-#define DBG_M PAL_LOG_DEBUG
-
 #ifdef IN_ENCLAVE
 #undef uthash_fatal
 #define uthash_fatal(msg)               \
@@ -326,15 +312,6 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
         __UNUSED(msg);                  \
         DkProcessExit(PAL_ERROR_NOMEM); \
     } while (0)
-
-#define SGX_DBG(class, fmt...) _log(class, fmt)
-
-#else
-
-#include "pal_debug.h"
-#include "sgx_log.h"
-#define SGX_DBG(class, fmt...) _urts_log(class, fmt)
-
 #endif
 
 #ifndef IN_ENCLAVE

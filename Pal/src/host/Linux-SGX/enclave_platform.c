@@ -16,13 +16,13 @@ int sgx_get_quote(const sgx_spid_t* spid, const sgx_quote_nonce_t* nonce,
 
     int ret = sgx_report(&targetinfo, &_report_data, &report);
     if (ret) {
-        SGX_DBG(DBG_E, "Failed to get enclave report\n");
+        log_error("Failed to get enclave report\n");
         return -PAL_ERROR_DENIED;
     }
 
     ret = ocall_get_quote(spid, linkable, &report, nonce, quote, quote_len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to get quote\n");
+        log_error("Failed to get quote\n");
         return unix_to_pal_error(ERRNO(ret));
     }
     return 0;
