@@ -79,6 +79,11 @@ In general, a |nbsp| PR should:
    that the authors are agreeing to the terms of the `project Developer
    Certificate of Origin <DCO>`__
 
+.. Github and RTD use different roots for resolving paths, because of
+   of .. include: in Documentation/devel/contributing.rst.  This renders as
+   a directory over file//.  Over http[s]:// we take advantage of the automatic
+   / redirect implemented in most HTTP servers. That's why DCO/ is a directory and not a file.
+
 PR Life Cycle
 ^^^^^^^^^^^^^
 We use git-rebase workflow and Reviewable.io for reviews.
