@@ -102,9 +102,6 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     struct heap_vma* check_vma_above = vma_above;
     while (check_vma_above && addr + size > check_vma_above->bottom) {
         if (check_vma_above->is_pal_internal != is_pal_internal) {
-            SGX_DBG(DBG_M, "VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n", addr,
-                    addr + size, is_pal_internal, check_vma_above->bottom, check_vma_above->top,
-                    check_vma_above->is_pal_internal);
             return NULL;
         }
         check_vma_above = LISTP_PREV_ENTRY(check_vma_above, &g_heap_vma_list, list);
@@ -114,9 +111,6 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     struct heap_vma* check_vma_below = vma_below;
     while (check_vma_below && addr < check_vma_below->top) {
         if (check_vma_below->is_pal_internal != is_pal_internal) {
-            SGX_DBG(DBG_M, "VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n", addr,
-                    addr + size, is_pal_internal, check_vma_below->bottom, check_vma_below->top,
-                    check_vma_below->is_pal_internal);
             return NULL;
         }
         check_vma_below = LISTP_NEXT_ENTRY(check_vma_below, &g_heap_vma_list, list);
@@ -141,9 +135,6 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     while (vma_above && vma_above->bottom <= vma->top &&
            vma_above->is_pal_internal == vma->is_pal_internal) {
         /* newly created VMA grows into above VMA; expand newly created VMA and free above-VMA */
-        SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top, vma_above->bottom,
-                vma_above->top);
-
         freed += vma_above->top - vma_above->bottom;
         struct heap_vma* vma_above_above = LISTP_PREV_ENTRY(vma_above, &g_heap_vma_list, list);
 
@@ -158,9 +149,6 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     while (vma_below && vma_below->top >= vma->bottom &&
            vma_below->is_pal_internal == vma->is_pal_internal) {
         /* newly created VMA grows into below VMA; expand newly create VMA and free below-VMA */
-        SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top, vma_below->bottom,
-                vma_below->top);
-
         freed += vma_below->top - vma_below->bottom;
         struct heap_vma* vma_below_below = LISTP_NEXT_ENTRY(vma_below, &g_heap_vma_list, list);
 
@@ -174,10 +162,9 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
     INIT_LIST_HEAD(vma, list);
     LISTP_ADD_AFTER(vma, vma_above, &g_heap_vma_list, list);
-    SGX_DBG(DBG_M, "Created vma %p-%p\n", vma->bottom, vma->top);
 
     if (vma->bottom >= vma->top) {
-        SGX_DBG(DBG_E, "*** Bad memory bookkeeping: %p - %p ***\n", vma->bottom, vma->top);
+        log_error("Bad memory bookkeeping: %p - %p\n", vma->bottom, vma->top);
         ocall_exit(/*exitcode=*/1, /*is_exitgroup=*/true);
     }
 
@@ -203,9 +190,6 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
     addr = ALIGN_DOWN_PTR(addr, g_page_size);
 
     assert(access_ok(addr, size));
-
-    SGX_DBG(DBG_M, "Allocating %lu bytes in enclave memory at %p (%s)\n", size, addr,
-            is_pal_internal ? "PAL internal" : "normal");
 
     struct heap_vma* vma_above = NULL;
     struct heap_vma* vma;
@@ -267,8 +251,6 @@ int free_enclave_pages(void* addr, size_t size) {
         return -PAL_ERROR_INVAL;
     }
 
-    SGX_DBG(DBG_M, "Freeing %lu bytes in enclave memory at %p\n", size, addr);
-
     _DkInternalLock(&g_heap_vma_lock);
 
     /* VMA list contains both normal and pal-internal VMAs; it is impossible to free an area
@@ -294,10 +276,9 @@ int free_enclave_pages(void* addr, size_t size) {
         }
 
         if (is_pal_internal != vma->is_pal_internal) {
-            SGX_DBG(DBG_E,
-                    "*** Area to free (address %p, size %lu) overlaps with both normal and "
-                    "pal-internal VMAs ***\n",
-                    addr, size);
+            log_error("Area to free (address %p, size %lu) overlaps with both normal and "
+                      "pal-internal VMAs\n",
+                      addr, size);
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
@@ -308,8 +289,7 @@ int free_enclave_pages(void* addr, size_t size) {
             /* create VMA [vma->bottom, addr); this may leave VMA [addr + size, vma->top), see below */
             struct heap_vma* new = __alloc_vma();
             if (!new) {
-                SGX_DBG(DBG_E, "*** Cannot create split VMA during freeing of address %p ***\n",
-                        addr);
+                log_error("Cannot create split VMA during freeing of address %p\n", addr);
                 ret = -PAL_ERROR_NOMEM;
                 goto out;
             }

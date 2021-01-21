@@ -89,8 +89,7 @@ static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t encla
     if (ret < 0)
         return ret;
 
-    SGX_DBG(DBG_P | DBG_S, "Enclave identifier: %016lx -> %s\n", enclave_id,
-            ALLOCA_BYTES2HEXSTR(data.eid_mac));
+    log_debug("Enclave identifier: %016lx -> %s\n", enclave_id, ALLOCA_BYTES2HEXSTR(data.eid_mac));
 
     /* Copy proc_data into sgx_sign_data_t */
     assert(sizeof(data) <= sizeof(*sign_data));
@@ -280,7 +279,7 @@ int init_child_process(PAL_HANDLE* parent_handle) {
 
 noreturn void _DkProcessExit(int exitcode) {
     if (exitcode)
-        SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
+        log_debug("DkProcessExit: Returning exit code %d\n", exitcode);
     ocall_exit(exitcode, /*is_exitgroup=*/true);
     /* Unreachable. */
 }

@@ -61,7 +61,7 @@ static int pipe_session_key(PAL_PIPE_NAME* name, PAL_SESSION_KEY* session_key) {
 
     return 0;
 fail:
-    SGX_DBG(DBG_E, "Failed to derive the pre-shared key for pipe %s: %d\n", name->str, ret);
+    log_error("Failed to derive the pre-shared key for pipe %s: %d\n", name->str, ret);
     return ret;
 }
 
@@ -76,7 +76,7 @@ static int thread_handshake_func(void* param) {
     int ret = _DkStreamSecureInit(handle, handle->pipe.is_server, &handle->pipe.session_key,
                                   (LIB_SSL_CONTEXT**)&handle->pipe.ssl_ctx, NULL, 0);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to initialize secure pipe %s: %d\n", handle->pipe.name.str, ret);
+        log_error("Failed to initialize secure pipe %s: %d\n", handle->pipe.name.str, ret);
         _DkProcessExit(1);
     }
 
