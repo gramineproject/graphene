@@ -36,7 +36,7 @@ Log level
 This configures Graphene's debug log. The ``log_level`` option specifies what
 messages to enable (e.g. ``loader.log_level = "debug"`` will enable all messages
 of type ``error``, ``info`` and ``debug``). By default, the messages are printed
-to the standard output. If ``log_file`` is specified, the messages will be
+to the standard error. If ``log_file`` is specified, the messages will be
 appended to that file.
 
 Preloaded libraries
