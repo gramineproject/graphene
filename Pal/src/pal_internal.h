@@ -337,7 +337,7 @@ static inline void print_error(const char* msg, int err) {
 }
 
 #define PAL_LOG_DEFAULT_LEVEL  PAL_LOG_ERROR
-#define PAL_LOG_DEFAULT_FD     1
+#define PAL_LOG_DEFAULT_FD     2
 
 #define _log(level, fmt...)                          \
     do {                                             \
