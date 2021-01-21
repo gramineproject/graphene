@@ -1,7 +1,7 @@
 Distro: "ubuntu18.04"
 Graphene:
     Repository: "https://github.com/oscarlab/graphene.git"
-    Branch: "a37a85baf5ab6e0901a777313072d62b4e75fc3a" # the last working commit. TODO: update
+    Branch: "master"
 SGXDriver:
     Repository: "https://github.com/01org/linux-sgx-driver.git"
     Branch: "sgx_driver_1.9"
