@@ -8,6 +8,7 @@
 #include "pal.h"
 #include "pal_error.h"
 #include "sgx_internal.h"
+#include "sgx_log.h"
 
 #define PRINTBUF_SIZE 256
 

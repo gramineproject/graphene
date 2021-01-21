@@ -11,6 +11,7 @@
 #include "quote/aesm.pb-c.h"
 #include "sgx_attest.h"
 #include "sgx_internal.h"
+#include "sgx_log.h"
 
 #define AESM_SOCKET_NAME_LEGACY "sgx_aesm_socket_base"
 #define AESM_SOCKET_NAME_NEW    "/var/run/aesmd/aesm.socket"
@@ -73,9 +74,9 @@ static int connect_aesm_service(void) {
 
 err:
     INLINE_SYSCALL(close, 1, sock);
-    SGX_DBG(DBG_E, "Cannot connect to aesm_service (tried " AESM_SOCKET_NAME_LEGACY " and "
-            AESM_SOCKET_NAME_NEW " UNIX sockets).\nPlease check its status! (`service aesmd "
-            "status` on Ubuntu)\n");
+    urts_log_error("Cannot connect to aesm_service (tried " AESM_SOCKET_NAME_LEGACY " and "
+                   AESM_SOCKET_NAME_NEW " UNIX sockets).\nPlease check its status! (`service aesmd "
+                   "status` on Ubuntu)\n");
     return -ERRNO(ret);
 }
 
@@ -116,8 +117,8 @@ static int request_aesm_service(Request* req, Response** res) {
 out:
     INLINE_SYSCALL(close, 1, aesm_socket);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot communicate with aesm_service (read/write returned error %d).\n"
-                "Please check its status! (`service aesmd status` on Ubuntu)\n", ERRNO(ret));
+        urts_log_error("Cannot communicate with aesm_service (read/write returned error %d).\n"
+                       "Please check its status! (`service aesmd status` on Ubuntu)\n", ERRNO(ret));
     }
     return -ERRNO(ret);
 }
@@ -138,18 +139,18 @@ int init_quoting_enclave_targetinfo(bool is_epid, sgx_target_info_t* qe_targetin
 
         ret = -EPERM;
         if (!res->initquoteres) {
-            SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
+            urts_log_error("aesm_service returned wrong message\n");
             goto failed;
         }
 
         Response__InitQuoteResponse* r = res->initquoteres;
         if (r->errorcode != 0) {
-            SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
+            urts_log_error("aesm_service returned error: %d\n", r->errorcode);
             goto failed;
         }
 
         if (r->targetinfo.len != sizeof(*qe_targetinfo)) {
-            SGX_DBG(DBG_E, "Quoting Enclave returned invalid target info\n");
+            urts_log_error("Quoting Enclave returned invalid target info\n");
             goto failed;
         }
 
@@ -175,18 +176,18 @@ int init_quoting_enclave_targetinfo(bool is_epid, sgx_target_info_t* qe_targetin
 
         ret = -EPERM;
         if (!res->initquoteexres) {
-            SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
+            urts_log_error("aesm_service returned wrong message\n");
             goto failed;
         }
 
         Response__InitQuoteExResponse* r = res->initquoteexres;
         if (r->errorcode != 0) {
-            SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
+            urts_log_error("aesm_service returned error: %d\n", r->errorcode);
             goto failed;
         }
 
         if (r->target_info.len != sizeof(*qe_targetinfo)) {
-            SGX_DBG(DBG_E, "Quoting Enclave returned invalid target info\n");
+            urts_log_error("Quoting Enclave returned invalid target info\n");
             goto failed;
         }
 
@@ -238,18 +239,18 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
 
         ret = -EPERM;
         if (!res->getquoteexres) {
-            SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
+            urts_log_error("aesm_service returned wrong message\n");
             goto out;
         }
 
         Response__GetQuoteExResponse* r = res->getquoteexres;
         if (r->errorcode != 0) {
-            SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
+            urts_log_error("aesm_service returned error: %d\n", r->errorcode);
             goto out;
         }
 
         if (!r->has_quote || r->quote.len < sizeof(sgx_quote_t)) {
-            SGX_DBG(DBG_E, "aesm_service returned invalid quote\n");
+            urts_log_error("aesm_service returned invalid quote\n");
             goto out;
         }
 
@@ -276,18 +277,18 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
 
         ret = -EPERM;
         if (!res->getquoteres) {
-            SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
+            urts_log_error("aesm_service returned wrong message\n");
             goto out;
         }
 
         Response__GetQuoteResponse* r = res->getquoteres;
         if (r->errorcode != 0) {
-            SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
+            urts_log_error("aesm_service returned error: %d\n", r->errorcode);
             goto out;
         }
 
         if (!r->has_quote || r->quote.len < sizeof(sgx_quote_t)) {
-            SGX_DBG(DBG_E, "aesm_service returned invalid quote\n");
+            urts_log_error("aesm_service returned invalid quote\n");
             goto out;
         }
 
@@ -299,7 +300,7 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
      * by peeking into the quote and determining the size of the signature. */
     size_t actual_quote_size = sizeof(sgx_quote_t) + actual_quote->signature_len;
     if (actual_quote_size > SGX_QUOTE_MAX_SIZE) {
-        SGX_DBG(DBG_E, "Size of the obtained SGX quote exceeds %d\n", SGX_QUOTE_MAX_SIZE);
+        urts_log_error("Size of the obtained SGX quote exceeds %d\n", SGX_QUOTE_MAX_SIZE);
         goto out;
     }
 
@@ -307,7 +308,7 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
                                           PROT_READ|PROT_WRITE,
                                           MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     if (IS_ERR_P(mmapped)) {
-        SGX_DBG(DBG_E, "Failed to allocate memory for the quote\n");
+        urts_log_error("Failed to allocate memory for the quote\n");
         goto out;
     }
 

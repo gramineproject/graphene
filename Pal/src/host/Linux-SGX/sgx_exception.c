@@ -30,6 +30,7 @@
 #include "rpc_queue.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
+#include "sgx_log.h"
 #include "ucontext.h"
 
 #if defined(__x86_64__)
@@ -141,16 +142,16 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     unsigned long rip = pal_ucontext_get_ip(uc);
     switch (signum) {
         case SIGSEGV:
-            SGX_DBG(DBG_E, "Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
+            urts_log_error("Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
             break;
         case SIGILL:
-            SGX_DBG(DBG_E, "Illegal Instruction in Untrusted Code (RIP = %08lx)\n", rip);
+            urts_log_error("Illegal Instruction in Untrusted Code (RIP = %08lx)\n", rip);
             break;
         case SIGFPE:
-            SGX_DBG(DBG_E, "Arithmetic Exception in Untrusted Code (RIP = %08lx)\n", rip);
+            urts_log_error("Arithmetic Exception in Untrusted Code (RIP = %08lx)\n", rip);
             break;
         case SIGBUS:
-            SGX_DBG(DBG_E, "Memory Mapping Exception in Untrusted Code (RIP = %08lx)\n", rip);
+            urts_log_error("Memory Mapping Exception in Untrusted Code (RIP = %08lx)\n", rip);
             break;
     }
     INLINE_SYSCALL(exit_group, 1, 1);
