@@ -214,7 +214,7 @@ This specifies whether to allow for a one time injection of `SIGTERM` signal
 into Graphene. Could be useful to handle graceful shutdown.
 Be careful! In SGX environment, the untrusted host could inject that signal in
 an arbitrary moment. Examine what your application `SIGTERM` handler does and
-whether it poses any security-treat.
+whether it poses any security threat.
 
 Root FS mount point
 ^^^^^^^^^^^^^^^^^^^

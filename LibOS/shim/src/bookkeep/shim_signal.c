@@ -691,6 +691,11 @@ uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack) {
     return (uint64_t)alt_stack->ss_sp + alt_stack->ss_size;
 }
 
+/*
+ * XXX(borysp): This function handles one pending, non-blocked, non-ignored signal at a time, while,
+ * I believe, normal Linux creates sigframes for all pending, non-blocked, non-ignored signals at
+ * once.
+ */
 bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
     struct shim_thread* current = get_cur_thread();
     assert(current);
