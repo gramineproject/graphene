@@ -91,7 +91,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         /* disallow opening more than one writable handle to a PF */
         if (pf_mode & PF_FILE_MODE_WRITE) {
             if (pf->writable_fd >= 0) {
-                log_debug("file_open(%s): disallowing concurrent writable handle\n", path);
+                log_error("file_open(%s): disallowing concurrent writable handle\n", path);
                 ret = -PAL_ERROR_DENIED;
                 goto out;
             }
@@ -328,7 +328,7 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
 
     assert(WITHIN_MASK(prot, PAL_PROT_MASK));
     if ((prot & PAL_PROT_READ) && (prot & PAL_PROT_WRITE)) {
-        log_info("pf_file_map(PF fd %d): trying to map with R+W access\n", fd);
+        log_error("pf_file_map(PF fd %d): trying to map with R+W access\n", fd);
         return -PAL_ERROR_NOTSUPPORT;
     }
 

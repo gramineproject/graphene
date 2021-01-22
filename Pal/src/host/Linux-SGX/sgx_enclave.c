@@ -37,7 +37,7 @@ static long sgx_ocall_exit(void* pms) {
     ODEBUG(OCALL_EXIT, NULL);
 
     if (ms->ms_exitcode != (int)((uint8_t)ms->ms_exitcode)) {
-        urts_log_error("Saturation error in exit code %d, getting rounded down to %u\n",
+        urts_log_debug("Saturation error in exit code %d, getting rounded down to %u\n",
                        ms->ms_exitcode, (uint8_t)ms->ms_exitcode);
         ms->ms_exitcode = 255;
     }

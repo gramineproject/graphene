@@ -279,7 +279,7 @@ int init_child_process(PAL_HANDLE* parent_handle) {
 
 noreturn void _DkProcessExit(int exitcode) {
     if (exitcode)
-        log_info("DkProcessExit: Returning exit code %d\n", exitcode);
+        log_debug("DkProcessExit: Returning exit code %d\n", exitcode);
     ocall_exit(exitcode, /*is_exitgroup=*/true);
     /* Unreachable. */
 }
