@@ -69,8 +69,8 @@ long strtol(const char* s, char** endptr, int base) {
 
 bool str_to_unsigned(const char* str, int base, unsigned long* out_value, char** out_endptr) {
     bool overflow_detected = false;
+    bool neg = false;
     const char* s = str;
-    int neg = false;
     int valid_conv;
     unsigned long val;
 
