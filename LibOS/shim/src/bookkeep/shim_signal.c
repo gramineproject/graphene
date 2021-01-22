@@ -695,6 +695,11 @@ uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack) {
  * XXX(borysp): This function handles one pending, non-blocked, non-ignored signal at a time, while,
  * I believe, normal Linux creates sigframes for all pending, non-blocked, non-ignored signals at
  * once.
+ * Note: each signal handler (at least on Linux x86_64) issues a `rt_sigreturn` syscall to return
+ * back to the normal context; upon intercepting this syscall by LibOS, `handle_signal` will be
+ * called again. This way all pending, non-blocked, non-ignored signals will be handled one by one,
+ * unless the user app changes context in any other way (e.g. `swapcontext`), in which case the next
+ * signal might be delayed until the next issued syscall.
  */
 bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
     struct shim_thread* current = get_cur_thread();

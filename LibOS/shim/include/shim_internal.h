@@ -171,7 +171,7 @@ bool maybe_emulate_syscall(PAL_CONTEXT* context);
  *
  * XXX: Signals are delivered only during transition from LibOS to the user app, so a situation is
  * possible when a signal is queued, but is not delivered for an arbitrary amount of time. There are
- * two distinc situations when this can happen:
+ * two distinct situations when this can happen:
  * 1) A blocking host-level syscall was issued and the signal arrived at any point before it and
  *    after the thread entered LibOS code. In such case the host syscall can block indefinitely.
  * 2) The signal arrived in the middle of or after `handle_signal`. In such case delivery of this
