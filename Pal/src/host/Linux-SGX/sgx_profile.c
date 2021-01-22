@@ -302,11 +302,20 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
         goto out_close;
     }
 
+    // Perform a simple sanity check to verify if this looks like ELF (see TODO for DkDebugMapAdd in
+    // Pal/src/db_rtld.c).
+
+    const ElfW(Ehdr)* ehdr = elf_addr;
+
+    if (elf_length < (off_t)sizeof(*ehdr) || memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
+        urts_log_error("sgx_profile_report_elf(%s): invalid ELF binary\n", filename);
+        goto out_unmap;
+    }
+
     // Read the program headers and record mmap events for the segments that should be mapped as
     // executable.
 
     pid_t pid = g_pal_enclave.pal_sec.pid;
-    const ElfW(Ehdr)* ehdr = elf_addr;
     const ElfW(Phdr)* phdr = (const ElfW(Phdr)*)((uintptr_t)elf_addr + ehdr->e_phoff);
     ret = 0;
 
@@ -329,6 +338,7 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
 
     // Clean up.
 
+out_unmap:
     ret = INLINE_SYSCALL(munmap, 2, elf_addr, elf_length);
     if (IS_ERR(ret))
         urts_log_error("sgx_profile_report_elf(%s): munmap failed: %d\n", filename, ret);
