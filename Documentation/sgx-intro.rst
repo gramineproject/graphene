@@ -80,7 +80,7 @@ Installation Instructions
 Linux kernel drivers
 ^^^^^^^^^^^^^^^^^^^^
 
-For historical reasons, there are three SGX drivers currently (March 2020):
+For historical reasons, there are three SGX drivers currently (January 2021):
 
 - https://github.com/intel/linux-sgx-driver -- old one, does not support DCAP,
   deprecated
@@ -90,13 +90,16 @@ For historical reasons, there are three SGX drivers currently (March 2020):
   old EPID remote-attestation technique) and the new DCAP (with new ECDSA and
   more "normal" PKI infrastructure).
 
-- Upstreaming in-kernel SGX driver (see LKML patches) -- will be upstreamed one
-  day, supports both non-DCAP and DCAP. The DCAP driver closely matches this
-  upstreaming version.
+- SGX driver is upstreamed to linux mainline from 5.11+ (see LKML patches).
+  The current SGX driver upstreamed only supports DCAP. SGX device is exposed
+  as /dev/sgx_enclave in linux kernel from 5.11+ instead of /dev/sgx/enclave as 
+  the out-of-tree(OOT) SGX driver does; if user wants the in-kernel tree driver 
+  compatible with the OOT SGX driver, you need to apply udev rules for remapping:
+  # sudo cp 65-graphene-sgx.rules /etc/udev/rules.d
+  # sudo udevadm trigger
 
-  The in-tree driver will not be a |~| module
-  (https://lore.kernel.org/linux-sgx/20190401225717.GA13450@linux.intel.com/),
-  so "installation instructions" will likely be minimal.
+  File "65-graphene-sgx.rules" is located at:
+  https://github.com/oscarlab/graphene/tree/master/contrib/udev-rules.d/65-graphene-sgx.rules
 
   Also it will not require :term:`IAS` and kernel maintainers consider
   non-writable :term:`FLC` MSRs as non-functional SGX:
