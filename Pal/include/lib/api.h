@@ -142,7 +142,7 @@ int strcmp(const char* lhs, const char* rhs);
 
 long strtol(const char* s, char** endptr, int base);
 long long strtoll(const char* s, char** endptr, int base);
-unsigned long strtoul(const char* str, char** endptr, int base);
+bool str_to_unsigned(const char* str, int base, unsigned long* out_value, char** out_endptr);
 int atoi(const char* nptr);
 long int atol(const char* nptr);
 

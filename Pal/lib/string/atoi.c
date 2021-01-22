@@ -16,10 +16,10 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#include "api.h"
-
 #include <limits.h>
 #include <stdint.h>
+
+#include "api.h"
 
 long strtol(const char* s, char** endptr, int base) {
     int neg  = 0;
@@ -67,10 +67,11 @@ long strtol(const char* s, char** endptr, int base) {
     return (neg ? -val : val);
 }
 
-unsigned long strtoul(const char* str, char** endptr, int base) {
+bool str_to_unsigned(const char* str, int base, unsigned long* out_value, char** out_endptr) {
+    bool overflow_detected = false;
     const char* s = str;
-    int neg  = 0;
-    int outrange;
+    int neg = false;
+    int valid_conv;
     unsigned long val;
 
     // gobble initial whitespace
@@ -82,7 +83,7 @@ unsigned long strtoul(const char* str, char** endptr, int base) {
     if (*s == '+')
         s++;
     else if (*s == '-')
-        s++, neg = 1;
+        s++, neg = true;
 
     // hex or octal base prefix
     if ((base == 0 || base == 16) && (s[0] == '0' && s[1] == 'x'))
@@ -96,7 +97,7 @@ unsigned long strtoul(const char* str, char** endptr, int base) {
     int cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
 
     // digits
-    for (val = 0, outrange = 0; ; s++) {
+    for (val = 0, valid_conv = 0; ; s++) {
         int dig;
 
         if (*s >= '0' && *s <= '9')
@@ -111,20 +112,25 @@ unsigned long strtoul(const char* str, char** endptr, int base) {
         if (dig >= base)
             break;
 
-        if (outrange < 0 || val > cutoff || (val == cutoff && dig > cutlim))
-            outrange = -1;
+        if (valid_conv < 0 || val > cutoff || (val == cutoff && dig > cutlim))
+            valid_conv = -1;
         else
-            outrange = 1, val = (val * base) + dig;
+            valid_conv = 1, val = (val * base) + dig;
     }
 
-    if(outrange < 0)
+    if(valid_conv < 0) {
         val = ULONG_MAX;
-    else if (neg)
+        overflow_detected = true;
+    } else if (neg) {
         val = -val;
-    if (endptr)
-        *endptr = (char*)(outrange ? s : str);
+    }
 
-    return val;
+    if (out_value)
+        *out_value = val;
+    if (out_endptr)
+        *out_endptr = (char*)(valid_conv ? s : str);
+
+    return overflow_detected;
 }
 
 #ifdef __LP64__
