@@ -35,9 +35,9 @@ Run the following command on Ubuntu to install dependencies::
 
     sudo apt-get install -y build-essential autoconf gawk bison
 
-To run tests locally, you also need the python3-pytest package::
+You also need Python packages for GDB support and to run tests locally::
 
-    sudo apt-get install -y python3-pytest
+    sudo apt-get install -y python3-pyelftools python3-pytest
 
 To build Graphene, in the root directory of Graphene repo, run the following
 command::

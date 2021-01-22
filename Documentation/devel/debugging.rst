@@ -17,6 +17,10 @@ To build Graphene with debug symbols, the source code needs to be compiled with
     make clean
     make DEBUG=1
 
+GDB integration also requires pyelftools Python package::
+
+    sudo apt-get install -y python3-pyelftools
+
 To run Graphene with GDB, use the following command to run your application::
 
     GDB=1 [Graphene Directory]/Runtime/pal_loader [application] [arguments]
@@ -34,6 +38,10 @@ To build Graphene with debug symbols, the source code needs to be compiled with
 
     make SGX=1 clean
     make SGX=1 DEBUG=1
+
+GDB integration also requires pyelftools Python package::
+
+    sudo apt-get install -y python3-pyelftools
 
 After rebuilding Graphene with ``DEBUG=1``, you need to re-sign the manifest of
 the application. For instance, if you want to debug the ``helloworld`` program,
