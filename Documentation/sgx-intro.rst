@@ -94,12 +94,11 @@ For historical reasons, there are three SGX drivers currently (January 2021):
   The current SGX driver upstreamed only supports DCAP. SGX device is exposed
   as /dev/sgx_enclave in linux kernel from 5.11+ instead of /dev/sgx/enclave as 
   the out-of-tree(OOT) SGX driver does; if user wants the in-kernel tree driver 
-  compatible with the OOT SGX driver, you need to apply udev rules for remapping:
-  # sudo cp 65-graphene-sgx.rules /etc/udev/rules.d
-  # sudo udevadm trigger
-
-  File "65-graphene-sgx.rules" is located at:
-  https://github.com/oscarlab/graphene/tree/master/contrib/udev-rules.d/65-graphene-sgx.rules
+  compatible with the OOT SGX driver, you must apply udev rules as root user
+  for remapping:
+  # cat > /etc/udev/rules.d/65-graphene-sgx.rules << EOF
+  SUBSYSTEM=="misc",KERNEL=="sgx_enclave",MODE="0660",SYMLINK+="sgx/enclave"
+  # udevadm trigger
 
   Also it will not require :term:`IAS` and kernel maintainers consider
   non-writable :term:`FLC` MSRs as non-functional SGX:
