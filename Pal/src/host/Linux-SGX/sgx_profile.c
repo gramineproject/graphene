@@ -296,7 +296,7 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
         goto out_close;
     }
 
-    void* elf_addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, elf_length, PROT_READ, MAP_SHARED, fd, 0);
+    void* elf_addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, elf_length, PROT_READ, MAP_PRIVATE, fd, 0);
     if (IS_ERR_P(elf_addr)) {
         urts_log_error("sgx_profile_report_elf(%s): mmap failed: %ld\n", filename, ERRNO_P(addr));
         goto out_close;
