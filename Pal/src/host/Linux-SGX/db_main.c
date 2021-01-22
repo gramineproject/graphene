@@ -278,15 +278,13 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
                     current_maxint = secondint;
 
                 diff = secondint - firstint;
-                if (diff >= LONG_MAX ||
-                    (resource_cnt + diff + 1) > LONG_MAX)
-                     return -EINVAL;
+                if (diff >= LONG_MAX || (resource_cnt + diff + 1) > LONG_MAX)
+                    return -EINVAL;
                 resource_cnt += diff + 1; /* inclusive (e.g. 0-7) */
             } else {
                 diff = firstint - secondint;
-                if (ordered || diff >= LONG_MAX ||
-                   (resource_cnt + diff + 1) > LONG_MAX)
-                     return -EINVAL;
+                if (ordered || diff >= LONG_MAX || (resource_cnt + diff + 1) > LONG_MAX)
+                    return -EINVAL;
                 resource_cnt += diff + 1;
             }
         }

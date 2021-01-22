@@ -108,7 +108,7 @@ static int get_num_cache_level(const char* path) {
 
         for (bpos = 0; bpos < nread;) {
             dirent64 = (struct linux_dirent64*)(buf + bpos);
-            if (dirent64->d_type == DT_DIR && strstartswith(dirent64->d_name, "index") == 0)
+            if (dirent64->d_type == DT_DIR && strstartswith(dirent64->d_name, "index"))
                 num_dirs++;
             bpos += dirent64->d_reclen;
         }
