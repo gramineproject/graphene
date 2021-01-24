@@ -487,6 +487,24 @@ For DCAP/ECDSA based attestation, ``ra_client_spid`` must be an empty string
 (this is a hint to Graphene to use DCAP instead of EPID) and
 ``ra_client_linkable`` is ignored.
 
+Pre-heating heap
+^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.preheat_heap = [1|0]
+    (Default: 0)
+
+When enabled, this option instructs Graphene to pre-fault all heap pages during
+initialization. This has a negative impact on the total run time, but shifts the
+:term:`EPC` page faults cost to the initialization phase, which can be useful in
+a scenario where a server starts and receives connections / work packages only
+after some time. It also makes the later run time and latency much more
+predictable.
+
+Please note that using this option makes sense only when the :term:`EPC` is
+large enough to hold the whole heap area.
+
 Enabling per-thread and process-wide SGX stats
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
