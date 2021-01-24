@@ -73,6 +73,7 @@ c_executables = \
 	sigaction_per_process \
 	sigaltstack \
 	sighandler_reset \
+	sighandler_deadlock \
 	sighandler_sigpipe \
 	signal_multithread \
 	sigprocmask_pending \

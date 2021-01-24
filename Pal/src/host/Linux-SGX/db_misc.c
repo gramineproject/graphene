@@ -23,12 +23,11 @@
 #include "sgx_attest.h"
 #include "toml.h"
 
-#define TSC_REFINE_INIT_TIMEOUT_USECS 10000000
+#define TSC_REFINE_INIT_TIMEOUT_USECS (10000000UL)
+#define G_TSC_SEQ_UPDATING  (1UL)
+#define TSC_REFINE_INIT_TIMEOUT_USECS (10000000UL)
 
 static uint64_t g_tsc_hz = 0;
-static uint64_t g_start_tsc = 0;
-static uint64_t g_start_usec = 0;
-static PAL_LOCK g_tsc_lock = LOCK_INIT;
 
 /**
  * Initialize the data structures used for date/time emulation using TSC
@@ -41,55 +40,90 @@ void init_tsc(void) {
 
 /* TODO: result comes from the untrusted host, introduce some schielding */
 int _DkSystemTimeQuery(uint64_t* out_usec) {
-    uint64_t usec = 0;
-    uint64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_diff;
+    static uint64_t start_usec = 0;
+    static uint64_t start_tsc = 0;
+    /* exclusive lock for writer */
+    static spinlock_t tsc_lock = LOCK_INIT;
+    /*
+     * AEX can arrive anytime during this updates and interrupt handler can query time
+     * recursively. In order to avoid recursive dead-lock, introduce a sequential lock.
+     * (tsc_seq & 1) != 0: during updating start_usec and start_tsc. They can be
+     * inconsistent. Reader needs to wait for it to be zero.
+     */
+    static uint64_t tsc_seq = 0;
     int ret;
 
-    if (g_tsc_hz > 0) {
-        _DkInternalLock(&g_tsc_lock);
-        if (g_start_tsc > 0 && g_start_usec > 0) {
-            /* calculate the TSC-based time */
-            tsc_diff = get_tsc() - g_start_tsc;
-            if (tsc_diff < INT64_MAX / 1000000) {
-                tsc_usec = g_start_usec + (tsc_diff * 1000000 / g_tsc_hz);
-                if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
-                    /* no need to refine yet */
-                    usec = tsc_usec;
-                }
-            }
-        }
-        _DkInternalUnlock(&g_tsc_lock);
-
-        if (!usec) {
-            /* refresh the baseline usec and TSC to contain the drift */
-            tsc_cyc1 = get_tsc();
-            ret = ocall_gettime(&usec);
-            tsc_cyc2 = get_tsc();
-            if (!ret) {
-                /* the ocall_gettime() is a time consuming operation.   *
-                 * it includes EENTER and EEXIT instructions, our best  *
-                 * estimation is the timestamp obtained in the middle   *
-                 * time point, therefore, the tsc_cyc as baseline will  *
-                 * be calibrated precisely in this way.                 */
-                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) / 2) + tsc_cyc1;
-                _DkInternalLock(&g_tsc_lock);
-                /* refresh the baseline data if no other thread updated g_start_tsc */
-                if (g_start_tsc < tsc_cyc) {
-                    g_start_usec = usec;
-                    g_start_tsc = tsc_cyc;
-                }
-                _DkInternalUnlock(&g_tsc_lock);
-            } else {
-                return -PAL_ERROR_DENIED;
-            }
-        }
-    } else {
+    if (!g_tsc_hz) {
         /* fallback to the slow ocall */
-        ret = ocall_gettime(&usec);
+        ret = ocall_gettime(out_usec);
         if (ret < 0)
             return -PAL_ERROR_DENIED;
+        return 0;
     }
-    *out_usec = usec;
+
+    while (true) {
+        uint64_t seq_begin = __atomic_load_n(&tsc_seq, __ATOMIC_ACQUIRE);
+        if (seq_begin & G_TSC_SEQ_UPDATING) {
+            /* there can be AEX. So fall back to ocall. */
+            break;
+        }
+
+        uint64_t start_usec = __atomic_load_n(&start_usec, __ATOMIC_RELAXED);
+        uint64_t start_tsc = __atomic_load_n(&start_tsc, __ATOMIC_RELAXED);
+        uint64_t seq_end = __atomic_load_n(&tsc_seq, __ATOMIC_SEQ_CST);
+        if (seq_begin != seq_end) {
+            CPU_RELAX();
+            continue;
+        }
+        if (start_usec > 0 && start_tsc > 0) {
+            uint64_t tsc_diff = get_tsc() - start_tsc;
+            if (tsc_diff < TSC_REFINE_INIT_TIMEOUT_USECS * g_tsc_hz / 1000000 ) {
+                /* no need to refine yet */
+                *out_usec = start_usec + tsc_diff * 1000000 / g_tsc_hz;
+                return 0;
+            }
+        }
+        break;
+    }
+
+    /* refresh the baseline usec and TSC to contain the drift */
+    uint64_t usec;
+    uint64_t tsc_cyc1 = get_tsc();
+    ret = ocall_gettime(&usec);
+    if (ret) {
+        return -PAL_ERROR_DENIED;
+     }
+    uint64_t tsc_cyc2 = get_tsc();
+   *out_usec = usec;
+
+    /* the ocall_gettime() is a time consuming operation.   *
+     * it includes EENTER and EEXIT instructions, our best  *
+     * estimation is the timestamp obtained in the middle   *
+     * time point, therefore, the tsc_cyc as baseline will  *
+     * be calibrated precisely in this way.                 */
+    uint64_t tsc_cyc = (tsc_cyc1 + tsc_cyc2) / 2;
+
+    /* Ensure only single writer updates variables */
+    if (!spinlock_trylock(&tsc_lock)) {
+        /* Ensure that readers won't see inconsistent state. start_tsc and g_start usec must be
+         * updated simultaneously with (tsc_seq & 1) != 0
+         */
+        __atomic_add_fetch(&tsc_seq, 1, __ATOMIC_ACQUIRE);
+
+        /* refresh the baseline data if no other thread updated start_tsc */
+        uint64_t old_start_usec = __atomic_load_n(&start_usec, __ATOMIC_RELAXED);
+        uint64_t old_start_tsc = __atomic_load_n(&start_tsc, __ATOMIC_RELAXED);
+        if (old_start_usec < usec && old_start_tsc < tsc_cyc) {
+            __atomic_store_n(&start_usec, usec, __ATOMIC_RELAXED);
+            __atomic_store_n(&start_tsc, tsc_cyc, __ATOMIC_RELAXED);
+        }
+
+        /* Now start_tsc and start_usec are consistent with (tsc_seq & 1) == 0 */
+        __atomic_add_fetch(&tsc_seq, 1, __ATOMIC_RELEASE);
+
+        spinlock_unlock(&tsc_lock);
+    }
+
     return 0;
 }
 
