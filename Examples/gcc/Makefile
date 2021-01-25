@@ -3,11 +3,13 @@ THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 # Relative path to Graphene root
 GRAPHENEDIR ?= $(THIS_DIR)/../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
-BZIP2_MIRRORS ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/bzip2.c \
-                 https://borysp.com/graphene/bzip2.c
+BZIP2_MIRRORS ?= \
+	https://people.csail.mit.edu/smcc/projects/single-file-programs/bzip2.c \
+	https://packages.grapheneproject.io/distfiles/single-file-programs/bzip2.c
 BZIP2_HASH ?= 89f331ce93cbf0ee7318802f440f1d7594bb78cf1a82069f2288e0459ec8d729
-GZIP_MIRRORS ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/gzip.c \
-                https://borysp.com/graphene/gzip.c
+GZIP_MIRRORS ?= \
+	https://people.csail.mit.edu/smcc/projects/single-file-programs/gzip.c \
+	https://packages.grapheneproject.io/distfiles/single-file-programs/gzip.c
 GZIP_HASH ?= 7ec7d87822e6497648580064756f64e47dbd085727910ebbc52a7c240a88dc27
 
 ifeq ($(DEBUG),1)

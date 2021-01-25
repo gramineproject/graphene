@@ -61,20 +61,24 @@ endif
 
 MBEDTLS_VERSION ?= 2.21.0
 MBEDTLS_SRC ?= mbedtls-$(MBEDTLS_VERSION).tar.gz
-MBEDTLS_URI ?= https://github.com/ARMmbed/mbedtls/archive/
+MBEDTLS_URI ?= \
+	https://github.com/ARMmbed/mbedtls/archive \
+	https://packages.grapheneproject.io/distfiles
 MBEDTLS_CHECKSUM ?= 320e930b7596ade650ae4fc9ba94b510d05e3a7d63520e121d8fdc7a21602db9
 
 # mbedTLS uses a submodule mbedcrypto, need to download it and move under mbedtls/crypto
 MBEDCRYPTO_VERSION ?= 3.1.0
 MBEDCRYPTO_SRC ?= mbedcrypto-$(MBEDCRYPTO_VERSION).tar.gz
-MBEDCRYPTO_URI ?= https://github.com/ARMmbed/mbed-crypto/archive/
+MBEDCRYPTO_URI ?= \
+	https://github.com/ARMmbed/mbed-crypto/archive \
+	https://packages.grapheneproject.io/distfiles
 MBEDCRYPTO_CHECKSUM ?= 7e171df03560031bc712489930831e70ae4b70ff521a609c6361f36bd5f8b76b
 
 crypto/$(MBEDTLS_SRC):
-	../../Scripts/download --output $@ --url $(MBEDTLS_URI)/$(MBEDTLS_SRC) --sha256 $(MBEDTLS_CHECKSUM)
+	../../Scripts/download --output $@ $(foreach mirror,$(MBEDTLS_URI),--url $(mirror)/$(MBEDTLS_SRC)) --sha256 $(MBEDTLS_CHECKSUM)
 
 crypto/$(MBEDCRYPTO_SRC):
-	../../Scripts/download --output $@ --url $(MBEDCRYPTO_URI)/$(MBEDCRYPTO_SRC) --sha256 $(MBEDCRYPTO_CHECKSUM)
+	../../Scripts/download --output $@ $(foreach mirror,$(MBEDCRYPTO_URI),--url $(mirror)/$(MBEDCRYPTO_SRC)) --sha256 $(MBEDCRYPTO_CHECKSUM)
 
 ifeq ($(DEBUG),1)
 MBED_BUILD_TYPE=Debug
@@ -155,22 +159,29 @@ ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(patsubst %.o,%.d,$(addprefix $(target),$(objs)))
 endif
 
-UTHASH_URI ?= https://raw.githubusercontent.com/troydhanson/uthash/8b214aefcb81df86a7e5e0d4fa20e59a6c18bc02/src/uthash.h
+UTHASH_URI ?= \
+	https://raw.githubusercontent.com/troydhanson/uthash/8b214aefcb81df86a7e5e0d4fa20e59a6c18bc02/src/uthash.h \
+	https://packages.grapheneproject.io/distfiles/uthash-2.1.0/src/uthash.h
 UTHASH_CHECKSUM ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c2ac
 
 ../include/lib/uthash.h:
-	../../Scripts/download --output $@ --url $(UTHASH_URI) --sha256 $(UTHASH_CHECKSUM)
+	../../Scripts/download --output $@ --sha256 $(UTHASH_CHECKSUM) $(foreach mirror,$(UTHASH_URI),--url $(mirror))
 
-TOML_H_URI ?= https://raw.githubusercontent.com/cktan/tomlc99/5be06807ad5f2230cad99e15380c4f4076c9dd83/toml.h
+TOML_COMMIT ?= 5be06807ad5f2230cad99e15380c4f4076c9dd83
+TOML_H_URI ?= \
+	https://raw.githubusercontent.com/cktan/tomlc99/$(TOML_COMMIT)/toml.h \
+	https://packages.grapheneproject.io/distfiles/tomlc99-$(TOML_COMMIT)/toml.h
 TOML_H_CHECKSUM ?= e79d6d272576561e1b46ee001b0dd6b554330843e6fc7c658a548c659f282ac5
-TOML_C_URI ?= https://raw.githubusercontent.com/cktan/tomlc99/5be06807ad5f2230cad99e15380c4f4076c9dd83/toml.c
+TOML_C_URI ?= \
+	https://raw.githubusercontent.com/cktan/tomlc99/$(TOML_COMMIT)/toml.c \
+	https://packages.grapheneproject.io/distfiles/tomlc99-$(TOML_COMMIT)/toml.c
 TOML_C_CHECKSUM ?= c21a546ab767a7e40d4f65df179d70357059c15e4439e1980d791625655fbbc6
 
 toml.h:
-	../../Scripts/download --output $@ --url $(TOML_H_URI) --sha256 $(TOML_H_CHECKSUM)
+	../../Scripts/download --output $@ --sha256 $(TOML_H_CHECKSUM) $(foreach mirror,$(TOML_H_URI),--url $(mirror))
 
 toml.c:
-	../../Scripts/download --output $@ --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
+	../../Scripts/download --output $@ --sha256 $(TOML_C_CHECKSUM) $(foreach mirror,$(TOML_C_URI),--url $(mirror))
 
 toml.patched: toml.h toml.c
 	patch -p1 -l < toml.patch || exit 255

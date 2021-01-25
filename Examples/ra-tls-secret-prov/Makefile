@@ -46,13 +46,17 @@ dcap: secret_prov_server_dcap libsecret_prov_attest.so libsecret_prov_verify_dca
 
 MBEDTLS_VERSION ?= 2.21.0
 MBEDTLS_SRC ?= mbedtls-$(MBEDTLS_VERSION).tar.gz
-MBEDTLS_URI ?= https://github.com/ARMmbed/mbedtls/archive/
+MBEDTLS_URI ?= \
+	https://github.com/ARMmbed/mbedtls/archive \
+	https://packages.grapheneproject.io/distfiles
 MBEDTLS_CHECKSUM ?= 320e930b7596ade650ae4fc9ba94b510d05e3a7d63520e121d8fdc7a21602db9
 
 # mbedTLS uses a submodule mbedcrypto, need to download it and move under mbedtls/crypto
 MBEDCRYPTO_VERSION ?= 3.1.0
 MBEDCRYPTO_SRC ?= mbedcrypto-$(MBEDCRYPTO_VERSION).tar.gz
-MBEDCRYPTO_URI ?= https://github.com/ARMmbed/mbed-crypto/archive/
+MBEDCRYPTO_URI ?= \
+	https://github.com/ARMmbed/mbed-crypto/archive \
+	https://packages.grapheneproject.io/distfiles
 MBEDCRYPTO_CHECKSUM ?= 7e171df03560031bc712489930831e70ae4b70ff521a609c6361f36bd5f8b76b
 
 ifeq ($(DEBUG),1)
@@ -62,12 +66,10 @@ MBED_BUILD_TYPE=Release
 endif
 
 $(MBEDTLS_SRC):
-	$(GRAPHENEDIR)/Scripts/download --output $@ --url $(MBEDTLS_URI)/$(MBEDTLS_SRC) \
-		--sha256 $(MBEDTLS_CHECKSUM)
+	$(GRAPHENEDIR)/Scripts/download --output $@ $(foreach mirror,$(MBEDTLS_URI),--url $(mirror)/$(MBEDTLS_SRC)) --sha256 $(MBEDTLS_CHECKSUM)
 
 $(MBEDCRYPTO_SRC):
-	$(GRAPHENEDIR)/Scripts/download --output $@ --url $(MBEDCRYPTO_URI)/$(MBEDCRYPTO_SRC) \
-		--sha256 $(MBEDCRYPTO_CHECKSUM)
+	$(GRAPHENEDIR)/Scripts/download --output $@ $(foreach mirror,$(MBEDCRYPTO_URI),--url $(mirror)/$(MBEDCRYPTO_SRC)) --sha256 $(MBEDCRYPTO_CHECKSUM)
 
 mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 	tar --touch -xzf $(MBEDTLS_SRC)
