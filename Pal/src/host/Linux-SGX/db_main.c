@@ -177,7 +177,7 @@ extern void* g_enclave_top;
  * then just numeric value (48 in this case) is returned. Returns negative unix error code if the
  * buffer is malformed Eg. 20abc or 3,4,5 or xyz123 or 512H.
  * Use case: To extract integer from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
-static long extract_int_from_buffer(const char* buf) {
+static long extract_long_from_buffer(const char* buf) {
     char* end = NULL;
     unsigned long intval;
 
@@ -300,7 +300,7 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
         if (!IS_IN_RANGE_INCL(shared_cpu_map, 1, num_cores))
             return -EINVAL;
 
-        int64_t level = extract_int_from_buffer(cache[lvl].level);
+        int64_t level = extract_long_from_buffer(cache[lvl].level);
         if (!IS_IN_RANGE_INCL(level, 1, 3))      /* x86 processors have max of 3 cache levels */
             return -EINVAL;
 
@@ -310,20 +310,20 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
             return -EINVAL;
         }
 
-        int64_t size = extract_int_from_buffer(cache[lvl].size);
+        int64_t size = extract_long_from_buffer(cache[lvl].size);
         if (!IS_IN_RANGE_INCL(size, 1, 1 << 30))
             return -EINVAL;
 
-        int64_t coherency_line_size = extract_int_from_buffer(cache[lvl].coherency_line_size);
+        int64_t coherency_line_size = extract_long_from_buffer(cache[lvl].coherency_line_size);
         if (!IS_IN_RANGE_INCL(coherency_line_size, 1, 1 << 16))
             return -EINVAL;
 
-        int64_t number_of_sets = extract_int_from_buffer(cache[lvl].number_of_sets);
+        int64_t number_of_sets = extract_long_from_buffer(cache[lvl].number_of_sets);
         if (!IS_IN_RANGE_INCL(number_of_sets, 1, 1 << 16))
             return -EINVAL;
 
         int64_t physical_line_partition =
-            extract_int_from_buffer(cache[lvl].physical_line_partition);
+            extract_long_from_buffer(cache[lvl].physical_line_partition);
         if (!IS_IN_RANGE_INCL(physical_line_partition, 1, 1 << 16))
             return -EINVAL;
     }
@@ -338,12 +338,12 @@ static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int64_
     for (int64_t idx = 0; idx < num_cores; idx++) {
         if (idx != 0) {     /* core 0 is always online */
             int64_t is_core_online =
-                extract_int_from_buffer(core_topology[idx].is_logical_core_online);
+                extract_long_from_buffer(core_topology[idx].is_logical_core_online);
             if (is_core_online != 0 && is_core_online != 1)
                 return -EINVAL;
         }
 
-        int64_t core_id = extract_int_from_buffer(core_topology[idx].core_id);
+        int64_t core_id = extract_long_from_buffer(core_topology[idx].core_id);
         if (!IS_IN_RANGE_INCL(core_id, 0, num_cores - 1))
             return -EINVAL;
 
