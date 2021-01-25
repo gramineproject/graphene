@@ -7,7 +7,6 @@
 
 char buffer1[BUF_SIZE];
 char buffer2[BUF_SIZE];
-char buffer3[BUF_SIZE];
 char hex_buf[BUF_SIZE * 2 + 1];
 
 static void print_hex(char* fmt, const void* data, int len) {
