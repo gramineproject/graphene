@@ -14,10 +14,11 @@
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.
+   02111-1307 USA. */
 
-   Copyright (C) 2021 Intel Corporation
-                     Vijay Dhanraj <vijay.dhanraj@intel.com>
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
  */
 
 #include <limits.h>

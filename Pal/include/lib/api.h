@@ -142,6 +142,8 @@ int strcmp(const char* lhs, const char* rhs);
 
 long strtol(const char* s, char** endptr, int base);
 long long strtoll(const char* s, char** endptr, int base);
+/* Converts a string to an unsigned long value. Sets out_value to ULONG_MAX and returns true if
+ * overflow occurred and false otherwise. */
 bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr);
 int atoi(const char* nptr);
 long int atol(const char* nptr);
