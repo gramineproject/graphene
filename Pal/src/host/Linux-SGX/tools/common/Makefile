@@ -27,7 +27,8 @@ CJSON_CHECKSUM ?= 760687665ab41a5cff9c40b1053c19572bcdaadef1194e5cba1b5e6f824686
 DOWNLOAD_SCRIPT := ../../../../../../Scripts/download
 
 $(CJSON_SRC):
-	$(DOWNLOAD_SCRIPT) --output $(CJSON_SRC) --url $(CJSON_URI)/$(CJSON_SRC) --sha256 $(CJSON_CHECKSUM)
+	$(DOWNLOAD_SCRIPT) --output $(CJSON_SRC) --url $(CJSON_URI)/$(CJSON_SRC) --sha256 $(CJSON_CHECKSUM) \
+		--url https://packages.grapeneproject.io/distfiles/cJSON-$(CJSON_VERSION).tar.gz
 
 cJSON-$(CJSON_VERSION):
 	mkdir -p $@
