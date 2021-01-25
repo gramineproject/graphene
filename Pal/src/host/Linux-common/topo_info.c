@@ -100,8 +100,10 @@ static int get_num_cache_level(const char* path) {
 
     while (true) {
         nread = INLINE_SYSCALL(getdents64, 3, fd, buf, 1024);
-        if (IS_ERR(nread))
-            return -ERRNO(nread);
+        if (IS_ERR(nread)) {
+            num_dirs = -ERRNO(nread);
+            goto out;
+        }
 
         if (nread == 0)
             break;
@@ -114,8 +116,8 @@ static int get_num_cache_level(const char* path) {
         }
     }
 
+out:
     INLINE_SYSCALL(close, 1, fd);
-
     return num_dirs ?: -ENOENT;
 }
 

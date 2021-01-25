@@ -172,17 +172,17 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
-/* This function extracts first found integer present in the buffer. For example 31 will be returned
- * when input "31" is provided. If buffer contains valid size indicators such as "48K", then just
- * numeric value (48 in this case) is returned. Returns negative unix error code if the buffer is
- * malformed Eg. 20abc or 3,4,5 or xyz123 or 512H.
- * Use case: To extract int from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
+/* This function extracts first positive integer present in the buffer. For example 31 will be
+ * returned when input "31" is provided. If buffer contains valid size indicators such as "48K",
+ * then just numeric value (48 in this case) is returned. Returns negative unix error code if the
+ * buffer is malformed Eg. 20abc or 3,4,5 or xyz123 or 512H.
+ * Use case: To extract integer from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
 static long extract_int_from_buffer(const char* buf) {
     char* end = NULL;
     unsigned long intval;
 
     /* Intentionally using unsigned long to adapt for variable bitness. */
-    str_to_unsigned(buf, 10, &intval, &end);
+    str_to_ulong(buf, 10, &intval, &end);
     if (end == buf || intval > LONG_MAX)
         return -EINVAL;
 
@@ -212,16 +212,16 @@ static long count_bits_set_from_resource_map(const char* buf) {
             break;
 
         char* end = NULL;
-        /* Linux uses different bitmap sizes(4/8 bytes) depending on the host arch. We intentionally
-         * use unsigned long to adapt for this variable bitness. */
-        bool overflowed = str_to_unsigned(buf, 16, &bitmap, &end);
+        /* Linux uses different bitmap size depending on the host arch. We intentionally use
+         * unsigned long to adapt for this variable bitness. */
+        bool overflowed = str_to_ulong(buf, 16, &bitmap, &end);
         if (end == buf || overflowed)
             return -EINVAL;
 
         if (*end != '\0' && *end != ',' && *end != '\n')
             return -EINVAL;
 
-        count += count_uint_bits_set(bitmap);
+        count += count_ulong_bits_set(bitmap);
         if (count > LONG_MAX)
             return -EINVAL;
 
@@ -250,7 +250,7 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
         char* end = NULL;
         unsigned long firstint;
         /* Intentionally using unsigned long to adapt for variable bitness. */
-        str_to_unsigned(buf, 10, &firstint, &end);
+        str_to_ulong(buf, 10, &firstint, &end);
         if (end == buf || firstint > LONG_MAX)
             return -EINVAL;
 
@@ -268,7 +268,7 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
             /* HW resource range, count how many HW resources are in range */
             buf = end + 1;
             unsigned long secondint;
-            str_to_unsigned(buf, 10, &secondint, &end);
+            str_to_ulong(buf, 10, &secondint, &end);
             if (secondint > LONG_MAX)
                 return -EINVAL;
 
@@ -278,12 +278,12 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
                     current_maxint = secondint;
 
                 diff = secondint - firstint;
-                if (diff >= LONG_MAX || (resource_cnt + diff + 1) > LONG_MAX)
+                if (diff >= LONG_MAX || resource_cnt + diff + 1 > LONG_MAX)
                     return -EINVAL;
                 resource_cnt += diff + 1; /* inclusive (e.g. 0-7) */
             } else {
                 diff = firstint - secondint;
-                if (ordered || diff >= LONG_MAX || (resource_cnt + diff + 1) > LONG_MAX)
+                if (ordered || diff >= LONG_MAX || resource_cnt + diff + 1 > LONG_MAX)
                     return -EINVAL;
                 resource_cnt += diff + 1;
             }

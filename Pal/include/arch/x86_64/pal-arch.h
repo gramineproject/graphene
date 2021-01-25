@@ -47,7 +47,7 @@ static inline PAL_TCB* pal_get_tcb(void) {
     return tcb;
 }
 
-static inline unsigned long count_uint_bits_set(unsigned long x) {
+static inline unsigned long count_ulong_bits_set(unsigned long x) {
     unsigned long result;
     __asm__("popcnt %1, %0" : "=r"(result) : "r"(x) : "cc");
     return result;
@@ -262,8 +262,8 @@ typedef struct PAL_TOPO_INFO_ {
     PAL_NUM num_online_nodes;
     /* cache index corresponds to no. of cache levels (such as L2 or L3) available on the host */
     PAL_NUM num_cache_index;
-    PAL_CORE_TOPO_INFO* core_topology; /* Array of logical core topology info */
-    PAL_NUMA_TOPO_INFO* numa_topology; /* Array of numa topology info */
+    PAL_CORE_TOPO_INFO* core_topology; /* Array of logical core topology info, owned by this struct */
+    PAL_NUMA_TOPO_INFO* numa_topology; /* Array of numa topology info, owned by this struct */
 } PAL_TOPO_INFO;
 
 #endif /* PAL_ARCH_H */
