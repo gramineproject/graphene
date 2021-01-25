@@ -34,9 +34,8 @@ def get_docker_image(docker_socket, image_name):
         return None
 
 
-def build_docker_image(build_path, image_name, dockerfile, **kwargs):
-    build_path = str(build_path) # Docker API doesn't under PathLib's PosixPath type
-    docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
+def build_docker_image(docker_api, build_path, image_name, dockerfile, **kwargs):
+    build_path = str(build_path) # Docker API doesn't understand PathLib's PosixPath type
     stream = docker_api.build(path=build_path, tag=image_name, dockerfile=dockerfile,
                               **kwargs)
     for chunk in stream:
@@ -164,8 +163,8 @@ def gsc_build(args):
     # copy helper script to finalize the manifest from within graphenized Docker image
     shutil.copyfile('finalize_manifest.py', tmp_build_path / 'finalize_manifest.py')
 
-    build_docker_image(tmp_build_path, unsigned_image_name, 'Dockerfile.build', rm=args.rm,
-                       nocache=args.no_cache, buildargs=extract_build_args(args))
+    build_docker_image(docker_socket.api, tmp_build_path, unsigned_image_name, 'Dockerfile.build',
+                       rm=args.rm, nocache=args.no_cache, buildargs=extract_build_args(args))
 
     # Check if docker build failed
     if get_docker_image(docker_socket, unsigned_image_name) is None:
@@ -211,8 +210,8 @@ def gsc_build_graphene(args):
               f'`{graphene_image_name}`.')
         return
 
-    build_docker_image(tmp_build_path, graphene_image_name, 'Dockerfile.compile', rm=args.rm,
-                       nocache=args.no_cache, buildargs=extract_build_args(args))
+    build_docker_image(docker_socket.api, tmp_build_path, graphene_image_name, 'Dockerfile.compile',
+                       rm=args.rm, nocache=args.no_cache, buildargs=extract_build_args(args))
 
     if get_docker_image(docker_socket, graphene_image_name) is None:
         print(f'Failed to build a base-Graphene image `{graphene_image_name}`.')
@@ -254,7 +253,8 @@ def gsc_sign_image(args):
     try:
         # forcerm parameter forces removal of intermediate Docker images even after unsuccessful
         # builds, to not leave the signing key lingering in any Docker containers
-        build_docker_image(tmp_build_path, signed_image_name, 'Dockerfile.sign', forcerm=True)
+        build_docker_image(docker_socket.api, tmp_build_path, signed_image_name, 'Dockerfile.sign',
+                           forcerm=True)
     finally:
         os.remove(tmp_build_key_path)
 
