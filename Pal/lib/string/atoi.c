@@ -14,7 +14,11 @@
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   02111-1307 USA.
+
+   Copyright (C) 2021 Intel Corporation
+                     Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
 
 #include <limits.h>
 #include <stdint.h>
@@ -67,7 +71,7 @@ long strtol(const char* s, char** endptr, int base) {
     return (neg ? -val : val);
 }
 
-bool str_to_unsigned(const char* str, int base, unsigned long* out_value, char** out_endptr) {
+bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr) {
     bool overflow_detected = false;
     bool neg = false;
     const char* s = str;
