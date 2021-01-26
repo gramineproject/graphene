@@ -27,6 +27,13 @@ static ssize_t dev_random_write(struct shim_handle* hdl, const void* buf, size_t
     return count;
 }
 
+static off_t dev_random_seek(struct shim_handle* hdl, off_t offset, int whence) {
+    __UNUSED(hdl);
+    __UNUSED(offset);
+    __UNUSED(whence);
+    return 0;
+}
+
 static int dev_random_mode(const char* name, mode_t* mode) {
     __UNUSED(name);
     *mode = FILE_RW_MODE | S_IFCHR;
@@ -52,6 +59,7 @@ static int dev_random_open(struct shim_handle* hdl, const char* name, int flags)
 
     struct shim_dev_ops ops = {.read  = &dev_random_read,
                                .write = &dev_random_write,
+                               .seek  = &dev_random_seek,
                                .mode  = &dev_random_mode,
                                .stat  = &dev_random_stat,
                                .hstat = &dev_random_hstat};
