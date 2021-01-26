@@ -143,6 +143,21 @@ This specifies whether to disable Address Space Layout Randomization (ASLR).
 Since disabling ASLR worsens security of the application, ASLR is enabled by
 default.
 
+Disabling checks of invalid pointers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    loader.disable_check_invalid_pointers = [1|0]
+    (Default: 0)
+
+This specifies whether to disable checks of invalid pointers on syscall
+invocations. In particular, Graphene's LibOS will *not* return an EFAULT error
+code if a user-supplied buffer points to an invalid memory region. This may
+generate ``SIGSEGV/SIGBUS`` exceptions for some applications that specifically
+use invalid pointers, but this is not expected for most real-world applications.
+Using this manifest option may improve performance for certain workloads.
+
 Graphene internal metadata size
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

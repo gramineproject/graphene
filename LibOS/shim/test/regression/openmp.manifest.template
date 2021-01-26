@@ -4,6 +4,8 @@ loader.argv0_override = "openmp"
 
 loader.env.LD_LIBRARY_PATH = "/lib:/usrlib"
 
+loader.disable_check_invalid_pointers = 1
+
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:../../../../Runtime"
