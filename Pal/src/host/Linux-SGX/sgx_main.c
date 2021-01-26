@@ -477,7 +477,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         mmap, 6, DBGINFO_ADDR, sizeof(struct enclave_dbginfo), PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     if (IS_ERR_P(dbg)) {
-        urts_log_error("Cannot allocate debug information (GDB will not work)\n");
+        urts_log_warning("Cannot allocate debug information (GDB will not work)\n");
     } else {
         dbg->pid            = INLINE_SYSCALL(getpid, 0);
         dbg->base           = enclave->baseaddr;
