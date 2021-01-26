@@ -16,7 +16,6 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA. */
 
-/* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2021 Intel Corporation
  *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
  */
@@ -74,21 +73,13 @@ long strtol(const char* s, char** endptr, int base) {
 
 bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr) {
     bool overflow_detected = false;
-    bool neg = false;
     const char* s = str;
     int valid_conv;
     unsigned long val;
 
     // gobble initial whitespace
-    while (*s == ' ' || *s == '\t') {
+    while (*s == ' ' || *s == '\t')
         s++;
-    }
-
-    // plus/minus sign
-    if (*s == '+')
-        s++;
-    else if (*s == '-')
-        s++, neg = true;
 
     // hex or octal base prefix
     if ((base == 0 || base == 16) && (s[0] == '0' && s[1] == 'x'))
@@ -126,8 +117,6 @@ bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** ou
     if(valid_conv < 0) {
         val = ULONG_MAX;
         overflow_detected = true;
-    } else if (neg) {
-        val = -val;
     }
 
     if (out_value)
