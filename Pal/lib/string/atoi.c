@@ -74,8 +74,8 @@ long strtol(const char* s, char** endptr, int base) {
 bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr) {
     bool overflow_detected = false;
     const char* s = str;
-    int valid_conv;
-    unsigned long val;
+    int conv_status = 0;    /* 0: no digits found, 1: valid conversion, -1: int overflow */
+    unsigned long val = 0;
 
     // gobble initial whitespace
     while (*s == ' ' || *s == '\t')
@@ -93,7 +93,7 @@ bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** ou
     int cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
 
     // digits
-    for (val = 0, valid_conv = 0; ; s++) {
+    while (1) {
         int dig;
 
         if (*s >= '0' && *s <= '9')
@@ -108,13 +108,15 @@ bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** ou
         if (dig >= base)
             break;
 
-        if (valid_conv < 0 || val > cutoff || (val == cutoff && dig > cutlim))
-            valid_conv = -1;
+        if (conv_status < 0 || val > cutoff || (val == cutoff && dig > cutlim))
+            conv_status = -1;
         else
-            valid_conv = 1, val = (val * base) + dig;
+            conv_status = 1, val = (val * base) + dig;
+
+        s++;
     }
 
-    if(valid_conv < 0) {
+    if (conv_status < 0) {
         val = ULONG_MAX;
         overflow_detected = true;
     }
@@ -122,7 +124,7 @@ bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** ou
     if (out_value)
         *out_value = val;
     if (out_endptr)
-        *out_endptr = (char*)(valid_conv ? s : str);
+        *out_endptr = (char*)(conv_status ? s : str);
 
     return overflow_detected;
 }
