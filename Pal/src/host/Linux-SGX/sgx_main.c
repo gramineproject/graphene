@@ -477,7 +477,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         mmap, 6, DBGINFO_ADDR, sizeof(struct enclave_dbginfo), PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     if (IS_ERR_P(dbg)) {
-        urts_log_warning("Cannot allocate debug information (GDB will not work)\n");
+        urts_log_warning("Warning: Cannot allocate debug information (GDB will not work)\n");
     } else {
         dbg->pid            = INLINE_SYSCALL(getpid, 0);
         dbg->base           = enclave->baseaddr;
@@ -622,8 +622,8 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     enclave_info->thread_num = thread_num_int64;
 
     if (!enclave_info->thread_num) {
-        urts_log_info("Number of enclave threads ('sgx.thread_num') is not specified; "
-                      "assumed to be 1\n");
+        urts_log_warning("Warning: Number of enclave threads ('sgx.thread_num') is not specified; "
+                         "assumed to be 1\n");
         enclave_info->thread_num = 1;
     }
 
@@ -804,8 +804,8 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
             log_level = PAL_LOG_NONE;
         } else if (!strcmp(log_level_str, "error")) {
             log_level = PAL_LOG_ERROR;
-        } else if (!strcmp(log_level_str, "info")) {
-            log_level = PAL_LOG_INFO;
+        } else if (!strcmp(log_level_str, "warning")) {
+            log_level = PAL_LOG_WARNING;
         } else if (!strcmp(log_level_str, "debug")) {
             log_level = PAL_LOG_DEBUG;
         } else if (!strcmp(log_level_str, "trace")) {
@@ -989,7 +989,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     size_t env_i = 0;
     while (env_i < env_size) {
         if (!strcmp(&env[env_i], "IN_GDB=1")) {
-            urts_log_info("[ Running under GDB ]\n");
+            urts_log_warning("[ Running under GDB ]\n");
             pal_sec->in_gdb = true;
         }
 
@@ -1033,7 +1033,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
             token_path);
         return -EINVAL;
     }
-    urts_log_info("Token file: %s\n", token_path);
+    urts_log_debug("Token file: %s\n", token_path);
     free(token_path);
 
     ret = initialize_enclave(enclave, enclave->raw_manifest_data);
@@ -1056,7 +1056,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     if (enclave->remote_attestation_enabled) {
         /* initialize communication with Quoting Enclave only if app requests attestation */
         bool is_epid = enclave->use_epid_attestation;
-        urts_log_info( "Using SGX %s attestation\n", is_epid ? "EPID" : "DCAP/ECDSA");
+        urts_log_debug( "Using SGX %s attestation\n", is_epid ? "EPID" : "DCAP/ECDSA");
         ret = init_quoting_enclave_targetinfo(is_epid, &pal_sec->qe_targetinfo);
         if (ret < 0)
             return ret;
@@ -1157,7 +1157,7 @@ int main(int argc, char* argv[], char* envp[]) {
             return -ENOMEM;
         }
 
-        urts_log_info("Manifest file: %s\n", manifest_path);
+        urts_log_debug("Manifest file: %s\n", manifest_path);
         ret = read_text_file_to_cstr(manifest_path, &manifest);
         if (ret < 0) {
             urts_log_error("Reading manifest failed\n");

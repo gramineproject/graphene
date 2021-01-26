@@ -174,8 +174,8 @@ static void set_debug_type(void) {
             log_level = PAL_LOG_NONE;
         } else if (!strcmp(log_level_str, "error")) {
             log_level = PAL_LOG_ERROR;
-        } else if (!strcmp(log_level_str, "info")) {
-            log_level = PAL_LOG_INFO;
+        } else if (!strcmp(log_level_str, "warning")) {
+            log_level = PAL_LOG_WARNING;
         } else if (!strcmp(log_level_str, "debug")) {
             log_level = PAL_LOG_DEBUG;
         } else if (!strcmp(log_level_str, "trace")) {
@@ -331,8 +331,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (use_cmdline_argv) {
         /* Warn only in the first process. */
         if (!parent_process) {
-            printf("WARNING: Using insecure argv source. Don't use this configuration in "
-                   "production!\n");
+            log_error("WARNING: Using insecure argv source. Don't use this configuration in "
+                      "production!\n");
         }
     } else {
         char* argv_src_file = NULL;
@@ -345,8 +345,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
             /* Load argv from a file and discard cmdline argv. We trust the file contents (this can
              * be achieved using protected or trusted files). */
             if (arguments[0] && arguments[1])
-                printf("Discarding cmdline arguments (%s %s [...]) because loader.argv_src_file "
-                        "was specified in the manifest.\n", arguments[0], arguments[1]);
+                log_error("Discarding cmdline arguments (%s %s [...]) because loader.argv_src_file "
+                          "was specified in the manifest.\n", arguments[0], arguments[1]);
 
             ret = load_cstring_array(argv_src_file, &arguments);
             if (ret < 0)
@@ -370,8 +370,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (use_host_env) {
         /* Warn only in the first process. */
         if (!parent_process) {
-            printf("WARNING: Forwarding host environment variables to the app is enabled. Don't "
-                   "use this configuration in production!\n");
+            log_error("WARNING: Forwarding host environment variables to the app is enabled. Don't "
+                      "use this configuration in production!\n");
         }
     } else {
         environments = malloc(sizeof(*environments));

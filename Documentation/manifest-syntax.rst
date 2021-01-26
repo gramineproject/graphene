@@ -28,16 +28,29 @@ Log level
 
 ::
 
-    loader.log_level = "[none|error|info|debug|trace|all]"
+    loader.log_level = "[none|error|warning|debug|trace|all]"
     (Default: "error")
 
     loader.log_file = "[PATH]"
 
 This configures Graphene's debug log. The ``log_level`` option specifies what
 messages to enable (e.g. ``loader.log_level = "debug"`` will enable all messages
-of type ``error``, ``info`` and ``debug``). By default, the messages are printed
+of type ``error``, ``warning`` and ``debug``). By default, the messages are printed
 to the standard error. If ``log_file`` is specified, the messages will be
 appended to that file.
+
+Graphene outputs log messages of the following types:
+
+* ``error``: A serious error preventing Graphene from operating properly (for
+  example, error initializing one of the components).
+
+* ``warning``: A non-fatal issue. Might mean that application is requesting
+  something unsupported or poorly emulated.
+
+* ``debug``: Detailed information about Graphene's operation and internals.
+
+* ``trace``: More detailed information, such as all system calls requested by
+  the application. Might contain a lot of noise.
 
 Preloaded libraries
 ^^^^^^^^^^^^^^^^^^^
