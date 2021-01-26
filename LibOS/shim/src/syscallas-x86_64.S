@@ -88,34 +88,47 @@ syscalldb:
     # rax was saved in fpregs, save it in proper place now, fpregs will be populated later
     pushq 0x48(%rsp)
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rax, 0
 
     push %rdx
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rdx, 0
     push %rbx
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rbx, 0
     push %rbp
     .cfi_adjust_cfa_offset 8
     .cfi_rel_offset %rbp, 0
     push %rsi
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rsi, 0
     push %rdi
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %rdi, 0
     push %r15
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r15, 0
     push %r14
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r14, 0
     push %r13
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r13, 0
     push %r12
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r12, 0
     push %r11
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r11, 0
     push %r10
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r10, 0
     push %r9
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r9, 0
     push %r8
     .cfi_adjust_cfa_offset 8
+    .cfi_rel_offset %r8, 0
     # PAL_CONTEXT struct ends here.
 
     mov %rsp, %r15
@@ -139,7 +152,7 @@ syscalldb:
     xor %ebp, %ebp
 
 #ifdef DEBUG
-    lea Lmorestack_for_bt(%rip), %r14
+    lea Lmorestack_for_gdb_bt(%rip), %r14
     .cfi_register %rip, %r14
 #endif
 
@@ -158,11 +171,25 @@ syscalldb:
 __morestack:
     .cfi_startproc
     .cfi_register %rip, %rcx
-    .cfi_same_value %rsp
+    .cfi_same_value %r8
+    .cfi_same_value %r9
+    .cfi_same_value %r10
+    .cfi_same_value %r11
+    .cfi_same_value %r12
+    .cfi_same_value %r13
+    .cfi_same_value %r14
+    .cfi_same_value %r15
+    .cfi_same_value %rdi
+    .cfi_same_value %rsi
     .cfi_same_value %rbp
+    .cfi_same_value %rbx
+    .cfi_same_value %rdx
+    .cfi_same_value %rax
+    .cfi_same_value %rcx
+    .cfi_same_value %rsp
 
     nop
-Lmorestack_for_bt:
+Lmorestack_for_gdb_bt:
     nop
 
     .cfi_endproc
