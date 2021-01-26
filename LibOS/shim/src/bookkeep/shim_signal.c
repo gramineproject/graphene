@@ -432,6 +432,7 @@ static bool is_sgx_pal(void) {
  * with a concurrent system call. The purpose of these functions is simply for
  * the compatibility with programs that rely on the error numbers, such as the
  * LTP test suite. */
+__attribute__((no_sanitize("undefined")))
 bool test_user_memory(void* addr, size_t size, bool write) {
     if (!size)
         return false;
