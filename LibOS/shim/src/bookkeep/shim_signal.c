@@ -30,6 +30,8 @@
 #include "shim_utils.h"
 #include "shim_vma.h"
 
+static bool g_check_invalid_ptrs = true;
+
 // __rt_sighandler_t is different from __sighandler_t in <asm-generic/signal-defs.h>:
 //    typedef void __signalfn_t(int);
 //    typedef __signalfn_t *__sighandler_t
@@ -439,6 +441,9 @@ bool test_user_memory(void* addr, size_t size, bool write) {
     if (!access_ok(addr, size))
         return true;
 
+    if (!g_check_invalid_ptrs)
+        return false;
+
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
     if (is_sgx_pal())
         return !is_in_adjacent_user_vmas(addr, size);
@@ -491,6 +496,9 @@ ret_fault:
 bool test_user_string(const char* addr) {
     if (!access_ok(addr, 1))
         return true;
+
+    if (!g_check_invalid_ptrs)
+        return false;
 
     size_t size, maxlen;
     const char* next = ALLOC_ALIGN_UP_PTR(addr + 1);
@@ -655,6 +663,17 @@ static void resume_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
 }
 
 int init_signal(void) {
+    int ret;
+
+    int64_t check_invalid_ptrs_int;
+    ret = toml_int_in(g_manifest_root, "libos.check_invalid_pointers",
+                      /*defaultval=*/1, &check_invalid_ptrs_int);
+    if (ret < 0 || (check_invalid_ptrs_int != 0 && check_invalid_ptrs_int != 1)) {
+        debug("Cannot parse 'libos.check_invalid_pointers' (the value must be 0 or 1)\n");
+        return -EINVAL;
+    }
+    g_check_invalid_ptrs = !!check_invalid_ptrs_int;
+
     DkSetExceptionHandler(&arithmetic_error_upcall, PAL_EVENT_ARITHMETIC_ERROR);
     DkSetExceptionHandler(&memfault_upcall,         PAL_EVENT_MEMFAULT);
     DkSetExceptionHandler(&illegal_upcall,          PAL_EVENT_ILLEGAL);
