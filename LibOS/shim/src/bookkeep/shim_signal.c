@@ -489,6 +489,7 @@ ret_fault:
  * This function tests a user string with unknown length. It only tests
  * whether the memory is readable.
  */
+__attribute__((no_sanitize("undefined")))
 bool test_user_string(const char* addr) {
     if (!access_ok(addr, 1))
         return true;
