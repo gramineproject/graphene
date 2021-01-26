@@ -110,7 +110,7 @@ sgx.trusted_files.libimgcodecs = "file:$(OPENVINO_DIR)/inference-engine/temp/ope
 sgx.trusted_files.libimgproc = "file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_imgproc.so.4.3"
 sgx.trusted_files.libopencvcore = "file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_core.so.4.3"
 
-#OpenVINO TBB dependencies
+# OpenVINO TBB dependencies
 sgx.trusted_files.libtbbmalloc = "file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbmalloc.so.2"
 sgx.trusted_files.libtbb       = "file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbb.so.2"
 sgx.trusted_files.libtbbbind   = "file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbbind.so.2"
