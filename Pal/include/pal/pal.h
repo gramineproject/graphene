@@ -91,12 +91,12 @@ typedef union pal_handle {
 
 /*! Log level */
 enum {
-    PAL_LOG_NONE   = 0,
-    PAL_LOG_ERROR  = 1,
-    PAL_LOG_INFO   = 2,
-    PAL_LOG_DEBUG  = 3,
-    PAL_LOG_TRACE  = 4,
-    PAL_LOG_ALL    = 5,
+    PAL_LOG_NONE    = 0,
+    PAL_LOG_ERROR   = 1,
+    PAL_LOG_WARNING = 2,
+    PAL_LOG_DEBUG   = 3,
+    PAL_LOG_TRACE   = 4,
+    PAL_LOG_ALL     = 5,
 };
 
 /********** PAL TYPE DEFINITIONS **********/

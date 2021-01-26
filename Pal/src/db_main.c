@@ -174,8 +174,8 @@ static void set_debug_type(void) {
             log_level = PAL_LOG_NONE;
         } else if (!strcmp(log_level_str, "error")) {
             log_level = PAL_LOG_ERROR;
-        } else if (!strcmp(log_level_str, "info")) {
-            log_level = PAL_LOG_INFO;
+        } else if (!strcmp(log_level_str, "warning")) {
+            log_level = PAL_LOG_WARNING;
         } else if (!strcmp(log_level_str, "debug")) {
             log_level = PAL_LOG_DEBUG;
         } else if (!strcmp(log_level_str, "trace")) {

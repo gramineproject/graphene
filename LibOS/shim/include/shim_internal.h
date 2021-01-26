@@ -52,12 +52,12 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
     } while (0)
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
-#define log_info(fmt...)     _log(PAL_LOG_INFO, fmt)
+#define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
 #define log_debug(fmt...)    _log(PAL_LOG_DEBUG, fmt)
 #define log_trace(fmt...)    _log(PAL_LOG_TRACE, fmt)
 
 /* TODO: Replace debug() calls with log_*() at the appropriate levels, and remove this macro. */
-#define debug(fmt...)        _log(PAL_LOG_INFO, fmt)
+#define debug(fmt...)        _log(PAL_LOG_WARNING, fmt)
 
 #if 0
 #define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()

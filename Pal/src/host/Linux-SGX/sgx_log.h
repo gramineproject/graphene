@@ -27,7 +27,7 @@ int urts_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
     }  while(0)
 
 #define urts_log_error(fmt...)    _urts_log(PAL_LOG_ERROR, fmt)
-#define urts_log_info(fmt...)     _urts_log(PAL_LOG_INFO, fmt)
+#define urts_log_warning(fmt...)  _urts_log(PAL_LOG_WARNING, fmt)
 #define urts_log_debug(fmt...)    _urts_log(PAL_LOG_DEBUG, fmt)
 #define urts_log_trace(fmt...)    _urts_log(PAL_LOG_TRACE, fmt)
 

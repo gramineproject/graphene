@@ -166,8 +166,8 @@ void sgx_profile_finish(void) {
         urts_log_error("sgx_profile_finish: closing /proc/self/mem failed: %d\n", ret);
     g_mem_fd = -1;
 
-    urts_log_info("Profile data written to %s (%lu bytes)\n", g_pal_enclave.profile_filename,
-                  size);
+    urts_log_debug("Profile data written to %s (%lu bytes)\n", g_pal_enclave.profile_filename,
+                   size);
 
     g_profile_enabled = false;
 }
