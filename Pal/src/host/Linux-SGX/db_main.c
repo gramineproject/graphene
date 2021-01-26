@@ -175,7 +175,7 @@ extern void* g_enclave_top;
 /* This function extracts first positive integer present in the buffer. For example 31 will be
  * returned when input "31" is provided. If buffer contains valid size indicators such as "48K",
  * then just numeric value (48 in this case) is returned. Returns negative unix error code if the
- * buffer is malformed Eg. 20abc or 3,4,5 or xyz123 or 512H.
+ * buffer is malformed E.g., "20abc" or "3,4,5" or "xyz123" or "512H".
  * Use case: To extract integer from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
 static long extract_long_from_buffer(const char* buf) {
     char* end = NULL;

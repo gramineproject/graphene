@@ -75,10 +75,10 @@ int main(int argc, char** argv) {
 
     display_file_contents("/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages");
 
-    /* Read L1 data, L1 Instruction and L2 cache type*/
+    /* Read L1 data, L1 Instruction and L2 cache type */
     for (int lvl = 0; lvl < 3; lvl++) {
         snprintf(path, sizeof(path),"/sys/devices/system/cpu/cpu%ld/cache/index%d/type",
-                 maxprocs-1, lvl);
+                 maxprocs - 1, lvl);
         display_file_contents(path);
     }
 
@@ -141,7 +141,7 @@ int main(int argc, char** argv) {
 
     errno = 0;
     while ((dirent = readdir(dir))) {
-        printf("/sys/devices/system/node/%s \n", dirent->d_name);
+        printf("/sys/devices/system/node/%s\n", dirent->d_name);
         if (strncmp(dirent->d_name, "node", 4) == 0) {
             char* endp;
             unsigned long nr = strtoul(dirent->d_name + 4,  &endp, 10);
