@@ -477,7 +477,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         mmap, 6, DBGINFO_ADDR, sizeof(struct enclave_dbginfo), PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     if (IS_ERR_P(dbg)) {
-        urts_log_warning("Cannot allocate debug information (GDB will not work)\n");
+        urts_log_warning("Warning: Cannot allocate debug information (GDB will not work)\n");
     } else {
         dbg->pid            = INLINE_SYSCALL(getpid, 0);
         dbg->base           = enclave->baseaddr;
@@ -622,7 +622,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     enclave_info->thread_num = thread_num_int64;
 
     if (!enclave_info->thread_num) {
-        urts_log_warning("Number of enclave threads ('sgx.thread_num') is not specified; "
+        urts_log_warning("Warning: Number of enclave threads ('sgx.thread_num') is not specified; "
                          "assumed to be 1\n");
         enclave_info->thread_num = 1;
     }

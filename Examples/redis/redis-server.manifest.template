@@ -11,10 +11,10 @@
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 libos.entrypoint = "file:redis-server"
 
-# Verbosity of Graphene debug log (none/error/info/debug/trace/all). Note that
-# GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the building
-# process: the default is "error" for non-debug builds, and "debug" for debug
-# builds.
+# Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
+# that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the
+# building process: the default is "error" for non-debug builds, and "debug"
+# for debug builds.
 loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 ################################# ARGUMENTS ###################################
