@@ -165,7 +165,7 @@ UTHASH_URI ?= \
 UTHASH_CHECKSUM ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c2ac
 
 ../include/lib/uthash.h:
-	../../Scripts/download --output $@ --sha256 $(UTHASH_CHECKSUM) $(foreach mirror,$(UTHASH_URI), --url $(mirror))
+	../../Scripts/download --output $@ --sha256 $(UTHASH_CHECKSUM) $(foreach mirror,$(UTHASH_URI),--url $(mirror))
 
 TOML_COMMIT ?= 5be06807ad5f2230cad99e15380c4f4076c9dd83
 TOML_H_URI ?= \
@@ -178,10 +178,10 @@ TOML_C_URI ?= \
 TOML_C_CHECKSUM ?= c21a546ab767a7e40d4f65df179d70357059c15e4439e1980d791625655fbbc6
 
 toml.h:
-	../../Scripts/download --output $@ --sha256 $(TOML_H_CHECKSUM) $(foreach mirror,$(TOML_H_URI), --url $(mirror))
+	../../Scripts/download --output $@ --sha256 $(TOML_H_CHECKSUM) $(foreach mirror,$(TOML_H_URI),--url $(mirror))
 
 toml.c:
-	../../Scripts/download --output $@ --sha256 $(TOML_C_CHECKSUM) $(foreach mirror,$(TOML_C_URI), --url $(mirror))
+	../../Scripts/download --output $@ --sha256 $(TOML_C_CHECKSUM) $(foreach mirror,$(TOML_C_URI),--url $(mirror))
 
 toml.patched: toml.h toml.c
 	patch -p1 -l < toml.patch || exit 255
