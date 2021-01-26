@@ -23,10 +23,10 @@ static ssize_t dev_zero_write(struct shim_handle* hdl, const void* buf, size_t c
     return count;
 }
 
-static off_t dev_zero_seek(struct shim_handle* hdl, off_t offset, int wence) {
+static off_t dev_zero_seek(struct shim_handle* hdl, off_t offset, int whence) {
     __UNUSED(hdl);
     __UNUSED(offset);
-    __UNUSED(wence);
+    __UNUSED(whence);
     return 0;
 }
 

@@ -73,7 +73,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    printf("Four bytes from /dev/urandom: %x:%x:%x:%x\n", buf[0], buf[1], buf[2], buf[3]);
+    printf("Four bytes from /dev/urandom: ");
+    for (int i = 0; i < 4; i++)
+        printf("%02hhx ", (unsigned char)buf[i]);
+    printf("\n");
 
     ret = fclose(f);
     if (ret) {
