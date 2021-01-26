@@ -1,11 +1,8 @@
 #include <dirent.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 int main(int argc, char** argv) {
@@ -63,6 +60,12 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    ret = fseek(f, /*offset=*/0, SEEK_CUR);
+    if (ret < 0) {
+        perror("fseek /dev/urandom");
+        return 1;
+    }
+
     memset(buf, 0, sizeof(buf));
     ret = fread(buf, 1, sizeof(buf), f);
     if (ferror(f)) {
@@ -82,6 +85,12 @@ int main(int argc, char** argv) {
     f = fopen("/dev/null", "w");
     if (!f) {
         perror("fopen /dev/null");
+        return 1;
+    }
+
+    ret = fseek(f, /*offset=*/0, SEEK_CUR);
+    if (ret < 0) {
+        perror("fseek /dev/null");
         return 1;
     }
 
@@ -122,5 +131,6 @@ int main(int argc, char** argv) {
     }
 #endif
 
+    puts("TEST OK!");
     return 0;
 }
