@@ -444,7 +444,7 @@ static int register_protected_files(void) {
 
     pf_lock();
     log_debug("Registered %u protected directories and %u protected files\n",
-            HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
+              HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
     pf_unlock();
     return 0;
 }
@@ -525,7 +525,7 @@ struct protected_file* load_protected_file(const char* path, int* fd, uint64_t s
                                            pf_file_mode_t mode, bool create,
                                            struct protected_file* pf) {
     log_debug("load_protected_file: %s, fd %d, size %lu, mode %d, create %d, pf %p\n", path,
-            *fd, size, mode, create, pf);
+              *fd, size, mode, create, pf);
 
     if (!pf)
         pf = get_protected_file(path);

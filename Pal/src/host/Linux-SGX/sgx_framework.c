@@ -60,21 +60,21 @@ int read_enclave_token(int token_file, sgx_arch_token_t* token) {
         return -ERRNO(bytes);
 
 #ifdef SGX_DCAP
-    urts_log_info("Read dummy DCAP token\n");
+    urts_log_debug("Read dummy DCAP token\n");
 #else
-    urts_log_info("Read token:\n");
-    urts_log_info("    valid:                 0x%08x\n",   token->body.valid);
-    urts_log_info("    attr.flags:            0x%016lx\n", token->body.attributes.flags);
-    urts_log_info("    attr.xfrm:             0x%016lx\n", token->body.attributes.xfrm);
-    urts_log_info("    mr_enclave:            %s\n",
-            ALLOCA_BYTES2HEXSTR(token->body.mr_enclave.m));
-    urts_log_info("    mr_signer:             %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_signer.m));
-    urts_log_info("    LE cpu_svn:            %s\n", ALLOCA_BYTES2HEXSTR(token->cpu_svn_le.svn));
-    urts_log_info("    LE isv_prod_id:        %02x\n", token->isv_prod_id_le);
-    urts_log_info("    LE isv_svn:            %02x\n", token->isv_svn_le);
-    urts_log_info("    LE masked_misc_select: 0x%08x\n",   token->masked_misc_select_le);
-    urts_log_info("    LE attr.flags:         0x%016lx\n", token->attributes_le.flags);
-    urts_log_info("    LE attr.xfrm:          0x%016lx\n", token->attributes_le.xfrm);
+    urts_log_debug("Read token:\n");
+    urts_log_debug("    valid:                 0x%08x\n",   token->body.valid);
+    urts_log_debug("    attr.flags:            0x%016lx\n", token->body.attributes.flags);
+    urts_log_debug("    attr.xfrm:             0x%016lx\n", token->body.attributes.xfrm);
+    urts_log_debug("    mr_enclave:            %s\n",
+                   ALLOCA_BYTES2HEXSTR(token->body.mr_enclave.m));
+    urts_log_debug("    mr_signer:             %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_signer.m));
+    urts_log_debug("    LE cpu_svn:            %s\n", ALLOCA_BYTES2HEXSTR(token->cpu_svn_le.svn));
+    urts_log_debug("    LE isv_prod_id:        %02x\n", token->isv_prod_id_le);
+    urts_log_debug("    LE isv_svn:            %02x\n", token->isv_svn_le);
+    urts_log_debug("    LE masked_misc_select: 0x%08x\n",   token->masked_misc_select_le);
+    urts_log_debug("    LE attr.flags:         0x%016lx\n", token->attributes_le.flags);
+    urts_log_debug("    LE attr.xfrm:          0x%016lx\n", token->attributes_le.xfrm);
 #endif
 
     return 0;
@@ -194,15 +194,15 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
 
     secs->attributes.flags |= SGX_FLAGS_INITIALIZED;
 
-    urts_log_info("enclave created:\n");
-    urts_log_info("    base:           0x%016lx\n", secs->base);
-    urts_log_info("    size:           0x%016lx\n", secs->size);
-    urts_log_info("    misc_select:    0x%08x\n",   secs->misc_select);
-    urts_log_info("    attr.flags:     0x%016lx\n", secs->attributes.flags);
-    urts_log_info("    attr.xfrm:      0x%016lx\n", secs->attributes.xfrm);
-    urts_log_info("    ssa_frame_size: %d\n",       secs->ssa_frame_size);
-    urts_log_info("    isv_prod_id:    0x%08x\n",   secs->isv_prod_id);
-    urts_log_info("    isv_svn:        0x%08x\n",   secs->isv_svn);
+    urts_log_debug("enclave created:\n");
+    urts_log_debug("    base:           0x%016lx\n", secs->base);
+    urts_log_debug("    size:           0x%016lx\n", secs->size);
+    urts_log_debug("    misc_select:    0x%08x\n",   secs->misc_select);
+    urts_log_debug("    attr.flags:     0x%016lx\n", secs->attributes.flags);
+    urts_log_debug("    attr.xfrm:      0x%016lx\n", secs->attributes.xfrm);
+    urts_log_debug("    ssa_frame_size: %d\n",       secs->ssa_frame_size);
+    urts_log_debug("    isv_prod_id:    0x%08x\n",   secs->isv_prod_id);
+    urts_log_debug("    isv_svn:        0x%08x\n",   secs->isv_svn);
 
     return 0;
 }
@@ -258,9 +258,9 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
     }
 
     if (size == g_page_size)
-        urts_log_info("adding page  to enclave: %p [%s:%s] (%s)%s\n", addr, t, p, comment, m);
+        urts_log_debug("adding page  to enclave: %p [%s:%s] (%s)%s\n", addr, t, p, comment, m);
     else
-        urts_log_info("adding pages to enclave: %p-%p [%s:%s] (%s)%s\n", addr, addr + size, t, p,
+        urts_log_debug("adding pages to enclave: %p-%p [%s:%s] (%s)%s\n", addr, addr + size, t, p,
                       comment, m);
 
 #ifdef SGX_DCAP
@@ -375,9 +375,9 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
 #endif
     unsigned long enclave_valid_addr = secs->base + secs->size - g_page_size;
 
-    urts_log_info("enclave initializing:\n");
-    urts_log_info("    enclave id:   0x%016lx\n", enclave_valid_addr);
-    urts_log_info("    mr_enclave:   %s\n", ALLOCA_BYTES2HEXSTR(sigstruct->body.enclave_hash.m));
+    urts_log_debug("enclave initializing:\n");
+    urts_log_debug("    enclave id:   0x%016lx\n", enclave_valid_addr);
+    urts_log_debug("    mr_enclave:   %s\n", ALLOCA_BYTES2HEXSTR(sigstruct->body.enclave_hash.m));
 
     struct sgx_enclave_init param = {
 #ifndef SGX_DCAP
@@ -435,7 +435,7 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
 }
 
 int destroy_enclave(void* base_addr, size_t length) {
-    urts_log_info("destroying enclave...\n");
+    urts_log_debug("destroying enclave...\n");
 
     int ret = INLINE_SYSCALL(munmap, 2, base_addr, length);
 

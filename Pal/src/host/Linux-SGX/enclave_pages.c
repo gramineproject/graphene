@@ -164,7 +164,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     LISTP_ADD_AFTER(vma, vma_above, &g_heap_vma_list, list);
 
     if (vma->bottom >= vma->top) {
-        log_error("*** Bad memory bookkeeping: %p - %p ***\n", vma->bottom, vma->top);
+        log_error("Bad memory bookkeeping: %p - %p\n", vma->bottom, vma->top);
         ocall_exit(/*exitcode=*/1, /*is_exitgroup=*/true);
     }
 
@@ -276,8 +276,8 @@ int free_enclave_pages(void* addr, size_t size) {
         }
 
         if (is_pal_internal != vma->is_pal_internal) {
-            log_error("*** Area to free (address %p, size %lu) overlaps with both normal and "
-                      "pal-internal VMAs ***\n",
+            log_error("Area to free (address %p, size %lu) overlaps with both normal and "
+                      "pal-internal VMAs\n",
                       addr, size);
             ret = -PAL_ERROR_INVAL;
             goto out;
@@ -289,8 +289,7 @@ int free_enclave_pages(void* addr, size_t size) {
             /* create VMA [vma->bottom, addr); this may leave VMA [addr + size, vma->top), see below */
             struct heap_vma* new = __alloc_vma();
             if (!new) {
-                log_error("*** Cannot create split VMA during freeing of address %p ***\n",
-                          addr);
+                log_error("Cannot create split VMA during freeing of address %p\n", addr);
                 ret = -PAL_ERROR_NOMEM;
                 goto out;
             }
