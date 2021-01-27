@@ -49,7 +49,7 @@ include ../../Scripts/Makefile.configs
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-pytorch.sig: pytorch.manifest
+pytorch.sig pytorch.manifest.sgx &: pytorch.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
