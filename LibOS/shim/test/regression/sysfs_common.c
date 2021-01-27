@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
     display_file_contents("/sys/devices/system/cpu/cpu0/topology/core_id");
 
     snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%ld/topology/core_siblings",
-             maxprocs-1);
+             maxprocs - 1);
     display_file_contents(path);
 
     display_file_contents("/sys/devices/system/node/node0/cpumap");

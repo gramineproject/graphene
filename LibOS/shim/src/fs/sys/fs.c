@@ -1,15 +1,20 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2020 Intel Corporation */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
 
 /*
  * This file contains the implementation of `/sys/devices/system/{cpu,node}/` pseudo-filesystem and
  * its sub-directories.
  */
 
+#include "api.h"
 #include "perm.h"
 #include "shim_fs.h"
 #include "stat.h"
 
+/* Sub-directores /sys/devices/system/{cpu,node} are implemented in separate files cpu_info.c and
+ * node_info.c */
 extern const struct pseudo_dir sys_cpu_dir;
 extern const struct pseudo_dir sys_node_dir;
 
@@ -29,12 +34,8 @@ int extract_first_num_from_string(const char* pathname) {
 /* This function will extract "cpu105" from "cpu105/cache/index0/type" and return it in a newly
  * created buffer. If string doesn't have "/" delimiter, a copy of original string is returned. */
 static char* extract_first_token_from_path(const char* pathname) {
-    size_t len;
     char* delim_ptr = strchr(pathname, '/');
-    if (delim_ptr)
-        len = delim_ptr - pathname;
-    else
-        len = strlen(pathname);
+    size_t len = delim_ptr ? (size_t)(delim_ptr - pathname) : strlen(pathname);
 
     return alloc_substr(pathname, len);
 }
@@ -95,9 +96,7 @@ out:
 
 int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t size) {
     int totalcnt;
-    char ent_name[32];
     struct shim_dirent* dirent_in_buf = *buf;
-    size_t total_size = 0;
 
     char filename[32];
     size_t fsize = sizeof(filename);
@@ -116,7 +115,9 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
         return -EINVAL;
     }
 
+    size_t total_size = 0;
     for (int i = 0; i < totalcnt; i++) {
+        char ent_name[32];
         snprintf(ent_name, sizeof(ent_name), "%s%d", filename, i);
         size_t name_size   = strlen(ent_name) + 1;
         size_t dirent_size = sizeof(struct shim_dirent) + name_size;
@@ -181,7 +182,7 @@ int sys_dir_stat(const char* name, struct stat* buf) {
     return 0;
 }
 
-static const struct pseudo_fs_ops fs_sysdir = {
+static const struct pseudo_fs_ops fs_sys_dir = {
     .mode = &sys_dir_mode,
     .stat = &sys_dir_stat,
     .open = &sys_dir_open,
@@ -190,8 +191,8 @@ static const struct pseudo_fs_ops fs_sysdir = {
 static const struct pseudo_dir sys_sys_dir = {
     .size = 2,
     .ent  = {
-        {.name = "cpu",  .dir = &sys_cpu_dir,  .fs_ops = &fs_sysdir, .type = LINUX_DT_DIR},
-        {.name = "node", .dir = &sys_node_dir, .fs_ops = &fs_sysdir, .type = LINUX_DT_DIR},
+        {.name = "cpu",  .dir = &sys_cpu_dir,  .fs_ops = &fs_sys_dir, .type = LINUX_DT_DIR},
+        {.name = "node", .dir = &sys_node_dir, .fs_ops = &fs_sys_dir, .type = LINUX_DT_DIR},
     }
 };
 

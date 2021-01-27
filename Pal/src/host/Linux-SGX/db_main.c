@@ -166,7 +166,7 @@ static long extract_long_from_buffer(const char* buf) {
 /* This function counts bits set in buffer. For example 2 will be returned when input buffer
  * "00000000,80000000,00000000,80000000" is provided. Returns negative UNIX error code on error and
  * actual count on success.
- * Use case: To count bits set in /sys/devices/system/cpu/cpu95/topology/core_siblings bitmaps */
+ * Use case: To count bits set in /sys/devices/system/cpu/cpu95/topology/core_siblings bitmaps. */
 static long count_bits_set_from_resource_map(const char* buf) {
     unsigned long count = 0;
     unsigned long bitmap;

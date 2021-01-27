@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2020 Intel Corporation */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
 
 /*
  * This file contains the implementation of `/sys/devices/system/cpu` and its sub-directories.
  */
 
+#include "api.h"
 #include "shim_fs.h"
+/* Sub-directory /sys/devices/system/cpu/cpuX/cache is implemented in separate file cache_info.c */
 extern const struct pseudo_dir cpunum_cache_dir;
 
 static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {

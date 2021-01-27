@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2020 Intel Corporation */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
 
 /*
  * This file contains the implementation of `/sys/devices/system/cpu/cpuX/cache` and its
  * sub-directories.
  */
 
+#include "api.h"
 #include "shim_fs.h"
 
 static int cache_info_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(hdl);
-    __UNUSED(flags);
-
     char filename[32];
 
     size_t size = sizeof(filename);
@@ -23,6 +23,7 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     if (cpunum < 0)
         return -ENOENT;
 
+    assert(strstr(name, "index"));
     int idx = extract_first_num_from_string(strstr(name, "index"));
     if (idx < 0)
         return -ENOENT;

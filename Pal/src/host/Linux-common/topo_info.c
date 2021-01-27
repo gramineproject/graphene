@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2020 Intel Corporation */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
 
 /*
  * This file contains the APIs to expose host topology information.
@@ -25,7 +27,6 @@ int get_hw_resource(const char* filename, bool count) {
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
-    char* end;
     char* ptr = buf;
     int resource_cnt = 0;
     int retval = -ENOENT;
@@ -33,6 +34,7 @@ int get_hw_resource(const char* filename, bool count) {
         while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
             ptr++;
 
+        char* end;
         int firstint = (int)strtol(ptr, &end, 10);
         if (ptr == end)
             break;
@@ -89,17 +91,14 @@ int read_file_buffer(const char* filename, char* buf, size_t count) {
  * `/sys/devices/system/cpu/cpuX/cache` on success and negative UNIX error code on failure. */
 static int get_num_cache_level(const char* path) {
     char buf[1024];
-    int bpos;
-    int nread;
     int num_dirs = 0;
-    struct linux_dirent64* dirent64;
 
     int fd = INLINE_SYSCALL(open, 2, path, O_RDONLY | O_DIRECTORY);
     if (IS_ERR(fd))
         return -ERRNO(fd);
 
     while (true) {
-        nread = INLINE_SYSCALL(getdents64, 3, fd, buf, 1024);
+        int nread = INLINE_SYSCALL(getdents64, 3, fd, buf, 1024);
         if (IS_ERR(nread)) {
             num_dirs = -ERRNO(nread);
             goto out;
@@ -108,8 +107,8 @@ static int get_num_cache_level(const char* path) {
         if (nread == 0)
             break;
 
-        for (bpos = 0; bpos < nread;) {
-            dirent64 = (struct linux_dirent64*)(buf + bpos);
+        for (int bpos = 0; bpos < nread;) {
+            struct linux_dirent64* dirent64 = (struct linux_dirent64*)(buf + bpos);
             if (dirent64->d_type == DT_DIR && strstartswith(dirent64->d_name, "index"))
                 num_dirs++;
             bpos += dirent64->d_reclen;

@@ -16,6 +16,7 @@ int get_hw_resource(const char* filename, bool count);
  * Returns 0 or number of bytes read on success and UNIX error code on failure.
  */
 int read_file_buffer(const char* filename, char* buf, size_t count);
+/* Fills topo_info with CPU and NUMA topology from the host */
 int get_topology_info(PAL_TOPO_INFO* topo_info);
 
 #endif // TOPO_INFO_H_
