@@ -19,74 +19,66 @@
 #error "pal_internal.h can only be included in PAL"
 #endif
 
-/* handle_ops is the operators provided for each handler type. They are
-   mostly used by Stream-related PAL calls, but can also be used by
-   some others in special ways. */
+/* handle_ops is the operators provided for each handler type. They are mostly used by
+ * stream-related PAL calls, but can also be used by some others in special ways. */
 struct handle_ops {
     /* 'getrealpath' return the real path that represent the handle */
     const char* (*getrealpath)(PAL_HANDLE handle);
 
-    /* 'getname' is used by DkStreamGetName. It's different from
-       'getrealpath' */
+    /* 'getname' is used by DkStreamGetName. It's different from 'getrealpath' */
     int (*getname)(PAL_HANDLE handle, char* buffer, size_t count);
 
-    /* 'open' is used by DkStreamOpen. 'handle' is a preallocated handle,
-       'type' will be a normalized prefix, 'uri' is the remaining string
-       of uri.
-       access, share, create, and options follow the same flags defined
-       for DkStreamOpen in pal.h.
-    */
+    /* 'open' is used by DkStreamOpen. 'handle' is a preallocated handle, 'type' will be a
+     * normalized prefix, 'uri' is the remaining string of uri. access, share, create, and options
+     * follow the same flags defined for DkStreamOpen in pal.h. */
     int (*open)(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                 int create, int options);
 
-    /* 'read' and 'write' is used by DkStreamRead and DkStreamWrite, so
-       they have exactly same prototype as them.  */
+    /* 'read' and 'write' is used by DkStreamRead and DkStreamWrite, so they have exactly same
+     * prototype as them. */
     int64_t (*read)(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer);
     int64_t (*write)(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer);
 
-    /* 'readbyaddr' and 'writebyaddr' are the same as read and write,
-       but with extra field to specify address */
+    /* 'readbyaddr' and 'writebyaddr' are the same as read and write, but with extra field to
+     * specify address */
     int64_t (*readbyaddr)(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer,
                           char* addr, size_t addrlen);
     int64_t (*writebyaddr)(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer,
                            const char* addr, size_t addrlen);
 
-    /* 'close' and 'delete' is used by DkObjectClose and DkStreamDelete,
-       'close' will close the stream, while 'delete' actually destroy
-       the stream, such as deleting a file or shutting down a socket */
+    /* 'close' and 'delete' is used by DkObjectClose and DkStreamDelete, 'close' will close the
+     * stream, while 'delete' actually destroy the stream, such as deleting a file or shutting
+     * down a socket */
     int (*close)(PAL_HANDLE handle);
     int (*delete)(PAL_HANDLE handle, int access);
 
-    /* 'map' and 'unmap' will map or unmap the handle into memory space,
-     * it's not necessary mapped by mmap, so unmap also needs 'handle'
-     * to deal with special cases.
+    /*
+     * 'map' and 'unmap' will map or unmap the handle into memory space, it's not necessary mapped
+     * by mmap, so unmap also needs 'handle' to deal with special cases.
      *
-     * Common PAL code will ensure that *address, offset, and size are
-     * page-aligned. 'address' should not be NULL.
+     * Common PAL code will ensure that *address, offset, and size are page-aligned. 'address'
+     * should not be NULL.
      */
     int (*map)(PAL_HANDLE handle, void** address, int prot, uint64_t offset, uint64_t size);
 
-    /* 'setlength' is used by DkStreamFlush. It truncate the stream
-       to certain size. */
+    /* 'setlength' is used by DkStreamFlush. It truncate the stream to certain size. */
     int64_t (*setlength)(PAL_HANDLE handle, uint64_t length);
 
     /* 'flush' is used by DkStreamFlush. It syncs the stream to the device */
     int (*flush)(PAL_HANDLE handle);
 
-    /* 'waitforclient' is used by DkStreamWaitforClient. It accepts an
-       connection */
+    /* 'waitforclient' is used by DkStreamWaitforClient. It accepts an connection */
     int (*waitforclient)(PAL_HANDLE server, PAL_HANDLE* client);
 
-    /* 'attrquery' is used by DkStreamAttributesQuery. It queries the
-        attributes of a stream */
+    /* 'attrquery' is used by DkStreamAttributesQuery. It queries the attributes of a stream */
     int (*attrquery)(const char* type, const char* uri, PAL_STREAM_ATTR* attr);
 
-    /* 'attrquerybyhdl' is used by DkStreamAttributesQueryByHandle. It queries
-       the attributes of a stream handle */
+    /* 'attrquerybyhdl' is used by DkStreamAttributesQueryByHandle. It queries the attributes of
+     * a stream handle */
     int (*attrquerybyhdl)(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
-    /* 'attrsetbyhdl' is used by DkStreamAttributesSetByHandle. It queries
-       the attributes of a stream handle */
+    /* 'attrsetbyhdl' is used by DkStreamAttributesSetByHandle. It queries the attributes of
+     * a stream handle */
     int (*attrsetbyhdl)(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
     /* 'wait' is used for synchronous wait.
@@ -97,8 +89,7 @@ struct handle_ops {
      */
     int (*wait)(PAL_HANDLE handle, int64_t timeout_us);
 
-    /* 'rename' is used to change name of a stream, or reset its share
-       option */
+    /* 'rename' is used to change name of a stream, or reset its share option */
     int (*rename)(PAL_HANDLE handle, const char* type, const char* uri);
 };
 
@@ -111,8 +102,8 @@ static inline const struct handle_ops* HANDLE_OPS(PAL_HANDLE handle) {
     return g_pal_handle_ops[_type];
 }
 
-/* We allow dynamic size handle allocation. Here is some macro to help
-   deciding the actual size of the handle */
+/* We allow dynamic size handle allocation. Here is some macro to help deciding the actual size of
+ * the handle */
 extern PAL_HANDLE _h;
 #define HANDLE_SIZE(type) (sizeof(*_h))
 
@@ -135,12 +126,12 @@ static inline int handle_size(PAL_HANDLE handle) {
     } while (0)
 #endif
 
-/* failure notify. The rountine is called whenever a PAL call return
-   error code. As the current design of PAL does not return error
-   code directly, we rely on DkAsynchronousEventUpcall to handle
-   PAL call error. If the user does not set up a upcall, the error
-   code will be ignored. Ignoring PAL error code can be a possible
-   optimization for SHIM. */
+/*
+ * failure notify. The rountine is called whenever a PAL call return error code. As the current
+ * design of PAL does not return error code directly, we rely on DkAsynchronousEventUpcall to handle
+ * PAL call error. If the user does not set up a upcall, the error code will be ignored. Ignoring
+ * PAL error code can be a possible optimization for SHIM.
+ */
 void notify_failure(unsigned long error);
 
 /* all pal config value */
