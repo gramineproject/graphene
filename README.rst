@@ -63,33 +63,7 @@ are available <https://graphene.readthedocs.io/en/latest/building.html>`__.
 How to run an application in Graphene?
 ======================================
 
-Graphene library OS uses ``pal_loader`` utility as a loader to bootstrap
-applications in the library OS::
-
-   [PATH TO Runtime]/pal_loader [APPLICATION] [ARGUMENTS]...
-   (Manifest file: "[APPLICATION].manifest")
-
-Running an application requires some minimal configuration in the application's
-manifest file. A |nbsp| sensible manifest file will include paths to the library
-OS and other libraries the application requires; environment variables, such as
-``LD_LIBRARY_PATH``; and file systems to be mounted.
-
-Here is an example manifest file::
-
-    loader.preload = "file:LibOS/shim/src/libsysdb.so"
-    loader.env.LD_LIBRAY_PATH = "/lib"
-    fs.mount.libc.type = "chroot"
-    fs.mount.libc.path = "/lib"
-    fs.mount.libc.uri = "file:[relative path to Graphene root]/Runtime"
-
-More examples can be found in the test directories (``LibOS/shim/test``). We
-have also tested several applications, such as GCC, Bash, and Apache.
-The manifest files for these applications are provided in the
-individual directories under ``Examples``.
-
-For the full documentation of the Graphene manifest syntax, see the `Graphene
-documentation
-<https://graphene.readthedocs.io/en/latest/manifest-syntax.html>`__.
+See our `quick start guide <https://graphene.readthedocs.io/en/latest/quickstart.html>`__.
 
 Automatically running applications via Graphene Shielded Containers (GSC)
 -------------------------------------------------------------------------
