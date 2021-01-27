@@ -47,7 +47,7 @@ struct shim_fs_ops {
     int (*flush)(struct shim_handle* hdl);
 
     /* seek: the content from the file opened as handle */
-    off_t (*seek)(struct shim_handle* hdl, off_t offset, int wence);
+    off_t (*seek)(struct shim_handle* hdl, off_t offset, int whence);
 
     /* move, copy: rename or duplicate the file */
     int (*move)(const char* trim_old_name, const char* trim_new_name);
