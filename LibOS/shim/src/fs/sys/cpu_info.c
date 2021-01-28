@@ -9,6 +9,7 @@
 
 #include "api.h"
 #include "shim_fs.h"
+
 /* Sub-directory /sys/devices/system/cpu/cpuX/cache is implemented in separate file cache_info.c */
 extern const struct pseudo_dir cpunum_cache_dir;
 

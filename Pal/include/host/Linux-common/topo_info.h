@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
+
 #ifndef TOPO_INFO_H_
 #define TOPO_INFO_H_
 

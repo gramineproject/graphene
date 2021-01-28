@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
 
 /*
  * This file contains the main function of the PAL loader, which loads and processes environment,
@@ -235,7 +238,7 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
             buf = end + 1;
             unsigned long secondint;
             str_to_ulong(buf, 10, &secondint, &end);
-            if (secondint > LONG_MAX)
+            if (end == buf || secondint > LONG_MAX)
                 return -EINVAL;
 
             unsigned long diff;

@@ -9,6 +9,7 @@
 
 #include <asm/errno.h>
 #include <asm/fcntl.h>
+#include <limits.h>
 
 #include "api.h"
 #include "pal_linux.h"
@@ -35,14 +36,17 @@ int get_hw_resource(const char* filename, bool count) {
             ptr++;
 
         char* end;
-        int firstint = (int)strtol(ptr, &end, 10);
+        long firstint = strtol(ptr, &end, 10);
+        if (firstint < 0 || firstint > INT_MAX)
+            return -ENOENT;
+
         if (ptr == end)
             break;
 
         /* caller wants to read an int stored in the file */
         if (!count) {
             if (*end == '\n' || *end == '\0')
-                retval = firstint;
+                retval = (int)firstint;
             return retval;
         }
 
@@ -53,9 +57,16 @@ int get_hw_resource(const char* filename, bool count) {
         } else if (*end == '-') {
             /* HW resource range, count how many HW resources are in range */
             ptr = end + 1;
-            int secondint = (int)strtol(ptr, &end, 10);
-            if (secondint > firstint)
-                resource_cnt += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
+            long secondint = strtol(ptr, &end, 10);
+            if (secondint < 0 || secondint > INT_MAX)
+                return -EINVAL;
+
+            if (secondint > firstint) {
+                long diff = secondint - firstint;
+                if (diff >= INT_MAX || resource_cnt + diff + 1 > INT_MAX)
+                    return -EINVAL;
+                resource_cnt += (int)secondint - (int)firstint + 1; //inclusive (e.g., 0-7, or 8-16)
+            }
         }
         ptr = end;
     }

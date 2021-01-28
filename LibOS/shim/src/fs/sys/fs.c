@@ -7,6 +7,7 @@
  * This file contains the implementation of `/sys/devices/system/{cpu,node}/` pseudo-filesystem and
  * its sub-directories.
  */
+#include <limits.h>
 
 #include "api.h"
 #include "perm.h"
@@ -22,8 +23,11 @@ int extract_first_num_from_string(const char* pathname) {
     const char* str = pathname;
 
     while (*str) {
-        if ((*str >= '0') && (*str <= '9') ) {
-            return strtol(str, NULL, 10);
+        if (*str >= '0' && *str <= '9') {
+            long val = strtol(str, NULL, 10);
+            if (val < 0 || val > INT_MAX)
+                return -1;
+            return (int)val;
         }
         str++;
     }
