@@ -207,6 +207,7 @@ static long count_bits_set_from_resource_map(const char* buf) {
  * Returns negative unix error if buf is empty or contains invalid data and number of hw resources
  * present in the buffer on success. */
 static long sanitize_hw_resource_count(const char* buf, bool ordered) {
+    bool init_done = false;
     unsigned long current_maxint = 0;
     unsigned long resource_cnt = 0;
     while (*buf) {
@@ -224,9 +225,10 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
             return -EINVAL;
 
         if (ordered) {
-            if (firstint != 0 && firstint <= current_maxint)
+            if (init_done && firstint <= current_maxint)
                 return -EINVAL;
             current_maxint = firstint;
+            init_done = true;
         }
 
         /* count the number of HW resources */

@@ -63,8 +63,9 @@ int get_hw_resource(const char* filename, bool count) {
 
             if (secondint > firstint) {
                 long diff = secondint - firstint;
-                if (diff >= INT_MAX || resource_cnt + diff + 1 > INT_MAX)
-                    return -EINVAL;
+                long total_cnt;
+                if (__builtin_add_overflow(resource_cnt, diff, &total_cnt) || total_cnt >= INT_MAX)
+                     return -EINVAL;
                 resource_cnt += (int)secondint - (int)firstint + 1; //inclusive (e.g., 0-7, or 8-16)
             }
         }
