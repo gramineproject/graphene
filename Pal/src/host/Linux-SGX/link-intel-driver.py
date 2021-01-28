@@ -58,7 +58,7 @@ def main():
             'ISGX_DRIVER_PATH="" to use the in-kernel driver\'s C header from version\n'
             '32 (bundled with Graphene but NOT upstreamed). For upstreamed\n'
             'in-kernel driver (if you are using Linux kernel 5.11+), define\n'
-            'ISGX_DRIVER_PATH="/usr/src/linux-headers-$(uname -r)/arch/x86I"\n',
+            'ISGX_DRIVER_PATH="/usr/src/linux-headers-$(uname -r)/arch/x86"\n',
             file=sys.stderr)
         sys.exit(1)
 
