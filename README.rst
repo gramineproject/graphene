@@ -63,7 +63,7 @@ are available <https://graphene.readthedocs.io/en/latest/building.html>`__.
 How to run an application in Graphene?
 ======================================
 
-See our `quick start guide <https://graphene.readthedocs.io/en/latest/manpages/gsc.html>`__.
+See our `quick start guide <https://graphene.readthedocs.io/en/latest/quickstart.html>`__.
 
 Automatically running applications via Graphene Shielded Containers (GSC)
 -------------------------------------------------------------------------
