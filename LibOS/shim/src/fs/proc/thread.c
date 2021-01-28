@@ -739,8 +739,8 @@ const struct pseudo_dir dir_thread = {
         {.name = "cwd",  .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
         {.name = "exe",  .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
         {.name = "root", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
-        {.name = "fd",   .fs_ops = &fs_thread_fd,   .dir  = &dir_fd},
+        {.name = "fd",   .fs_ops = &fs_thread_fd,   .dir  = &dir_fd,   .type = LINUX_DT_DIR},
         {.name = "maps", .fs_ops = &fs_thread_maps, .type = LINUX_DT_REG},
-        {.name = "task", .fs_ops = &fs_thread,      .dir  = &dir_task},
+        {.name = "task", .fs_ops = &fs_thread,      .dir  = &dir_task, .type = LINUX_DT_DIR},
     }
 };
