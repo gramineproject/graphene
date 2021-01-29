@@ -125,7 +125,8 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
         char ent_name[42];
         snprintf(ent_name, sizeof(ent_name), "%s%d", filename, i);
         size_t name_size   = strlen(ent_name) + 1;
-        size_t dirent_size = sizeof(struct shim_dirent) + name_size;
+        size_t dirent_size = ALIGN_UP(sizeof(struct shim_dirent) + name_size,
+                                      alignof(struct shim_dirent));
 
         total_size += dirent_size;
         if (total_size > size)
