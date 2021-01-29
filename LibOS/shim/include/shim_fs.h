@@ -482,9 +482,12 @@ extern struct shim_d_ops dev_d_ops;
 extern struct shim_fs_ops proc_fs_ops;
 extern struct shim_d_ops proc_d_ops;
 
+extern struct shim_fs_ops sys_fs_ops;
+extern struct shim_d_ops sys_d_ops;
+
 struct pseudo_name_ops {
     int (*match_name)(const char* name);
-    int (*list_name)(const char* name, struct shim_dirent** buf, int count);
+    int (*list_name)(const char* name, struct shim_dirent** buf, size_t count);
 };
 
 static inline dev_t makedev(unsigned int major, unsigned int minor) {
@@ -545,5 +548,20 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count);
 ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
+
+/* /sys fs related common APIs */
+/* This function extracts first number from a string. Returns a negative error code if no number is
+ * found. For example, "3" will be extracted from "cpu/cpu3/topology/core_siblings" */
+int extract_first_num_from_string(const char* path);
+int sys_info_mode(const char* name, mode_t* mode);
+int sys_info_stat(const char* name, struct stat* buf);
+int sys_dir_open(struct shim_handle* hdl, const char* name, int flags);
+int sys_dir_mode(const char* name, mode_t* mode);
+int sys_dir_stat(const char* name, struct stat* buf);
+/* Checks if pathname is a valid path under /sys/; returns 1 on success and 0 on failure */
+int sys_match_resource_num(const char* pathname);
+/* Fills buf with an array of dirents for the given pathname (path under /sys/); returns 0 on
+ * success and negative error code otherwise */
+int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t size);
 
 #endif /* _SHIM_FS_H_ */
