@@ -6,9 +6,10 @@ if direct
         install_dir: join_paths(pkglibexecdir, 'linux'))
     install_subdir('../Pal/src/host/Linux/gdb_integration',
         install_dir: join_paths(pkglibexecdir, 'linux'),
-        exclude_files: ['debug_map_gdb.py'])
+        exclude_directories: ['common'])
     install_subdir('../Pal/gdb_integration',
-        install_dir: join_paths(pkglibexecdir, 'linux'))
+        install_dir: join_paths(pkglibexecdir, 'linux/gdb_integration/common'),
+        strip_directory: true)
 
     hostpalpath_linux = join_paths(prefix, pkglibexecdir, 'linux')
     conf_graphene = configuration_data()
@@ -33,9 +34,10 @@ if sgx
         install_dir: join_paths(pkglibexecdir, 'linux-sgx'))
     install_subdir('../Pal/src/host/Linux-SGX/gdb_integration',
         install_dir: join_paths(pkglibexecdir, 'linux-sgx'),
-        exclude_files: ['debug_map_gdb.py'])
+        exclude_directories: ['common'])
     install_subdir('../Pal/gdb_integration',
-        install_dir: join_paths(pkglibexecdir, 'linux-sgx'))
+        install_dir: join_paths(pkglibexecdir, 'linux-sgx/gdb_integration/common'),
+        strip_directory: true)
 
     hostpalpath_linux_sgx = join_paths(prefix, pkglibexecdir, 'linux-sgx')
     conf_graphene_sgx = configuration_data()
