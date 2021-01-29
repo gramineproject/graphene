@@ -17,6 +17,7 @@
 #include "pal_rtld.h"
 #include "hex.h"
 #include "toml.h"
+#include "topo_info.h"
 
 #include "debug_map.h"
 #include "gdb_integration/sgx_gdb.h"
@@ -847,65 +848,6 @@ out:
     return ret;
 }
 
-/* Opens a pseudo-file describing HW resources such as online CPUs and counts the number of
- * HW resources present in the file (if count == true) or simply reads the integer stored in the
- * file (if count == false). For example on a single-core machine, calling this function on
- * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
- * Returns UNIX error code on failure.
- * N.B: Understands complex formats like "1,3-5,6" when called with count == true.
- */
-static int get_hw_resource(const char* filename, bool count) {
-    int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
-    if (IS_ERR(fd))
-        return fd;
-
-    char buf[64];
-    int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
-    INLINE_SYSCALL(close, 1, fd);
-    if (IS_ERR(ret))
-        return ret;
-
-    buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
-
-    char* end;
-    char* ptr = buf;
-    int resource_cnt = 0;
-    int retval = -ENOENT;
-    while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
-            ptr++;
-
-        int firstint = (int)strtol(ptr, &end, 10);
-        if (ptr == end)
-            break;
-
-        /* caller wants to read an int stored in the file */
-        if (!count) {
-            if (*end == '\n' || *end == '\0')
-                retval = firstint;
-            return retval;
-        }
-
-        /* caller wants to count the number of HW resources */
-        if (*end == '\0' || *end == ',' || *end == '\n') {
-            /* single HW resource index, count as one more */
-            resource_cnt++;
-        } else if (*end == '-') {
-            /* HW resource range, count how many HW resources are in range */
-            ptr = end + 1;
-            int secondint = (int)strtol(ptr, &end, 10);
-            if (secondint > firstint)
-                resource_cnt += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
-        }
-        ptr = end;
-    }
-
-    if (count && resource_cnt > 0)
-        retval = resource_cnt;
-
-    return retval;
-}
-
 /* Warning: This function does not free up resources on failure - it assumes that the whole process
  * exits after this function's failure. */
 static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char* args,
@@ -949,6 +891,10 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
 
     int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
                                                  /*count=*/true);
+    if (possible_logical_cores < 0)
+        return possible_logical_cores;
+    pal_sec->possible_logical_cores = possible_logical_cores;
+
     /* TODO: correctly support offline cores */
     if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
@@ -984,6 +930,10 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
         }
     }
     pal_sec->cpu_socket = cpu_socket;
+
+    ret = get_topology_info(&pal_sec->topo_info);
+    if (ret < 0)
+        return ret;
 
 #ifdef DEBUG
     size_t env_i = 0;

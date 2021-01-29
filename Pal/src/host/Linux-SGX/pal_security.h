@@ -32,8 +32,10 @@ struct pal_sec {
     PAL_SEC_STR pipe_prefix;
 
     PAL_NUM online_logical_cores;
+    PAL_NUM possible_logical_cores;
     PAL_NUM physical_cores_per_socket;
     int* cpu_socket;
+    PAL_TOPO_INFO topo_info;
 
 #ifdef DEBUG
     PAL_BOL in_gdb;
