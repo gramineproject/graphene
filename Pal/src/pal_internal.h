@@ -52,7 +52,8 @@ struct handle_ops {
     int (*close)(PAL_HANDLE handle);
     int (*delete)(PAL_HANDLE handle, int access);
 
-    /* 'map' and 'unmap' will map or unmap the handle into memory space, it's not necessary mapped
+    /*
+     * 'map' and 'unmap' will map or unmap the handle into memory space, it's not necessary mapped
      * by mmap, so unmap also needs 'handle' to deal with special cases.
      *
      * Common PAL code will ensure that *address, offset, and size are page-aligned. 'address'
@@ -125,10 +126,12 @@ static inline int handle_size(PAL_HANDLE handle) {
     } while (0)
 #endif
 
-/* failure notify. The rountine is called whenever a PAL call return error code. As the current
+/*
+ * failure notify. The rountine is called whenever a PAL call return error code. As the current
  * design of PAL does not return error code directly, we rely on DkAsynchronousEventUpcall to handle
  * PAL call error. If the user does not set up a upcall, the error code will be ignored. Ignoring
- * PAL error code can be a possible optimization for SHIM. */
+ * PAL error code can be a possible optimization for SHIM.
+ */
 void notify_failure(unsigned long error);
 
 /* all pal config value */
