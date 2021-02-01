@@ -148,7 +148,7 @@ gdb_integration/sgx_gdb.so: gdb_integration/sgx_gdb.c
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
 gsgx.h: gsgx.h.in
-	./link-intel-driver.py < $< > $@
+	./link-intel-driver.py --input $< --output $@
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard gdb_integration/*.d)

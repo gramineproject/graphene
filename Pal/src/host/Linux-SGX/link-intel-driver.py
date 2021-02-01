@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import string
 import sys
@@ -41,10 +42,20 @@ class MesonTemplate(string.Template):
         )
     '''
 
-def main():
+argparser = argparse.ArgumentParser()
+argparser.add_argument('--input', '-input', metavar='TEMPLATE',
+                       type=argparse.FileType('r'), required=True,
+                       help='Input .h.in file (template for SGX-driver header)')
+argparser.add_argument('--output', '-output', metavar='FINAL',
+                       type=str, required=True,
+                       help='Output .h file (final SGX-driver header)')
+
+def main(args=None):
     '''
     Find and copy header/device paths from Intel SGX Driver
     '''
+    args = argparser.parse_args(args)
+
     try:
         isgx_driver_path = os.environ['ISGX_DRIVER_PATH']
     except KeyError:
@@ -60,15 +71,16 @@ def main():
 
     header_path, dev_path = find_intel_sgx_driver(isgx_driver_path)
 
-    with sys.stdin:
-        template = MesonTemplate(sys.stdin.read())
+    template = MesonTemplate(args.input.read())
 
-    sys.stdout.write(template.safe_substitute(
+    final = template.safe_substitute(
         DRIVER_SGX_H=header_path,
         ISGX_FILE=dev_path,
         DEFINE_DCAP=('#define SGX_DCAP 1' if dev_path == '/dev/sgx/enclave' else '')
-    ))
+    )
 
+    with open(args.output, 'w') as f:
+        f.write(final)
 
 if __name__ == '__main__':
     main()
