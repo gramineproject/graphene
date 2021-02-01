@@ -148,8 +148,7 @@ gdb_integration/sgx_gdb.so: gdb_integration/sgx_gdb.c
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
 gsgx.h: gsgx.h.in
-	./link-intel-driver.py < $< > $@~
-	mv -f $@~ $@
+	./link-intel-driver.py --input $< --output $@
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard gdb_integration/*.d)
@@ -164,7 +163,7 @@ tools:
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += gdb_integration/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
-CLEAN_FILES += gsgx.h gsgx.h~
+CLEAN_FILES += gsgx.h
 
 .PHONY: clean_
 clean_:

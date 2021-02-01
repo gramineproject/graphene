@@ -58,9 +58,7 @@ second command should list the process status of :command:`aesm_service`.
 
 #. Prepare a signing key::
 
-      cd Pal/src/host/Linux-SGX/signer
-      openssl genrsa -3 -out enclave-key.pem 3072
-      cd -
+      openssl genrsa -3 -out Pal/src/host/Linux-SGX/signer/enclave-key.pem 3072
 
 #. Build Graphene and Graphene-SGX::
 
