@@ -6,8 +6,15 @@ import string
 import sys
 
 DRIVER_VERSIONS = {
+        # For Non-DCAP, older versions of legacy OOT SGX driver
         'sgx_user.h':                 '/dev/isgx',
+        # For DCAP driver 1.6+, but below 1.10
         'include/uapi/asm/sgx_oot.h': '/dev/sgx/enclave',
+        # For DCAP driver 1.10+
+        'include/sgx_user.h':         '/dev/sgx/enclave',
+        # For upstreamed in-kernel SGX driver, kernel version 5.11+
+        'include/uapi/asm/sgx.h':     '/dev/sgx_enclave',
+        # By default, using sgx_in_kernel.h in current dir of this script
         'sgx_in_kernel.h':            '/dev/sgx/enclave',
 }
 
@@ -16,8 +23,12 @@ def find_intel_sgx_driver(isgx_driver_path):
     Graphene only needs one header from the Intel SGX Driver:
       - sgx_user.h for non-DCAP, older version of the driver
         (https://github.com/intel/linux-sgx-driver)
-      - include/uapi/asm/sgx_oot.h for DCAP 1.6+ version of the driver
+      - include/uapi/asm/sgx_oot.h for DCAP 1.6+ version but below 1.10 of the driver
         (https://github.com/intel/SGXDataCenterAttestationPrimitives)
+      - include/sgx_user.h for DCAP 1.10+ version of the driver
+        (https://github.com/intel/SGXDataCenterAttestationPrimitives)
+      - include/uapi/asm/sgx.h for upstreamed SGX in-kernel driver from mainline kernel version 5.11
+        (https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git)
       - default sgx_in_kernel.h for in-kernel 32+ version of the driver
         (https://lore.kernel.org/linux-sgx/20200716135303.276442-1-jarkko.sakkinen@linux.intel.com)
 
@@ -61,7 +72,10 @@ def main(args=None):
     except KeyError:
         print(
             'ISGX_DRIVER_PATH environment variable is undefined. You can define\n'
-            'ISGX_DRIVER_PATH="" to use the default in-kernel driver\'s C header.',
+            'ISGX_DRIVER_PATH="" to use the in-kernel driver\'s C header from version\n'
+            '32 (bundled with Graphene but NOT upstreamed). For upstreamed\n'
+            'in-kernel driver (if you are using Linux kernel 5.11+), define\n'
+            'ISGX_DRIVER_PATH="/usr/src/linux-headers-$(uname -r)/arch/x86"\n',
             file=sys.stderr)
         sys.exit(1)
 
@@ -76,7 +90,7 @@ def main(args=None):
     final = template.safe_substitute(
         DRIVER_SGX_H=header_path,
         ISGX_FILE=dev_path,
-        DEFINE_DCAP=('#define SGX_DCAP 1' if dev_path == '/dev/sgx/enclave' else '')
+        DEFINE_DCAP=('#define SGX_DCAP 1' if dev_path != '/dev/isgx' else '')
     )
 
     with open(args.output, 'w') as f:
