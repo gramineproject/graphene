@@ -212,12 +212,3 @@ Additional build options
 
 - Each part of Graphene can be built separately in the subdirectories. For
   example, to build only the Pal component, use :command:`make -c Pal`.
-
-Deprecated features
--------------------
-
-Building with kernel-level sandboxing (optional)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This feature is marked as EXPERIMENTAL and no longer exists on the master
-branch.

@@ -82,16 +82,3 @@ For any questions, please send an email to support@graphene-project.io
 
 For bug reports, post an issue on our GitHub repository:
 https://github.com/oscarlab/graphene/issues.
-
-
-Deprecated Code
-===============
-
-We have some branches with legacy code (use at your own risk).
-
-Build with Kernel-Level Sandboxing
-----------------------------------
-
-This feature is marked as EXPERIMENTAL and no longer exists in the master branch.
-See `EXPERIMENTAL/linux-reference-monitor
-<https://github.com/oscarlab/graphene/tree/EXPERIMENTAL/linux-reference-monitor>`__.
