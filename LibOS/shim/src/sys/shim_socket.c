@@ -1248,7 +1248,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
     lock(&hdl->lock);
 
     if (flags & MSG_WAITALL) {
-        debug("Warning: MSG_WAITALL is ignored, may lead to a read that returns less data.\n");
+        log_debug("MSG_WAITALL is ignored, may lead to a read that returns less data.\n");
         flags &= ~MSG_WAITALL;
     }
 
