@@ -12,8 +12,12 @@ import sys
 
 import jinja2
 
-def is_ascii(chars):
-    return all(ord(c) < 128 for c in chars)
+def is_utf8(string):
+    try:
+        string.encode('utf-8')
+        return True
+    except UnicodeError:
+        return False
 
 
 def generate_trusted_files(root_dir):
@@ -39,8 +43,8 @@ def generate_trusted_files(root_dir):
             filename = os.path.join(root, file)
             if exclude_re.match(filename) or not os.path.isfile(filename):
                 continue
-            if '\n' in filename or '\r' in filename:
-                # we use TOML's basic single-line strings, can't have newlines/carriage returns
+            if not is_utf8(filename) or '\n' in filename or '\r' in filename:
+                # we use TOML's basic single-line UTF-8 strings, can't have newlines
                 continue
             escaped_filename = filename.translate(str.maketrans({'\\': r'\\', '"': r'\"'}))
             trusted_files += f'sgx.trusted_files.file{num_trusted} = "file:{escaped_filename}"\n'
