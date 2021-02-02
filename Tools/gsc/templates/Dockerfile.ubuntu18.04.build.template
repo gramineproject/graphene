@@ -8,6 +8,8 @@ FROM gsc-{{Graphene.Image}} AS graphene
 # Combine Graphene image with the original app image
 FROM {{app_image}}
 
+ENV PYTHONIOENCODING=utf-8
+
 RUN apt-get update \
     && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
         python3 \
