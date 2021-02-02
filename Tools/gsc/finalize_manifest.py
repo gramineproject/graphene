@@ -74,8 +74,9 @@ def main(args=None):
     manifest = 'entrypoint.manifest'
     rendered_manifest = env.get_template(manifest).render()
     trusted_files = generate_trusted_files(args.dir)
-    with open(manifest, 'w') as manifest_file:
-        manifest_file.write('\n'.join((rendered_manifest, trusted_files, '\n')))
+    with open(manifest, 'wb') as manifest_file:
+        trusted_files_string = '\n'.join((rendered_manifest, trusted_files, '\n'))
+        manifest_file.write(trusted_files_string.encode('utf-8'))
 
     print(f'\t[from inside Docker container] Successfully finalized `{manifest}`.')
 

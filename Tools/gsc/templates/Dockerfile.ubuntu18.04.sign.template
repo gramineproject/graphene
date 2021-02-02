@@ -4,8 +4,6 @@ FROM {{image}} as unsigned_image
 
 COPY gsc-signer-key.pem /gsc-signer-key.pem
 
-ENV PYTHONIOENCODING=utf-8
-
 RUN /graphene/python/graphene-sgx-sign \
         -libpal /graphene/Runtime/libpal-Linux-SGX.so \
         -key /gsc-signer-key.pem \
