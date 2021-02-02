@@ -146,6 +146,65 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
                 arg_getparam->value = 0;
             }
         }
+
+        /* FIXME: another very special case, similar to the one above but using another IOCTL:
+         *        DRM_IOCTL_I915_QUERY(DRM_I915_QUERY_ENGINE_INFO). Newer Intel Media Driver
+         *        uses this IOCTL to collect info on all engines. Some of these engines are of
+         *        class I915_ENGINE_CLASS_VIDEO (which corresponds to a VCS ring above). The code
+         *        below filters these classes and only allows one to be returned (the others are
+         *        marked as I915_ENGINE_CLASS_INVALID so Media Driver doesn't recognize them). */
+        if (cmd == /*DRM_IOCTL_I915_QUERY*/0xc0106479) {
+            struct i915_engine_class_instance {
+                uint16_t engine_class;
+                uint16_t engine_instance;
+            };
+            struct drm_i915_engine_info {
+                struct i915_engine_class_instance engine;
+                uint32_t rsvd0;
+                uint64_t flags;
+                uint64_t capabilities;
+                uint64_t rsvd1[4];
+            };
+            struct drm_i915_query_engine_info {
+                uint32_t num_engines;
+                uint32_t rsvd[3];
+                struct drm_i915_engine_info engines[];
+            };
+            struct drm_i915_query_item {
+                uint64_t query_id;
+                int32_t length;
+                uint32_t flags;
+                uint64_t data_ptr;
+            };
+            struct drm_i915_query {
+                uint32_t num_items;
+                uint32_t flags;
+                struct drm_i915_query_item* query_items;
+            };
+
+            uint32_t engine_class_video_num = 0;
+            struct drm_i915_query* arg_query = (struct drm_i915_query*)arg;
+            for (uint32_t i = 0; i < arg_query->num_items; i++) {
+                struct drm_i915_query_item* query_item = &arg_query->query_items[i];
+                if (query_item->length <= 0 || query_item->data_ptr == 0)
+                    continue;
+                if (query_item->query_id != /*DRM_I915_QUERY_ENGINE_INFO*/2)
+                    continue;
+
+                struct drm_i915_query_engine_info* query_engine_info =
+                    (struct drm_i915_query_engine_info*)query_item->data_ptr;
+                for (uint32_t j = 0; j < query_engine_info->num_engines; j++) {
+                    struct drm_i915_engine_info* engine_info = &query_engine_info->engines[j];
+                    if (engine_info->engine.engine_class == /*I915_ENGINE_CLASS_VIDEO*/2) {
+                        engine_class_video_num++;
+                        if (engine_class_video_num > 1) {
+                            /* this is second, third, ... 'video' engine, mark as invalid */
+                            engine_info->engine.engine_class = /*I915_ENGINE_CLASS_INVALID*/-1;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     put_handle(hdl);

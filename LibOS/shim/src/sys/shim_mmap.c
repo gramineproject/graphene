@@ -131,8 +131,9 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
         flags &= ~MAP_32BIT;
 #endif
 
-    /* mmap on devices is special: pass-through and not reflected in LibOS's VMA metadata */
-    if (hdl && hdl->type == TYPE_FILE && hdl->info.file.type == FILE_DEV) {
+    /* mmap on devices under SGX is special: pass-through and not reflected in VMA metadata */
+    if (!strcmp(PAL_CB(host_type), "Linux-SGX") && hdl && hdl->type == TYPE_FILE &&
+            hdl->info.file.type == FILE_DEV) {
         void* ret_addr = addr;
         ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, prot, flags, offset);
         if (!ret)
