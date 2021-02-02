@@ -160,7 +160,7 @@ syscalldb:
     # Technical details: we load an address somewhere inside `__morestack` (this cannot be the first
     # instruction in there) into r14 (a callee-saved register) and mark it as holding old rip. This
     # way GDB thinks `syscalldb` was called by `__morestack`. Inside `__morestack` we mark all
-    # register as having the same value as in the previous frame (basically a no-op frame). Now GDB
+    # registers as having the same value as in the previous frame (basically a no-op frame). Now GDB
     # sees a backtrace: `user_function` -> `__morestack` -> `syscalldb`, with `__morestack` having
     # the same stack value as `user_function` and `syscalldb` having the new stack value. This makes
     # GDB happy and it prints correct backtrace across all these functions, which is what we are
