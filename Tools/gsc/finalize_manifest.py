@@ -39,10 +39,11 @@ def generate_trusted_files(root_dir):
             filename = os.path.join(root, file)
             if exclude_re.match(filename) or not os.path.isfile(filename):
                 continue
-            if not is_ascii(filename):
-                # we don't allow non-ASCII chars in our manifest for now
+            if '\n' in filename or '\r' in filename:
+                # we use TOML's basic single-line strings, can't have newlines/carriage returns
                 continue
-            trusted_files += f'sgx.trusted_files.file{num_trusted} = "file:{filename}"\n'
+            escaped_filename = filename.translate(str.maketrans({'\\': r'\\', '"': r'\"'}))
+            trusted_files += f'sgx.trusted_files.file{num_trusted} = "file:{escaped_filename}"\n'
             num_trusted += 1
 
     print(f'\t[from inside Docker container] Found {num_trusted} files in `{root_dir}`.')
