@@ -43,12 +43,11 @@ struct execve_rtld_arg {
 noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct execve_rtld_arg arg = *__arg;
 
-    struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
     set_default_tls();
 
-    thread_sigaction_reset_on_execve(cur_thread);
+    thread_sigaction_reset_on_execve();
 
     remove_loaded_libraries();
     clean_link_map_list();
@@ -62,6 +61,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
         goto error;
     }
 
+    struct shim_thread* cur_thread = get_cur_thread();
     for (struct shim_vma_info* vma = vmas; vma < vmas + count; vma++) {
         /* Don't free the current stack */
         if (vma->addr == cur_thread->stack || vma->addr == cur_thread->stack_red)

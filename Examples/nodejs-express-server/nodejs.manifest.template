@@ -19,6 +19,9 @@ loader.insecure__use_cmdline_argv = 1
 # fs.mount.xxx.uri).
 loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
 
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = 1
+
 # Mount host-OS directory to required libraries (in 'uri') into in-Graphene visible directory /lib
 # (in 'path').
 fs.mount.lib.type = "chroot"

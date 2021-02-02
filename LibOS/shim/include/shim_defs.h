@@ -9,7 +9,7 @@
 #define ERESTARTNOHAND  514 /* Restart if no signal handler. */
 
 /* Internal LibOS stack size: 3 pages + one guard page. */
-#define SHIM_THREAD_LIBOS_STACK_SIZE (3 * PAGE_SIZE  + PAGE_SIZE)
+#define SHIM_THREAD_LIBOS_STACK_SIZE (3 * PAGE_SIZE + PAGE_SIZE)
 
 #define DEFAULT_BRK_MAX_SIZE   (256 * 1024)        /* 256KB */
 #define DEFAULT_SYS_STACK_SIZE (256 * 1024)        /* 256KB */

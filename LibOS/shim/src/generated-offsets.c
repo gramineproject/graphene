@@ -5,7 +5,7 @@
 #include "shim_tcb.h"
 
 __attribute__((__used__)) static void dummy(void) {
-    OFFSET_T(SHIM_TCB_OFFSET, PAL_TCB, libos_tcb);
+    OFFSET_T(SHIM_TCB_OFF, PAL_TCB, libos_tcb);
     OFFSET_T(SHIM_TCB_LIBOS_STACK_OFF, shim_tcb_t, libos_stack_bottom);
     OFFSET_T(SHIM_TCB_SCRATCH_PC_OFF, shim_tcb_t, syscall_scratch_pc);
 

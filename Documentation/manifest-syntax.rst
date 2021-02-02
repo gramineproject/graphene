@@ -226,10 +226,10 @@ External SIGTERM injection
     sys.enable_sigterm_injection = [1|0]
     (Default: 0)
 
-This specifies whether to allow for a one time injection of `SIGTERM` signal
+This specifies whether to allow for a one-time injection of `SIGTERM` signal
 into Graphene. Could be useful to handle graceful shutdown.
 Be careful! In SGX environment, the untrusted host could inject that signal in
-an arbitrary moment. Examine what your application `SIGTERM` handler does and
+an arbitrary moment. Examine what your application's `SIGTERM` handler does and
 whether it poses any security threat.
 
 Root FS mount point

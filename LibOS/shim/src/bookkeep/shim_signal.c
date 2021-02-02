@@ -39,10 +39,12 @@ void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
     __sigemptyset(&sig_action->sa_mask);
 }
 
-void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
-    lock(&thread->signal_dispositions->lock);
-    for (size_t i = 0; i < ARRAY_SIZE(thread->signal_dispositions->actions); i++) {
-        struct __kernel_sigaction* sig_action = &thread->signal_dispositions->actions[i];
+void thread_sigaction_reset_on_execve(void) {
+    struct shim_thread* current = get_cur_thread();
+
+    lock(&current->signal_dispositions->lock);
+    for (size_t i = 0; i < ARRAY_SIZE(current->signal_dispositions->actions); i++) {
+        struct __kernel_sigaction* sig_action = &current->signal_dispositions->actions[i];
 
         __sighandler_t handler = sig_action->k_sa_handler;
         if (handler == (void*)SIG_DFL || handler == (void*)SIG_IGN) {
@@ -54,7 +56,7 @@ void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
         /* app installed its own signal handler, reset it to default */
         sigaction_make_defaults(sig_action);
     }
-    unlock(&thread->signal_dispositions->lock);
+    unlock(&current->signal_dispositions->lock);
 }
 
 static noreturn void sighandler_kill(int sig) {
@@ -76,38 +78,38 @@ typedef enum {
 } SIGHANDLER_T;
 
 static const SIGHANDLER_T default_sighandler[NUM_SIGS] = {
-        [SIGHUP    - 1] = SIGHANDLER_KILL,
-        [SIGINT    - 1] = SIGHANDLER_KILL,
-        [SIGQUIT   - 1] = SIGHANDLER_CORE,
-        [SIGILL    - 1] = SIGHANDLER_CORE,
-        [SIGTRAP   - 1] = SIGHANDLER_CORE,
-        [SIGABRT   - 1] = SIGHANDLER_CORE,
-        [SIGBUS    - 1] = SIGHANDLER_CORE,
-        [SIGFPE    - 1] = SIGHANDLER_CORE,
-        [SIGKILL   - 1] = SIGHANDLER_KILL,
-        [SIGUSR1   - 1] = SIGHANDLER_KILL,
-        [SIGSEGV   - 1] = SIGHANDLER_CORE,
-        [SIGUSR2   - 1] = SIGHANDLER_KILL,
-        [SIGPIPE   - 1] = SIGHANDLER_KILL,
-        [SIGALRM   - 1] = SIGHANDLER_KILL,
-        [SIGTERM   - 1] = SIGHANDLER_KILL,
-        [SIGSTKFLT - 1] = SIGHANDLER_KILL,
-        [SIGCHLD   - 1] = SIGHANDLER_NONE,
-        [SIGCONT   - 1] = SIGHANDLER_NONE,
-        [SIGSTOP   - 1] = SIGHANDLER_NONE,
-        [SIGTSTP   - 1] = SIGHANDLER_NONE,
-        [SIGTTIN   - 1] = SIGHANDLER_NONE,
-        [SIGTTOU   - 1] = SIGHANDLER_NONE,
-        [SIGURG    - 1] = SIGHANDLER_NONE,
-        [SIGXCPU   - 1] = SIGHANDLER_CORE,
-        [SIGXFSZ   - 1] = SIGHANDLER_CORE,
-        [SIGVTALRM - 1] = SIGHANDLER_KILL,
-        [SIGPROF   - 1] = SIGHANDLER_KILL,
-        [SIGWINCH  - 1] = SIGHANDLER_NONE,
-        [SIGIO     - 1] = SIGHANDLER_KILL,
-        [SIGPWR    - 1] = SIGHANDLER_KILL,
-        [SIGSYS    - 1] = SIGHANDLER_CORE,
-    };
+    [SIGHUP    - 1] = SIGHANDLER_KILL,
+    [SIGINT    - 1] = SIGHANDLER_KILL,
+    [SIGQUIT   - 1] = SIGHANDLER_CORE,
+    [SIGILL    - 1] = SIGHANDLER_CORE,
+    [SIGTRAP   - 1] = SIGHANDLER_CORE,
+    [SIGABRT   - 1] = SIGHANDLER_CORE,
+    [SIGBUS    - 1] = SIGHANDLER_CORE,
+    [SIGFPE    - 1] = SIGHANDLER_CORE,
+    [SIGKILL   - 1] = SIGHANDLER_KILL,
+    [SIGUSR1   - 1] = SIGHANDLER_KILL,
+    [SIGSEGV   - 1] = SIGHANDLER_CORE,
+    [SIGUSR2   - 1] = SIGHANDLER_KILL,
+    [SIGPIPE   - 1] = SIGHANDLER_KILL,
+    [SIGALRM   - 1] = SIGHANDLER_KILL,
+    [SIGTERM   - 1] = SIGHANDLER_KILL,
+    [SIGSTKFLT - 1] = SIGHANDLER_KILL,
+    [SIGCHLD   - 1] = SIGHANDLER_NONE,
+    [SIGCONT   - 1] = SIGHANDLER_NONE,
+    [SIGSTOP   - 1] = SIGHANDLER_NONE,
+    [SIGTSTP   - 1] = SIGHANDLER_NONE,
+    [SIGTTIN   - 1] = SIGHANDLER_NONE,
+    [SIGTTOU   - 1] = SIGHANDLER_NONE,
+    [SIGURG    - 1] = SIGHANDLER_NONE,
+    [SIGXCPU   - 1] = SIGHANDLER_CORE,
+    [SIGXFSZ   - 1] = SIGHANDLER_CORE,
+    [SIGVTALRM - 1] = SIGHANDLER_KILL,
+    [SIGPROF   - 1] = SIGHANDLER_KILL,
+    [SIGWINCH  - 1] = SIGHANDLER_NONE,
+    [SIGIO     - 1] = SIGHANDLER_KILL,
+    [SIGPWR    - 1] = SIGHANDLER_KILL,
+    [SIGSYS    - 1] = SIGHANDLER_CORE,
+};
 
 
 static struct shim_signal_queue g_process_signal_queue = {0};
@@ -125,7 +127,7 @@ static uint64_t g_process_pending_signals_cnt = 0;
  * support injecting only 1 instance of 1 signal only once, as this feature is meant only for
  * graceful termination of the user application (e.g. via SIGTERM).
  */
-static struct shim_signal g_host_injected_signal = { 0 };
+static int g_host_injected_signal = 0;
 static bool g_inject_host_signal_enabled = false;
 
 static bool is_rt_sq_empty(struct shim_rt_signal_queue* queue) {
@@ -188,11 +190,12 @@ static bool append_standard_signal(struct shim_signal* queue_slot, struct shim_s
     return true;
 }
 
-/* In theory `get_idx` and `put_idx` could overflow, but adding signals with 1GHz (10**9 signals
- * per second) gives a 544 years running time before overflow, which we consider a "safe margin"
- * for now. */
 static bool append_rt_signal(struct shim_rt_signal_queue* queue, struct shim_signal** signal) {
     assert(queue->get_idx <= queue->put_idx);
+    if (queue->get_idx >= ARRAY_SIZE(queue->queue)) {
+        queue->get_idx -= ARRAY_SIZE(queue->queue);
+        queue->put_idx -= ARRAY_SIZE(queue->queue);
+    }
 
     if (queue->put_idx - queue->get_idx >= ARRAY_SIZE(queue->queue)) {
         return false;
@@ -343,7 +346,6 @@ static void memfault_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
 
     if (tcb->test_range.cont_addr && (void*)arg >= tcb->test_range.start &&
             (void*)arg <= tcb->test_range.end) {
-        assert(context);
         assert(context_is_libos(context));
         tcb->test_range.has_fault = true;
         pal_context_set_ip(context, (PAL_NUM)tcb->test_range.cont_addr);
@@ -595,25 +597,12 @@ static void quit_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     }
 
     int sig = 0;
-    if (!__atomic_compare_exchange_n(&g_host_injected_signal.siginfo.si_signo, &sig, SIGTERM,
+    static_assert(SAME_TYPE(g_host_injected_signal, sig), "types must match");
+    if (!__atomic_compare_exchange_n(&g_host_injected_signal, &sig, SIGTERM,
                                      /*weak=*/false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
         /* We already have 1 injected signal, bail out. */
         return;
     }
-
-    siginfo_t info = {
-        .si_signo = SIGTERM,
-        .si_code = SI_USER,
-    };
-
-    /* We need to keep the atomicity of `g_host_injected_signal.siginfo.si_signo` (it's already set
-     * above), hence these shenanigans. */
-    static_assert(offsetof(siginfo_t, si_signo) == 0, "Unexpected offset of `si_signo`");
-    static_assert(SAME_TYPE(g_host_injected_signal.siginfo, info),
-                  "Unexpected type of `g_host_injected_signal`");
-    size_t skip = sizeof(info.si_signo);
-    memcpy((char*)&g_host_injected_signal.siginfo.si_signo + skip, (char*)&info + skip,
-           sizeof(info) - skip);
 
     if (is_internal(get_cur_thread()) || context_is_libos(context) || is_in_pal) {
         return;
@@ -630,7 +619,7 @@ static void interrupted_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     handle_signal(context, /*old_mask_ptr=*/NULL);
 }
 
-int init_signal(void) {
+int init_signal_handling(void) {
     if (!create_lock(&g_process_signal_queue_lock)) {
         return -ENOMEM;
     }
@@ -680,7 +669,7 @@ void set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
     thread->signal_mask = *set;
 }
 
-/* XXX: This function assumes that stack is growing down.  */
+/* XXX: This function assumes that the stack is growing towards lower addresses. */
 bool is_on_altstack(uint64_t sp, stack_t* alt_stack) {
     uint64_t alt_sp = (uint64_t)alt_stack->ss_sp;
     uint64_t alt_sp_end = alt_sp + alt_stack->ss_size;
@@ -690,7 +679,7 @@ bool is_on_altstack(uint64_t sp, stack_t* alt_stack) {
     return false;
 }
 
-/* XXX: This function assumes that stack is growing down.  */
+/* XXX: This function assumes that the stack is growing towards lower addresses. */
 uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack) {
     struct shim_thread* current = get_cur_thread();
     stack_t* alt_stack = &current->signal_altstack;
@@ -781,13 +770,12 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
         }
         unlock(&g_process_signal_queue_lock);
         unlock(&current->lock);
-    } else if (__atomic_load_n(&g_host_injected_signal.siginfo.si_signo, __ATOMIC_RELAXED) != 0) {
+    } else if (__atomic_load_n(&g_host_injected_signal, __ATOMIC_RELAXED) != 0) {
         static_assert(NUM_SIGS < 0xff, "This code requires 0xff to be an invalid signal number");
-        int sig = __atomic_exchange_n(&g_host_injected_signal.siginfo.si_signo, 0xff,
-                                      __ATOMIC_RELAXED);
+        int sig = __atomic_exchange_n(&g_host_injected_signal, 0xff, __ATOMIC_RELAXED);
         if (sig != 0xff) {
-            signal = g_host_injected_signal;
             signal.siginfo.si_signo = sig;
+            signal.siginfo.si_code = SI_USER;
         }
     }
 
@@ -854,8 +842,8 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
                          !!(sa->sa_flags & SA_ONSTACK), old_mask_ptr ?: &old_mask);
 
         if (sa->sa_flags & SA_RESETHAND) {
-            /* Imo it should be `sigaction_make_defaults(sa);`, but Linux does this and LTP
-             * explicitly tests for this ... */
+            /* In my opinion it should be `sigaction_make_defaults(sa);`, but Linux does this and
+             * LTP explicitly tests for this ... */
             sa->k_sa_handler = SIG_DFL;
         }
 

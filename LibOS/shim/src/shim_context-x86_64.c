@@ -7,6 +7,7 @@
  * This file contains code for x86_64-specific CPU context manipulation.
  */
 
+#include <stdalign.h>
 #include <stdnoreturn.h>
 
 #include "asm-offsets.h"
@@ -19,11 +20,11 @@
 #define XSTATE_RESET_SIZE (sizeof(struct shim_fpstate))
 
 /* By default fall back to old-style FXSAVE. */
-bool     g_shim_xsave_enabled  = false;
-uint64_t g_shim_xsave_features = SHIM_XFEATURE_MASK_FPSSE;
-uint32_t g_shim_xsave_size     = XSTATE_RESET_SIZE;
+static bool     g_shim_xsave_enabled  = false;
+static uint64_t g_shim_xsave_features = SHIM_XFEATURE_MASK_FPSSE;
+static uint32_t g_shim_xsave_size     = XSTATE_RESET_SIZE;
 
-const uint32_t g_shim_xstate_reset_state[XSTATE_RESET_SIZE / sizeof(uint32_t)]
+static const uint32_t g_shim_xstate_reset_state[XSTATE_RESET_SIZE / sizeof(uint32_t)]
 __attribute__((aligned(SHIM_XSTATE_ALIGN))) = {
     0x037F, 0, 0, 0, 0, 0, 0x1F80, 0xFFFF,
 };
@@ -141,7 +142,7 @@ __attribute__((used)) static int is_xstate_extended(const struct shim_xstate* xs
     return 1;
 }
 
-/* Written in asm because we need to make sure it does not touch fpu/sse after restoring their
+/* Written in asm because we need to make sure it does not touch FPU/SSE after restoring their
  * state. Older gcc versions do not support `naked` attribute on x86, hence: */
 __asm__(
 ".global shim_xstate_restore\n"
@@ -163,7 +164,7 @@ __asm__(
     "ret\n"
 );
 
-/* Copies fpu state. Returns whether the copied state was xsave-made. */
+/* Copies FPU state. Returns whether the copied state was xsave-made. */
 static bool shim_xstate_copy(struct shim_xstate* dst, const struct shim_xstate* src) {
     if (src == NULL) {
         src = (const struct shim_xstate*)g_shim_xstate_reset_state;
@@ -182,10 +183,6 @@ static bool shim_xstate_copy(struct shim_xstate* dst, const struct shim_xstate* 
     }
 
     return src_is_xstate;
-}
-
-void shim_xstate_reset(void) {
-    shim_xstate_restore(g_shim_xstate_reset_state);
 }
 
 noreturn void restore_child_context_after_clone(struct shim_context* context) {
@@ -216,15 +213,15 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
     uint64_t stack = get_stack_for_sighandler(context->rsp, use_altstack);
 
     struct shim_xstate* xstate = NULL;
-    stack = ALIGN_DOWN(stack - shim_xstate_size(), __alignof__(*xstate));
+    stack = ALIGN_DOWN(stack - shim_xstate_size(), alignof(*xstate));
     xstate = (struct shim_xstate*)stack;
 
     struct sigframe* sigframe = NULL;
-    stack = ALIGN_DOWN(stack - sizeof(*sigframe), __alignof__(*sigframe));
+    stack = ALIGN_DOWN(stack - sizeof(*sigframe), alignof(*sigframe));
     /* x64 SysV ABI requires that stack is aligned to 8 mod 0x10 after function call, so we have to
      * mimic that in signal handler. `sigframe` will be aligned to 0x10 and we will push a return
      * value (restorer address) on top of that later on. */
-    static_assert(__alignof__(*sigframe) % 0x10 == 0 || 0x10 % __alignof__(*sigframe) == 0,
+    static_assert(alignof(*sigframe) % 0x10 == 0 || 0x10 % alignof(*sigframe) == 0,
                   "Incorrect sigframe alignment");
     stack = ALIGN_DOWN(stack, 0x10);
 
@@ -246,9 +243,9 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
     /* XXX: Currently we assume that `struct shim_xstate`, `PAL_XREGS_STATE` and `struct _fpstate`
      * (just the header) are the very same structure. This mess needs to be fixed. */
     static_assert(sizeof(struct shim_xstate) == sizeof(PAL_XREGS_STATE),
-                  "sse state structs differ");
+                  "SSE state structs differ");
     static_assert(sizeof(struct shim_fpstate) == sizeof(struct _fpstate),
-                  "sse state structs differ");
+                  "SSE state structs differ");
     if (shim_xstate_copy(xstate, (struct shim_xstate*)sigframe->uc.uc_mcontext.fpstate)) {
         /* This is a xsave-made xstate - it has the extended state info. */
         sigframe->uc.uc_flags |= UC_FP_XSTATE;
@@ -300,7 +297,7 @@ void restore_sigreturn_context(PAL_CONTEXT* context, __sigset_t* new_mask) {
 
 bool maybe_emulate_syscall(PAL_CONTEXT* context) {
     uint8_t* rip = (uint8_t*)context->rip;
-    if (rip[0] == 0xf && rip[1] == 0x5) {
+    if (rip[0] == 0x0f && rip[1] == 0x05) {
         /* This is syscall instruction, let's emulate it. */
         context->rcx = (uint64_t)rip + 2;
         context->rip = (uint64_t)&syscalldb;

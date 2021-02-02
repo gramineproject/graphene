@@ -84,6 +84,7 @@ struct shim_thread {
 
     /* signal handling */
     __sigset_t signal_mask;
+    /* Always take `thread->signal_dispositions->lock` before `thread->lock`. */
     struct shim_signal_dispositions* signal_dispositions;
     struct shim_signal_queue signal_queue;
     /* For the field below, see the explanation in "LibOS/shim/src/bookkeep/shim_signal.c" near
@@ -92,7 +93,7 @@ struct shim_thread {
 
     /*
      * Space to store a forced, synchronous signal. Needed to handle e.g. `SIGSEGV` caused by
-     * referencing an invalid address, which we need to handle before any user generated `SIGSEGV`
+     * referencing an invalid address, which we need to handle before any user-generated `SIGSEGV`
      * (via `kill`), hence we cannot use a normal signal queue in such case.
      */
     struct shim_signal forced_signal;

@@ -1334,8 +1334,8 @@ int remove_loaded_libraries(void) {
  * parent. Just treat vdso page as user-program data and adjust function pointers for vdso
  * functions after migration.
  */
-static void* vdso_addr __attribute_migratable                       = NULL;
-static ElfW(Addr)* __vdso_syscalldb __attribute_migratable        = NULL;
+static void* vdso_addr __attribute_migratable = NULL;
+static ElfW(Addr)* __vdso_syscalldb __attribute_migratable = NULL;
 
 static const struct {
     const char* name;

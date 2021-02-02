@@ -21,7 +21,7 @@
 
 #include "asm-offsets.h"
 
-.extern shim_do_syscall
+.extern shim_emulate_syscall
 .extern shim_xstate_size
 .extern shim_xstate_restore
 
@@ -41,7 +41,7 @@ syscalldb:
     .cfi_undefined %r11
     .cfi_register %rsp, %r11
     .cfi_def_cfa_register %r11
-    mov %gs:(SHIM_TCB_OFFSET + SHIM_TCB_LIBOS_STACK_OFF), %rsp
+    mov %gs:(SHIM_TCB_OFF + SHIM_TCB_LIBOS_STACK_OFF), %rsp
 
     # Create PAL_CONTEXT struct on the stack.
 
@@ -152,12 +152,25 @@ syscalldb:
     xor %ebp, %ebp
 
 #ifdef DEBUG
+    # Pretend that this function (`syscalldb`) is called from somewhere inside a function called
+    # `__morestack`. This is the only way to have a backtrace in GDB spanning from LibOS/Pal,
+    # through `syscalldb` to the user application code/libc, because GDB does not handle switching
+    # stacks in the middle of backtrace, unless the function doing it is called `__morestack`.
+    # Thanks GDB!
+    # Technical details: we load an address somewhere inside `__morestack` (this cannot be the first
+    # instruction in there) into r14 (a callee-saved register) and mark it as holding old rip. This
+    # way GDB thinks `syscalldb` was called by `__morestack`. Inside `__morestack` we mark all
+    # register as having the same value as in the previous frame (basically a no-op frame). Now GDB
+    # sees a backtrace: `user_function` -> `__morestack` -> `syscalldb`, with `__morestack` having
+    # the same stack value as `user_function` and `syscalldb` having the new stack value. This makes
+    # GDB happy and it prints correct backtrace across all these functions, which is what we are
+    # after with all this madness.
     lea Lmorestack_for_gdb_bt(%rip), %r14
     .cfi_register %rip, %r14
 #endif
 
     mov %r15, %rdi
-    call shim_do_syscall # this does not return
+    call shim_emulate_syscall # this does not return
 
     # Just to make return address point inside this function.
     ud2
@@ -213,10 +226,10 @@ return_from_syscall:
     ldmxcsr PAL_CONTEXT_MXCSR_OFF(%rbx)
 
 .Lrestore_context:
-    # After this line cfi will be broken, but I don't care much since this does not call anything
+    # After this line cfi will be broken, but we don't care much since this does not call anything
     # and just restores the user context, so it will not be visible in any backtrace.
-    # Note that fixing it is not trivial - we need a trick with `__morestack`, but we don't have
-    # neither a stack, nor a scratch register.
+    # Note that fixing it is not trivial - we would need the trick with `__morestack`, but we do not
+    # have neither a stack, nor a scratch register.
     mov %rbx, %rsp
 
     pop %r8
@@ -247,10 +260,10 @@ return_from_syscall:
     pop %rax
     pop %rcx # rip
     popfq
-    mov %rcx, %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SCRATCH_PC_OFF)
+    mov %rcx, %gs:(SHIM_TCB_OFF + SHIM_TCB_SCRATCH_PC_OFF)
     pop %rcx
     pop %rsp
-    jmp *%gs:(SHIM_TCB_OFFSET + SHIM_TCB_SCRATCH_PC_OFF)
+    jmp *%gs:(SHIM_TCB_OFF + SHIM_TCB_SCRATCH_PC_OFF)
 
 .Lrestore_xstate:
     mov PAL_CONTEXT_FPREGS_OFF(%rbx), %rdi

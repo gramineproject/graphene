@@ -436,8 +436,8 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_stack, argv, envp, &new_argp, &new_auxv);
 
     RUN_INIT(init_loader);
+    RUN_INIT(init_signal_handling);
     RUN_INIT(init_ipc_helper);
-    RUN_INIT(init_signal);
 
     if (PAL_CB(parent_process)) {
         /* Notify the parent process */
