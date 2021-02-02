@@ -1249,7 +1249,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
 
     if (flags & MSG_WAITALL) {
         log_debug("recvmsg()/recvmmsg()/recvfrom(): MSG_WAITALL is ignored, may lead to a read"
-		  " that returns less data.\n");
+                  " that returns less data.\n");
         flags &= ~MSG_WAITALL;
     }
 
