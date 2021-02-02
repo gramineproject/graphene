@@ -323,10 +323,10 @@ struct handle_ops g_dev_ops = {
  */
 
 /* for simplicity, we allocate limited number of mem_regions on stack */
-#define MAX_MEM_REGIONS 128
+#define MAX_MEM_REGIONS 1024
 
 /* for simplicity, we allocate limited number of sub_regions on heap */
-#define MAX_SUB_REGIONS 1024
+#define MAX_SUB_REGIONS 10 * 1024
 
 /* direction of copy: none (used for padding), out of enclave, inside enclave, both or a special
  * "pointer" sub-region; default is COPY_NONE_ENCLAVE */
