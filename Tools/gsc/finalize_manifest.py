@@ -12,9 +12,9 @@ import sys
 
 import jinja2
 
-def is_utf8(string):
+def is_utf8(filename_bytes):
     try:
-        string.encode('utf-8')
+        filename_bytes.decode('UTF-8')
         return True
     except UnicodeError:
         return False
@@ -22,7 +22,6 @@ def is_utf8(string):
 
 def generate_trusted_files(root_dir):
     cwd = os.getcwd() if os.getcwd() != '/' else ''
-    # Exclude files and paths from list of trusted files
     excluded_paths_regex = (r'^/('
                                 r'boot/.*'
                                 r'|dev/.*'
@@ -38,13 +37,26 @@ def generate_trusted_files(root_dir):
 
     num_trusted = 0
     trusted_files = ''
-    for root, _, files in os.walk(root_dir, followlinks=False):
+    for root, _, files in os.walk(root_dir.encode('UTF-8'), followlinks=False):
         for file in files:
             filename = os.path.join(root, file)
-            if exclude_re.match(filename) or not os.path.isfile(filename):
+            if not os.path.isfile(filename):
+                # only regular files are added as trusted files
                 continue
-            if not is_utf8(filename) or '\n' in filename or '\r' in filename:
-                # we use TOML's basic single-line UTF-8 strings, can't have newlines
+            if not is_utf8(filename):
+                # we append filenames as TOML strings which must be in UTF-8, ignore filenames
+                # that cannot be represented in UTF-8 encoding
+                print(f'\t[from inside Docker container] File {filename} is not in UTF-8!')
+                continue
+
+            # convert from bytes to str for further string handling
+            filename = filename.decode('UTF-8')
+
+            if exclude_re.match(filename):
+                # exclude special files and paths from list of trusted files
+                continue
+            if '\n' in filename:
+                # we use TOML's basic single-line strings, can't have newlines
                 continue
             escaped_filename = filename.translate(str.maketrans({'\\': r'\\', '"': r'\"'}))
             trusted_files += f'sgx.trusted_files.file{num_trusted} = "file:{escaped_filename}"\n'
@@ -55,8 +67,9 @@ def generate_trusted_files(root_dir):
 
 
 def generate_library_paths():
+    encoding = sys.stdout.encoding if sys.stdout.encoding is not None else 'UTF-8'
     ld_paths = subprocess.check_output('ldconfig -v', stderr=subprocess.PIPE, shell=True)
-    ld_paths = ld_paths.decode().splitlines()
+    ld_paths = ld_paths.decode(encoding).splitlines()
 
     # Library paths start without whitespace (in contrast to libraries found under this path)
     ld_paths = (line for line in ld_paths if not re.match(r'(^\s)', line))
@@ -80,7 +93,7 @@ def main(args=None):
     trusted_files = generate_trusted_files(args.dir)
     with open(manifest, 'wb') as manifest_file:
         trusted_files_string = '\n'.join((rendered_manifest, trusted_files, '\n'))
-        manifest_file.write(trusted_files_string.encode('utf-8'))
+        manifest_file.write(trusted_files_string.encode('UTF-8'))
 
     print(f'\t[from inside Docker container] Successfully finalized `{manifest}`.')
 
