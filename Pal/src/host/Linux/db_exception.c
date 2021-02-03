@@ -104,18 +104,15 @@ static int get_pal_event(int sig) {
  * This function must be reentrant and thread-safe - this includes `upcall` too! Technically,
  * only for cases when the exception arrived while in Graphene code; if signal arrived while in
  * the user app, this function doesn't need to be reentrant and thread-safe.
- *
- * For sync exceptions `arg` is the address of the exception, for async it is (when cast to `bool`)
- * `true` if exception happened while in Pal, `false` otherwise (user app or LibOS).
  */
-static void perform_signal_handling(int event, PAL_NUM arg, ucontext_t* uc) {
+static void perform_signal_handling(int event, bool is_in_pal, PAL_NUM addr, ucontext_t* uc) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
     if (!upcall)
         return;
 
     PAL_CONTEXT context;
     ucontext_to_pal_context(&context, uc);
-    (*upcall)(arg, &context);
+    (*upcall)(is_in_pal, addr, &context);
     pal_context_to_ucontext(uc, &context);
 }
 
@@ -126,7 +123,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     uintptr_t rip = ucontext_get_ip(uc);
     if (!ADDR_IN_PAL(rip)) {
         /* exception happened in application or LibOS code, normal benign case */
-        perform_signal_handling(event, (PAL_NUM)info->si_addr, uc);
+        perform_signal_handling(event, /*is_in_pal=*/false, (PAL_NUM)info->si_addr, uc);
         return;
     }
 
@@ -158,13 +155,15 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     assert(event > 0);
 
     uintptr_t rip = ucontext_get_ip(uc);
-    perform_signal_handling(event, ADDR_IN_PAL(rip), uc);
+    perform_signal_handling(event, ADDR_IN_PAL(rip), /*addr=*/0, uc);
 }
 
+/* TODO: remove this function. It's not an expcetion handling, it's just returning an error from
+ * PAL... */
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
     if (upcall) {
-        (*upcall)(error, /*context=*/NULL);
+        (*upcall)(/*is_in_pal=*/false, error, /*context=*/NULL);
     }
 }
 

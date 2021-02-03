@@ -1,5 +1,7 @@
 /* XXX: What on earth is this supposed to be, an attempt to fit most UBs in one file? */
 
+#include <stdbool.h>
+
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -8,7 +10,9 @@
 
 static volatile int count = 0;
 
-static void handler(PAL_NUM arg, PAL_CONTEXT* context) {
+static void handler(bool is_in_pal, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
+
     count++;
     pal_printf("Memory Fault %d\n", count);
 

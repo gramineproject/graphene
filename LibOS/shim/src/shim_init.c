@@ -43,7 +43,8 @@ toml_table_t* g_manifest_root = NULL;
 
 const unsigned int glibc_version = GLIBC_VERSION;
 
-static void handle_failure(PAL_NUM arg, PAL_CONTEXT* context) {
+static void handle_failure(bool is_in_pal, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
     __UNUSED(context);
     if ((arg <= PAL_ERROR_NATIVE_COUNT) ||
             (arg >= PAL_ERROR_CRYPTO_START && arg <= PAL_ERROR_CRYPTO_END))

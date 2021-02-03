@@ -249,22 +249,13 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
     ctx.oldmask = 0;
     ctx.cr2     = 0;
 
-    /*
-     * For sync exceptions `arg` in `upcall` is the address of the exception, for async it is
-     * (when cast to `bool`) `true` if exception happened while in Pal, `false` otherwise (user
-     * app or LibOS).
-     */
-    PAL_NUM arg = 0;
+    PAL_NUM addr = 0;
     switch (event_num) {
         case PAL_EVENT_ILLEGAL:
-            arg = uc->rip;
+            addr = uc->rip;
             break;
         case PAL_EVENT_MEMFAULT:
             /* TODO: SGX1 doesn't provide fault address but SGX2 does (with lower bits masked) */
-            break;
-        case PAL_EVENT_QUIT:
-        case PAL_EVENT_INTERRUPTED:
-            arg = ADDR_IN_PAL(uc->rip);
             break;
         default:
             break;
@@ -272,16 +263,18 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
     if (upcall) {
-        (*upcall)(arg, &ctx);
+        (*upcall)(ADDR_IN_PAL(uc->rip), addr, &ctx);
     }
 
     restore_pal_context(uc, &ctx);
 }
 
+/* TODO: remove this function. It's not an expcetion handling, it's just returning an error from
+ * PAL... */
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
     if (upcall) {
-        (*upcall)(error, /*context=*/NULL);
+        (*upcall)(/*is_in_pal=*/false, error, /*context=*/NULL);
     }
 }
 
@@ -296,22 +289,12 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
      * layer that PAL was interrupted (by setting PAL_ERRNO) */
     _DkRaiseFailure(PAL_ERROR_INTERRUPTED);
 
-    PAL_NUM arg = 0;
-    switch (event) {
-        case PAL_EVENT_QUIT:
-        case PAL_EVENT_INTERRUPTED:
-            arg = ADDR_IN_PAL(uc->rip);
-            break;
-        default:
-            break;
-    }
-
     PAL_CONTEXT ctx;
     save_pal_context(&ctx, uc, xregs_state);
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
     if (upcall) {
-        (*upcall)(arg, &ctx);
+        (*upcall)(ADDR_IN_PAL(uc->rip), /*addr=*/0, &ctx);
     }
 
     // TODO: restore_pal_context(uc, &ctx);

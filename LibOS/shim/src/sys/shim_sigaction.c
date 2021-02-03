@@ -34,14 +34,14 @@ long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
             sigsetsize != sizeof(__sigset_t))
         return -EINVAL;
 
-    if (act && test_user_memory((void*)act, sizeof(*act), false))
+    if (act && test_user_memory((void*)act, sizeof(*act), /*write=*/false))
         return -EFAULT;
 
-    if (oldact && test_user_memory(oldact, sizeof(*oldact), true))
+    if (oldact && test_user_memory(oldact, sizeof(*oldact), /*write=*/true))
         return -EFAULT;
 
     if (act && !(act->sa_flags & SA_RESTORER)) {
-        /* XXX: This might not be true for all architectures (but is for x86_64) ...
+        /* XXX: This might not be true for all architectures (but is for x86_64)...
          * Check `shim_signal.c` if you update this! */
         debug("SA_RESTORER flag is required!\n");
         return -EINVAL;
@@ -133,10 +133,10 @@ out:
 }
 
 long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
-    if (ss && test_user_memory((void*)ss, sizeof(*ss), /*writable=*/false)) {
+    if (ss && test_user_memory((void*)ss, sizeof(*ss), /*write=*/false)) {
         return -EFAULT;
     }
-    if (oss && test_user_memory(oss, sizeof(*oss), /*writable=*/true)) {
+    if (oss && test_user_memory(oss, sizeof(*oss), /*write=*/true)) {
         return -EFAULT;
     }
 
@@ -154,10 +154,12 @@ long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
         }
     }
 
-    if (is_on_altstack(pal_context_get_sp(shim_get_tcb()->context.regs), cur_ss)) {
+    if (!(cur_ss->ss_flags & SS_DISABLE)
+            && is_on_altstack(pal_context_get_sp(shim_get_tcb()->context.regs), cur_ss)) {
+        /* We are currently using the alternative stack. */
         if (oss)
             oss->ss_flags |= SS_ONSTACK;
-        if (ss && !(cur_ss->ss_flags & SS_DISABLE)) {
+        if (ss) {
             return -EPERM;
         }
     }
@@ -225,7 +227,7 @@ long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;
 
-    if (!set || test_user_memory(set, sigsetsize, false))
+    if (!set || test_user_memory(set, sigsetsize, /*write=*/true))
         return -EFAULT;
 
     get_all_pending_signals(set);
@@ -281,7 +283,7 @@ int kill_current_proc(siginfo_t* info) {
     int sig = info->si_signo;
     struct shim_thread* current = get_cur_thread();
     if (!is_internal(current)) {
-        /* Can we handle this singal? */
+        /* Can we handle this signal? */
         lock(&current->lock);
         if (!__sigismember(&current->signal_mask, sig)) {
             /* Yes we can. */

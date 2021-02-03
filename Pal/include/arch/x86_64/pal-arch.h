@@ -247,7 +247,7 @@ static inline uint64_t pal_context_get_syscall(PAL_CONTEXT* context) {
     return context->rax;
 }
 
-/* Copies `PAL_CONTEXT` without extended fpu/sse state (but keeping control words). */
+/* Copies `PAL_CONTEXT` without extended FPU/SSE state (but keeping control words). */
 static inline void pal_context_copy(PAL_CONTEXT* dst, PAL_CONTEXT* src) {
     *dst = *src;
     dst->is_fpregs_used = 0;

@@ -119,7 +119,7 @@ bool have_pending_signals(void);
  * Returns value to be used as a new stack pointer in the signal handler, depending on the current
  * thread's settings.
  */
-uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack);
+uintptr_t get_stack_for_sighandler(uintptr_t sp, bool use_altstack);
 /*!
  * \brief Check whether address is on alternative stack.
  *
@@ -128,7 +128,7 @@ uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack);
  *
  * Returns `true` if \p sp is on \p alt_stack.
  */
-bool is_on_altstack(uint64_t sp, stack_t* alt_stack);
+bool is_on_altstack(uintptr_t sp, stack_t* alt_stack);
 
 struct shim_thread;
 

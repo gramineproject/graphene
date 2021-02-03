@@ -206,11 +206,11 @@ struct sigframe {
     siginfo_t siginfo;
 };
 
-void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler,
-                      uint64_t restorer, bool use_altstack, __sigset_t* old_mask) {
+void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, void* handler, void* restorer,
+                      bool should_use_altstack, __sigset_t* old_mask) {
     struct shim_thread* current = get_cur_thread();
 
-    uint64_t stack = get_stack_for_sighandler(context->rsp, use_altstack);
+    uint64_t stack = get_stack_for_sighandler(context->rsp, should_use_altstack);
 
     struct shim_xstate* xstate = NULL;
     stack = ALIGN_DOWN(stack - shim_xstate_size(), alignof(*xstate));
@@ -221,9 +221,10 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
     /* x64 SysV ABI requires that stack is aligned to 8 mod 0x10 after function call, so we have to
      * mimic that in signal handler. `sigframe` will be aligned to 0x10 and we will push a return
      * value (restorer address) on top of that later on. */
+    stack = ALIGN_DOWN(stack, 0x10);
+    /* Make sure `stack` is now aligned to both `alignof(*sigframe)` and 0x10. */
     static_assert(alignof(*sigframe) % 0x10 == 0 || 0x10 % alignof(*sigframe) == 0,
                   "Incorrect sigframe alignment");
-    stack = ALIGN_DOWN(stack, 0x10);
 
     sigframe = (struct sigframe*)stack;
     /* This could probably be omited as we set all fields explicitly below. */
@@ -261,9 +262,9 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
     context->rdx = (uint64_t)&sigframe->uc;
 
     stack -= 8;
-    *(uint64_t*)stack = restorer;
+    *(uint64_t*)stack = (uint64_t)restorer;
 
-    context->rip = handler;
+    context->rip = (uint64_t)handler;
     context->rsp = stack;
     /* x64 SysV ABI mandates that DF flag is cleared and states that rest of flags is *not*
      * preserved across function calls, hence we just set flags to a default value (IF). */
@@ -272,7 +273,7 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler
      * register arguments in `rax`. */
     context->rax = 0;
 
-    debug("Created sigframe for sig: %d at %p (handler: 0x%lx, restorer: 0x%lx)\n",
+    debug("Created sigframe for sig: %d at %p (handler: %p, restorer: %p)\n",
           siginfo->si_signo, sigframe, handler, restorer);
 }
 

@@ -321,31 +321,35 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
     DkProcessExit(1);
 }
 
-static void arithmetic_error_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
+static void arithmetic_error_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
+    assert(!is_in_pal);
     assert(context);
 
     if (is_internal_tid(get_cur_tid()) || context_is_libos(context)) {
-        internal_fault("Internal arithmetic fault", arg, context);
+        internal_fault("Internal arithmetic fault", addr, context);
     } else {
         debug("arithmetic fault at 0x%08lx\n", pal_context_get_ip(context));
         siginfo_t info = {
             .si_signo = SIGFPE,
             .si_code = FPE_INTDIV,
-            .si_addr = (void*)arg,
+            .si_addr = (void*)addr,
         };
         force_signal(&info);
         handle_signal(context, /*old_mask_ptr=*/NULL);
     }
 }
 
-static void memfault_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
+static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
+    assert(!is_in_pal);
     assert(context);
 
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
 
-    if (tcb->test_range.cont_addr && (void*)arg >= tcb->test_range.start &&
-            (void*)arg <= tcb->test_range.end) {
+    if (tcb->test_range.cont_addr && (void*)addr >= tcb->test_range.start &&
+            (void*)addr <= tcb->test_range.end) {
         assert(context_is_libos(context));
         tcb->test_range.has_fault = true;
         pal_context_set_ip(context, (PAL_NUM)tcb->test_range.cont_addr);
@@ -353,25 +357,25 @@ static void memfault_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     }
 
     if (is_internal_tid(get_cur_tid()) || context_is_libos(context)) {
-        internal_fault("Internal memory fault", arg, context);
+        internal_fault("Internal memory fault", addr, context);
     }
 
-    debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", arg, pal_context_get_ip(context));
+    debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", addr, pal_context_get_ip(context));
 
     siginfo_t info = {
-        .si_addr = (void*)arg,
+        .si_addr = (void*)addr,
     };
     struct shim_vma_info vma_info;
-    if (!lookup_vma((void*)arg, &vma_info)) {
+    if (!lookup_vma((void*)addr, &vma_info)) {
         if (vma_info.flags & VMA_INTERNAL) {
-            internal_fault("Internal memory fault with VMA", arg, context);
+            internal_fault("Internal memory fault with VMA", addr, context);
         }
         struct shim_handle* file = vma_info.file;
         if (file && file->type == TYPE_FILE) {
             /* If the mapping exceeds end of a file then return a SIGBUS. */
             uintptr_t eof_in_vma = (uintptr_t)vma_info.addr
                                    + (file->info.file.size - vma_info.file_offset);
-            if (arg > eof_in_vma) {
+            if (addr > eof_in_vma) {
                 info.si_signo = SIGBUS;
                 info.si_code = BUS_ADRERR;
             } else {
@@ -561,13 +565,15 @@ ret_fault:
     return has_fault;
 }
 
-static void illegal_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
+static void illegal_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
+    assert(!is_in_pal);
     assert(context);
 
     struct shim_vma_info vma_info = {.file = NULL};
     if (is_internal(get_cur_thread()) || context_is_libos(context)
-            || lookup_vma((void*)arg, &vma_info) || (vma_info.flags & VMA_INTERNAL)) {
-        internal_fault("Illegal instruction during Graphene internal execution", arg, context);
+            || lookup_vma((void*)addr, &vma_info) || (vma_info.flags & VMA_INTERNAL)) {
+        internal_fault("Illegal instruction during Graphene internal execution", addr, context);
     }
 
     if (vma_info.file) {
@@ -581,7 +587,7 @@ static void illegal_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
         siginfo_t info = {
             .si_signo = SIGILL,
             .si_code = ILL_ILLOPC,
-            .si_addr = (void*)arg,
+            .si_addr = (void*)addr,
         };
         force_signal(&info);
         handle_signal(context, /*old_mask_ptr=*/NULL);
@@ -589,8 +595,8 @@ static void illegal_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     /* else syscall was emulated. */
 }
 
-static void quit_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
-    bool is_in_pal = !!arg;
+static void quit_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
+    __UNUSED(addr);
 
     if (!g_inject_host_signal_enabled) {
         return;
@@ -610,8 +616,8 @@ static void quit_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
     handle_signal(context, /*old_mask_ptr=*/NULL);
 }
 
-static void interrupted_upcall(PAL_NUM arg, PAL_CONTEXT* context) {
-    bool is_in_pal = !!arg;
+static void interrupted_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
+    __UNUSED(addr);
 
     if (is_internal(get_cur_thread()) || context_is_libos(context) || is_in_pal) {
         return;
@@ -670,9 +676,15 @@ void set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
 }
 
 /* XXX: This function assumes that the stack is growing towards lower addresses. */
-bool is_on_altstack(uint64_t sp, stack_t* alt_stack) {
-    uint64_t alt_sp = (uint64_t)alt_stack->ss_sp;
-    uint64_t alt_sp_end = alt_sp + alt_stack->ss_size;
+bool is_on_altstack(uintptr_t sp, stack_t* alt_stack) {
+    uintptr_t alt_sp = (uintptr_t)alt_stack->ss_sp;
+    uintptr_t alt_sp_end = alt_sp + alt_stack->ss_size;
+    /*
+     * If `alt_sp == sp` then either the alternative stack is full or we have another stack
+     * allocated just above it (at lower address), which is empty and about to be used. Let's
+     * pretend it is always the second case: overflowing the alternative stack is undefined behavior
+     * and chances for reaching exactly the top of the stack without overflowing it are minimal.
+     */
     if (alt_sp < sp && sp <= alt_sp_end) {
         return true;
     }
@@ -680,7 +692,7 @@ bool is_on_altstack(uint64_t sp, stack_t* alt_stack) {
 }
 
 /* XXX: This function assumes that the stack is growing towards lower addresses. */
-uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack) {
+uintptr_t get_stack_for_sighandler(uintptr_t sp, bool use_altstack) {
     struct shim_thread* current = get_cur_thread();
     stack_t* alt_stack = &current->signal_altstack;
 
@@ -694,7 +706,7 @@ uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack) {
         return sp - RED_ZONE_SIZE;
     }
 
-    return (uint64_t)alt_stack->ss_sp + alt_stack->ss_size;
+    return (uintptr_t)alt_stack->ss_sp + alt_stack->ss_size;
 }
 
 /*
@@ -788,8 +800,8 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
     lock(&current->signal_dispositions->lock);
     struct __kernel_sigaction* sa = &current->signal_dispositions->actions[sig - 1];
 
-    uintptr_t handler = (uintptr_t)sa->k_sa_handler;
-    if (handler == (uintptr_t)SIG_DFL) {
+    void* handler = sa->k_sa_handler;
+    if (handler == SIG_DFL) {
         if (default_sighandler[sig - 1] == SIGHANDLER_KILL) {
             unlock(&current->signal_dispositions->lock);
             sighandler_kill(sig);
@@ -800,9 +812,9 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
             /* Unreachable. */
         }
         assert(default_sighandler[sig - 1] == SIGHANDLER_NONE);
-        handler = (uintptr_t)SIG_IGN;
+        handler = SIG_IGN;
     }
-    if (handler != (uintptr_t)SIG_IGN) {
+    if (handler != SIG_IGN) {
         /* User provided handler. */
         assert(sa->sa_flags & SA_RESTORER);
 
@@ -838,12 +850,12 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
         set_sig_mask(current, &new_mask);
         unlock(&current->lock);
 
-        prepare_sigframe(context, &signal.siginfo, handler, (uint64_t)sa->sa_restorer,
+        prepare_sigframe(context, &signal.siginfo, handler, sa->sa_restorer,
                          !!(sa->sa_flags & SA_ONSTACK), old_mask_ptr ?: &old_mask);
 
         if (sa->sa_flags & SA_RESETHAND) {
-            /* In my opinion it should be `sigaction_make_defaults(sa);`, but Linux does this and
-             * LTP explicitly tests for this ... */
+            /* borysp: In my opinion it should be `sigaction_make_defaults(sa);`, but Linux does
+             * this and LTP explicitly tests for this ... */
             sa->k_sa_handler = SIG_DFL;
         }
 

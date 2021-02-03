@@ -119,7 +119,7 @@ noreturn void restore_child_context_after_clone(struct shim_context* context);
  * \param siginfo signal to be delivered
  * \param handler pointer to the user app signal handler
  * \param restorer pointer to the restorer function
- * \param use_altstack `true` if alternative stack can be used
+ * \param should_use_altstack `true` - use alternative stack if possible, `false` - never use it
  * \param old_mask old signal mask (to be stored in the signal frame)
  *
  * Creates a signal frame on the user app stack (either normal or alternative stack, depending on
@@ -128,8 +128,8 @@ noreturn void restore_child_context_after_clone(struct shim_context* context);
  * (which usually just calls `sigreturn` syscall). On most (all?) architectures old \p context,
  * \p siginfo and \p old_mask are saved into the signal frame.
  */
-void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler,
-                      uint64_t restorer, bool use_altstack, __sigset_t* old_mask);
+void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, void* handler, void* restorer,
+                      bool should_use_altstack, __sigset_t* old_mask);
 /*!
  * \brief Restart a syscall
  *

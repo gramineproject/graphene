@@ -84,7 +84,7 @@ struct shim_thread {
 
     /* signal handling */
     __sigset_t signal_mask;
-    /* Always take `thread->signal_dispositions->lock` before `thread->lock`. */
+    /* If you need both locks, take `thread->signal_dispositions->lock` before `thread->lock`. */
     struct shim_signal_dispositions* signal_dispositions;
     struct shim_signal_queue signal_queue;
     /* For the field below, see the explanation in "LibOS/shim/src/bookkeep/shim_signal.c" near
