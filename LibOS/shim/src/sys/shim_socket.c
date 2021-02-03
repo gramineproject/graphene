@@ -1320,11 +1320,15 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
                                            &peek_buffer->buf[peek_buffer->end],
                                            uri, uri ? SOCK_URI_SIZE : 0);
             if (pal_ret == PAL_STREAM_ERROR) {
-                ret = PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMNOTEXIST
-                      ? -ECONNABORTED
-                      : -PAL_ERRNO();
-                lock(&hdl->lock);
-                goto out_locked;
+                if (PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM) {
+                    pal_ret = 0;
+                } else {
+                    ret = PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMNOTEXIST
+                          ? -ECONNABORTED
+                          : -PAL_ERRNO();
+                    lock(&hdl->lock);
+                    goto out_locked;
+                 }
             }
 
             peek_buffer->end += pal_ret;
@@ -1351,10 +1355,14 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
             PAL_NUM pal_ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri,
                                            uri ? SOCK_URI_SIZE : 0);
             if (pal_ret == PAL_STREAM_ERROR) {
-                ret = PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMNOTEXIST
-                      ? -ECONNABORTED
-                      : -PAL_ERRNO();
-                break;
+                if (PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM) {
+                    pal_ret = 0;
+                } else {
+                    ret = PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMNOTEXIST
+                          ? -ECONNABORTED
+                          : -PAL_ERRNO();
+                    break;
+                }
             }
             iov_bytes = pal_ret;
         }

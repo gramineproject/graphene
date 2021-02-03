@@ -568,13 +568,17 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                              (void*)msg + bytes, NULL, 0);
 
             if (read == PAL_STREAM_ERROR) {
-                if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
+                int err = PAL_ERRNO();
+                if (PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM) {
+                    err = EPERM;
+                }
+                if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK)
                     continue;
 
                 debug("Port %p (handle %p) closed while receiving IPC message\n", port,
                       port->pal_handle);
                 del_ipc_port_fini(port);
-                ret = -PAL_ERRNO();
+                ret = -err;
                 goto out;
             }
 

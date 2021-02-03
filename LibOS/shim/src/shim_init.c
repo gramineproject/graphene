@@ -420,7 +420,7 @@ noreturn void* shim_init(int argc, void* args) {
 
         PAL_NUM ret = DkStreamRead(PAL_CB(parent_process), 0, sizeof(hdr), &hdr, NULL, 0);
         if (ret == PAL_STREAM_ERROR || ret != sizeof(hdr))
-            shim_do_exit(-PAL_ERRNO());
+            shim_do_exit(PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM ? -EPERM : -PAL_ERRNO());
 
         assert(hdr.size);
         RUN_INIT(receive_checkpoint_and_restore, &hdr);
