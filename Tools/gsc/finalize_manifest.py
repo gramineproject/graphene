@@ -44,10 +44,9 @@ def generate_trusted_files(root_dir):
                 # only regular files are added as trusted files
                 continue
             if not is_utf8(filename):
-                # we append filenames as TOML strings which must be in UTF-8, ignore filenames
-                # that cannot be represented in UTF-8 encoding
+                # we append filenames as TOML strings which must be in UTF-8
                 print(f'\t[from inside Docker container] File {filename} is not in UTF-8!')
-                continue
+                sys.exit(1)
 
             # convert from bytes to str for further string handling
             filename = filename.decode('UTF-8')

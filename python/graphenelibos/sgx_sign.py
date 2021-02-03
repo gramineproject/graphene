@@ -65,7 +65,7 @@ def parse_size(value):
 def read_manifest(filename):
     manifest = dict()
     manifest_layout = []
-    with open(filename, 'r') as file:
+    with open(filename, 'r', encoding='UTF-8') as file:
         for line in file:
             if line == '':
                 manifest_layout.append((None, None))
@@ -107,7 +107,7 @@ def exec_sig_manifest(args):
 
 
 def output_manifest(filename, manifest, manifest_layout):
-    with open(filename, 'w') as file:
+    with open(filename, 'w', encoding='UTF-8') as file:
         written = []
 
         file.write('# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n')
@@ -831,7 +831,7 @@ def make_depend(args):
     dependencies.add(args['libpal'])
     dependencies.add(args['key'])
 
-    with open(output, 'w') as file:
+    with open(output, 'w', encoding='UTF-8') as file:
         manifest_sgx = output
         if manifest_sgx.endswith('.d'):
             manifest_sgx = manifest_sgx[:-len('.d')]
