@@ -81,7 +81,6 @@ static void test_cpuid_leaf_invalid(void) {
     cpuid(0x4FFFFFFF, 0x42, &r); /* subleaf value doesn't matter */
     if (r.eax || r.ebx || r.ecx || r.edx)
         abort();
-    memset(&r, 0, sizeof(r));
 }
 
 int main(int argc, char** argv, char** envp) {
