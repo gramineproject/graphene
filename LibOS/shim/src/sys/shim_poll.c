@@ -147,7 +147,7 @@ static long _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     unlock(&map->lock);
 
     PAL_BOL polled = false;
-    int error = 0;
+    long error = 0;
     if (pal_cnt) {
         polled = DkStreamsWaitEvents(pal_cnt, pals, pal_events, ret_events, timeout_us);
         if (!polled) {
@@ -180,7 +180,11 @@ static long _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     free(pal_events);
     free(fds_mapping);
 
-    return nrevents ? (long)nrevents : (polled ? 0 : (error == -EAGAIN ? 0 : error));
+    if (error == -EAGAIN) {
+        /* `poll` returns 0 on timeout. */
+        error = 0;
+    }
+    return nrevents ? (long)nrevents : error;
 }
 
 long shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
