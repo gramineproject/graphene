@@ -290,7 +290,7 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
             return -EINVAL;
 
         int64_t number_of_sets = extract_long_from_buffer(cache[lvl].number_of_sets);
-        if (!IS_IN_RANGE_INCL(number_of_sets, 1, 1 << 16))
+        if (!IS_IN_RANGE_INCL(number_of_sets, 1, 1 << 30))
             return -EINVAL;
 
         int64_t physical_line_partition =
