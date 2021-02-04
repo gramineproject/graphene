@@ -15,7 +15,7 @@ struct __attribute__((aligned(__alignof__(uint64_t)))) enclave_dbginfo {
     int pid;
     uint64_t base;
     uint64_t size;
-    uint64_t ssaframesize;
+    uint64_t ssa_frame_size;
     void* aep;
     void* eresume;
     int thread_tids[MAX_DBG_THREADS];
