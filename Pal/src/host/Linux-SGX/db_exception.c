@@ -269,7 +269,7 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
     restore_pal_context(uc, &ctx);
 }
 
-/* TODO: remove this function. It's not an expcetion handling, it's just returning an error from
+/* TODO: remove this function. It's not an exception handling, it's just returning an error from
  * PAL... */
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);

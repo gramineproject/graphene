@@ -158,7 +158,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     perform_signal_handling(event, ADDR_IN_PAL(rip), /*addr=*/0, uc);
 }
 
-/* TODO: remove this function. It's not an expcetion handling, it's just returning an error from
+/* TODO: remove this function. It's not an exception handling, it's just returning an error from
  * PAL... */
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
