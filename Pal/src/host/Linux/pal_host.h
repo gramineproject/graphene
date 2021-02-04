@@ -154,7 +154,8 @@ typedef struct pal_handle {
 
 #define HANDLE_TYPE(handle) ((handle)->hdr.type)
 
-// TODO: remove these
+/* TODO: remove these
+ * Tracked: https://github.com/oscarlab/graphene/issues/2140 */
 #define LEAVE_PAL_CALL()         \
     do {                         \
     } while (0)

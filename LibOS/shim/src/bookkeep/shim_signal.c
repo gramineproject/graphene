@@ -134,8 +134,8 @@ static bool is_rt_sq_empty(struct shim_rt_signal_queue* queue) {
     return queue->get_idx == queue->put_idx;
 }
 
-static bool has_standard_signal(struct shim_signal* queue) {
-    return queue->siginfo.si_signo != 0;
+static bool has_standard_signal(struct shim_signal* signal_slot) {
+    return signal_slot->siginfo.si_signo != 0;
 }
 
 static void recalc_pending_mask(struct shim_signal_queue* queue, int sig) {

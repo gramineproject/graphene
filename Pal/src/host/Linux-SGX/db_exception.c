@@ -279,7 +279,8 @@ void _DkRaiseFailure(int error) {
 }
 
 /* TODO: shouldn't this function ignore sync events???
- * actually what is the point of this function? */
+ * actually what is the point of this function?
+ * Tracked: https://github.com/oscarlab/graphene/issues/2140 */
 noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
                                      PAL_XREGS_STATE* xregs_state) {
     assert(event > 0 && event < PAL_EVENT_NUM_BOUND);
@@ -297,7 +298,6 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
         (*upcall)(ADDR_IN_PAL(uc->rip), /*addr=*/0, &ctx);
     }
 
-    // TODO: restore_pal_context(uc, &ctx);
     /* modification to PAL_CONTEXT is discarded; it is assumed that LibOS won't change context
      * (GPRs, FP registers) if RIP is in PAL.
      *

@@ -236,7 +236,8 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, void* handler, v
      * these flags are not strictly needed, but we do store SS in ucontext so let's just set them. */
     sigframe->uc.uc_flags = UC_SIGCONTEXT_SS | UC_STRICT_RESTORE_SS;
     sigframe->uc.uc_link = NULL;
-    /* TODO: add support for SA_AUTODISARM */
+    /* TODO: add support for SA_AUTODISARM
+     * Tracked: https://github.com/oscarlab/graphene/issues/2140 */
     sigframe->uc.uc_stack = current->signal_altstack;
 
     pal_context_to_ucontext(&sigframe->uc, context);
