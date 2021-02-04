@@ -58,12 +58,20 @@ fs-test: $(target)
 	$(RM) fs-test.xml
 	$(MAKE) fs-test.xml
 
+.PHONY: tfs-test
+tfs-test: $(target)
+	$(RM) tfs-test.xml
+	$(MAKE) tfs-test.xml
+
 .PHONY: test
 test: $(target)
 	$(RM) pf-test.xml
 	$(MAKE) pf-test.xml
 
 fs-test.xml: test_fs.py $(call expand_target_to_token,$(target))
+	$(SCRIPTS_DIR)/run-pytest --junit-xml $@ -v $<
+
+tfs-test.xml: test_tfs.py $(call expand_target_to_token,$(target))
 	$(SCRIPTS_DIR)/run-pytest --junit-xml $@ -v $<
 
 pf-test.xml: test_pf.py $(call expand_target_to_token,$(target))
