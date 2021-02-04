@@ -99,24 +99,6 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t* sig) {
     return 0;
 }
 
-static size_t get_ssaframesize(uint64_t xfrm) {
-    uint32_t cpuinfo[4];
-    uint64_t xfrm_ex;
-    size_t xsave_size = 0;
-
-    cpuid(INTEL_SGX_LEAF, 1, cpuinfo);
-    xfrm_ex = ((uint64_t)cpuinfo[3] << 32) + cpuinfo[2];
-
-    for (int i = 2; i < 64; i++)
-        if ((xfrm & (1ULL << i)) || (xfrm_ex & (1ULL << i))) {
-            cpuid(0xd, i, cpuinfo);
-            if (cpuinfo[0] + cpuinfo[1] > xsave_size)
-                xsave_size = cpuinfo[0] + cpuinfo[1];
-        }
-
-    return ALLOC_ALIGN_UP(xsave_size + sizeof(sgx_pal_gpr_t) + 1);
-}
-
 bool is_wrfsbase_supported(void) {
     uint32_t cpuinfo[4];
     cpuid(7, 0, cpuinfo);
@@ -135,7 +117,7 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     assert(secs->size && IS_POWER_OF_2(secs->size));
     assert(IS_ALIGNED(secs->base, secs->size));
 
-    secs->ssa_frame_size = get_ssaframesize(token->body.attributes.xfrm) / g_page_size;
+    secs->ssa_frame_size = SSA_FRAME_SIZE / g_page_size; /* SECS expects SSA frame size in pages */
     secs->misc_select    = token->masked_misc_select_le;
     memcpy(&secs->attributes, &token->body.attributes, sizeof(sgx_attributes_t));
 

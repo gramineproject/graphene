@@ -235,7 +235,7 @@ static void* get_ssa_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
           tcs_part.ossa, tcs_part.cssa);
     assert(tcs_part.cssa > 0);
     /* CSSA points to the next empty slot, so to read the current frame, we look at CSSA - 1. */
-    return (void*)ei->base + tcs_part.ossa + ei->ssaframesize * (tcs_part.cssa - 1);
+    return (void*)ei->base + tcs_part.ossa + ei->ssa_frame_size * (tcs_part.cssa - 1);
 }
 
 static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
@@ -243,7 +243,7 @@ static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
     if (!ssa)
         return NULL;
 
-    return ssa + ei->ssaframesize - sizeof(sgx_pal_gpr_t);
+    return ssa + ei->ssa_frame_size - sizeof(sgx_pal_gpr_t);
 }
 
 static int peek_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, sgx_pal_gpr_t* gpr) {

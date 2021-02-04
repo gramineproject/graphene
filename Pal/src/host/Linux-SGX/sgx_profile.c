@@ -83,7 +83,7 @@ static int get_sgx_gpr(sgx_pal_gpr_t* gpr, void* tcs) {
 
     void* gpr_addr = (void*)(
         g_pal_enclave.baseaddr
-        + ossa + cssa * g_pal_enclave.ssaframesize
+        + ossa + cssa * g_pal_enclave.ssa_frame_size
         - sizeof(*gpr));
 
     ret = debug_read_all(gpr, gpr_addr, sizeof(*gpr));

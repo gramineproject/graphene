@@ -57,7 +57,7 @@ struct pal_enclave {
     unsigned long size;
     unsigned long thread_num;
     unsigned long rpc_thread_num;
-    unsigned long ssaframesize;
+    unsigned long ssa_frame_size;
     bool nonpie_binary;
     bool remote_attestation_enabled;
     bool use_epid_attestation; /* Valid only if `remote_attestation_enabled` is true, selects
