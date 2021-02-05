@@ -178,6 +178,10 @@ static void client(void) {
     count = client_recv(server_socket, buffer, sizeof(buffer), MSG_WAITALL | MSG_DONTWAIT | MSG_PEEK);
     fwrite(buffer, count, 1, stdout);
 
+    printf("[client] receiving with MSG_PEEK again: ");
+    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_WAITALL | MSG_DONTWAIT | MSG_PEEK);
+    fwrite(buffer, count, 1, stdout);
+
     printf("[client] receiving without MSG_PEEK: ");
     count = client_recv(server_socket, buffer, sizeof(buffer), MSG_DONTWAIT);
     fwrite(buffer, count, 1, stdout);

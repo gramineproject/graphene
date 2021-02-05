@@ -568,10 +568,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                              (void*)msg + bytes, NULL, 0);
 
             if (read == PAL_STREAM_ERROR) {
-                int err = PAL_ERRNO();
-                if (PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM) {
-                    err = EPERM;
-                }
+                int err = PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM ? EPERM : PAL_ERRNO();
                 if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK)
                     continue;
 

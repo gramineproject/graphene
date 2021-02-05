@@ -219,10 +219,7 @@ static int read_exact(PAL_HANDLE handle, void* buf, size_t size) {
     while (bytes < size) {
         PAL_NUM x = DkStreamRead(handle, 0, size - bytes, (char*)buf + bytes, NULL, 0);
         if (x == PAL_STREAM_ERROR) {
-            if (PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM) {
-                return -EPERM;
-            }
-            int err = PAL_ERRNO();
+            int err = PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM ? EPERM : PAL_ERRNO();
             if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
                 continue;
             }
