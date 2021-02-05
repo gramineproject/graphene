@@ -247,24 +247,19 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t coun
 
     return ret;
 }
-
+/* TODO: mmap() function is not implemented because shim_do_mmap() pre-allocates memory region 
+   and shim_do_unmap() releases it. */
 static int tmpfs_mmap(struct shim_handle* hdl, void** addr, size_t size, int prot, int flags,
                       off_t offset) {
-    int ret;
+    __UNUSED(hdl);
+    __UNUSED(addr);
+    __UNUSED(size);
+    __UNUSED(prot);
+    __UNUSED(flags);
+    __UNUSED(offset);
 
-#if MAP_FILE == 0
-    if (flags & MAP_ANONYMOUS)
-#else
-    if (!(flags & MAP_FILE))
-#endif
-        return -EINVAL;
-
-    assert(hdl->dentry);
-    struct shim_tmpfs_data* data;
-    if ((ret = try_create_data(hdl->dentry, &data)) < 0)
-        return ret;
-
-    return str_mmap(hdl, addr, size, prot, flags, offset);
+    log_error("tmpfs_mmap(): mmap() function for tmpfs mount type is not implemented.\n");
+    return -ENOSYS;
 }
 
 static off_t tmpfs_seek(struct shim_handle* hdl, off_t offset, int whence) {

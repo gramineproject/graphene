@@ -162,24 +162,6 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
     return count;
 }
 
-int str_mmap(struct shim_handle* hdl, void** addr, size_t size, int prot, int flags,
-             off_t offset) {
-    struct shim_str_handle* strhdl = &hdl->info.str;
-
-    assert(hdl->dentry);
-    assert(strhdl->data);
-
-    struct shim_str_data* data = strhdl->data;
-
-    // TODO limmit mmap usage to avoid losing data->str
-    if (offset || (size_t)data->len > size)
-        return -EINVAL;
-
-    // TODO finalize mmap design
-    // return 0;
-    return -ENOSYS;
-}
-
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence) {
     struct shim_str_handle* strhdl = &hdl->info.str;
 
@@ -197,7 +179,7 @@ off_t str_seek(struct shim_handle* hdl, off_t offset, int whence) {
 
         case SEEK_CUR:
             if (strhdl->ptr + offset < data->str)
-               return -EINVAL;
+                return -EINVAL;
             strhdl->ptr += offset;
             break;
 
@@ -232,7 +214,6 @@ struct shim_fs_ops str_fs_ops = {
     .close = &str_close,
     .read  = &str_read,
     .write = &str_write,
-    .mmap  = &str_mmap,
     .seek  = &str_seek,
     .flush = &str_flush,
 };

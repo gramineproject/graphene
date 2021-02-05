@@ -546,8 +546,6 @@ int str_dput(struct shim_dentry* dent);
 int str_close(struct shim_handle* hdl);
 ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count);
 ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
-int str_mmap(struct shim_handle* hdl, void** addr, size_t size, int prot, int flags,
-             off_t offset);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
 
