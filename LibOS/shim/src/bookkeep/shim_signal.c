@@ -434,6 +434,9 @@ static bool is_sgx_pal(void) {
  * with a concurrent system call. The purpose of these functions is simply for
  * the compatibility with programs that rely on the error numbers, such as the
  * LTP test suite. */
+#ifdef UBSAN
+__attribute__((no_sanitize("undefined")))
+#endif
 bool test_user_memory(void* addr, size_t size, bool write) {
     if (!size)
         return false;
@@ -493,6 +496,9 @@ ret_fault:
  * This function tests a user string with unknown length. It only tests
  * whether the memory is readable.
  */
+#ifdef UBSAN
+__attribute__((no_sanitize("undefined")))
+#endif
 bool test_user_string(const char* addr) {
     if (!access_ok(addr, 1))
         return true;

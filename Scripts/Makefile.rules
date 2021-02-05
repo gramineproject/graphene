@@ -33,12 +33,13 @@ cmd = @$(echo-cmd) $(cmd_$(1))
 
 
 quiet_cmd_generated_offsets_s = [ $@ ]
-      cmd_generated_offsets_s = $(CC) $(CFLAGS) $(defs) -S $< -o $@
+      cmd_generated_offsets_s = $(CC) $(CFLAGS) -MD -MP -MF $@.d $(defs) -S $< -o $@
 
-generated-offsets.s: generated-offsets.c $(filter-out asm-offsets.h,$(headers))
+generated-offsets.s: generated-offsets.c
 	$(call cmd,generated_offsets_s)
-CLEAN_FILES += generated-offsets.s
+CLEAN_FILES += generated-offsets.s generated-offsets.s.d
 
+-include generated-offsets.s.d
 
 # Convert inline assembly into preprocessor directives.
 # The source line is something like:

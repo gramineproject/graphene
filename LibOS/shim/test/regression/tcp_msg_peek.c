@@ -173,9 +173,9 @@ static void client(void) {
         exit(1);
     }
 
-    /* we specify dummy MSG_DONTWAIT just to test this flag */
+    /* we specify dummy MSG_DONTWAIT and MSG_WAITALL just to test these flags */
     printf("[client] receiving with MSG_PEEK: ");
-    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_DONTWAIT | MSG_PEEK);
+    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_WAITALL | MSG_DONTWAIT | MSG_PEEK);
     fwrite(buffer, count, 1, stdout);
 
     printf("[client] receiving without MSG_PEEK: ");

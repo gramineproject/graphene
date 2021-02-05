@@ -157,8 +157,9 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
     } else if (instr[0] == 0xf3 && (instr[1] & ~1) == 0x48 && instr[2] == 0x0f &&
                instr[3] == 0xae && instr[4] >> 6 == 0b11 && ((instr[4] >> 3) & 0b111) < 4) {
         /* A disabled {RD,WR}{FS,GS}BASE instruction generated a #UD */
-        log_error("The {RD,WR}{FS,GS}BASE instruction is not currently enabled. "
-                  "Please reload Graphene SGX kernel module.\n");
+        log_error(
+            "{RD,WR}{FS,GS}BASE instructions are not permitted on this platform. Please check the "
+            "instructions under \"Building with SGX support\" from Graphene documentation.\n");
         return false;
     } else if (instr[0] == 0x0f && instr[1] == 0x05) {
         /* syscall: LibOS may know how to handle this */

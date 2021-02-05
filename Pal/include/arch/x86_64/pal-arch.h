@@ -23,7 +23,15 @@ typedef struct pal_tcb PAL_TCB;
 
 #define PAL_LIBOS_TCB_SIZE 256
 
+
 #define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbadUL
+
+/* Used to represent plain integers (only numeric values) */
+#define PAL_SYSFS_INT_FILESZ 16
+/* Used to represent buffers having numeric values with text. E.g "1024576K" */
+#define PAL_SYSFS_BUF_FILESZ 64
+/* Used to represent cpumaps like "00000000,ffffffff,00000000,ffffffff" */
+#define PAL_SYSFS_MAP_FILESZ 256
 
 typedef struct pal_tcb {
     struct pal_tcb* self;
@@ -49,6 +57,12 @@ static inline PAL_TCB* pal_get_tcb(void) {
     PAL_TCB* tcb;
     __asm__("movq %%gs:%c1, %0" : "=r"(tcb) : "i"(offsetof(struct pal_tcb, self)) : "memory");
     return tcb;
+}
+
+static inline unsigned long count_ulong_bits_set(unsigned long x) {
+    unsigned long result;
+    __asm__("popcnt %1, %0" : "=r"(result) : "r"(x) : "cc");
+    return result;
 }
 
 union pal_csgsfs {
@@ -194,10 +208,18 @@ static inline bool pal_context_has_user_pagefault(PAL_CONTEXT* context) {
     return !!(context->err & 4);
 }
 
+enum {
+    HUGEPAGES_2M = 0,
+    HUGEPAGES_1G,
+    HUGEPAGES_MAX,
+};
+
 /* PAL_CPU_INFO holds /proc/cpuinfo data */
 typedef struct PAL_CPU_INFO_ {
     /* Number of logical cores available in the host */
     PAL_NUM online_logical_cores;
+    /* Max number of logical cores available in the host */
+    PAL_NUM possible_logical_cores;
     /* Number of physical cores in a socket (physical package) */
     PAL_NUM physical_cores_per_socket;
     /* array of "logical core -> socket" mappings; has online_logical_cores elements */
@@ -210,5 +232,48 @@ typedef struct PAL_CPU_INFO_ {
     double  cpu_bogomips;
     PAL_STR cpu_flags;
 } PAL_CPU_INFO;
+
+typedef struct PAL_CORE_CACHE_INFO_ {
+    char shared_cpu_map[PAL_SYSFS_MAP_FILESZ];
+    char level[PAL_SYSFS_INT_FILESZ];
+    char type[PAL_SYSFS_BUF_FILESZ];
+    char size[PAL_SYSFS_BUF_FILESZ];
+    char coherency_line_size[PAL_SYSFS_INT_FILESZ];
+    char number_of_sets[PAL_SYSFS_INT_FILESZ];
+    char physical_line_partition[PAL_SYSFS_INT_FILESZ];
+} PAL_CORE_CACHE_INFO;
+
+typedef struct PAL_CORE_TOPO_INFO_ {
+    /* [0] element is uninitialized because core 0 is always online */
+    char is_logical_core_online[PAL_SYSFS_INT_FILESZ];
+    char core_id[PAL_SYSFS_INT_FILESZ];
+    char core_siblings[PAL_SYSFS_MAP_FILESZ];
+    char thread_siblings[PAL_SYSFS_MAP_FILESZ];
+    PAL_CORE_CACHE_INFO* cache; /* Array of size num_cache_index, owned by this struct */
+} PAL_CORE_TOPO_INFO;
+
+typedef struct PAL_NUMA_HUGEPAGE_INFO_ {
+    char nr_hugepages[PAL_SYSFS_INT_FILESZ];
+} PAL_NUMA_HUGEPAGE_INFO;
+
+typedef struct PAL_NUMA_TOPO_INFO_ {
+    char cpumap[PAL_SYSFS_MAP_FILESZ];
+    char distance[PAL_SYSFS_INT_FILESZ];
+    PAL_NUMA_HUGEPAGE_INFO hugepages[HUGEPAGES_MAX];
+} PAL_NUMA_TOPO_INFO;
+
+/* This struct takes ~1.6KB. On a single socket, 4 logical core system, with 3 cache levels
+ * it would take ~8KB in memory. */
+typedef struct PAL_TOPO_INFO_ {
+    char online_logical_cores[PAL_SYSFS_BUF_FILESZ];
+    char possible_logical_cores[PAL_SYSFS_BUF_FILESZ];
+    char online_nodes[PAL_SYSFS_BUF_FILESZ];
+    /* Number of nodes available in the host */
+    PAL_NUM num_online_nodes;
+    /* cache index corresponds to number of cache levels (such as L2 or L3) available on the host */
+    PAL_NUM num_cache_index;
+    PAL_CORE_TOPO_INFO* core_topology; /* Array of logical core topology info, owned by this struct */
+    PAL_NUMA_TOPO_INFO* numa_topology; /* Array of numa topology info, owned by this struct */
+} PAL_TOPO_INFO;
 
 #endif /* PAL_ARCH_H */

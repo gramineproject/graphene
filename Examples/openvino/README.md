@@ -45,11 +45,11 @@ make SGX=1
     -m model/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml -d CPU
 
 # run OpenVINO/object_detection_sample_ssd in non-SGX Graphene
-./pal_loader object_detection_sample_ssd.manifest -i images/horses.jpg \
+./pal_loader object_detection_sample_ssd -i images/horses.jpg \
     -m model/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml -d CPU
 
 # run OpenVINO/object_detection_sample_ssd in Graphene-SGX
-SGX=1 ./pal_loader object_detection_sample_ssd.manifest.sgx -i images/horses.jpg \
+SGX=1 ./pal_loader object_detection_sample_ssd -i images/horses.jpg \
     -m model/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml -d CPU
 
 # Each of these commands produces an image out_0.bmp with detected objects

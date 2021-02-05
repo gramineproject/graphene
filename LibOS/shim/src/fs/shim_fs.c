@@ -43,6 +43,11 @@ struct shim_fs mountable_fs[] = {
         .d_ops  = &dev_d_ops,
     },
     {
+        .name   = "sys",
+        .fs_ops = &sys_fs_ops,
+        .d_ops  = &sys_d_ops,
+    },
+    {
         .name   = "tmpfs",
         .fs_ops = &tmp_fs_ops,
         .d_ops  = &tmp_d_ops,
@@ -154,6 +159,13 @@ static int __mount_sys(struct shim_dentry* root) {
     debug("Mounting terminal device /dev/tty under /dev\n");
     if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty", dev_dent, NULL, 0)) < 0) {
         debug("Mounting terminal device /dev/tty failed (%d)\n", ret);
+        return ret;
+    }
+
+    debug("Mounting special sys filesystem: /sys\n");
+
+    if ((ret = mount_fs("sys", NULL, "/sys", root, NULL, 0)) < 0) {
+        debug("Mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
 

@@ -12,7 +12,7 @@ Quick start without SGX support
 
 #. Build Graphene::
 
-      sudo apt-get install -y build-essential autoconf gawk bison
+      sudo apt-get install -y build-essential autoconf gawk bison wget python3
       cd graphene
       make
 
@@ -51,26 +51,22 @@ the DCAP driver requires Graphene to run as a root user to access it.
 The first command should list :command:`isgx` (or :command:`sgx`) and the
 second command should list the process status of :command:`aesm_service`.
 
-#. Clone the repository and set the home directory of Graphene::
+#. Clone the Graphene repository::
 
       git clone https://github.com/oscarlab/graphene.git
       cd graphene
-      export GRAPHENE_DIR=$PWD
 
 #. Prepare a signing key::
 
-      cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
-      openssl genrsa -3 -out enclave-key.pem 3072
+      openssl genrsa -3 -out Pal/src/host/Linux-SGX/signer/enclave-key.pem 3072
 
-#. Build Graphene-SGX::
+#. Build Graphene and Graphene-SGX::
 
       sudo apt-get install -y \
-         build-essential autoconf gawk bison libcurl4-openssl-dev \
+         build-essential autoconf gawk bison wget python3 libcurl4-openssl-dev \
          python3-protobuf libprotobuf-c-dev protobuf-c-compiler
-      cd $GRAPHENE_DIR
-      make SGX=1
-      # the console will prompt you for the path to the Intel SGX driver code
-      # (simply press ENTER if you use the in-kernel Intel SGX driver)
+      make
+      ISGX_DRIVER_PATH=<path-to-sgx-driver-sources> make SGX=1
 
 #. Set ``vm.mmap_min_addr=0`` in the system (*only required for the legacy SGX
    driver and not needed for newer DCAP/in-kernel drivers*)::
@@ -81,7 +77,7 @@ second command should list the process status of :command:`aesm_service`.
 
 #. Build and run :program:`helloworld`::
 
-      cd $GRAPHENE_DIR/LibOS/shim/test/regression
+      cd LibOS/shim/test/regression
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
 

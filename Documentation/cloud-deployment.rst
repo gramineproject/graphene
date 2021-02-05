@@ -43,8 +43,7 @@ Building
 
 #. Prepare the signing keys::
 
-       openssl genrsa -3 -out enclave-key.pem 3072
-       cp enclave-key.pem Pal/src/host/Linux-SGX/signer
+       openssl genrsa -3 -out Pal/src/host/Linux-SGX/signer/enclave-key.pem 3072
 
 #. Build Graphene::
 

@@ -1,6 +1,8 @@
 Introduction to SGX
 ===================
 
+.. highlight:: sh
+
 Graphene project uses :term:`SGX` to securely run software. SGX is
 a |~| complicated topic, which may be hard to learn, because the documentation
 is scattered through official/reference documentation, blogposts and academic
@@ -80,7 +82,7 @@ Installation Instructions
 Linux kernel drivers
 ^^^^^^^^^^^^^^^^^^^^
 
-For historical reasons, there are three SGX drivers currently (March 2020):
+For historical reasons, there are three SGX drivers currently (January 2021):
 
 - https://github.com/intel/linux-sgx-driver -- old one, does not support DCAP,
   deprecated
@@ -90,13 +92,21 @@ For historical reasons, there are three SGX drivers currently (March 2020):
   old EPID remote-attestation technique) and the new DCAP (with new ECDSA and
   more "normal" PKI infrastructure).
 
-- Upstreaming in-kernel SGX driver (see LKML patches) -- will be upstreamed one
-  day, supports both non-DCAP and DCAP. The DCAP driver closely matches this
-  upstreaming version.
+- SGX support was upstreamed to the Linux mainline starting from 5.11.
+  It currently supports only DCAP attestation. The driver is accessible through
+  /dev/sgx_enclave and /dev/sgx_provision.
 
-  The in-tree driver will not be a |~| module
-  (https://lore.kernel.org/linux-sgx/20190401225717.GA13450@linux.intel.com/),
-  so "installation instructions" will likely be minimal.
+  The following udev rules are recommended for users to access the SGX node::
+
+    groupadd -r sgx
+    gpasswd -a USERNAME sgx
+    groupadd -r sgx_prv
+    gpasswd -a USERNAME sgx_prv
+    cat > /etc/udev/rules.d/65-graphene-sgx.rules << EOF
+      SUBSYSTEM=="misc",KERNEL=="sgx_enclave",MODE="0660",GROUP="sgx"
+      SUBSYSTEM=="misc",KERNEL=="sgx_provision",MODE="0660",GROUP="sgx_prv"
+      EOF
+    udevadm trigger
 
   Also it will not require :term:`IAS` and kernel maintainers consider
   non-writable :term:`FLC` MSRs as non-functional SGX:

@@ -702,7 +702,7 @@ static int chroot_mmap(struct shim_handle* hdl, void** addr, size_t size, int pr
     return 0;
 }
 
-static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int wence) {
+static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
     off_t ret = -EINVAL;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
@@ -725,7 +725,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int wence) {
         }
     }
 
-    switch (wence) {
+    switch (whence) {
         case SEEK_SET:
             if (offset < 0)
                 goto out;

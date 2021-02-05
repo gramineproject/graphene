@@ -325,6 +325,18 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
 };
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
+    /* leaves 0x40000000 to 0x4FFFFFFF are used by virtualization software (KVM, Hyper-V, etc.),
+     * they return all zeros on bare metal; runtimes like JVM query these leaves to learn about
+     * the underlying virtualization software */
+    if (leaf >= 0x40000000 && leaf <= 0x4FFFFFFF) {
+        /* let Graphene report that there is no virtualization software */
+        values[0] = 0;
+        values[1] = 0;
+        values[2] = 0;
+        values[3] = 0;
+        return 0;
+    }
+
     const struct cpuid_leaf* known_leaf = NULL;
     for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
         if (leaf == cpuid_known_leaves[i].leaf) {

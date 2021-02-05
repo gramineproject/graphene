@@ -14,11 +14,16 @@
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   02111-1307 USA. */
+
+/* Copyright (C) 2021 Intel Corporation
+ *                    Vijay Dhanraj <vijay.dhanraj@intel.com>
+ */
+
+#include <limits.h>
+#include <stdint.h>
 
 #include "api.h"
-
-#include <stdint.h>
 
 long strtol(const char* s, char** endptr, int base) {
     int neg  = 0;
@@ -64,6 +69,64 @@ long strtol(const char* s, char** endptr, int base) {
     if (endptr)
         *endptr = (char*)s;
     return (neg ? -val : val);
+}
+
+bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr) {
+    bool overflow_detected = false;
+    const char* s = str;
+    int conv_status = 0;    /* 0: no digits found, 1: valid conversion, -1: int overflow */
+    unsigned long val = 0;
+
+    // gobble initial whitespace
+    while (*s == ' ' || *s == '\t')
+        s++;
+
+    // hex or octal base prefix
+    if ((base == 0 || base == 16) && (s[0] == '0' && s[1] == 'x'))
+        s += 2, base = 16;
+    else if (base == 0 && s[0] == '0')
+        s++, base = 8;
+    else if (base == 0)
+        base = 10;
+
+    unsigned long cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
+    int cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
+
+    // digits
+    while (1) {
+        int dig;
+
+        if (*s >= '0' && *s <= '9')
+            dig = *s - '0';
+        else if (*s >= 'a' && *s <= 'z')
+            dig = *s - 'a' + 10;
+        else if (*s >= 'A' && *s <= 'Z')
+            dig = *s - 'A' + 10;
+        else
+            break;
+
+        if (dig >= base)
+            break;
+
+        if (conv_status < 0 || val > cutoff || (val == cutoff && dig > cutlim))
+            conv_status = -1;
+        else
+            conv_status = 1, val = (val * base) + dig;
+
+        s++;
+    }
+
+    if (conv_status < 0) {
+        val = ULONG_MAX;
+        overflow_detected = true;
+    }
+
+    if (out_value)
+        *out_value = val;
+    if (out_endptr)
+        *out_endptr = (char*)(conv_status ? s : str);
+
+    return overflow_detected;
 }
 
 #ifdef __LP64__

@@ -32,7 +32,7 @@ CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
 commons_objs_encl = bogomips.o stack_protector.o
-commons_objs_urts = file_utils.o main_exec_path.o
+commons_objs_urts = file_utils.o main_exec_path.o topo_info.o
 
 enclave-objs = \
 	db_devices.o \
@@ -148,7 +148,7 @@ gdb_integration/sgx_gdb.so: gdb_integration/sgx_gdb.c
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
 gsgx.h: gsgx.h.in
-	./link-intel-driver.py < $< > $@
+	./link-intel-driver.py --input $< --output $@
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard gdb_integration/*.d)
