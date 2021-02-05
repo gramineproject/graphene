@@ -303,7 +303,7 @@ static inline bool context_is_internal(PAL_CONTEXT* context) {
 
     void* ip = (void*)pal_context_get_ip(context);
 
-    return (void*)&__code_address <= ip && ip < (void*)&__code_address_end;
+    return (void*)&__load_address <= ip && ip < (void*)&__load_address_end;
 }
 
 static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEXT* context) {

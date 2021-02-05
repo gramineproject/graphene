@@ -479,8 +479,6 @@ static inline bool memory_migrated(void* mem) {
 
 extern void* __load_address;
 extern void* __load_address_end;
-extern void* __code_address;
-extern void* __code_address_end;
 
 extern const char** migrated_envp;
 
