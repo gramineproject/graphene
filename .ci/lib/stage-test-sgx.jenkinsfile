@@ -81,16 +81,16 @@ stage('test-sgx') {
     //         LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8002
     //     '''
     // }
-    timeout(time: 25, unit: 'MINUTES') {
-        sh '''
-            cd Examples/apache
-            make ${MAKEOPTS}
-            make ${MAKEOPTS} start-graphene-server &
-            sleep 30
-            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8001
-            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh https://127.0.0.1:8443
-        '''
-    }
+    // timeout(time: 25, unit: 'MINUTES') {
+    //     sh '''
+    //         cd Examples/apache
+    //         make ${MAKEOPTS}
+    //         make ${MAKEOPTS} start-graphene-server &
+    //         sleep 30
+    //         LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8001
+    //         LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh https://127.0.0.1:8443
+    //     '''
+    // }
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/blender
