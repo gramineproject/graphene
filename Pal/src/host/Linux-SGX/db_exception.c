@@ -56,7 +56,7 @@ noreturn static void restore_pal_context(sgx_cpu_context_t* uc, PAL_CONTEXT* ctx
     uc->rflags = ctx->efl;
     uc->rip    = ctx->rip;
 
-    restore_sgx_context(uc, ctx->fpregs);
+    restore_sgx_context(uc, ctx->is_fpregs_used ? ctx->fpregs : NULL);
 }
 
 static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
@@ -87,10 +87,11 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
         .gs = 0,
         .ss = 0x2b, // __USER_DS(6) | 0(GDT) | 3(RPL)
     };
-    ctx->csgsfs = csgsfs.csgsfs;
+    ctx->csgsfsss = csgsfs.csgsfs;
 
     assert(xregs_state);
     ctx->fpregs = xregs_state;
+    ctx->is_fpregs_used = 1;
 
     /* Emulate format for fp registers Linux sets up as signal frame.
      * https://elixir.bootlin.com/linux/v5.4.13/source/arch/x86/kernel/fpu/signal.c#L86
@@ -214,8 +215,7 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
     if (ADDR_IN_PAL(uc->rip) &&
         /* event isn't asynchronous (i.e., synchronous exception) */
         event_num != PAL_EVENT_QUIT &&
-        event_num != PAL_EVENT_SUSPEND &&
-        event_num != PAL_EVENT_RESUME) {
+        event_num != PAL_EVENT_INTERRUPTED) {
         printf("*** Unexpected exception occurred inside PAL at RIP = +0x%08lx! ***\n",
                uc->rip - (uintptr_t)TEXT_START);
 
@@ -246,38 +246,42 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
 
     /* TODO: save EXINFO from MISC region and populate below fields */
     ctx.err     = 0;
-    ctx.trapno  = ei.info.valid ? ei.info.vector : event_num;
+    ctx.trapno  = ei.info.valid ? ei.info.vector : 0;
     ctx.oldmask = 0;
     ctx.cr2     = 0;
 
-    PAL_NUM arg = 0;
+    PAL_NUM addr = 0;
     switch (event_num) {
         case PAL_EVENT_ILLEGAL:
-            arg = uc->rip;
+            addr = uc->rip;
             break;
         case PAL_EVENT_MEMFAULT:
             /* TODO: SGX1 doesn't provide fault address but SGX2 does (with lower bits masked) */
             break;
         default:
-            /* nothing */
             break;
     }
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
     if (upcall) {
-        (*upcall)(arg, &ctx);
+        (*upcall)(ADDR_IN_PAL(uc->rip), addr, &ctx);
     }
 
     restore_pal_context(uc, &ctx);
 }
 
+/* TODO: remove this function. It's not an exception handling, it's just returning an error from
+ * PAL... */
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
     if (upcall) {
-        (*upcall)(error, /*context=*/NULL);
+        (*upcall)(/*is_in_pal=*/false, error, /*context=*/NULL);
     }
 }
 
+/* TODO: shouldn't this function ignore sync events???
+ * actually what is the point of this function?
+ * Tracked: https://github.com/oscarlab/graphene/issues/2140 */
 noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
                                      PAL_XREGS_STATE* xregs_state) {
     assert(event > 0 && event < PAL_EVENT_NUM_BOUND);
@@ -289,14 +293,10 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
 
     PAL_CONTEXT ctx;
     save_pal_context(&ctx, uc, xregs_state);
-    ctx.err     = 0;
-    ctx.trapno  = event; /* TODO: event is a PAL event; is that what LibOS/app wants to see? */
-    ctx.oldmask = 0;
-    ctx.cr2     = 0;
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
     if (upcall) {
-        (*upcall)(/*arg=*/0, &ctx);
+        (*upcall)(ADDR_IN_PAL(uc->rip), /*addr=*/0, &ctx);
     }
 
     /* modification to PAL_CONTEXT is discarded; it is assumed that LibOS won't change context

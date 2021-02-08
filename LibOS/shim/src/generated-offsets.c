@@ -5,15 +5,15 @@
 #include "shim_tcb.h"
 
 __attribute__((__used__)) static void dummy(void) {
-    OFFSET_T(SHIM_TCB_OFFSET, PAL_TCB, libos_tcb);
-    OFFSET_T(TCB_REGS, shim_tcb_t, context.regs);
-    OFFSET_T(TCB_FPCW, shim_tcb_t, context.ext_ctx.fpcw);
-    OFFSET_T(TCB_MXCSR, shim_tcb_t, context.ext_ctx.mxcsr);
-    OFFSET(SHIM_REGS_RSP, shim_regs, rsp);
-    OFFSET(SHIM_REGS_R15, shim_regs, r15);
-    OFFSET(SHIM_REGS_RIP, shim_regs, rip);
-    DEFINE(SHIM_REGS_SIZE, sizeof(struct shim_regs));
+    OFFSET_T(SHIM_TCB_OFF, PAL_TCB, libos_tcb);
+    OFFSET_T(SHIM_TCB_LIBOS_STACK_OFF, shim_tcb_t, libos_stack_bottom);
+    OFFSET_T(SHIM_TCB_SCRATCH_PC_OFF, shim_tcb_t, syscall_scratch_pc);
 
-    /* definitions */
+    OFFSET_T(PAL_CONTEXT_FPREGS_OFF, struct PAL_CONTEXT, fpregs);
+    OFFSET_T(PAL_CONTEXT_MXCSR_OFF, struct PAL_CONTEXT, mxcsr);
+    OFFSET_T(PAL_CONTEXT_FPCW_OFF, struct PAL_CONTEXT, fpcw);
+    OFFSET_T(PAL_CONTEXT_FPREGS_USED_OFF, struct PAL_CONTEXT, is_fpregs_used);
+
+    DEFINE(SHIM_XSTATE_ALIGN, SHIM_XSTATE_ALIGN);
     DEFINE(RED_ZONE_SIZE, RED_ZONE_SIZE);
 }

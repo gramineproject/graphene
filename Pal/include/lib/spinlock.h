@@ -171,18 +171,6 @@ static inline void spinlock_unlock(spinlock_t* lock) {
     __atomic_store_n(&lock->lock, SPINLOCK_UNLOCKED, __ATOMIC_RELEASE);
 }
 
-#ifdef IN_SHIM
-static inline void spinlock_lock_signal_off(spinlock_t* lock) {
-    disable_preempt(NULL);
-    spinlock_lock(lock);
-}
-
-static inline void spinlock_unlock_signal_on(spinlock_t* lock) {
-    spinlock_unlock(lock);
-    enable_preempt(NULL);
-}
-#endif // IN_SHIM
-
 #ifdef DEBUG_SPINLOCKS
 static inline bool _spinlock_is_locked(spinlock_t* lock) {
     return __atomic_load_n(&lock->lock, __ATOMIC_SEQ_CST) != SPINLOCK_UNLOCKED;

@@ -43,7 +43,7 @@ CLEAN_FILES += generated-offsets.s generated-offsets.s.d
 
 # Convert inline assembly into preprocessor directives.
 # The source line is something like:
-#     .ascii "GENERATED_INTEGER SHIM_TCB_OFFSET $8 "
+#     .ascii "GENERATED_INTEGER SHIM_TCB_OFF $8 "
 # (see the DEFINE macro Pal/include/pal/generated-offsets-build.h)
 #
 # Because of clang compatibility, we need to:

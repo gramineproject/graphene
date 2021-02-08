@@ -1,10 +1,14 @@
+#include <stdbool.h>
+
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
 
 int handled = 0;
 
-static void FailureHandler(PAL_NUM arg, PAL_CONTEXT* context) {
+static void FailureHandler(bool is_in_pal, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
+
     pal_printf("Failure notified: %s\n", pal_strerror((unsigned long)arg));
 
     handled = 1;

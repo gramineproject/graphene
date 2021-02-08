@@ -43,7 +43,8 @@ toml_table_t* g_manifest_root = NULL;
 
 const unsigned int glibc_version = GLIBC_VERSION;
 
-static void handle_failure(PAL_NUM arg, PAL_CONTEXT* context) {
+static void handle_failure(bool is_in_pal, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
     __UNUSED(context);
     if ((arg <= PAL_ERROR_NATIVE_COUNT) ||
             (arg >= PAL_ERROR_CRYPTO_START && arg <= PAL_ERROR_CRYPTO_END))
@@ -374,9 +375,6 @@ noreturn void* shim_init(int argc, void* args) {
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
-    update_tls_base(0);
-    __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
-                                       // that arrives during initialization
 
     struct debug_buf debug_buf;
     (void)debug_setbuf(shim_get_tcb(), &debug_buf);
@@ -439,8 +437,8 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_stack, argv, envp, &new_argp, &new_auxv);
 
     RUN_INIT(init_loader);
+    RUN_INIT(init_signal_handling);
     RUN_INIT(init_ipc_helper);
-    RUN_INIT(init_signal);
 
     if (PAL_CB(parent_process)) {
         /* Notify the parent process */
@@ -448,18 +446,20 @@ noreturn void* shim_init(int argc, void* args) {
         PAL_NUM ret = DkStreamWrite(PAL_CB(parent_process), 0, sizeof(child_vmid), &child_vmid,
                                     NULL);
         if (ret == PAL_STREAM_ERROR || ret != sizeof(child_vmid))
-            shim_do_exit(-PAL_ERRNO());
+            DkProcessExit(PAL_ERRNO());
     }
 
     debug("Shim process initialized\n");
 
     shim_tcb_t* cur_tcb = shim_get_tcb();
 
-    if (cur_tcb->context.regs && shim_context_get_sp(&cur_tcb->context)) {
+    if (cur_tcb->context.regs) {
         vdso_map_migrate();
         restore_child_context_after_clone(&cur_tcb->context);
         /* UNREACHABLE */
     }
+
+    set_default_tls();
 
     lock(&g_process.fs_lock);
     struct shim_handle* exec = g_process.exec;
@@ -470,7 +470,7 @@ noreturn void* shim_init(int argc, void* args) {
         /* Passing ownership of `exec` to `execute_elf_object`. */
         execute_elf_object(exec, new_argp, new_auxv);
     }
-    shim_do_exit(0);
+    process_exit(0, 0);
 }
 
 static int get_256b_random_hex_string(char* buf, size_t size) {
