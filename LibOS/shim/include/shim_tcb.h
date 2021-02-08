@@ -5,6 +5,7 @@
 #include "assert.h"
 #include "atomic.h"
 #include "pal.h"
+#include "shim_entry.h"
 #include "shim_tcb-arch.h"
 
 #define SHIM_TCB_CANARY 0xdeadbeef
@@ -57,11 +58,6 @@ static_assert(
     "SHIM_REGISTER_LIBRARY_OFFSET must match");
 
 static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
-    /* These are declared in shim_internal.h, but we cannot include it because of a circular
-     * dependency (this file is included by shim_internal.h already. */
-    void syscalldb(void);
-    int register_library(const char* name, unsigned long load_address);
-
     shim_tcb->canary = SHIM_TCB_CANARY;
     shim_tcb->self = shim_tcb;
     shim_tcb->syscalldb = &syscalldb;

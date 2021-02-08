@@ -79,13 +79,6 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
     } while (0)
 
 /*!
- * \brief LibOS syscall emulation entrypoint.
- *
- * Actual implementation and ABI are architecture-specific, but generally should dump the CPU
- * context and call `shim_emulate_syscall`.
- */
-void syscalldb(void);
-/*!
  * \brief High-level syscall emulation entrypoint.
  *
  * \param context CPU context at syscall entry.
@@ -391,7 +384,5 @@ void delete_from_epoll_handles(struct shim_handle* handle);
 
 void* allocate_stack(size_t size, size_t protect_size, bool user);
 int init_stack(const char** argv, const char** envp, const char*** out_argp, elf_auxv_t** out_auxv);
-
-int register_library(const char* name, unsigned long load_address);
 
 #endif /* _SHIM_INTERNAL_H_ */
