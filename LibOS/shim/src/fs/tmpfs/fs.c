@@ -48,8 +48,6 @@ static struct shim_tmpfs_data* __create_data(void) {
     if (!data)
         return NULL;
 
-    memset(data, 0, sizeof(struct shim_tmpfs_data));
-
     if (!create_lock(&data->lock)) {
         free(data);
         return NULL;
