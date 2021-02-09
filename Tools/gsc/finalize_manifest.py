@@ -84,7 +84,7 @@ def main(args=None):
     if not os.path.isdir(args.dir):
         argparser.error(f'\t[from inside Docker container] Could not find directory `{args.dir}`.')
 
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader('/'))
     env.globals.update({'library_paths': generate_library_paths(), 'env_path': os.getenv('PATH')})
 
     manifest = 'entrypoint.manifest'

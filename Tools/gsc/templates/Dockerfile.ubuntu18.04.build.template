@@ -56,17 +56,18 @@ COPY entrypoint.manifest /
 
 # Generate trusted arguments if required
 {% if not insecure_args %}
-RUN /graphene/Tools/argv_serializer {{binary}} {{binary_arguments}} "{{"\" \"".join(cmd)}}" > trusted_argv
+RUN /graphene/Tools/argv_serializer {{binary}} {{binary_arguments}} "{{"\" \"".join(cmd)}}" > /trusted_argv
 {% endif %}
 
 # Docker entrypoint/cmd typically contains only the basename of the executable so create a symlink
-RUN which {{binary}} | xargs ln -s || true
+RUN cd / \
+    && which {{binary}} | xargs ln -s || true
 
 # Mark apploader.sh executable, finalize manifest, and remove intermediate scripts
-RUN chmod u+x apploader.sh \
-    && python3 -B finalize_manifest.py \
-    && rm -f finalize_manifest.py
+RUN chmod u+x /apploader.sh \
+    && python3 -B /finalize_manifest.py \
+    && rm -f /finalize_manifest.py
 
 # Define default command
-ENTRYPOINT ["/bin/bash", "./apploader.sh"]
+ENTRYPOINT ["/bin/bash", "/apploader.sh"]
 CMD [{% if insecure_args %} "{{'", "'.join(cmd)}}" {% endif %}]

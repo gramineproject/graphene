@@ -21,8 +21,8 @@ sgx.nonpie_binary = 1
 loader.arg0_override = "{{binary}}"
 loader.insecure__use_cmdline_argv = 1
 {% else %}
-loader.argv_src_file = "file:trusted_argv"
-sgx.trusted_files.trusted_argv = "file:trusted_argv"
+loader.argv_src_file = "file:/trusted_argv"
+sgx.trusted_files.trusted_argv = "file:/trusted_argv"
 {% endif %}
 
 # All trusted files and the user defined manifest specifications should be after this line
