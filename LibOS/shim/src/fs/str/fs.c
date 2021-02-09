@@ -86,7 +86,7 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
 
     if (!data->str) {
         debug("str_data has no str\n");
-        ret = -EACCES;
+        ret = 0;
         goto out;
     }
 
@@ -137,11 +137,10 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
             newlen = strhdl->ptr + count - data->str;
         }
 
-        char* newbuf = malloc(newlen);
+        char* newbuf = calloc(1, newlen);
         if (!newbuf)
             return -ENOMEM;
 
-        memset(newbuf, 0, newlen);
         if (data->str) {
             memcpy(newbuf, data->str, data->len);
             free(data->str);
@@ -185,7 +184,7 @@ off_t str_seek(struct shim_handle* hdl, off_t offset, int whence) {
 
         case SEEK_END:
             if (data->len + offset < 0)
-               return -EINVAL;
+                return -EINVAL;
             strhdl->ptr = data->str + data->len + offset;
             break;
     }
