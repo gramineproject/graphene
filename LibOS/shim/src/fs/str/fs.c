@@ -113,28 +113,20 @@ out:
     return ret;
 }
 
-ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
-    if (!(hdl->acc_mode & MAY_WRITE))
-        return -EACCES;
-
-    struct shim_str_handle* strhdl = &hdl->info.str;
-
-    assert(hdl->dentry);
-    assert(strhdl->data);
-
+static ssize_t str_expand_buf(struct shim_str_handle* strhdl, size_t len) {
     struct shim_str_data* data = strhdl->data;
 
-    if (!data->str || strhdl->ptr + count > data->str + data->buf_size) {
-        int newlen = 0;
+    if (!data->str || len > data->buf_size) {
+        size_t newlen = 0;
 
         if (data->str) {
             newlen = data->buf_size * 2;
 
-            while (strhdl->ptr + count > data->str + newlen) {
+            while (len > newlen) {
                 newlen *= 2;
             }
         } else {
-            newlen = strhdl->ptr + count - data->str;
+            newlen = len;
         }
 
         char* newbuf = calloc(1, newlen);
@@ -150,6 +142,21 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
         data->str      = newbuf;
         data->buf_size = newlen;
     }
+    return 0;
+}
+
+ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    ssize_t ret = 0;
+    if (!(hdl->acc_mode & MAY_WRITE))
+        return -EACCES;
+
+    struct shim_str_handle* strhdl = &hdl->info.str;
+    assert(strhdl->data);
+    struct shim_str_data* data = strhdl->data;
+
+    ret = str_expand_buf(strhdl, strhdl->ptr - data->str + count);
+    if (ret < 0)
+        return ret;
 
     memcpy(strhdl->ptr, buf, count);
 
@@ -209,12 +216,35 @@ int str_flush(struct shim_handle* hdl) {
     return data->modify(hdl);
 }
 
+int str_truncate(struct shim_handle* hdl, off_t len) {
+    int ret = 0;
+
+    if (!(hdl->acc_mode & MAY_WRITE))
+        return -EINVAL;
+
+    struct shim_str_handle* strhdl = &hdl->info.str;
+
+    assert(strhdl->data);
+
+    struct shim_str_data* data = strhdl->data;
+    if (!data->str && len == 0)
+        return 0;
+
+    ret = str_expand_buf(strhdl, (size_t)len);
+    if (ret < 0)
+        return ret;
+
+    data->len = len;
+    return ret;
+}
+
 struct shim_fs_ops str_fs_ops = {
-    .close = &str_close,
-    .read  = &str_read,
-    .write = &str_write,
-    .seek  = &str_seek,
-    .flush = &str_flush,
+    .close    = &str_close,
+    .read     = &str_read,
+    .write    = &str_write,
+    .seek     = &str_seek,
+    .flush    = &str_flush,
+    .truncate = &str_truncate,
 };
 
 struct shim_d_ops str_d_ops = {

@@ -551,6 +551,7 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count);
 ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
+int str_truncate(struct shim_handle* hdl, off_t len);
 
 /* /sys fs related common APIs */
 /* This function extracts first number from a string. Returns a negative error code if no number is

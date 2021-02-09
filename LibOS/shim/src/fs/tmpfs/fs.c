@@ -239,7 +239,9 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t coun
         return -EPERM;
     }
 
+    lock(&hdl->lock);
     ssize_t ret = str_write(hdl, buf, count);
+    unlock(&hdl->lock);
     if (ret < 0) {
         return ret;
     }
@@ -420,52 +422,8 @@ static int tmpfs_hstat(struct shim_handle* hdl, struct stat* stat) {
 
 static int tmpfs_truncate(struct shim_handle* hdl, off_t len) {
     int ret = 0;
-
-    if (!(hdl->acc_mode & MAY_WRITE))
-        return -EINVAL;
-
-    struct shim_str_handle* strhdl = &hdl->info.str;
-
-    assert(hdl->dentry);
-    assert(strhdl->data);
-
-    struct shim_str_data* data = strhdl->data;
-    if (!data->str && len == 0)
-        return 0;
-
     lock(&hdl->lock);
-
-    if (!data->str || len > (off_t)data->buf_size) {
-        int newlen = 0;
-
-        if (data->str && data->buf_size) {
-            newlen = data->buf_size * 2;
-
-            while (len > newlen) {
-                newlen *= 2;
-            }
-        } else {
-            newlen = len;
-        }
-
-        char* newbuf = malloc(newlen);
-        if (!newbuf) {
-            ret = -ENOMEM;
-            goto out;
-        }
-
-        if (data->str) {
-            memcpy(newbuf, data->str, data->len);
-            free(data->str);
-        }
-
-        strhdl->ptr    = newbuf + (strhdl->ptr - data->str);
-        data->str      = newbuf;
-        data->buf_size = newlen;
-    }
-
-    data->len = len;
-out:
+    ret = str_truncate(hdl, len);
     unlock(&hdl->lock);
     return ret;
 }
