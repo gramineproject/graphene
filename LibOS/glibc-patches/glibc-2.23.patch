@@ -25,14 +25,14 @@ index 63a535502c15e32eb4f21feaefa3cbf5be6d8afa..80c3ea2612881756bdb16a50969a5474
  		  dl-addr enbl-secure dl-profstub \
  		  dl-origin dl-libc dl-sym dl-tsd dl-sysdep
 diff --git a/elf/dl-load.c b/elf/dl-load.c
-index c0d6249373fb4cb1b5971fe953cbcbf6ae28c1f4..15d79b1b01b314817c08f6238db04b1df7d23bf0 100644
+index c0d6249373fb4cb1b5971fe953cbcbf6ae28c1f4..2092a000d88c70710fda2ebf4d6d01af552eb8ee 100644
 --- a/elf/dl-load.c
 +++ b/elf/dl-load.c
 @@ -45,6 +45,7 @@
  #include <dl-machine-reject-phdr.h>
  #include <dl-sysdep-open.h>
  
-+#include "syscalldb.c"
++#include "syscalldb.h"
  
  #include <endian.h>
  #if BYTE_ORDER == BIG_ENDIAN
