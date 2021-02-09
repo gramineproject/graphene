@@ -17,7 +17,6 @@
 #include "pal_internal.h"
 
 PAL_HANDLE DkProcessCreate(PAL_STR exec_uri, PAL_STR* args) {
-    ENTER_PAL_CALL(DkProcessCreate);
     assert(exec_uri);
 
     PAL_HANDLE handle = NULL;
@@ -28,13 +27,11 @@ PAL_HANDLE DkProcessCreate(PAL_STR exec_uri, PAL_STR* args) {
         handle = NULL;
     }
 
-    LEAVE_PAL_CALL_RETURN(handle);
+    return handle;
 }
 
 noreturn void DkProcessExit(PAL_NUM exitcode) {
-    ENTER_PAL_CALL(DkProcessExit);
     _DkProcessExit(exitcode);
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
     die_or_inf_loop();
-    LEAVE_PAL_CALL();
 }

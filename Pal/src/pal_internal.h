@@ -111,21 +111,6 @@ static inline int handle_size(PAL_HANDLE handle) {
     return sizeof(*handle);
 }
 
-#ifndef ENTER_PAL_CALL
-#define ENTER_PAL_CALL(name)
-#endif
-
-#ifndef LEAVE_PAL_CALL
-#define LEAVE_PAL_CALL()
-#endif
-
-#ifndef LEAVE_PAL_CALL_RETURN
-#define LEAVE_PAL_CALL_RETURN(retval) \
-    do {                              \
-        return (retval);              \
-    } while (0)
-#endif
-
 /*
  * failure notify. The rountine is called whenever a PAL call return error code. As the current
  * design of PAL does not return error code directly, we rely on DkAsynchronousEventUpcall to handle

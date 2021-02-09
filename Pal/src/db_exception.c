@@ -24,15 +24,13 @@ PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event) {
 
 PAL_BOL
 DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
-    ENTER_PAL_CALL(DkSetExceptionHandler);
-
     if (!handler || event == 0 || event >= ARRAY_SIZE(g_handlers)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+        return PAL_FALSE;
     }
 
     __atomic_store_n(&g_handlers[event], handler, __ATOMIC_RELEASE);
-    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
+    return PAL_TRUE;
 }
 
 /* This does not return */
