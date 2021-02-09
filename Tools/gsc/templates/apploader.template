@@ -6,8 +6,8 @@ set -ex
 if [ -z "$GSC_PAL" ] || [ "$GSC_PAL" == "Linux-SGX" ]
 then
     GSC_PAL=Linux-SGX
-    /graphene/python/graphene-sgx-get-token -output entrypoint.token -sig entrypoint.sig
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init entrypoint {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
+    /graphene/python/graphene-sgx-get-token -output /entrypoint.token -sig /entrypoint.sig
+    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init /entrypoint {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
 else
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init entrypoint {{binary_arguments}} "${@}"
+    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init /entrypoint {{binary_arguments}} "${@}"
 fi
