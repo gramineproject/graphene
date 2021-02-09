@@ -18,24 +18,28 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
     if (ret < 0)
         return -ENOENT;
 
-    int nodenum = extract_first_num_from_string(name);
-    if (nodenum < 0)
-        return -ENOENT;
-
     const char* node_filebuf;
     if (!strcmp(filename, "online")) {
         node_filebuf = pal_control.topo_info.online_nodes;
-    } else if (!strcmp(filename, "cpumap")) {
-        node_filebuf = pal_control.topo_info.numa_topology[nodenum].cpumap;
-    } else if (!strcmp(filename, "distance")) {
-        node_filebuf = pal_control.topo_info.numa_topology[nodenum].distance;
-    } else if (strendswith(name, "hugepages-2048kB/nr_hugepages")) {
-        node_filebuf = pal_control.topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_2M].nr_hugepages;
-    } else if (strendswith(name, "hugepages-1048576kB/nr_hugepages")) {
-        node_filebuf = pal_control.topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_1G].nr_hugepages;
     } else {
-        debug("Unrecognized file %s\n", name);
-        return -ENOENT;
+        int nodenum = extract_first_num_from_string(name);
+        if (nodenum < 0)
+            return -ENOENT;
+
+        if (!strcmp(filename, "cpumap")) {
+            node_filebuf = pal_control.topo_info.numa_topology[nodenum].cpumap;
+        } else if (!strcmp(filename, "distance")) {
+            node_filebuf = pal_control.topo_info.numa_topology[nodenum].distance;
+        } else if (strendswith(name, "hugepages-2048kB/nr_hugepages")) {
+            node_filebuf =
+                pal_control.topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_2M].nr_hugepages;
+        } else if (strendswith(name, "hugepages-1048576kB/nr_hugepages")) {
+            node_filebuf =
+                pal_control.topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_1G].nr_hugepages;
+        } else {
+            debug("Unrecognized file %s\n", name);
+            return -ENOENT;
+        }
     }
 
     size = strlen(node_filebuf) + 1;

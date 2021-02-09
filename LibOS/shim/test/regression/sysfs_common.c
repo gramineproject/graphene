@@ -58,6 +58,10 @@ int main(int argc, char** argv) {
     if (ret)
         err(EXIT_FAILURE, "fclose failed for /sys/devices/system/node");
 
+    display_file_contents("/sys/devices/system/cpu/possible");
+
+    display_file_contents("/sys/devices/system/node/online");
+
     /* skip this test, if it is a single-core machine */
     if (maxprocs > 1) {
         display_file_contents("/sys/devices/system/cpu/cpu1/online");
