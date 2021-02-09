@@ -82,14 +82,6 @@ GLIBC_PATCHES = \
 	glibc-patches/$(GLIBC_SRC).patch \
 	glibc-patches/syscalldb-api.patch
 
-GLIBC_PATCHES_2.23 = \
-	glibc-patches/hp-timing-2.23.patch \
-	glibc-patches/dangling-else.patch \
-	glibc-patches/cvs-common-symbols.patch \
-	glibc-patches/rpc-format-overflow.patch \
-	glibc-patches/ieee754-boolean-context.patch \
-	glibc-patches/nis-bogus-conditional.patch
-
 GLIBC_PATCHES_2.27 = \
 	glibc-patches/hp-timing-2.27.patch
 
