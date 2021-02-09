@@ -12,6 +12,7 @@ copy_execs = \
 
 execs = \
 	$(copy_execs) \
+	copy_tmpfs \
 	delete \
 	delete_tmpfs \
 	open_close \

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import filecmp
 import os
 import shutil
 
@@ -215,9 +216,40 @@ class TC_10_Tmpfs(RegressionTestCase):
         self.do_truncate_test(65537, 65535)
         self.do_truncate_test(65537, 65536)
 
+    def verify_copy(self, stdout, stderr, input_dir, executable):
+        self.assertNotIn('ERROR: ', stderr)
+        self.assertIn('opendir(' + input_dir + ') OK', stdout)
+        self.assertIn('readdir(.) OK', stdout)
+        if input_dir[0] != '/':
+            self.assertIn('readdir(..) OK', stdout)
+        for i in self.INDEXES:
+            size = str(self.FILE_SIZES[i])
+            self.assertIn('readdir(' + size + ') OK', stdout)
+            self.assertIn('open(' + size + ') input OK', stdout)
+            self.assertIn('fstat(' + size + ') input OK', stdout)
+            self.assertIn('open(' + size + ') output OK', stdout)
+            self.assertIn('fstat(' + size + ') output 1 OK', stdout)
+            if executable == 'copy_whole':
+                self.assertIn('read_fd(' + size + ') input OK', stdout)
+                self.assertIn('write_fd(' + size + ') output OK', stdout)
+            if executable == 'copy_sendfile':
+                self.assertIn('sendfile_fd(' + size + ') OK', stdout)
+            if size != '0':
+                if 'copy_mmap' in executable:
+                    self.assertIn('mmap_fd(' + size + ') input OK', stdout)
+                    self.assertIn('mmap_fd(' + size + ') output OK', stdout)
+                    self.assertIn('munmap_fd(' + size + ') input OK', stdout)
+                    self.assertIn('munmap_fd(' + size + ') output OK', stdout)
+                if executable == 'copy_mmap_rev':
+                    self.assertIn('ftruncate(' + size + ') output OK', stdout)
+            self.assertIn('fstat(' + size + ') output 2 OK', stdout)
+            self.assertIn('close(' + size + ') input OK', stdout)
+            self.assertIn('close(' + size + ') output OK', stdout)
+
     def do_copy_test(self, executable, timeout):
         stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR],
                                          timeout=timeout)
+        self.verify_copy(stdout, stderr, self.INPUT_DIR, executable)
 
     def test_200_copy_dir_whole(self):
         self.do_copy_test('copy_whole', 30)
@@ -235,3 +267,16 @@ class TC_10_Tmpfs(RegressionTestCase):
         executable = 'copy_whole'
         stdout, stderr = self.run_binary([executable, '/mounted/input', '/mnt-tmpfs'],
                                          timeout=30)
+
+    def verify_copy_content(self, input_path, output_path):
+        self.assertTrue(filecmp.cmp(input_path, output_path, shallow=False))
+
+    def test_220_copy_dir_tmpfs(self):
+        TARGET_DIR = os.path.join(self.TEST_DIR, 'output')
+        os.mkdir(TARGET_DIR)
+        executable = 'copy_tmpfs'
+        stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR, TARGET_DIR],
+                                         timeout=30)
+        for i in self.INDEXES:
+            target_path = [os.path.join(TARGET_DIR, str(x)) for x in self.FILE_SIZES]
+            self.verify_copy_content(self.INPUT_FILES[i], target_path[i])
