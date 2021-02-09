@@ -21,37 +21,39 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     if (ret < 0)
         return -ENOENT;
 
-    int cpunum = extract_first_num_from_string(name);
-    if (cpunum < 0)
-        return -ENOENT;
-
     char temp_buf[16];
     const char* cpu_filebuf;
-    if (!strcmp(filename, "online")) {
-        /* distinguish /sys/devices/system/cpu/online from /sys/devices/system/cpu/cpuX/online */
-        if (strstr(name, "cpu/cpu")) {
+    if (!strcmp(filename, "online") && !strstr(name, "cpu/cpu")) {
+        /* This file refers to /sys/devices/system/cpu/online */
+        cpu_filebuf = pal_control.topo_info.online_logical_cores;
+    } else if (!strcmp(filename, "possible")) {
+        /* This file refers to /sys/devices/system/cpu/possible */
+        cpu_filebuf = pal_control.topo_info.possible_logical_cores;
+    } else {
+        /* The below files are under /sys/devices/system/cpu/cpuX/ */
+        int cpunum = extract_first_num_from_string(name);
+        if (cpunum < 0)
+             return -ENOENT;
+
+        if (!strcmp(filename, "online")) {
             /* core 0 is always online, so file /sys/devices/system/cpu/cpu0/online doesn't exist */
             if (cpunum == 0)
                 return -ENOENT;
             cpu_filebuf = pal_control.topo_info.core_topology[cpunum].is_logical_core_online;
+        } else if (!strcmp(filename, "core_id")) {
+            cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_id;
+        } else if (!strcmp(filename, "physical_package_id")) {
+            /* we have already collected this info as part of /proc/cpuinfo. So reuse it */
+            snprintf(temp_buf, sizeof(temp_buf), "%d\n", pal_control.cpu_info.cpu_socket[cpunum]);
+            cpu_filebuf = temp_buf;
+        } else if (!strcmp(filename, "core_siblings")) {
+            cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_siblings;
+        } else if (!strcmp(filename, "thread_siblings")) {
+            cpu_filebuf = pal_control.topo_info.core_topology[cpunum].thread_siblings;
         } else {
-            cpu_filebuf = pal_control.topo_info.online_logical_cores;
+            debug("Unrecognized file %s\n", name);
+            return -ENOENT;
         }
-    } else if (!strcmp(filename, "possible")) {
-        cpu_filebuf = pal_control.topo_info.possible_logical_cores;
-    } else if (!strcmp(filename, "core_id")) {
-        cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_id;
-    } else if (!strcmp(filename, "physical_package_id")) {
-        /* we have already collected this info as part of /proc/cpuinfo. So reuse it */
-        snprintf(temp_buf, sizeof(temp_buf), "%d\n", pal_control.cpu_info.cpu_socket[cpunum]);
-        cpu_filebuf = temp_buf;
-    } else if (!strcmp(filename, "core_siblings")) {
-        cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_siblings;
-    } else if (!strcmp(filename, "thread_siblings")) {
-        cpu_filebuf = pal_control.topo_info.core_topology[cpunum].thread_siblings;
-    } else {
-        debug("Unrecognized file %s\n", name);
-        return -ENOENT;
     }
 
     size = strlen(cpu_filebuf) + 1;
