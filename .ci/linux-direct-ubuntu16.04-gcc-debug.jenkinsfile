@@ -9,11 +9,25 @@ node('nonsgx_slave') {
         "local:${env.BUILD_TAG}",
         '-f .ci/ubuntu16.04.dockerfile .'
     ).inside("${env.DOCKER_ARGS_COMMON}") {
-        load '.ci/lib/stage-lint.jenkinsfile'
-        load '.ci/lib/stage-clean-check-prepare.jenkinsfile'
-        load '.ci/lib/stage-build-nosgx.jenkinsfile'
-        load '.ci/lib/stage-test.jenkinsfile'
-        load '.ci/lib/stage-test-direct.jenkinsfile'
-        load '.ci/lib/stage-clean-check.jenkinsfile'
+        stage('build') {
+            sh '''
+                make ${MAKEOPTS}
+            '''
+        }
+
+        stage('test') {
+            timeout(time: 15, unit: 'MINUTES') {
+                try {
+                    sh '''
+                        cd LibOS/shim/test/regression
+                        make ${MAKEOPTS} all
+                        make regression
+                        sh -c 'i=0;x=100; while [ $x -eq 100 ]; do ./pal_loader ./exit_group 0 100 ; x=$? ; echo $i ; i=$((i+1)); done ; exit 0'
+                    '''
+                } finally {
+                    junit 'LibOS/shim/test/regression/libos-regression.xml'
+                }
+            }
+        }
     }
 }
