@@ -1,13 +1,22 @@
 diff --git a/libgomp/config/linux/x86/futex.h b/libgomp/config/linux/x86/futex.h
-index ead74d1496736a49694ef6b9b2b4da50f9852664..29eb1c19f3220dfad40e7660c5ae92a19695b1b2 100644
+index ead74d1496736a49694ef6b9b2b4da50f9852664..17dc0bb2a79d6318dae81f105bb7b1eb761cca21 100644
 --- a/libgomp/config/linux/x86/futex.h
 +++ b/libgomp/config/linux/x86/futex.h
-@@ -30,13 +30,16 @@
+@@ -30,13 +30,25 @@
  #  define SYS_futex	202
  # endif
  
 +#define SHIM_SYSCALLDB_OFFSET_STR "32"
-+#define SYSCALLDB "jmpq *%%gs:" SHIM_SYSCALLDB_OFFSET_STR "\n\t"
++
++asm(
++".weak syscalldb\n"
++".type syscalldb, @function\n"
++".macro SYSCALLDB\n"
++"leaq .Lafter_syscalldb\\@(%rip), %rcx\n"
++"jmpq *%%gs:" SHIM_SYSCALLDB_OFFSET_STR "\n"
++".Lafter_syscalldb\\@:\n"
++".endm\n"
++);
 +
  static inline void
  futex_wait (int *addr, int val)
@@ -20,7 +29,7 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..29eb1c19f3220dfad40e7660c5ae92a1
  		  : "=a" (res)
  		  : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wait),
  		    "d" (val), "r" (r10)
-@@ -45,7 +48,7 @@ futex_wait (int *addr, int val)
+@@ -45,7 +57,7 @@ futex_wait (int *addr, int val)
      {
        gomp_futex_wait &= ~FUTEX_PRIVATE_FLAG;
        gomp_futex_wake &= ~FUTEX_PRIVATE_FLAG;
@@ -29,7 +38,7 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..29eb1c19f3220dfad40e7660c5ae92a1
  		      : "=a" (res)
  		      : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wait),
  			"d" (val), "r" (r10)
-@@ -58,7 +61,7 @@ futex_wake (int *addr, int count)
+@@ -58,7 +70,7 @@ futex_wake (int *addr, int count)
  {
    long res;
  
@@ -38,7 +47,7 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..29eb1c19f3220dfad40e7660c5ae92a1
  		  : "=a" (res)
  		  : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wake),
  		    "d" (count)
-@@ -67,7 +70,7 @@ futex_wake (int *addr, int count)
+@@ -67,7 +79,7 @@ futex_wake (int *addr, int count)
      {
        gomp_futex_wait &= ~FUTEX_PRIVATE_FLAG;
        gomp_futex_wake &= ~FUTEX_PRIVATE_FLAG;
