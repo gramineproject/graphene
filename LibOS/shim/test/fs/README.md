@@ -17,7 +17,7 @@ How to execute
 
 Run `make test` (tests both regular files and protected files).
 Run `make fs-test` to only test regular files.
-Run `make tmpfs-test` to only test regular files at tmpfs.
+Run `make tmpfs-test` to test files and folders at a path on tmpfs.
 
 (SGX only) Protected file tests assume that the SGX tools were installed in this directory:
 

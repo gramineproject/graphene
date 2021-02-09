@@ -13,16 +13,16 @@ copy_execs = \
 execs = \
 	$(copy_execs) \
 	delete \
+	delete_tmpfs \
 	open_close \
 	open_flags \
 	read_write \
 	seek_tell \
 	seek_tell_tmpfs \
-	delete_tmpfs \
-	stat_tmpfs \
-	truncate_tmpfs \
 	stat \
-	truncate
+	stat_tmpfs \
+	truncate \
+	truncate_tmpfs
 
 manifests = $(addsuffix .manifest,$(execs))
 
