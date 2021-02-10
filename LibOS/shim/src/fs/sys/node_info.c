@@ -20,8 +20,10 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
 
     const char* node_filebuf;
     if (!strcmp(filename, "online")) {
+        /* This file refers to /sys/devices/system/node/online */
         node_filebuf = pal_control.topo_info.online_nodes;
     } else {
+        /* The below files are under /sys/devices/system/node/nodeX/ */
         int nodenum = extract_first_num_from_string(name);
         if (nodenum < 0)
             return -ENOENT;
