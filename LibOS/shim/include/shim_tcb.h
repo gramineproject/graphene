@@ -22,6 +22,7 @@ struct shim_tcb {
     uint64_t            canary;
     shim_tcb_t*         self;
     struct shim_thread* tp;
+    uint64_t last_ip;
     void*               libos_stack_bottom;
     struct shim_context context;
     /* Scratch space to temporarily store a register. On some architectures (e.g. x86_64 inside
@@ -47,6 +48,7 @@ static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
     shim_tcb->self      = shim_tcb;
     shim_tcb->context.syscall_nr = -1;
     shim_tcb->vma_cache = NULL;
+    shim_tcb->last_ip = 0x123;
 }
 
 /* Call this function at the beginning of thread execution. */

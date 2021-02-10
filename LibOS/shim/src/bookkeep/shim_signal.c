@@ -317,6 +317,28 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
         warn("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr, addr,
              context ? ip : 0, g_process_ipc_info.vmid, is_internal_tid(tid) ? 0 : tid);
 
+    warn("last_ip: %p %p\n", (void*)__atomic_load_n(&shim_get_tcb()->last_ip, __ATOMIC_RELAXED), (void*)&__load_address);
+    debug_print_all_vmas();
+    int fd = -1;
+    char fname[] = "/proc/self/maps";
+    __asm__ volatile(
+        "syscall\n"
+        : "=a"(fd)
+        : "0"(2), "D"(fname), "S"(0), "d"(0)
+        : "memory", "cc", "rcx", "r11"
+    );
+    warn("fd: %d\n", fd);
+    char buf[0x1000] = { 0 };
+    long len = 0;
+    __asm__ volatile(
+        "syscall\n"
+        : "=a"(len)
+        : "0"(0), "D"(fd), "S"(buf), "d"(sizeof(buf))
+        : "memory", "cc", "rcx", "r11"
+    );
+    warn("len: %ld\n", len);
+    warn("\n%s\n", buf);
+
     DEBUG_BREAK_ON_FAILURE();
     DkProcessExit(1);
 }
@@ -624,6 +646,7 @@ static void quit_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
 
 static void interrupted_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
     __UNUSED(addr);
+    __atomic_store_n(&shim_get_tcb()->last_ip, pal_context_get_ip(context), __ATOMIC_RELAXED);
 
     if (is_internal(get_cur_thread()) || context_is_libos(context) || is_in_pal) {
         return;

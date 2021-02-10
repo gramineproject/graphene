@@ -278,6 +278,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         }
     }
 
+    printf("PAL: %p %p %p\n", &__text_start, &__text_end, &__data_end);
     /* call to main function */
     pal_main((PAL_NUM)g_linux_state.parent_process_id, exec_uri, parent, first_thread,
              first_process ? argv + 3 : argv + 4, envp);

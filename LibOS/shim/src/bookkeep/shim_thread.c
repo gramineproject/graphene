@@ -338,7 +338,6 @@ void put_thread(struct shim_thread* thread) {
     DEBUG_PRINT_REF_COUNT(ref_count);
 
     if (!ref_count) {
-        assert(LIST_EMPTY(thread, list));
 
         if (thread->libos_stack_bottom) {
             void* tmp_vma = NULL;
@@ -435,6 +434,8 @@ bool check_last_thread(bool mark_self_dead) {
 
     if (mark_self_dead) {
         put_thread(self);
+        //self->list.next = (void*)0x3333;
+        self->list.prev = (void*)0x4444;
     }
 
     return ret;
