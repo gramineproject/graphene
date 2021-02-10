@@ -222,8 +222,11 @@ static ssize_t tmpfs_read(struct shim_handle* hdl, void* buf, size_t count) {
         return -EISDIR;
     }
 
+    lock(&hdl->lock);
     ssize_t ret = str_read(hdl, buf, count);
-    /* don't udpate access time for performance on Linux-SGX host. */
+    /* technically, we should update access time here, but we skip this because it
+     * could hurt performance on Linux-SGX host */
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -241,18 +244,19 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t coun
 
     lock(&hdl->lock);
     ssize_t ret = str_write(hdl, buf, count);
-    unlock(&hdl->lock);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
 
     tmpfs_data->ctime = time / 1000000;
     tmpfs_data->mtime = tmpfs_data->ctime;
 
+out:
+    unlock(&hdl->lock);
     return ret;
 }
 
-/* TODO: tmpfs_mmap() function is not implemented because shim_do_mmap() and shim_do_unmap()
+/* TODO: tmpfs_mmap() function is not implemented because shim_do_mmap() and shim_do_munmap()
    are currently not flexible enough for correct tmpfs implementation. In particular, shim_do_mmap()
    pre-allocates memory region at a specific address (making it impossible to have two mmaps on the
    same tmpfs file), and shim_do_munmap() doesn't have a callback into tmpfs at all. */
@@ -356,8 +360,7 @@ static int tmpfs_lookup(struct shim_dentry* dent) {
 static int tmpfs_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct shim_dentry* dent,
                        int flags, mode_t mode) {
     int ret = 0;
-    if (!hdl)
-        return 0;
+    assert(hdl);
 
     struct shim_tmpfs_data* data;
     ret = get_or_create_tmpfs_data(dent, &data);

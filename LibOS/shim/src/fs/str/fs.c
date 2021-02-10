@@ -113,34 +113,34 @@ out:
     return ret;
 }
 
-static ssize_t str_expand_buf(struct shim_str_handle* strhdl, size_t len) {
+static ssize_t str_maybe_expand_buf(struct shim_str_handle* strhdl, size_t size) {
     struct shim_str_data* data = strhdl->data;
 
-    if (!data->str || len > data->buf_size) {
-        size_t newlen = 0;
+    if (!data->str || size > data->buf_size) {
+        size_t new_size = 0;
 
         if (data->str) {
-            newlen = data->buf_size * 2;
+            new_size = data->buf_size * 2;
 
-            while (len > newlen) {
-                newlen *= 2;
+            while (size > new_size) {
+                new_size *= 2;
             }
         } else {
-            newlen = len;
+            new_size = size;
         }
 
-        char* newbuf = calloc(1, newlen);
-        if (!newbuf)
+        char* new_data_str = calloc(1, new_size);
+        if (!new_data_str)
             return -ENOMEM;
 
         if (data->str) {
-            memcpy(newbuf, data->str, data->len);
+            memcpy(new_data_str, data->str, data->len);
             free(data->str);
         }
 
-        strhdl->ptr    = newbuf + (strhdl->ptr - data->str);
-        data->str      = newbuf;
-        data->buf_size = newlen;
+        strhdl->ptr    = new_data_str + (strhdl->ptr - data->str);
+        data->str      = new_data_str;
+        data->buf_size = new_size;
     }
     return 0;
 }
@@ -154,7 +154,7 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
     assert(strhdl->data);
     struct shim_str_data* data = strhdl->data;
 
-    ret = str_expand_buf(strhdl, strhdl->ptr - data->str + count);
+    ret = str_maybe_expand_buf(strhdl, strhdl->ptr - data->str + count);
     if (ret < 0)
         return ret;
 
@@ -220,7 +220,7 @@ int str_truncate(struct shim_handle* hdl, off_t len) {
     int ret = 0;
 
     if (!(hdl->acc_mode & MAY_WRITE))
-        return -EINVAL;
+        return -EACCES;
 
     struct shim_str_handle* strhdl = &hdl->info.str;
 
@@ -230,11 +230,12 @@ int str_truncate(struct shim_handle* hdl, off_t len) {
     if (!data->str && len == 0)
         return 0;
 
-    ret = str_expand_buf(strhdl, (size_t)len);
+    ret = str_maybe_expand_buf(strhdl, (size_t)len);
     if (ret < 0)
         return ret;
 
-    data->len = len;
+    data->len   = len;
+    data->dirty = true;
     return ret;
 }
 
