@@ -3,6 +3,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -124,7 +125,7 @@ int main(int argc, char** argv) {
         if (dirent64->d_type == DT_DIR && strncmp(dirent64->d_name, "cpu", 3) == 0) {
             char *endp;
             unsigned long nr = strtoul(dirent64->d_name + 3, &endp, 10);
-            if (nr != _SC_ULONG_MAX && endp != dirent64->d_name + 3 && *endp == '\0')
+            if (nr != ULONG_MAX && endp != dirent64->d_name + 3 && *endp == '\0')
                 count++;
         }
     }
@@ -149,7 +150,7 @@ int main(int argc, char** argv) {
         if (strncmp(dirent->d_name, "node", 4) == 0) {
             char* endp;
             unsigned long nr = strtoul(dirent->d_name + 4,  &endp, 10);
-            if (nr != _SC_ULONG_MAX && endp != dirent64->d_name + 4 && *endp == '\0')
+            if (nr != ULONG_MAX && endp != dirent64->d_name + 4 && *endp == '\0')
                 count++;
         }
     }
