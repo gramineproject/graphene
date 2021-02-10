@@ -8,7 +8,7 @@ index 0000000000000000000000000000000000000000..752b85f99302ddfe1403186f1118b915
 \ No newline at end of file
 diff --git a/syscalldb.h b/syscalldb.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..8a3a6437adfbe3f17ac04410da4729b8ce5346a4
+index 0000000000000000000000000000000000000000..6c1af42bdfc62744c0d9518ea2b0b2b26a0d0fc5
 --- /dev/null
 +++ b/syscalldb.h
 @@ -0,0 +1,45 @@
@@ -32,14 +32,14 @@ index 0000000000000000000000000000000000000000..8a3a6437adfbe3f17ac04410da4729b8
 +#define XSTR(s) STR(s)
 +#define STR(s) #s
 +
-+asm(
-+".weak syscalldb\n"
-+".type syscalldb, @function\n"
-+".macro SYSCALLDB\n"
-+"leaq .Lafter_syscalldb\\@(%rip), %rcx\n"
-+"jmpq *%gs:" XSTR(SHIM_SYSCALLDB_OFFSET) "\n"
-+".Lafter_syscalldb\\@:\n"
-+".endm\n"
++asm (
++    ".weak syscalldb\n"
++    ".type syscalldb, @function\n"
++    ".macro SYSCALLDB\n"
++    "leaq .Lafter_syscalldb\\@(%rip), %rcx\n"
++    "jmpq *%gs:" XSTR(SHIM_SYSCALLDB_OFFSET) "\n"
++    ".Lafter_syscalldb\\@:\n"
++    ".endm\n"
 +);
 +
 +#define SYSCALLDB "SYSCALLDB\n"
