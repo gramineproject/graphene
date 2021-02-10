@@ -23,6 +23,7 @@ class TC_10_Tmpfs(RegressionTestCase):
         cls.INPUT_FILES = [os.path.join(cls.INPUT_DIR, str(x)) for x in cls.FILE_SIZES]
         cls.OUTPUT_DIR = os.path.abspath('/mnt-tmpfs')
         cls.OUTPUT_FILES = [os.path.join(cls.OUTPUT_DIR, str(x)) for x in cls.FILE_SIZES]
+        cls.TARGET_DIR = os.path.join(cls.TEST_DIR, 'output')
 
         # create directory structure and test files
         os.mkdir(cls.TEST_DIR)
@@ -36,13 +37,10 @@ class TC_10_Tmpfs(RegressionTestCase):
         shutil.rmtree(cls.TEST_DIR)
 
     def setUp(self):
-        # clean output for each test
-        shutil.rmtree(self.OUTPUT_DIR, ignore_errors=True)
-
-    # copy input file to output dir (for tests that alter the file so input remains untouched)
-    # pylint: disable=no-self-use
-    def copy_input(self, input_path, output_path):
-        shutil.copy(input_path, output_path)
+        # the target directory is for verfication in copying related test,
+        # and the output on tmpfs is not necessary to be cleaned
+        shutil.rmtree(self.TARGET_DIR, ignore_errors=True)
+        os.mkdir(self.TARGET_DIR)
 
     def verify_open_close(self, stdout, stderr, path, mode):
         self.assertNotIn('ERROR: ', stderr)
@@ -272,11 +270,20 @@ class TC_10_Tmpfs(RegressionTestCase):
         self.assertTrue(filecmp.cmp(input_path, output_path, shallow=False))
 
     def test_220_copy_dir_tmpfs(self):
-        TARGET_DIR = os.path.join(self.TEST_DIR, 'output')
-        os.mkdir(TARGET_DIR)
+        # copy files to tmpfs and then copy them back to 'target', in order to do comparation in the following steps
         executable = 'copy_tmpfs'
-        stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR, TARGET_DIR],
+        stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR, self.TARGET_DIR],
+                                          timeout=30)
+        for i in self.INDEXES:
+            target_path = [os.path.join(self.TARGET_DIR, str(x)) for x in self.FILE_SIZES]
+            self.verify_copy_content(self.INPUT_FILES[i], target_path[i])
+
+    def test_230_copy_subdir_tmpfs(self):
+        # copy files to a subfolder on tmpfs and then copy them back to 'target', 
+        # in order to do comparation in the following steps
+        executable = 'copy_subdir_tmpfs'
+        stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR, "subfolder", self.TARGET_DIR],
                                          timeout=30)
         for i in self.INDEXES:
-            target_path = [os.path.join(TARGET_DIR, str(x)) for x in self.FILE_SIZES]
+            target_path = [os.path.join(self.TARGET_DIR, str(x)) for x in self.FILE_SIZES]
             self.verify_copy_content(self.INPUT_FILES[i], target_path[i])
