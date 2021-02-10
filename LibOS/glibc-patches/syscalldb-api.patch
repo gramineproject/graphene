@@ -8,10 +8,10 @@ index 0000000000000000000000000000000000000000..752b85f99302ddfe1403186f1118b915
 \ No newline at end of file
 diff --git a/syscalldb.h b/syscalldb.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..6c1af42bdfc62744c0d9518ea2b0b2b26a0d0fc5
+index 0000000000000000000000000000000000000000..e64b8430ac9fa136068a4ae811254a2ff0937650
 --- /dev/null
 +++ b/syscalldb.h
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,42 @@
 +#ifndef _SYSCALLDB_H_
 +#define _SYSCALLDB_H_
 +
@@ -29,15 +29,12 @@ index 0000000000000000000000000000000000000000..6c1af42bdfc62744c0d9518ea2b0b2b2
 +
 +#include "shim_entry_offsets.h"
 +
-+#define XSTR(s) STR(s)
-+#define STR(s) #s
-+
 +asm (
 +    ".weak syscalldb\n"
 +    ".type syscalldb, @function\n"
 +    ".macro SYSCALLDB\n"
 +    "leaq .Lafter_syscalldb\\@(%rip), %rcx\n"
-+    "jmpq *%gs:" XSTR(SHIM_SYSCALLDB_OFFSET) "\n"
++    "jmpq *%gs:" SHIM_SYSCALLDB_OFFSET_STR "\n"
 +    ".Lafter_syscalldb\\@:\n"
 +    ".endm\n"
 +);
