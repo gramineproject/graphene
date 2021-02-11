@@ -18,6 +18,10 @@ int ocall_mmap_untrusted(int fd, uint64_t offset, uint64_t size, unsigned short 
 
 int ocall_munmap_untrusted(const void* mem, uint64_t size);
 
+int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap);
+
+void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munmap);
+
 int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
 int ocall_open(const char* pathname, int flags, unsigned short mode);

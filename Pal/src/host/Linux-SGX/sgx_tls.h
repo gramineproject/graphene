@@ -47,6 +47,8 @@ struct enclave_tls {
     void*    exec_addr;
     uint64_t exec_size;
     int*     clear_child_tid;
+    void*    ioctl_scratch_space;
+    uint64_t ioctl_scratch_reg;
     struct untrusted_area untrusted_area_cache;
 };
 

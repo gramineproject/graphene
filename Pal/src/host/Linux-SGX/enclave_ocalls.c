@@ -233,7 +233,7 @@ int ocall_munmap_untrusted(const void* mem, size_t size) {
  * handling do not use the cache and always explicitly mmap/munmap untrusted memory; 'need_munmap'
  * indicates whether explicit munmap is needed at the end of such OCALL.
  */
-static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap) {
+int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap) {
     int ret;
 
     *mem = NULL;
@@ -279,7 +279,7 @@ static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap
     return ret;
 }
 
-static void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munmap) {
+void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munmap) {
     if (need_munmap) {
         ocall_munmap_untrusted(mem, size);
         /* there is not much we can do in case of error */
