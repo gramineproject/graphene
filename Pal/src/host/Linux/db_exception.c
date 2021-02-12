@@ -121,7 +121,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     assert(event > 0);
 
     uintptr_t rip = ucontext_get_ip(uc);
-    if (!ADDR_IN_PAL(rip)) {
+    if (!ADDR_IN_PAL_OR_VDSO(rip)) {
         /* exception happened in application or LibOS code, normal benign case */
         perform_signal_handling(event, /*is_in_pal=*/false, (PAL_NUM)info->si_addr, uc);
         return;
@@ -141,11 +141,12 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
             break;
     }
 
-    printf("*** Unexpected %s occurred inside PAL (PID = %ld, TID = %ld, RIP = +0x%08lx)! ***\n",
-           name, INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0), rip - (uintptr_t)TEXT_START);
+    bool in_vdso = is_in_vdso(rip);
+    printf("*** Unexpected %s occurred inside %s (PID = %ld, TID = %ld, RIP = +0x%08lx)! ***\n",
+           name, in_vdso ? "VDSO" : "PAL", INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0),
+           rip - (in_vdso ? get_vdso_start() : (uintptr_t)TEXT_START));
 
     _DkProcessExit(1);
-    return;
 }
 
 static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {
@@ -155,7 +156,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     assert(event > 0);
 
     uintptr_t rip = ucontext_get_ip(uc);
-    perform_signal_handling(event, ADDR_IN_PAL(rip), /*addr=*/0, uc);
+    perform_signal_handling(event, ADDR_IN_PAL_OR_VDSO(rip), /*addr=*/0, uc);
 }
 
 /* TODO: remove this function. It's not an exception handling, it's just returning an error from

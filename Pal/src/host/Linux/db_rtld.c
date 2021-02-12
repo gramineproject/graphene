@@ -10,6 +10,7 @@
  */
 
 #include "api.h"
+#include "cpu.h"
 #include "debug_map.h"
 #include "elf-arch.h"
 #include "elf/elf.h"
@@ -17,6 +18,17 @@
 #include "pal_debug.h"
 #include "pal_linux.h"
 #include "pal_rtld.h"
+
+static uintptr_t vdso_start = 0;
+static uintptr_t vdso_end = 0;
+
+uintptr_t get_vdso_start(void) {
+    return vdso_start;
+}
+
+bool is_in_vdso(uintptr_t addr) {
+    return (vdso_start || vdso_end) && vdso_start <= addr && addr < vdso_end;
+}
 
 void _DkDebugMapAdd(const char* name, void* addr) {
     int ret = debug_map_add(name, addr);
@@ -61,7 +73,10 @@ void setup_vdso_map(ElfW(Addr) addr) {
     for (ph = vdso_map.l_phdr; ph < &vdso_map.l_phdr[vdso_map.l_phnum]; ph++)
         switch (ph->p_type) {
             case PT_LOAD:
+                /* Assumes that VDSO has only one PT_LOAD segment. */
                 load_offset = addr + (ElfW(Addr))ph->p_offset - (ElfW(Addr))ph->p_vaddr;
+                vdso_start = (uintptr_t)addr;
+                vdso_end = ALIGN_UP(vdso_start + (size_t)ph->p_memsz, PAGE_SIZE);
                 break;
             case PT_DYNAMIC:
                 vdso_map.l_real_ld = vdso_map.l_ld = (void*)addr + ph->p_offset;
