@@ -6,7 +6,7 @@
 #include "atomic.h"
 #include "pal.h"
 #include "shim_entry.h"
-#include "shim_entry_offsets.h"
+#include "shim_entry_api.h"
 #include "shim_tcb-arch.h"
 
 #define SHIM_TCB_CANARY 0xdeadbeef

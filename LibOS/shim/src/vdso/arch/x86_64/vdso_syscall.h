@@ -5,7 +5,7 @@
 #ifndef VDSO_SYSCALL_H_
 #define VDSO_SYSCALL_H_
 
-#include "shim_entry_offsets.h"
+#include "shim_entry_api.h"
 
 static inline long vdso_arch_syscall(long nr, long arg1, long arg2) {
     long ret;

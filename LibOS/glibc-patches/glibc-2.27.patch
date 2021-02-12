@@ -11,41 +11,35 @@ index ef6abeac6d9dd0e9bb1aa68db7f1b64e64f9c9eb..e4872b3d632383b6d771a26cf6fbf745
  
  # This makes all the object files in the parent library archive.
  
-diff --git a/elf/Makefile b/elf/Makefile
-index 2a432d8beebcd207af7643af67379f0a9f527f3a..83e3db24e1e60fa92a0bf1092ddf6da54e74016d 100644
---- a/elf/Makefile
-+++ b/elf/Makefile
-@@ -21,7 +21,7 @@ subdir		:= elf
- 
- include ../Makeconfig
- 
--headers		= elf.h bits/elfclass.h link.h bits/link.h
-+headers		= elf.h bits/elfclass.h link.h bits/link.h syscalldb.h
- routines	= $(all-dl-routines) dl-support dl-iteratephdr \
- 		  dl-addr dl-addr-obj enbl-secure dl-profstub \
- 		  dl-origin dl-libc dl-sym dl-sysdep dl-error \
 diff --git a/elf/dl-load.c b/elf/dl-load.c
-index 7554a99b5acb153762ab8967f330309ba9c69821..a6dc18fc6f1f3bd30a5f654f361a417dca5d1f34 100644
+index 7554a99b5acb153762ab8967f330309ba9c69821..f79ca7fb57bc33b2757a795a527db6b565e09353 100644
 --- a/elf/dl-load.c
 +++ b/elf/dl-load.c
 @@ -46,6 +46,7 @@
  #include <dl-machine-reject-phdr.h>
  #include <dl-sysdep-open.h>
  
-+#include "syscalldb.h"
++#include "shim_entry_api.h"
  
  #include <endian.h>
  #if BYTE_ORDER == BIG_ENDIAN
-@@ -1318,6 +1319,9 @@ cannot enable executable stack as shared object requires");
+@@ -1318,6 +1319,8 @@ cannot enable executable stack as shared object requires");
    DL_AFTER_LOAD (l);
  #endif
  
-+  /* register the library to SHIM */
-+  register_library(l->l_name, l->l_addr);
++  shim_register_library(l->l_name, l->l_addr);
 +
    /* Now that the object is fully initialized add it to the object list.  */
    _dl_add_to_namespace_list (l, nsid);
  
+diff --git a/shim_entry_api.h b/shim_entry_api.h
+new file mode 120000
+index 0000000000000000000000000000000000000000..7663ce2eed66031527bd3f0cd1b376a89791a413
+--- /dev/null
++++ b/shim_entry_api.h
+@@ -0,0 +1 @@
++../shim/include/shim_entry_api.h
+\ No newline at end of file
 diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
 index ba1257ffabafdf536daee41c1d6afdf6ca61c684..1a35f4b80d9044c9a7866fffaf3ca9bb8056390e 100644
 --- a/sysdeps/gnu/errlist-compat.awk
@@ -203,7 +197,7 @@ index 4a9b662074ddbd62d958d8db7ec09b9d5741ad59..21bd14d778135102632952712a307453
  	cfi_adjust_cfa_offset(-8)
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
-index 2f7459f6fc602d1a176f725bb2dd4f10364ae997..b4c35a8e494ce1a8a9faa6ffd517dc993465b8be 100644
+index 2f7459f6fc602d1a176f725bb2dd4f10364ae997..8696bf9105112005b5ebe8bb4d8b8939fc7bbaa0 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 @@ -120,7 +120,7 @@ asm									\
@@ -211,7 +205,7 @@ index 2f7459f6fc602d1a176f725bb2dd4f10364ae997..b4c35a8e494ce1a8a9faa6ffd517dc99
     "__" #name ":\n"							\
     "	movq $" #syscall ", %rax\n"					\
 -   "	syscall\n"							\
-+   SYSCALLDB								\
++   "	SYSCALLDB\n"							\
     ".LEND_" #name ":\n"							\
     ".section .eh_frame,\"a\",@progbits\n"				\
     ".LSTARTFRAME_" #name ":\n"						\
@@ -242,18 +236,19 @@ index df63874e93dfbb7bc1ba55e6d3623c09b85f2550..5cfa58f19c4c4d1c68860fd81a4f922f
  	jae SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  	ret			/* Return to caller.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
-index b9b9bf9cd3f38cdc141d6a190792b013e16b3a16..b72aab929e7d0aaab049749e67e9195744a9cf62 100644
+index b9b9bf9cd3f38cdc141d6a190792b013e16b3a16..16ce922bbafbb5554ad0d88c1f43c80b1f06bcf2 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 +++ b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
-@@ -22,6 +22,7 @@
- #include <sysdeps/unix/sysv/linux/sysdep.h>
+@@ -23,6 +23,8 @@
  #include <sysdeps/unix/x86_64/sysdep.h>
  #include <tls.h>
-+#include "syscalldb.h"
  
++#include "shim_entry_api.h"
++
  #if IS_IN (rtld)
  # include <dl-sysdep.h>		/* Defines RTLD_PRIVATE_ERRNO.  */
-@@ -177,7 +178,7 @@
+ #endif
+@@ -177,7 +179,7 @@
  # define DO_CALL(syscall_name, args)		\
      DOARGS_##args				\
      movl $SYS_ify (syscall_name), %eax;		\
@@ -262,66 +257,66 @@ index b9b9bf9cd3f38cdc141d6a190792b013e16b3a16..b72aab929e7d0aaab049749e67e91957
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */
-@@ -241,7 +242,7 @@
+@@ -241,7 +243,7 @@
  ({									\
      unsigned long int resultvar;					\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB								\
++    "SYSCALLDB\n\t"							\
      : "=a" (resultvar)							\
      : "0" (number)							\
      : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
-@@ -255,7 +256,7 @@
+@@ -255,7 +257,7 @@
      TYPEFY (arg1, __arg1) = ARGIFY (arg1);			 	\
      register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB								\
++    "SYSCALLDB\n\t"							\
      : "=a" (resultvar)							\
      : "0" (number), "r" (_a1)						\
      : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
-@@ -271,7 +272,7 @@
+@@ -271,7 +273,7 @@
      register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
      register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB								\
++    "SYSCALLDB\n\t"							\
      : "=a" (resultvar)							\
      : "0" (number), "r" (_a1), "r" (_a2)				\
      : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
-@@ -289,7 +290,7 @@
+@@ -289,7 +291,7 @@
      register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
      register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB								\
++    "SYSCALLDB\n\t"							\
      : "=a" (resultvar)							\
      : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3)			\
      : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
-@@ -309,7 +310,7 @@
+@@ -309,7 +311,7 @@
      register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
      register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB								\
++    "SYSCALLDB\n\t"							\
      : "=a" (resultvar)							\
      : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4)		\
      : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
-@@ -331,7 +332,7 @@
+@@ -331,7 +333,7 @@
      register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
      register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB								\
++    "SYSCALLDB\n\t"							\
      : "=a" (resultvar)							\
      : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4),		\
        "r" (_a5)								\
-@@ -356,7 +357,7 @@
+@@ -356,7 +358,7 @@
      register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
      register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
      asm volatile (							\
 -    "syscall\n\t"							\
-+    SYSCALLDB								\
++    "SYSCALLDB\n\t"							\
      : "=a" (resultvar)							\
      : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4),		\
        "r" (_a5), "r" (_a6)						\
@@ -353,23 +348,24 @@ index f525600071f0693fc11ee0c7891a5302c8dc3a35..491c5c918d536ddd1a955b33b0a4ed92
  }
  
 diff --git a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
-index bdd02376f985b102ea76b54fb5b4f0f4fcbc19bb..762f188b6ed340dbb2cd13852b636b319bc6c53d 100644
+index bdd02376f985b102ea76b54fb5b4f0f4fcbc19bb..68b45092ca67bdf6ff24f5375951cdc1e33284b7 100644
 --- a/sysdeps/x86_64/nptl/tls.h
 +++ b/sysdeps/x86_64/nptl/tls.h
-@@ -29,6 +29,7 @@
- # include <libc-pointer-arith.h> /* For cast_to_integer.  */
+@@ -30,6 +30,8 @@
  # include <kernel-features.h>
  # include <dl-dtv.h>
-+# include <syscalldb.h>
  
++# include "shim_entry_api.h"
++
  /* Replacement type for __m128 since this file is included by ld.so,
     which is compiled with -mno-sse.  It must not change the alignment
-@@ -144,7 +145,7 @@ typedef struct
+    of rtld_savespace_sse.  */
+@@ -144,7 +146,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \
       /* It is a simple syscall to set the %fs value for the thread.  */	      \
 -     asm volatile ("syscall"						      \
-+     asm volatile (SYSCALLDB						      \
++     asm volatile ("SYSCALLDB"						      \
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \

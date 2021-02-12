@@ -79,8 +79,7 @@ $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 $(foreach lib,$(GLIBC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib))))
 
 GLIBC_PATCHES = \
-	glibc-patches/$(GLIBC_SRC).patch \
-	glibc-patches/syscalldb-api.patch
+	glibc-patches/$(GLIBC_SRC).patch
 
 GLIBC_PATCHES_2.27 = \
 	glibc-patches/hp-timing-2.27.patch
@@ -90,7 +89,7 @@ GLIBC_PATCHES_2.31 = \
 
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
-GLIBC_DEPS = shim/include/shim_entry_offsets.h
+GLIBC_DEPS = shim/include/shim_entry_api.h
 
 .SECONDARY: $(GLIBC_SRC)/.configured
 $(GLIBC_SRC)/.configured: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz $(GLIBC_DEPS)
@@ -154,7 +153,7 @@ $(foreach lib,$(GCC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib)))
 GCC_PATCHES = \
 	gcc-patches/libgomp-replace-futex-instruction.patch
 
-GCC_DEPS = shim/include/shim_entry_offsets.h
+GCC_DEPS = shim/include/shim_entry_api.h
 
 .SECONDARY: $(GCC_SRC)/.configured
 $(GCC_SRC)/.configured: $(GCC_PATCHES) $(GCC_SRC).tar.gz $(GCC_DEPS)
