@@ -6,6 +6,8 @@ node('sgx_slave_2.6') {
     load '.ci/lib/config-release.jenkinsfile'
     env.SGX = '1'
 
+    sh 'id'
+
     docker.build(
         "local:${env.BUILD_TAG}",
         '-f .ci/ubuntu18.04.dockerfile .'
