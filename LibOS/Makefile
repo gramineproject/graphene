@@ -54,7 +54,7 @@ export GLIBC_CFLAGS
 # For LibOS entry API
 GLIBC_CPPFLAGS = -I$(abspath $(SHIM_DIR))/include -I$(abspath $(SHIM_DIR))/include/arch/$(ARCH)
 export GLIBC_CPPFLAGS
-GLIBC_DEPS = shim/include/arch/x86_64/shim_entry_api.h
+GLIBC_DEPS = shim/include/arch/$(ARCH)/shim_entry_api.h
 
 .PHONY: all
 all: $(GLIBC_TARGET) $(GLIBC_RUNTIME)
@@ -158,7 +158,7 @@ GCC_PATCHES = \
 	gcc-patches/libgomp-replace-futex-instruction.patch
 
 # For LibOS entry API (file symlinked in patch)
-GCC_DEPS = shim/include/arch/x86_64/shim_entry_api.h
+GCC_DEPS = shim/include/arch/$(ARCH)/shim_entry_api.h
 
 .SECONDARY: $(GCC_SRC)/.configured
 $(GCC_SRC)/.configured: $(GCC_PATCHES) $(GCC_SRC).tar.gz $(GCC_DEPS)
