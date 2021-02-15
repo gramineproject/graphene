@@ -42,8 +42,7 @@ __asm__(
 #undef SHIM_XSTR
 #undef SHIM_STR
 
-static inline int shim_register_library(const char* name, unsigned long load_address)
-{
+static inline int shim_register_library(const char* name, unsigned long load_address) {
     int (*register_library)(const char*, unsigned long);
     __asm__("movq %%gs:%c1, %0"
             : "=r"(register_library)
