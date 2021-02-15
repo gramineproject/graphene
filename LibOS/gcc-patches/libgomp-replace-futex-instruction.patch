@@ -48,9 +48,9 @@ index ead74d1496736a49694ef6b9b2b4da50f9852664..6f7406684f700867ac78a1588a7ede19
  			"d" (count)
 diff --git a/libgomp/config/linux/x86/shim_entry_api.h b/libgomp/config/linux/x86/shim_entry_api.h
 new file mode 120000
-index 0000000000000000000000000000000000000000..3df7f8aef355ceac7176ca171e5d17acf1e49bb4
+index 0000000000000000000000000000000000000000..3d9b3b4733c21849804515f0dd05d23076f68dcf
 --- /dev/null
 +++ b/libgomp/config/linux/x86/shim_entry_api.h
 @@ -0,0 +1 @@
-+../../../../../shim/include/shim_entry_api.h
++../../../../../shim/include/arch/x86_64/shim_entry_api.h
 \ No newline at end of file

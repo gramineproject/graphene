@@ -35,11 +35,11 @@ index a6b80f93957199e1ef2bcbbcc12302830caae978..b5936e7f1c688001d48c27360f0c838c
  
 diff --git a/shim_entry_api.h b/shim_entry_api.h
 new file mode 120000
-index 0000000000000000000000000000000000000000..7663ce2eed66031527bd3f0cd1b376a89791a413
+index 0000000000000000000000000000000000000000..d238c364a6638cdf28f1d56d9df531ce8193d345
 --- /dev/null
 +++ b/shim_entry_api.h
 @@ -0,0 +1 @@
-+../shim/include/shim_entry_api.h
++../shim/include/arch/x86_64/shim_entry_api.h
 \ No newline at end of file
 diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
 index 07334c63d81cb3b0dca848aa28c6a80292059bfb..2093438c050443920da0fcafe3083d7270f9bb24 100644
