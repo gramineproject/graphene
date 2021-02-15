@@ -88,7 +88,7 @@ int sys_match_resource_num(const char* pathname) {
         goto out;
     }
 
-    /* sysfs resources like cpu, cache start from 0 till totalcnt-1 */
+    /* sysfs resources like NUMA nodes, CPU cores, CPU caches have indexes from 0 to totalcnt - 1 */
     if (num >= totalcnt) {
         debug("Incorrect index %d in file %s (max supported is %d)\n", num, pathname, totalcnt);
         ret = 0;
