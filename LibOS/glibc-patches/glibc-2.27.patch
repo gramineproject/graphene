@@ -325,20 +325,6 @@ index e4c8269e3ddafed75be2c6259cc695fa9487a109..c23cda4b3b8e75e1d199df181bee8f88
  
  	/* Push back the return PC.  */
  	pushq	%rdi
-diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
-index f525600071f0693fc11ee0c7891a5302c8dc3a35..491c5c918d536ddd1a955b33b0a4ed92675caa77 100644
---- a/sysdeps/x86_64/dl-machine.h
-+++ b/sysdeps/x86_64/dl-machine.h
-@@ -577,7 +577,8 @@ elf_machine_lazy_rel (struct link_map *map,
- 	value = ((ElfW(Addr) (*) (void)) value) ();
-       *reloc_addr = value;
-     }
--  else
-+  /* for graphene, get around R_X86_64_NONE */
-+  else if (__builtin_expect (r_type != R_X86_64_NONE, 1))
-     _dl_reloc_bad_type (map, r_type, 1);
- }
- 
 diff --git a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
 index bdd02376f985b102ea76b54fb5b4f0f4fcbc19bb..68b45092ca67bdf6ff24f5375951cdc1e33284b7 100644
 --- a/sysdeps/x86_64/nptl/tls.h
