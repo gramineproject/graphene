@@ -139,7 +139,7 @@ objs = \
 all_objs = \
 	$(objs) \
 	vdso/vdso-note.o \
-	vdso/vdso.o
+	vdso/arch/$(ARCH)/vdso.o
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
@@ -191,22 +191,20 @@ syscallas-$(ARCH).S shim_context-$(ARCH).c: asm-offsets.h
 
 include ../../../Scripts/Makefile.rules
 
-vdso/vdso.o: CFLAGS += -Ivdso/arch/$(ARCH)/
-
 LDFLAGS-vdso/vdso.so.dbg = -nostdlib -shared \
 	--hash-style=both --build-id -Bsymbolic \
 	-m elf_x86_64 --no-undefined \
 	-z max-page-size=4096 -z common-page-size=4096 \
-	-T vdso/vdso-$(ARCH).lds -soname linux-vdso.so.1
+	-T vdso/arch/$(ARCH)/vdso.lds -soname linux-vdso.so.1
 vdso/vdso.so.dbg: LDFLAGS =
-vdso/vdso.so.dbg: vdso/vdso-$(ARCH).lds vdso/vdso.o vdso/vdso-note.o | vdso/.vdso-no-reloc-checked
+vdso/vdso.so.dbg: vdso/arch/$(ARCH)/vdso.lds vdso/arch/$(ARCH)/vdso.o vdso/vdso-note.o | vdso/.vdso-no-reloc-checked
 	$(call cmd,ld)
 
 # vdso.so is required to have no relocations. This rule checks it.
 # Use default linker script to retain relocations if exist.
 LDFLAGS-vdso/.vdso-linked-for-reloc-check.so = -nostdlib -shared -Bsymbolic
 vdso/.vdso-linked-for-reloc-check.so: LDFLAGS =
-vdso/.vdso-linked-for-reloc-check.so: vdso/vdso.o
+vdso/.vdso-linked-for-reloc-check.so: vdso/arch/$(ARCH)/vdso.o
 	$(call cmd,ld)
 
 vdso/.vdso-no-reloc-checked: vdso/.vdso-linked-for-reloc-check.so
