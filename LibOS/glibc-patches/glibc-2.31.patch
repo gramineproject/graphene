@@ -316,20 +316,6 @@ index c549dce4dbc5937d819b2db35cb69672eb9c4c8b..eb12d98b1874db11eea8a2ff1b7d463e
  
  #define	r0		%rax	/* Normal return-value register.  */
  #define	r1		%rbx	/* Secondary return-value register.  */
-diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
-index 8e9baffeb4b2d5101cd1effa89bdd14a48b42aac..60ae1d1fd6275eda2e6c5e00a384264be3b64760 100644
---- a/sysdeps/x86_64/dl-machine.h
-+++ b/sysdeps/x86_64/dl-machine.h
-@@ -579,7 +579,8 @@ elf_machine_lazy_rel (struct link_map *map,
- 	value = ((ElfW(Addr) (*) (void)) value) ();
-       *reloc_addr = value;
-     }
--  else
-+  /* for Graphene, get around R_X86_64_NONE */
-+  else if (__builtin_expect (r_type != R_X86_64_NONE, 1))
-     _dl_reloc_bad_type (map, r_type, 1);
- }
- 
 diff --git a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
 index e7c1416eec4a490312ed56cc51a03a33eaa8e222..1cd560a95df7fca6762cd90f50f2ef7d8bbb493c 100644
 --- a/sysdeps/x86_64/nptl/tls.h

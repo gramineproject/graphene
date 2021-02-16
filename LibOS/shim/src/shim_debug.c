@@ -26,10 +26,9 @@ void remove_r_debug(void* addr) {
     /* do nothing */
 }
 
-void append_r_debug(const char* uri, void* addr, void* dyn_addr) {
+void append_r_debug(const char* uri, void* addr) {
     __UNUSED(uri);
     __UNUSED(addr);
-    __UNUSED(dyn_addr);
     /* do nothing */
 }
 
@@ -38,7 +37,6 @@ void append_r_debug(const char* uri, void* addr, void* dyn_addr) {
 struct gdb_link_map {
     void* l_addr;
     char* l_name;
-    void* l_ld;
     struct gdb_link_map *l_next, *l_prev;
 };
 
@@ -87,7 +85,7 @@ void remove_r_debug(void* addr) {
     free(m);
 }
 
-void append_r_debug(const char* uri, void* addr, void* dyn_addr) {
+void append_r_debug(const char* uri, void* addr) {
     struct gdb_link_map* new = malloc(sizeof(struct gdb_link_map));
     if (!new)
         return;
@@ -99,7 +97,6 @@ void append_r_debug(const char* uri, void* addr, void* dyn_addr) {
     }
 
     new->l_addr = addr;
-    new->l_ld   = dyn_addr;
     new->l_name = new_uri;
 
     struct gdb_link_map* prev  = NULL;
