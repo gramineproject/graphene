@@ -139,7 +139,7 @@ objs = \
 all_objs = \
 	$(objs) \
 	vdso/vdso-note.o \
-	vdso/vdso.o
+	vdso/vdso-$(ARCH).o
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so

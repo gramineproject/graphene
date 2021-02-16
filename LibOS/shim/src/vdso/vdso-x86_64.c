@@ -8,7 +8,7 @@
 
 #include <asm/unistd.h>
 
-#include "vdso.h"
+#include "vdso-x86_64.h"
 #include "vdso_syscall.h"
 
 /*
