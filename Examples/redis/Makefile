@@ -89,7 +89,12 @@ redis-server.manifest: redis-server.manifest.template
 # EINITTOKEN must be generated on the machine where the application will run, not where it was
 # built.
 
-redis-server.sig redis-server.manifest.sgx &: redis-server.manifest $(SRCDIR)/src/redis-server
+# Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
+# we need to hack around.
+redis-server.sig redis-server.manifest.sgx: sgx_outputs
+
+.INTERMEDIATE: sgx_outputs
+sgx_outputs: redis-server.manifest $(SRCDIR)/src/redis-server
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
