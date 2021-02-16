@@ -186,8 +186,10 @@ SGX terminology
    Architectural Enclaves
    AE
 
-      A |~| set of "system" enclaves concerned with starting and attesting other
-      enclaves.
+      Architectural Enclaves (AEs) are a |~| set of "system" enclaves concerned
+      with starting and attesting other enclaves. Intel provides reference
+      implementations of these enclaves, though other companies may write their
+      own implementations.
 
       .. seealso::
 
@@ -202,15 +204,30 @@ SGX terminology
       .. todo:: TBD
 
    Attestation
-      .. todo:: TBD
+
+      Attestation is a mechanism to prove the trustworthiness of the SGX enclave
+      to a local or remote party. More specifically, SGX attestation proves that
+      the enclave runs on a real hardware in an up-to-date TEE with the expected
+      initial state. There are two types of the attestation:
+      :term:`Local Attestation` and :term:`Remote Attestation`. For local
+      attestation, the attesting SGX enclave collects attestation evidence in
+      the form of an :term:`SGX Report` using the EREPORT hardware instruction.
+      For remote attestation, the attesting SGX enclave collects attestation
+      evidence in the form of an :term:`SGX Quote` using the :term:`Quoting
+      Enclave` (and the :term:`Provisioning Enclave` if required). The enclave
+      then may send the collected attestation evidence to the local or remote
+      party, which will verify the evidence and confirm the correctness of the
+      attesting enclave. After this, the local or remote party trusts the
+      enclave and may establish a secure channel with the enclave and send
+      secrets to it.
 
       .. seealso::
 
+         :doc:`attestation`
+
          :term:`Local Attestation`
-            Description of Local Attestation
 
          :term:`Remote Attestation`
-            Description of Remote Attestation
 
    Data Center Attestation Primitives
    DCAP
@@ -302,7 +319,15 @@ SGX terminology
          :term:`Architectural Enclaves`
 
    Local Attestation
-      .. todo:: TBD
+
+      In local attestation, the attesting SGX enclave collects attestation
+      evidence in the form of an :term:`SGX Report` using the EREPORT hardware
+      instruction. This form of attestation is used to send the attestation
+      evidence to a local party (on the same physical machine).
+
+      .. seealso::
+
+         :doc:`attestation`
 
    Intel Attestation Service
    IAS
@@ -340,12 +365,52 @@ SGX terminology
       .. todo:: TBD
 
    Provisioning Enclave
+   PE
 
-      .. todo:: TBD
+      One of the Architectural Enclaves of the Intel SGX software
+      infrastructure. It is part of the :term:`SGX Platform Software`. The
+      Provisioning Enclave is used in :term:`EPID` based remote attestation.
+      This enclave communicates with the Intel Provisioning Service
+      (:term:`IPS`) to perform EPID provisioning. The result of this
+      provisioning procedure is the private EPID key securely accessed by the
+      Provisioning Enclave. This procedure happens only during the first
+      deployment of the SGX machine (or, in rare cases, to provision a new EPID
+      key after TCB upgrade). The main user of the Provisioning Enclave is the
+      :term:`Quoting Enclave`.
 
       .. seealso::
 
          :term:`Architectural Enclaves`
+
+   Provisioning Certification Enclave
+   PCE
+
+      One of the Architectural Enclaves of the Intel SGX software
+      infrastructure. It is part of the :term:`SGX Platform Software` and
+      :term:`DCAP`. The Provisioning Certification Enclave is used in
+      :term:`DCAP` based remote attestation.  This enclave communicates with the
+      Intel Provisioning Certification Service (:term:`PCS`) to perform DCAP
+      provisioning. The result of this provisioning procedure is the DCAP/ECDSA
+      attestation collateral (mainly the X.509 certificate chains rooted in a
+      well-known Intel certificate and Certificate Revocation Lists). This
+      procedure happens during the first deployment of the SGX machine and then
+      periodically to refresh the cached attestation collateral. Typically, to
+      reduce the dependency on PCS, a cloud service provider introduces an
+      intermediate caching service (Provisioning Certification Caching Service,
+      or PCCS) that stores all the attestation collateral obtained from Intel.
+      The main user of the Provisioning Certification Enclave is the
+      :term:`Quoting Enclave`.
+
+      .. seealso::
+
+         :term:`Architectural Enclaves`
+
+   Intel Provisioning Service
+   IPS
+
+      Internet service provided by Intel for EPID-based remote attestation.
+      This service provides the corresponding EPID key to the Provisioning
+      Enclave on a remote SGX machine.
 
    Intel Provisioning Certification Service
    PCS
@@ -361,15 +426,31 @@ SGX terminology
             Intel Attestation Service, another Internet service.
 
    Quoting Enclave
+   QE
 
-      .. todo:: TBD
+      One of the Architectural Enclaves of the Intel SGX software
+      infrastructure. It is part of the :term:`SGX Platform Software`. The
+      Quoting Enclave receives an :term:`SGX Report` and produces a
+      corresponding :term:`SGX Quote`. The identity of the Quoting Enclave is
+      publicly known (it signer, its measurement and its attributes) and is
+      vetted by public companies such as Intel (in the form of the certificate
+      chain ending in a publicly known root certificate of the company).
 
       .. seealso::
 
          :term:`Architectural Enclaves`
 
    Remote Attestation
-      .. todo:: TBD
+
+      In remote attestation, the attesting SGX enclave collects attestation
+      evidence in the form of an :term:`SGX Quote` using the :term:`Quoting
+      Enclave` (and the :term:`Provisioning Enclave` if required). This form of
+      attestation is used to send the attestation evidence to a remote party
+      (not on the same physical machine).
+
+      .. seealso::
+
+         :doc:`attestation`
 
    Intel SGX Software Development Kit
    Intel SGX SDK
@@ -385,6 +466,27 @@ SGX terminology
    SECS
 
       .. todo:: TBD
+
+   SGX Quote
+
+      The SGX quote is the proof of trustworthiness of the enclave and is used
+      during :term:`Remote Attestation`. The attesting enclave generates the
+      enclave-specific :term:`SGX Report`, sends the request to the
+      :term:`Quoting Enclave` using :term:`Local Attestation`, and the Quoting
+      Enclave returns back the SGX quote with the SGX report embedded in it. The
+      resulting SGX quote contains the enclave's measurement, attributes and
+      other security-relevant fields, and is tied to the identity of the
+      :term:`Quoting Enclave` to prove its authenticity. The obtained SGX quote
+      may be later sent to the verifying remote party, which examines the SGX
+      quote and gains trust in the remote enclave.
+
+   SGX Report
+
+      The SGX report is a data structure that contains the enclave's measurement,
+      signer identity, attributes and a user-defined 64B string. The SGX report
+      is generated using the ``EREPORT`` hardware instruction. It is used during
+      :term:`Local Attestation`. The SGX report is embedded into the
+      :term:`SGX Quote`.
 
    SGX2
 
@@ -406,7 +508,11 @@ SGX terminology
    Trusted Execution Environment
    TEE
 
-      .. todo:: TBD
+      A Trusted Execution Environment (TEE) is an environment where the code
+      executed and the data accessed are isolated and protected in terms of
+      confidentiality (no one has access to the data except the code running
+      inside the TEE) and integrity (no one can change the code and its
+      behavior).
 
    Trusted Computing Base
    TCB

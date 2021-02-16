@@ -47,6 +47,7 @@ Table of Contents
    quickstart
    building
    manifest-syntax
+   attestation
    cloud-deployment
    sgx-intro
    glossary
