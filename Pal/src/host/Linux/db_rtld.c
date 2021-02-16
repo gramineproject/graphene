@@ -70,19 +70,27 @@ void setup_vdso_map(ElfW(Addr) addr) {
 
     ElfW(Addr) load_offset = 0;
     const ElfW(Phdr) * ph;
+    unsigned long pt_loads_count = 0;
     for (ph = vdso_map.l_phdr; ph < &vdso_map.l_phdr[vdso_map.l_phnum]; ph++)
         switch (ph->p_type) {
             case PT_LOAD:
-                /* Assumes that VDSO has only one PT_LOAD segment. */
                 load_offset = addr + (ElfW(Addr))ph->p_offset - (ElfW(Addr))ph->p_vaddr;
                 vdso_start = (uintptr_t)addr;
                 vdso_end = ALIGN_UP(vdso_start + (size_t)ph->p_memsz, PAGE_SIZE);
+                pt_loads_count++;
                 break;
             case PT_DYNAMIC:
                 vdso_map.l_real_ld = vdso_map.l_ld = (void*)addr + ph->p_offset;
                 vdso_map.l_ldnum = ph->p_memsz / sizeof(ElfW(Dyn));
                 break;
         }
+
+    if (pt_loads_count != 1) {
+        /* This code assumes that VDSO has exactly one PT_LOAD segment. */
+        vdso_start = 0;
+        vdso_end = 0;
+        return;
+    }
 
     ElfW(Dyn) local_dyn[4];
     int ndyn = 0;
