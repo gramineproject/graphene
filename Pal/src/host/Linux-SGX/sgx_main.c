@@ -458,9 +458,20 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             assert(areas[i].data_src == ZERO);
         }
 
-        ret = add_pages_to_enclave(&enclave_secs, (void*)areas[i].addr, data, areas[i].size,
-                                   areas[i].type, areas[i].prot, areas[i].skip_eextend,
-                                   areas[i].desc);
+        /* skip adding free (heap) pages to the enclave if EDMM is enabled */
+        if (enclave->pal_sec.edmm_enable_heap && !strcmp(areas[i].desc, "free")) {
+            char p[4] = "---";
+            prot_flags_to_permissions_str(p, areas[i].prot);
+            log_debug("SKIP adding pages to enclave: %p-%p [%s:%s] (%s)%s\n",
+                            (void *)areas[i].addr,
+                            (void *)areas[i].addr + areas[i].size,
+                            (areas[i].type == SGX_PAGE_TCS) ? "TCS" : "REG",
+                            p, areas[i].desc,  areas[i].skip_eextend ? "" : " measured");
+        } else {
+            ret = add_pages_to_enclave(&enclave_secs, (void*)areas[i].addr, data, areas[i].size,
+                                       areas[i].type, areas[i].prot, areas[i].skip_eextend,
+                                       areas[i].desc);
+        }
 
         if (data)
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
@@ -706,6 +717,16 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
 
     /* EPID is used if SPID is a non-empty string in manifest, otherwise DCAP/ECDSA */
     enclave_info->use_epid_attestation = sgx_ra_client_spid_str && strlen(sgx_ra_client_spid_str);
+
+    bool edmm_enable_heap;
+    ret = toml_bool_in(manifest_root, "sgx.edmm_enable_heap", /*defaultval=*/false,
+                       &edmm_enable_heap);
+    if (ret < 0 ) {
+        log_error("Cannot parse 'sgx.edmm_enable_heap' (the value must be 0 or 1)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->pal_sec.edmm_enable_heap = edmm_enable_heap;
 
     char* profile_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);
