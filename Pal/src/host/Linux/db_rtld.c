@@ -16,6 +16,7 @@
 #include "elf/elf.h"
 #include "pal.h"
 #include "pal_debug.h"
+#include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_rtld.h"
 
@@ -86,7 +87,8 @@ void setup_vdso_map(ElfW(Addr) addr) {
         }
 
     if (pt_loads_count != 1) {
-        /* This code assumes that VDSO has exactly one PT_LOAD segment. */
+        log_warning("The VDSO has %lu PT_LOAD segments, but only 1 was expected.\n",
+                    pt_loads_count);
         vdso_start = 0;
         vdso_end = 0;
         return;
