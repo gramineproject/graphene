@@ -367,6 +367,23 @@ more CPU cores and burning more CPU cycles. For example, a single-threaded
 Redis instance on Linux becomes 5-threaded on Graphene with Exitless. Thus,
 Exitless may negatively impact throughput but may improve latency.
 
+EDMM dynamic heap (Experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.edmm_enable_heap = [1|0]
+    (Default: 0)
+
+This syntax enables EDMM dynamic heap feature available as part of Intel SGX2
+capable hardware. By default the feature is disabled but when enabled, EPC
+pages are not added when creating the enclave but allocated when an unavailable
+page is EACCEPT'ed. This triggers a page fault (#PF) which is handled by the
+Intel SGX driver (legacy driver) which EAUG's the page and is then EACCEPT'ed
+by the enclave. This does help reduce the loading time of a large enclave
+application but can impact the runtime as there is a penalty for additional
+asynchronous enclave exits (AEXs) caused by #PFs.
+
 Optional CPU features (AVX, AVX512, MPX, PKRU)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -7,6 +7,8 @@
 #include "pal_linux.h"
 #include "pal_security.h"
 
+#include "gsgx.h"
+
 struct atomic_int g_allocated_pages;
 
 static size_t g_page_size = PRESET_PAGESIZE;
@@ -81,8 +83,79 @@ int init_enclave_pages(void) {
     return 0;
 }
 
+#define SE_DECLSPEC_ALIGN(x) __attribute__((aligned(x)))
+static int free_edmm_page_range(void *start, size_t size)
+{
+    void *addr = (void *)((uintptr_t)start & (~(PRESET_PAGESIZE-1)));
+    void *end = addr + size;
+    int ret = 0;
+    struct sgx_range rg;
+    log_debug("%s: start = %lx, size = %lx\n", __func__, start, size);
+    SE_DECLSPEC_ALIGN(sizeof(sgx_arch_sec_info_t)) sgx_arch_sec_info_t si;
+
+    si.flags = SGX_SECINFO_FLAGS_TRIM | SGX_SECINFO_FLAGS_MODIFIED;
+    memset(&si.reserved, 0, sizeof(si.reserved));
+
+    rg.start_addr = (unsigned long) addr;
+    rg.nr_pages = size / PRESET_PAGESIZE;
+    ret = ocall_trim_epc_pages(&rg);
+    if (ret) {
+        log_debug("EPC trim page on [%p, %p) failed (%d)\n", addr, end, ret);
+        return -1;
+    }
+
+    for ( ; addr < end; addr += PRESET_PAGESIZE) {
+        ret = sgx_accept(&si, addr);
+        if (ret) {
+            log_debug("EDMM accept page failed while trimming: %p %d\n", (void *)addr, ret);
+            return -1;
+        }
+    }
+
+    ret = ocall_notify_accept(&rg);
+    if (ret) {
+        log_debug("EPC notify_accept on [%p, %p) failed (%d)\n", addr, end, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int get_edmm_page_range(void *start, size_t size, bool executable)
+{
+    uintptr_t lo = (uintptr_t)start;
+    uintptr_t addr = lo + size;
+    log_debug("%s: start = %lx, size = %lx, is_executable = %s\n", __func__, start, size,
+               (executable) ? "TRUE" : "FALSE");
+    SE_DECLSPEC_ALIGN(sizeof(sgx_arch_sec_info_t)) sgx_arch_sec_info_t si;
+
+    si.flags = SGX_SECINFO_FLAGS_R | SGX_SECINFO_FLAGS_W | SGX_SECINFO_FLAGS_REG |
+               SGX_SECINFO_FLAGS_PENDING;
+    memset(&si.reserved, 0, sizeof(si.reserved));
+
+    SE_DECLSPEC_ALIGN(sizeof(sgx_arch_sec_info_t)) sgx_arch_sec_info_t smi = si;
+    smi.flags |= SGX_SECINFO_FLAGS_X;
+
+    while (lo < addr) {
+        int ret;
+        addr -= PRESET_PAGESIZE;
+
+        ret = sgx_accept(&si, (const void *)addr);
+        if (ret) {
+            log_debug("EDMM accept page failed: %p %d\n", (void *)addr, ret);
+            return -1;
+        }
+
+        /* EMODPE doesn't return any value */
+        if (executable)
+            sgx_modpe(&smi, (const void *)addr);
+    }
+
+    return 0;
+}
+
 static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_internal,
-                                    struct heap_vma* vma_above) {
+                                    struct heap_vma* vma_above, size_t* new_allocation) {
     assert(_DkInternalIsLocked(&g_heap_vma_lock));
     assert(addr && size);
 
@@ -170,6 +243,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
     assert(vma->top - vma->bottom >= (ptrdiff_t)freed);
     size_t allocated = vma->top - vma->bottom - freed;
+    *new_allocation = allocated;
     __atomic_add_fetch(&g_allocated_pages.counter, allocated / g_page_size, __ATOMIC_SEQ_CST);
 
     if (is_pal_internal) {
@@ -182,6 +256,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
 void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
     void* ret = NULL;
+    size_t new_allocation = 0;
 
     if (!size)
         return NULL;
@@ -213,7 +288,7 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
             }
             vma_above = vma;
         }
-        ret = __create_vma_and_merge(addr, size, is_pal_internal, vma_above);
+        ret = __create_vma_and_merge(addr, size, is_pal_internal, vma_above, &new_allocation);
     } else {
         /* caller did not specify address; find first (highest-address) empty slot that fits */
         void* vma_above_bottom = g_heap_top;
@@ -221,7 +296,7 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
         LISTP_FOR_EACH_ENTRY(vma, &g_heap_vma_list, list) {
             if (vma->top < vma_above_bottom - size) {
                 ret = __create_vma_and_merge(vma_above_bottom - size, size, is_pal_internal,
-                                             vma_above);
+                                             vma_above, &new_allocation);
                 goto out;
             }
             vma_above = vma;
@@ -230,11 +305,15 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
 
         /* corner case: there may be enough space between heap bottom and the lowest-address VMA */
         if (g_heap_bottom < vma_above_bottom - size)
-            ret = __create_vma_and_merge(vma_above_bottom - size, size, is_pal_internal, vma_above);
+            ret = __create_vma_and_merge(vma_above_bottom - size, size, is_pal_internal, vma_above, &new_allocation);
     }
 
 out:
     _DkInternalUnlock(&g_heap_vma_lock);
+    if (g_pal_sec.edmm_enable_heap && new_allocation && ret) {
+        if (get_edmm_page_range(ret, size, 1) < 0)
+            ret = NULL;
+    }
     return ret;
 }
 
@@ -318,6 +397,11 @@ int free_enclave_pages(void* addr, size_t size) {
 
 out:
     _DkInternalUnlock(&g_heap_vma_lock);
+    if (ret >=0 && g_pal_sec.edmm_enable_heap) {
+        if (free_edmm_page_range(addr, size) < 0)
+            ret = NULL;
+    }
+
     return ret;
 }
 

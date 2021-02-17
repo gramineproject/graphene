@@ -497,6 +497,7 @@ def generate_measurement(enclave_base, attr, areas):
 
             include_page(digest, page, flags, start_zero + data + end_zero, True)
 
+    edmm_enable_heap = attr['edmm_enable_heap']
     for area in areas:
         if area.elf_filename is not None:
             with open(area.elf_filename, 'rb') as file:
@@ -524,6 +525,8 @@ def generate_measurement(enclave_base, attr, areas):
                     load_file(mrenclave, file, offset, baseaddr_ + addr, filesize, memsize,
                               desc, flags)
         else:
+            if edmm_enable_heap == 1 and (area.desc == "free"):
+                continue
             for addr in range(area.addr, area.addr + area.size, offs.PAGESIZE):
                 data = ZERO_PAGE
                 if area.content is not None:
@@ -678,6 +681,7 @@ def read_manifest(path):
     sgx.setdefault('support_exinfo', 0)
     sgx.setdefault('nonpie_binary', 0)
     sgx.setdefault('enable_stats', 0)
+    sgx.setdefault('edmm_enable_heap', 0)
 
     loader = manifest.setdefault('loader', {})
     loader.setdefault('preload', '')
@@ -704,6 +708,7 @@ def main_sign(manifest, args):
     attr['year'] = today.year
     attr['month'] = today.month
     attr['day'] = today.day
+    attr['edmm_enable_heap'] = manifest_sgx['edmm_enable_heap']
 
     print('Attributes:')
     print('    size:        0x%x' % attr['enclave_size'])
@@ -714,6 +719,7 @@ def main_sign(manifest, args):
     print('    attr.xfrm:   %s' % attr['xfrms'].hex())
     print('    misc_select: %s' % attr['misc_select'].hex())
     print('    date:        %d-%02d-%02d' % (attr['year'], attr['month'], attr['day']))
+    print("    edmm_heap:   %d" % (attr['edmm_enable_heap']))
 
     if manifest_sgx['remote_attestation'] == 1:
         spid = manifest_sgx.get('ra_client_spid', '')
