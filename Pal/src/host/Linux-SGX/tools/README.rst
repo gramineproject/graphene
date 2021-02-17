@@ -182,14 +182,15 @@ Secret Provisioning libraries are reference implementations for the flows to
 provision secrets from a trusted machine (service, verifier) to an enclavized
 application (client, attester). These libraries rely heavily on RA-TLS.
 
-Conceptually, a client application and a trusted service establish a secure
-RA-TLS communication channel via TLS mutual attestation. The service sends its
-normal X.509 certificate for verification by client, whereas the client sends
-its RA-TLS X.509 certificate with SGX-related information for verification by
-the service. After this mutual attestation, the trust is established, and the
-service provisions the secrets to the client. The established TLS channel may be
-either closed after provisioning these initial secrets or may be further used by
-both parties for continued secure communication.
+Conceptually, an enclavized client application and a trusted service establish a
+secure RA-TLS communication channel via TLS mutual attestation. The service
+sends its normal X.509 certificate for verification by client, whereas the
+enclavized client sends its RA-TLS X.509 certificate with SGX-related
+information for verification by the service. After this mutual attestation, the
+trust is established, and the service provisions the secrets to the enclavized
+client. The established TLS channel may be either closed after provisioning
+these initial secrets or may be further used by both parties for continued
+secure communication.
 
 Secret Provisioning is shipped as three libraries: ``secret_prov_attest.so``,
 EPID-based ``secret_prov_verify_epid.so`` and ECDSA-based (DCAP)

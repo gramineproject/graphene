@@ -186,9 +186,10 @@ SGX terminology
    Architectural Enclaves
    AE
 
-      A |~| set of "system" enclaves concerned with starting and attesting other
-      enclaves. Intel provides reference implementations of these enclaves,
-      though other companies may write their own implementations.
+      Architectural Enclaves (AEs) are a |~| set of "system" enclaves concerned
+      with starting and attesting other enclaves. Intel provides reference
+      implementations of these enclaves, though other companies may write their
+      own implementations.
 
       .. seealso::
 
@@ -204,8 +205,10 @@ SGX terminology
 
    Attestation
 
-      Attestation is a mechanism to prove the correctness of the SGX enclave to
-      a local or remote party. There are two types of the attestation:
+      Attestation is a mechanism to prove the trustworthiness of the SGX enclave
+      to a local or remote party. More specifically, SGX attestation proves that
+      the enclave runs on a real hardware in an up-to-date TEE with the expected
+      initial state. There are two types of the attestation:
       :term:`Local Attestation` and :term:`Remote Attestation`. For local
       attestation, the attesting SGX enclave collects attestation evidence in
       the form of an :term:`SGX Report` using the EREPORT hardware instruction.
@@ -223,10 +226,8 @@ SGX terminology
          :doc:`attestation`
 
          :term:`Local Attestation`
-            Description of Local Attestation
 
          :term:`Remote Attestation`
-            Description of Remote Attestation
 
    Data Center Attestation Primitives
    DCAP
@@ -390,7 +391,7 @@ SGX terminology
       infrastructure. It is part of the :term:`SGX Platform Software`. The
       Quoting Enclave receives an :term:`SGX Report` and produces a
       corresponding :term:`SGX Quote`. The identity of the Quoting Enclave is
-      publicly known (it signer, its measurements and its attributes) and is
+      publicly known (it signer, its measurement and its attributes) and is
       vetted by public companies such as Intel (in the form of the certificate
       chain ending in a publicly known root certificate of the company).
 
@@ -427,20 +428,20 @@ SGX terminology
 
    SGX Quote
 
-      The SGX quote is the proof of correctness of the enclave and is used
+      The SGX quote is the proof of trustworthiness of the enclave and is used
       during :term:`Remote Attestation`. The attesting enclave generates the
       enclave-specific :term:`SGX Report`, sends the request to the
       :term:`Quoting Enclave` using :term:`Local Attestation`, and the Quoting
       Enclave returns back the SGX quote with the SGX report embedded in it. The
-      resulting SGX quote contains the enclave's measurements, attributes and
-      other security-relevant fields, and is signed by a publicly known key of
-      the :term:`Quoting Enclave` to prove its authenticity. The obtained SGX
-      quote may be later sent to the verifying remote party, which examines the
-      SGX quote and gains trust in the remote enclave.
+      resulting SGX quote contains the enclave's measurement, attributes and
+      other security-relevant fields, and is tied to the identity of the
+      :term:`Quoting Enclave` to prove its authenticity. The obtained SGX quote
+      may be later sent to the verifying remote party, which examines the SGX
+      quote and gains trust in the remote enclave.
 
    SGX Report
 
-      The SGX report is a data structure that contains enclave measurements,
+      The SGX report is a data structure that contains the enclave's measurement,
       signer identity, attributes and a user-defined 64B string. The SGX report
       is generated using the ``EREPORT`` hardware instruction. It is used during
       :term:`Local Attestation`. The SGX report is embedded into the
@@ -467,9 +468,10 @@ SGX terminology
    TEE
 
       A Trusted Execution Environment (TEE) is an environment where the code
-      executed and the data accessed is isolated and protected in terms of
-      confidentiality (no one have access to the data) and integrity (no one can
-      change the code and its behavior).
+      executed and the data accessed are isolated and protected in terms of
+      confidentiality (no one has access to the data except the code running
+      inside the TEE) and integrity (no one can change the code and its
+      behavior).
 
    Trusted Computing Base
    TCB
