@@ -635,7 +635,7 @@ sgx_ocall:
 	# In non-debug mode, clear these registers.
 	xorq %rbp, %rbp
 	xorq %r8, %r8
-	xorq %r9, %r0
+	xorq %r9, %r9
 #endif
 
 	# %rsp points to untrusted stack
