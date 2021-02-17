@@ -1,6 +1,6 @@
-# Nodejs manifest file example
+# Node.js manifest file example
 #
-# This manifest was prepared and tested on Ubuntu 18.04.
+# This manifest was prepared and tested on Ubuntu 18.04. The tested version of Node.js was v13.14.0.
 
 libos.entrypoint = "file:$(NODEJS_DIR)/nodejs"
 
@@ -13,6 +13,12 @@ loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
+
+# Forward environment variables from the host. Don't use this on production!
+loader.insecure__use_host_env = 1
+
+# Node.js requires eventfd2() emulation otherwise fails on `(uv_loop_init(&tracing_loop_)) == (0)'
+sys.insecure__allow_eventfd = 1
 
 # Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax applies. Paths must be in-
 # Graphene visible paths, not host-OS paths (i.e., paths must be taken from fs.mount.xxx.path, not
@@ -40,11 +46,12 @@ fs.mount.lib3.uri = "file:/usr/$(ARCH_LIBDIR)"
 # time.
 sgx.enclave_size = "2G"
 
-sgx.nonpie_binary = 1
-
-# Set maximum number of in-enclave threads to 8. Recall that SGX v1 requires to specify the maximum
+# Set maximum number of in-enclave threads to 32. Recall that SGX v1 requires to specify the maximum
 # number of simultaneous threads at enclave creation time.
-sgx.thread_num = 8
+sgx.thread_num = 32
+
+# Node.js is a non-PIE binary
+sgx.nonpie_binary = 1
 
 # Specify all files used by Node.js and its dependencies (including all libs which can be loaded at
 # runtime via dlopen).
