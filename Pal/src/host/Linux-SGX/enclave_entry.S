@@ -510,6 +510,7 @@ sgx_ocall:
 	#   xregs
 	# (padding)
 	# --- stack may be non-contiguous as we may switch the stack to signal stack
+	# previous RBX
 	# previous RBP
 	# previous RIP: pushed by callq
 
@@ -519,6 +520,8 @@ sgx_ocall:
 	movq %rsp, %rbp
 	.cfi_offset %rbp, -16
 	.cfi_def_cfa_register %rbp
+	pushq %rbx
+	.cfi_offset %rbx, -24
 
 	CHECK_IF_SIGNAL_STACK_IS_USED %rsp, .Lon_signal_stack_ocall, .Lout_of_signal_stack_ocall
 
@@ -593,7 +596,6 @@ sgx_ocall:
 
 #ifdef DEBUG
 	# Push %rip of some code inside __morestack() on untrusted stack.
-	# At sgx_entry(), GDB deduces saved_rip by looking at CFA-8 = %rsp.
 	leaq .Lfor_cfa_debug_info(%rip), %r8
 	pushq %r8
 #endif
@@ -611,27 +613,7 @@ sgx_ocall:
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
 .Lclear_and_eexit:
 
-#ifdef DEBUG
-	# Enclave and untrusted stacks are split (segmented). GDB refuses to
-	# unwind such stacks because it looks like stack frames "jump" back
-	# and forth. Luckily, GDB special-cases stack frames for a function
-	# with hardcoded name "__morestack". Declare this dummy function
-	# to make GDB happy.
-
-	.global __morestack
-	.type __morestack, @function
-__morestack:
-
 	.cfi_startproc
-
-	# Parse trusted stack frame from (saved) RBP.
-	.cfi_def_cfa %rbp, 0
-	.cfi_offset %rip, 8
-	.cfi_offset %rbp, 0
-#else
-	.cfi_startproc
-#endif
-
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 
 	# g_pal_sec.enclave_attributes.xfrm will always be zero before
@@ -653,22 +635,21 @@ __morestack:
 	# %rsi, %rdi are arguments to the untrusted code
 
 #ifdef DEBUG
-.Lfor_cfa_debug_info:
-	# Leave %rbp pointing to OCALL function on trusted stack.
+	# Keep callee-saved registers in order to recover stack later (see __morestack() below).
 #else
-	# In non-debug mode, clear %rbp to not leak trusted stack address.
+	# In non-debug mode, clear these registers to prevent information leaks.
 	xorq %rbp, %rbp
+	xorq %r12, %r12
+	xorq %r13, %r13
+	xorq %r14, %r14
+	xorq %r15, %r15
 #endif
 
 	# %rsp points to untrusted stack
 	xorq %r8, %r8
 	xorq %r9, %r9
 	xorq %r10, %r10
-	xorq %r11, %r11
-	xorq %r12, %r12
-	xorq %r13, %r13
-	xorq %r14, %r14
-	subq %r15, %r15 # use sub to set flags to a fixed value
+	subq %r11, %r11  # use sub to set flags to a fixed value
 
 	movq $EEXIT, %rax
 	ENCLU
@@ -873,3 +854,39 @@ restore_xregs:
 	popq %r11
 	jmp __restore_xregs
 	.cfi_endproc
+
+#ifdef DEBUG
+	# CFI "trampoline" to make GDB happy. GDB normally does not handle switching stack in the
+	# middle of backtrace (which is what happens when we exit the enclave), unless the function
+	# doing it is called __morestack.
+	#
+	# To make GDB backtrace work, we make sure that the first function outside of enclave
+	# (sgx_entry) has a return address on stack, pointing inside __morestack. We will not actually
+	# return to this function (sgx_entry performs EENTER to go back to enclave), but GDB will make a
+	# stack frame for it.
+	#
+	# The function contains CFI directives to make sure that all callee-saved registers can be
+	# recovered. They should reflect the situation during EEXIT in code above.
+
+	.global __morestack
+	.type __morestack, @function
+__morestack:
+	.cfi_startproc
+
+	# Callee-saved registers:
+
+	# RIP, RSP: deduced from current RBP (which was not cleared in debug mode)
+	.cfi_def_cfa %rbp, 16
+
+	# RBP, RBX: saved on stack (at the beginning of sgx_ocall)
+	.cfi_offset %rbp, -16
+	.cfi_offset %rbx, -24
+
+	# R12, R13, R14, R15: not changed (not cleared in debug mode)
+
+	nop
+.Lfor_cfa_debug_info:
+	nop
+
+	.cfi_endproc
+#endif
