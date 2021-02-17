@@ -585,6 +585,9 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.in_gdb = sec_info.in_gdb;
 #endif
 
+    /* Extract EDMM mode */
+    g_pal_sec.edmm_enable_heap = sec_info.edmm_enable_heap;
+
     /* For {p,u,g}ids we can at least do some minimal checking. */
 
     /* ppid should be positive when interpreted as signed. It's 0 if we don't
@@ -708,7 +711,10 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         log_error("Cannot parse \'sgx.preheat_enclave\' (the value must be `true` or `false`)\n");
         ocall_exit(1, true);
     }
-    if (preheat_enclave) {
+    if (!g_pal_sec.edmm_enable_heap && preheat_enclave == 1) {
+        log_warning("EDMM ('sgx.edmm_enable_heap') and preheat-enclave ('sgx.preheat_enclave') are"
+                    " both enabled. Graphene will use EDMM only for the region excluded by"
+                    " preheat-enclave size.");
         for (uint8_t* i = g_pal_sec.heap_min; i < (uint8_t*)g_pal_sec.heap_max; i += g_page_size)
             READ_ONCE(*(size_t*)i);
     }

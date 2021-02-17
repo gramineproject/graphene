@@ -510,6 +510,7 @@ def generate_measurement(enclave_base, attr, areas):
 
             include_page(digest, page, flags, start_zero + data + end_zero, True)
 
+    edmm_enable_heap = attr['edmm_enable_heap']
     for area in areas:
         if area.elf_filename is not None:
             with open(area.elf_filename, 'rb') as file:
@@ -537,6 +538,9 @@ def generate_measurement(enclave_base, attr, areas):
                     load_file(mrenclave, file, offset, baseaddr_ + addr, filesize, memsize,
                               desc, flags)
         else:
+            # Skip EADDing of heap ("free") pages when EDMM is enabled.
+            if edmm_enable_heap == 1 and area.desc == "free":
+                continue
             for addr in range(area.addr, area.addr + area.size, offs.PAGESIZE):
                 data = ZERO_PAGE
                 if area.content is not None:
@@ -690,6 +694,7 @@ def read_manifest(path):
     sgx.setdefault('support_exinfo', False)
     sgx.setdefault('nonpie_binary', False)
     sgx.setdefault('enable_stats', False)
+    sgx.setdefault('edmm_enable_heap', False)
 
     loader = manifest.setdefault('loader', {})
     loader.setdefault('preload', '')
@@ -716,16 +721,18 @@ def main_sign(manifest, args):
     attr['year'] = today.year
     attr['month'] = today.month
     attr['day'] = today.day
+    attr['edmm_enable_heap'] = manifest_sgx['edmm_enable_heap']
 
     print('Attributes:')
-    print(f'    size:        {attr["enclave_size"]:#x}')
-    print(f'    thread_num:  {attr["thread_num"]}')
-    print(f'    isv_prod_id: {attr["isv_prod_id"]}')
-    print(f'    isv_svn:     {attr["isv_svn"]}')
-    print(f'    attr.flags:  {attr["flags"].hex()}')
-    print(f'    attr.xfrm:   {attr["xfrms"].hex()}')
-    print(f'    misc_select: {attr["misc_select"].hex()}')
-    print(f'    date:        {attr["year"]:04d}-{attr["month"]:02d}-{attr["day"]:02d}')
+    print(f'    size:             {attr["enclave_size"]:#x}')
+    print(f'    thread_num:       {attr["thread_num"]}')
+    print(f'    isv_prod_id:      {attr["isv_prod_id"]}')
+    print(f'    isv_svn:          {attr["isv_svn"]}')
+    print(f'    attr.flags:       {attr["flags"].hex()}')
+    print(f'    attr.xfrm:        {attr["xfrms"].hex()}')
+    print(f'    misc_select:      {attr["misc_select"].hex()}')
+    print(f'    date:             {attr["year"]:04d}-{attr["month"]:02d}-{attr["day"]:02d}')
+    print(f'    edmm_enable_heap: {attr["edmm_enable_heap"]}')
 
     if manifest_sgx['remote_attestation']:
         spid = manifest_sgx.get('ra_client_spid', '')
