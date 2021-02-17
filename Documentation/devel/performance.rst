@@ -362,6 +362,15 @@ that they have severe SGX-hardware limitations. In particular:
    version that performs function calls inside Graphene instead of raw SYSCALL
    instructions and thus avoids this overhead).
 
+#. CPU topology. The CPU topology may negatively affect performance of Graphene.
+   For example, if the machine has several NUMA domains, it is important to
+   restrict Graphene runs to only one NUMA domain, e.g., via the command
+   ``numactl --cpunodebind=0 --membind=0``. Otherwise Graphene may spread
+   enclave threads and enclave memory across several NUMA domains, which will
+   lead to higher memory access latencies and overall worse performance. Also,
+   it is typically beneficial to disable hyper-threading (or pin enclave threads
+   to CPU cores which are not hyper-threads).
+
 Other considerations
 --------------------
 
@@ -371,6 +380,16 @@ defaults to non-debug configuration). Also build the application itself in
 non-debug configuration (again, typically simple ``make SGX=1`` is sufficient).
 Finally, disable the debug log of Graphene by specifying the manifest option
 ``loader.log_level = "none"``.
+
+There are several manifest options that may improve performance of some
+workloads. The manifest options include:
+
+- ``libos.check_invalid_pointers = 0`` -- disable checks of invalid pointers on
+  system call invocations. Most real-world applications never provide invalid
+  arguments to system calls, so there is no need in additional checks.
+- ``sgx.preheat_enclave = 1`` -- pre-fault all enclave pages during enclave
+  initialization. This shifts the overhead of page faults on non-present enclave
+  pages from runtime to enclave startup time.
 
 If your application periodically fails and complains about seemingly irrelevant
 things, it may be due to insufficient enclave memory. Please try to increase
@@ -510,8 +529,8 @@ Further reading
 SGX profiling
 -------------
 
-There is some experimental support for profiling the code inside the SGX
-enclave. Here is how to use it:
+There is support for profiling the code inside the SGX enclave. Here is how to
+use it:
 
 #. Compile Graphene with ``SGX=1 DEBUG=1``.
 
@@ -527,11 +546,11 @@ enclave. Here is how to use it:
 
 #. Run ``perf report -i <data file>`` (see :ref:`perf` above).
 
-*Note*: The accuracy of this tool is unclear. The SGX profiling works by
-measuring the value of instruction pointer on each asynchronous enclave exit
-(AEX), which happen on Linux scheduler interrupts, as well as other events such
-as page faults. While we attempt to measure time (and not only count
-occurences), the results might be inaccurate.
+*Note*: The accuracy of this tool is unclear (though we had positive experiences
+using the tool). The SGX profiling works by measuring the value of instruction
+pointer on each asynchronous enclave exit (AEX), which happen on Linux scheduler
+interrupts, as well as other events such as page faults. While we attempt to
+measure time (and not only count occurences), the results might be inaccurate.
 
 Other useful tools for profiling
 --------------------------------
