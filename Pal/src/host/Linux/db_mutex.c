@@ -151,8 +151,7 @@ int _DkMutexAcquireTimeout(PAL_HANDLE handle, int64_t timeout_us) {
     return _DkMutexLockTimeout(&handle->mutex.mut, timeout_us);
 }
 
-int _DkMutexUnlock(struct mutex_handle* m) {
-    int ret = 0;
+void _DkMutexUnlock(struct mutex_handle* m) {
     int need_wake;
 
 #ifdef DEBUG_MUTEX
@@ -167,13 +166,10 @@ int _DkMutexUnlock(struct mutex_handle* m) {
     /* If we need to wake someone up... */
     if (need_wake)
         INLINE_SYSCALL(futex, 6, &m->locked, FUTEX_WAKE, 1, NULL, NULL, 0);
-
-    return ret;
 }
 
 void _DkMutexRelease(PAL_HANDLE handle) {
     _DkMutexUnlock(&handle->mutex.mut);
-    return;
 }
 
 static bool _DkMutexIsLocked(struct mutex_handle* m) {

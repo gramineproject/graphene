@@ -165,11 +165,12 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
     /* From now on `addr` contains the actual address we want to map (and already bookkeeped). */
 
     if (!hdl) {
-        if (DkVirtualMemoryAlloc(addr, length, 0, LINUX_PROT_TO_PAL(prot, flags)) != addr) {
-            if (PAL_NATIVE_ERRNO() == PAL_ERROR_DENIED) {
+        ret = DkVirtualMemoryAlloc(&addr, length, 0, LINUX_PROT_TO_PAL(prot, flags));
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_DENIED) {
                 ret = -EPERM;
             } else {
-                ret = -PAL_ERRNO();
+                ret = pal_to_unix_errno(ret);
             }
         }
     } else {
@@ -258,8 +259,10 @@ long shim_do_mprotect(void* addr, size_t length, int prot) {
         }
     }
 
-    if (!DkVirtualMemoryProtect(addr, length, LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))
-        return -PAL_ERRNO();
+    ret = DkVirtualMemoryProtect(addr, length, LINUX_PROT_TO_PAL(prot, /*map_flags=*/0));
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     return 0;
 }
@@ -284,7 +287,9 @@ long shim_do_munmap(void* addr, size_t length) {
         return ret;
     }
 
-    DkVirtualMemoryFree(addr, length);
+    if (DkVirtualMemoryFree(addr, length) < 0) {
+        BUG();
+    }
 
     bkeep_remove_tmp_vma(tmp_vma);
 

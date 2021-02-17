@@ -12,10 +12,10 @@
 
 static ssize_t dev_random_read(struct shim_handle* hdl, void* buf, size_t count) {
     __UNUSED(hdl);
-    ssize_t ret = DkRandomBitsRead(buf, count);
+    int ret = DkRandomBitsRead(buf, count);
 
     if (ret < 0)
-        return -convert_pal_errno(-ret);
+        return pal_to_unix_errno(ret);
     return count;
 }
 

@@ -22,15 +22,10 @@ PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event) {
     return __atomic_load_n(&g_handlers[event], __ATOMIC_ACQUIRE);
 }
 
-PAL_BOL
-DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
-    if (!handler || event == 0 || event >= ARRAY_SIZE(g_handlers)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
-    }
+void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
+    assert(handler && event != 0 && event < ARRAY_SIZE(g_handlers));
 
     __atomic_store_n(&g_handlers[event], handler, __ATOMIC_RELEASE);
-    return PAL_TRUE;
 }
 
 /* This does not return */

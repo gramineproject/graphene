@@ -409,6 +409,7 @@ static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim
         if (do_mapi && do_mapo) {
             copysize = count - bytes > bufsize ? bufsize : count - bytes;
             memcpy(bufo + boffo, bufi + boffi, copysize);
+            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
             DkVirtualMemoryFree(bufi, ALLOC_ALIGN_UP(bufsize + boffi));
             bufi = NULL;
             if (fso->fs_ops->flush) {
@@ -416,6 +417,7 @@ static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim
                  * explicit flush before freeing PF's mmapped region `bufo` */
                 fso->fs_ops->flush(hdlo);
             }
+            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
             DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
         } else if (do_mapo) {
@@ -425,12 +427,14 @@ static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim
                  * explicit flush before freeing PF's mmapped region `bufo` */
                 fso->fs_ops->flush(hdlo);
             }
+            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
             DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
             if (copysize < 0)
                 break;
         } else if (do_mapi) {
             copysize = fso->fs_ops->write(hdlo, bufi + boffi, bufsize);
+            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
             DkVirtualMemoryFree(bufi, ALLOC_ALIGN_UP(bufsize + boffi));
             bufi = NULL;
             if (copysize < 0)

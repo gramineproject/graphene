@@ -60,7 +60,9 @@ int init_vma(void);
  * if (bkeep_munmap(ptr, len, is_internal, &tmp_vma) < 0) {
  *     handle_errors();
  * }
- * DkVirtualMemoryFree(ptr, len);
+ * if (DkVirtualMemoryFree(ptr, len) < 0) {
+ *     handle_errors();
+ * }
  * bkeep_remove_tmp_vma(tmp_vma);
  *
  * Such a way of freeing is needed, so that no other thread will map the same memory in the window

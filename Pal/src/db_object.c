@@ -13,8 +13,6 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-/* Deprecated DkObjectReference. */
-
 int _DkObjectClose(PAL_HANDLE objectHandle) {
     const struct handle_ops* ops = HANDLE_OPS(objectHandle);
     if (!ops)
@@ -37,56 +35,43 @@ int _DkObjectClose(PAL_HANDLE objectHandle) {
     return ret;
 }
 
+/*
+ * TODO: whole LibOS assumes this never returns errors. We need to either make `_DkObjectClose`
+ * never fail (from a quick look at the code, seems like it cannot return errors in practice) or
+ * make this return an `int` and handle errors in all call sites (hard to do; in most places we
+ * cannot handle them in a meaningful way).
+ */
 /* PAL call DkObjectClose: Close the given object handle. */
 void DkObjectClose(PAL_HANDLE objectHandle) {
-    if (!objectHandle) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return;
-    }
+    assert(objectHandle);
 
-    int ret = _DkObjectClose(objectHandle);
-    if (ret < 0)
-        _DkRaiseFailure(-ret);
+    _DkObjectClose(objectHandle);
 }
 
-/* Wait on a synchronization handle and return true if this handle's event was triggered,
- * otherwise return false and additionally raise failure. */
-PAL_BOL DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us) {
+/* Wait on a synchronization handle and return `0` if this handle's event was triggered,
+ * otherwise return negative error code. */
+int DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us) {
     if (!handle) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
+        return -PAL_ERROR_INVAL;
     }
 
-    int ret = _DkSynchronizationObjectWait(handle, timeout_us);
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        return PAL_FALSE;
-    }
-
-    return PAL_TRUE;
+    return _DkSynchronizationObjectWait(handle, timeout_us);
 }
 
 /* Wait for user-specified events of handles in the handle array. The wait can be timed out, unless
- * NO_TIMEOUT is given in the timeout_us argument. Returns PAL_TRUE if waiting was successful. */
-PAL_BOL DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
-                            PAL_FLG* ret_events, PAL_NUM timeout_us) {
+ * NO_TIMEOUT is given in the timeout_us argument. Returns `0` if waiting was successful, negative
+ * error code otherwise. */
+int DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
+                        PAL_FLG* ret_events, PAL_NUM timeout_us) {
     if (!count || !handle_array || !events || !ret_events) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
+        return -PAL_ERROR_INVAL;
     }
 
     for (PAL_NUM i = 0; i < count; i++) {
         if (UNKNOWN_HANDLE(handle_array[i])) {
-            _DkRaiseFailure(PAL_ERROR_INVAL);
-            return PAL_FALSE;
+            return -PAL_ERROR_INVAL;
         }
     }
 
-    int ret = _DkStreamsWaitEvents(count, handle_array, events, ret_events, timeout_us);
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        return PAL_FALSE;
-    }
-
-    return PAL_TRUE;
+    return _DkStreamsWaitEvents(count, handle_array, events, ret_events, timeout_us);
 }

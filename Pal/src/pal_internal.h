@@ -222,7 +222,6 @@ int _DkVirtualMemoryFree(void* addr, uint64_t size);
 int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot);
 
 /* DkObject calls */
-int _DkObjectReference(PAL_HANDLE objectHandle);
 int _DkObjectClose(PAL_HANDLE objectHandle);
 int _DkSynchronizationObjectWait(PAL_HANDLE handle, int64_t timeout_us);
 int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events,
@@ -230,7 +229,6 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 
 /* DkException calls & structures */
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event_num);
-void _DkRaiseFailure(int error);
 
 /* other DK calls */
 void _DkInternalLock(PAL_LOCK* mut);

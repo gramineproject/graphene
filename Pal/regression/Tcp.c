@@ -11,85 +11,139 @@ char buffer[12];
 
 int main(int argc, char** argv) {
     int i;
+    int ret;
 
     if (argc == 1) {
-        unsigned long time = DkSystemTimeQuery();
+        unsigned long time = 0;
+        if (DkSystemTimeQuery(&time) < 0) {
+            pal_printf("DkSystemTimeQuery failed\n");
+            return 1;
+        }
         pal_printf("start time = %lu\n", time);
 
         snprintf(time_arg, 24, "%ld", time);
 
         const char* newargs[4] = {"Tcp", time_arg, NULL};
 
-        PAL_HANDLE srv = DkStreamOpen("tcp.srv:127.0.0.1:8000", 0, 0, 0, 0);
+        PAL_HANDLE srv = NULL;
+        ret = DkStreamOpen("tcp.srv:127.0.0.1:8000", 0, 0, 0, 0, &srv);
 
-        if (!srv) {
+        if (ret < 0) {
             pal_printf("not able to create server\n");
-            return -1;
+            return 1;
         }
 
-        DkStreamGetName(srv, addr, 40);
+        ret = DkStreamGetName(srv, addr, sizeof(addr));
+        if (ret < 0) {
+            pal_printf("DkStreamGetName failed\n");
+            return 1;
+        }
         pal_printf("server bound on %s\n", addr);
 
-        PAL_HANDLE proc = DkProcessCreate("file:Tcp", newargs);
+        PAL_HANDLE proc = NULL;
+        if (DkProcessCreate("file:Tcp", newargs, &proc) < 0) {
+            pal_printf("Tcp: DkProcessCreate failed\n");
+            return 1;
+        }
 
         for (i = 0; i < NTRIES; i++) {
-            PAL_HANDLE cli = DkStreamWaitForClient(srv);
+            PAL_HANDLE cli = NULL;
+            ret = DkStreamWaitForClient(srv, &cli);
 
-            if (!cli) {
+            if (ret < 0) {
                 pal_printf("not able to accept client\n");
-                return -1;
+                return 1;
             }
 
-            DkStreamGetName(cli, addr, 40);
+            ret = DkStreamGetName(cli, addr, sizeof(addr));
+            if (ret < 0) {
+                pal_printf("DkStreamGetName failed\n");
+                return 1;
+            }
             pal_printf("client accepted on %s\n", addr);
 
-            int bytes = DkStreamWrite(cli, 0, 12, "Hello World", NULL);
+            char buf[12] = "Hello World";
+            size_t buf_size = sizeof(buf);
+            ret = DkStreamWrite(cli, 0, &buf_size, buf, NULL);
 
-            if (!bytes) {
+            if (ret < 0 || buf_size != sizeof(buf)) {
                 pal_printf("not able to send to client\n");
-                return -1;
+                return 1;
             }
 
             DkObjectClose(cli);
         }
 
         int retval;
-        DkStreamRead(proc, 0, sizeof(int), &retval, NULL, 0);
-        DkStreamDelete(srv, 0);
+        size_t retval_size = sizeof(retval);
+        ret = DkStreamRead(proc, 0, &retval_size, &retval, NULL, 0);
+        if (ret < 0) {
+            pal_printf("DkStreamRead failed\n");
+            return 1;
+        }
+        if (retval_size != sizeof(retval)) {
+            pal_printf("DkStreamRead - short read\n");
+            return 1;
+        }
+
+        ret = DkStreamDelete(srv, 0);
+        if (ret < 0) {
+            pal_printf("DkStreamDelete failed\n");
+            return 1;
+        }
         DkObjectClose(srv);
     } else {
         for (i = 0; i < NTRIES; i++) {
-            PAL_HANDLE cli = DkStreamOpen("tcp:127.0.0.1:8000", 0, 0, 0, 0);
+            PAL_HANDLE cli = NULL;
+            ret = DkStreamOpen("tcp:127.0.0.1:8000", 0, 0, 0, 0, &cli);
 
-            if (!cli) {
+            if (ret < 0) {
                 pal_printf("not able to create client\n");
-                return -1;
+                return 1;
             }
 
-            DkStreamGetName(cli, addr, 40);
+            ret = DkStreamGetName(cli, addr, sizeof(addr));
+            if (ret < 0) {
+                pal_printf("DkStreamGetName failed\n");
+                return 1;
+            }
             pal_printf("client connected on %s\n", addr);
 
-            int bytes = DkStreamRead(cli, 0, 12, buffer, NULL, 0);
+            size_t bytes = sizeof(buffer);
+            ret = DkStreamRead(cli, 0, &bytes, buffer, NULL, 0);
 
-            if (!bytes) {
+            if (ret < 0 || bytes == 0) {
                 pal_printf("not able to receive from server\n");
-                return -1;
+                return 1;
             }
 
             pal_printf("read from server: %s\n", buffer);
 
-            DkStreamDelete(cli, 0);
+            ret = DkStreamDelete(cli, 0);
+            if (ret < 0) {
+                pal_printf("DkStreamDelete failed\n");
+                return 1;
+            }
             DkObjectClose(cli);
         }
 
-        unsigned long end = DkSystemTimeQuery();
+        unsigned long end = 0;
+        if (DkSystemTimeQuery(&end) < 0) {
+            pal_printf("DkSystemTimeQuery failed\n");
+            return 1;
+        }
         pal_printf("end time = %lu\n", end);
 
         unsigned long start = atol(argv[1]);
         pal_printf("wall time = %ld\n", end - start);
 
         int retval = 0;
-        DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &retval, NULL);
+        size_t retval_size = sizeof(retval);
+        ret = DkStreamWrite(pal_control.parent_process, 0, &retval_size, &retval, NULL);
+        if (ret < 0 || retval_size != sizeof(retval)) {
+            pal_printf("DkStreamWrite failed\n");
+            return 1;
+        }
     }
 
     return 0;

@@ -30,17 +30,25 @@ int main(int argc, char** argv) {
     PAL_HANDLE thd1;
     PAL_HANDLE thd2;
 
-    event1 = DkNotificationEventCreate(0);
-    event2 = DkNotificationEventCreate(0);
+    int ret = DkNotificationEventCreate(0, &event1);
+    if (ret < 0) {
+        pal_printf("DkNotificationEventCreate failed: %d\n", ret);
+        return 1;
+    }
+    ret = DkNotificationEventCreate(0, &event2);
+    if (ret < 0) {
+        pal_printf("DkNotificationEventCreate failed: %d\n", ret);
+        return 1;
+    }
 
-    thd1 = DkThreadCreate(&thread1_func, 0);
-    if (!thd1) {
+    ret = DkThreadCreate(&thread1_func, 0, &thd1);
+    if (ret < 0) {
         pal_printf("DkThreadCreate failed\n");
         return -1;
     }
 
-    thd2 = DkThreadCreate(&thread2_func, 0);
-    if (!thd2) {
+    ret = DkThreadCreate(&thread2_func, 0, &thd2);
+    if (ret < 0) {
         pal_printf("DkThreadCreate failed\n");
         return -1;
     }
@@ -49,8 +57,8 @@ int main(int argc, char** argv) {
     PAL_FLG events[2]  = {PAL_WAIT_READ, PAL_WAIT_READ};
     PAL_FLG revents[2] = {0, 0};
 
-    PAL_BOL polled = DkStreamsWaitEvents(2, hdls, events, revents, NO_TIMEOUT);
-    if (!polled) {
+    ret = DkStreamsWaitEvents(2, hdls, events, revents, NO_TIMEOUT);
+    if (ret < 0) {
         pal_printf("DkStreamsWaitEvents did not return any events\n");
         return -1;
     }

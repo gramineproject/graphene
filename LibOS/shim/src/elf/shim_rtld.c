@@ -309,14 +309,23 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                                      l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend, PROT_NONE,
                                      /*is_internal=*/false);
                 if (ret < 0) {
-                    errstring = "failed to change permissions";
+                    errstring = "failed to bookkeep permissions change";
                     goto call_lose;
                 }
             }
-            if (type == OBJECT_LOAD)
-                DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
-                                       l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
-                                       PAL_PROT_NONE);
+            if (type == OBJECT_LOAD) {
+                ret = DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
+                                             l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
+                                             PAL_PROT_NONE);
+                if (ret < 0) {
+                    /* XXX: this often fails, because the above address might not be allocated.
+                     * We need to rewrite this function soon.
+                    errstring = "failed to change permissions";
+                    goto call_lose;
+                    */
+                    ret = 0;
+                }
+            }
         }
 
         goto do_remap;
@@ -387,15 +396,15 @@ do_remap:
                 /* Zero the final part of the last page of the segment.  */
                 if ((c->prot & PROT_WRITE) == 0) {
                     /* Dag nab it.  */
-                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)
-                                                    | PAL_PROT_WRITE)) {
+                    if (DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)
+                                                   | PAL_PROT_WRITE) < 0) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
                     memset((void*)zero, '\0', zeropage - zero);
-                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0))) {
+                    if (DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)) < 0) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
@@ -418,10 +427,10 @@ do_remap:
 
                 if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL &&
                     type != OBJECT_VDSO) {
-                    PAL_PTR mapat =
-                        DkVirtualMemoryAlloc((void*)zeropage, zeroend - zeropage, /*alloc_type=*/0,
-                                             LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0));
-                    if (!mapat) {
+                    void* mapat = (void*)zeropage;
+                    ret = DkVirtualMemoryAlloc(&mapat, zeroend - zeropage, /*alloc_type=*/0,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0));
+                    if (ret < 0) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
                     }
@@ -857,19 +866,21 @@ static int vdso_map_init(void) {
         return ret;
     }
 
-    void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size),
-                                                 /*alloc_type=*/0, PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!ret_addr)
-        return -PAL_ERRNO();
-    assert(addr == ret_addr);
+    ret = DkVirtualMemoryAlloc(&addr, ALLOC_ALIGN_UP(vdso_so_size), /*alloc_type=*/0,
+                               PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     memcpy(addr, &vdso_so, vdso_so_size);
     memset(addr + vdso_so_size, 0, ALLOC_ALIGN_UP(vdso_so_size) - vdso_so_size);
     __load_elf_object(NULL, addr, OBJECT_VDSO);
     vdso_map->l_name = "vDSO";
 
-    if (!DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
-        return -PAL_ERRNO();
+    ret = DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     vdso_addr = addr;
     return 0;
@@ -1016,7 +1027,8 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
     ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
-        log_error("execute_elf_object: DkRandomBitsRead failed.\n");
+        ret = pal_to_unix_errno(ret);
+        log_error("execute_elf_object: DkRandomBitsRead failed: %d\n", ret);
         DkThreadExit(/*clear_child_tid=*/NULL);
         /* UNREACHABLE */
     }

@@ -336,9 +336,10 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
         unlock(&epoll_hdl->lock);
 
         /* TODO: Timeout must be updated in case of retries; otherwise, we may wait for too long */
-        PAL_BOL polled = DkStreamsWaitEvents(pal_cnt + 1, pal_handles, pal_events, ret_events,
-                                             timeout_ms * 1000);
-        long error = polled ? 0 : -PAL_ERRNO();
+        long error = DkStreamsWaitEvents(pal_cnt + 1, pal_handles, pal_events, ret_events,
+                                         timeout_ms * 1000);
+        PAL_BOL polled = error == 0;
+        error = pal_to_unix_errno(error);
 
         lock(&epoll_hdl->lock);
         __atomic_sub_fetch(&epoll->waiter_cnt, 1, __ATOMIC_RELAXED);

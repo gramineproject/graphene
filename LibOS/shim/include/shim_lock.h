@@ -31,12 +31,11 @@ static inline void clear_lock(struct shim_lock* l) {
 
 static inline bool create_lock(struct shim_lock* l) {
     l->owner = 0;
-    l->lock  = DkMutexCreate(0);
-    return l->lock != NULL;
+    return DkMutexCreate(0, &l->lock) == 0;
 }
 
 static inline void destroy_lock(struct shim_lock* l) {
-    DkObjectClose(l->lock);
+    DkObjectClose(l->lock); // TODO: handle errors
     clear_lock(l);
 }
 
@@ -47,7 +46,7 @@ static void lock(struct shim_lock* l) {
 
     assert(l->lock);
 
-    while (!DkSynchronizationObjectWait(l->lock, NO_TIMEOUT))
+    while (DkSynchronizationObjectWait(l->lock, NO_TIMEOUT) < 0)
         /* nop */;
 
     l->owner = get_cur_tid();

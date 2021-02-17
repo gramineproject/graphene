@@ -119,16 +119,18 @@ int alloc_thread_libos_stack(struct shim_thread* thread) {
     }
 
     bool need_mem_free = false;
-    if (DkVirtualMemoryAlloc(addr, SHIM_THREAD_LIBOS_STACK_SIZE, 0, LINUX_PROT_TO_PAL(prot, flags))
-            != addr) {
-        ret = -PAL_ERRNO();
+    ret = DkVirtualMemoryAlloc(&addr, SHIM_THREAD_LIBOS_STACK_SIZE, 0,
+                               LINUX_PROT_TO_PAL(prot, flags));
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto unmap;
     }
     need_mem_free = true;
 
     /* Create a stack guard page. */
-    if (!DkVirtualMemoryProtect(addr, PAGE_SIZE, PAL_PROT_NONE)) {
-        ret = -PAL_ERRNO();
+    ret = DkVirtualMemoryProtect(addr, PAGE_SIZE, PAL_PROT_NONE);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto unmap;
     }
 
@@ -145,7 +147,9 @@ unmap:;
         BUG();
     }
     if (need_mem_free) {
-        DkVirtualMemoryFree(addr, SHIM_THREAD_LIBOS_STACK_SIZE);
+        if (DkVirtualMemoryFree(addr, SHIM_THREAD_LIBOS_STACK_SIZE) < 0) {
+            BUG();
+        }
     }
     bkeep_remove_tmp_vma(tmp_vma);
     return ret;
@@ -187,15 +191,15 @@ static int init_main_thread(void) {
     set_sig_mask(cur_thread, &set);
     unlock(&cur_thread->lock);
 
-    cur_thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
-    if (!cur_thread->scheduler_event) {
+    int ret = DkNotificationEventCreate(PAL_TRUE, &cur_thread->scheduler_event);
+    if (ret < 0) {
         put_thread(cur_thread);
-        return -ENOMEM;
+        return pal_to_unix_errno(ret);;
     }
 
     /* TODO: I believe there is some Pal allocated initial stack which could be reused by the first
      * thread. Tracked: https://github.com/oscarlab/graphene/issues/2140 */
-    int ret = alloc_thread_libos_stack(cur_thread);
+    ret = alloc_thread_libos_stack(cur_thread);
     if (ret < 0) {
         put_thread(cur_thread);
         return ret;
@@ -287,8 +291,8 @@ struct shim_thread* get_new_thread(void) {
 
     unlock(&cur_thread->lock);
 
-    thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
-    if (!thread->scheduler_event) {
+    int ret = DkNotificationEventCreate(PAL_TRUE, &thread->scheduler_event);
+    if (ret < 0) {
         put_thread(thread);
         return NULL;
     }
@@ -348,7 +352,9 @@ void put_thread(struct shim_thread* thread) {
                           addr, (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE);
                 BUG();
             }
-            DkVirtualMemoryFree(addr, SHIM_THREAD_LIBOS_STACK_SIZE);
+            if (DkVirtualMemoryFree(addr, SHIM_THREAD_LIBOS_STACK_SIZE) < 0) {
+                BUG();
+            }
             bkeep_remove_tmp_vma(tmp_vma);
         }
 
@@ -606,9 +612,9 @@ BEGIN_RS_FUNC(thread) {
         return -ENOMEM;
     }
 
-    thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
-    if (!thread->scheduler_event) {
-        return -ENOMEM;
+    int ret = DkNotificationEventCreate(PAL_TRUE, &thread->scheduler_event);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
     }
 
     if (thread->handle_map) {
@@ -626,7 +632,7 @@ BEGIN_RS_FUNC(thread) {
 
     assert(!get_cur_thread());
 
-    int ret = alloc_thread_libos_stack(thread);
+    ret = alloc_thread_libos_stack(thread);
     if (ret < 0) {
         return ret;
     }

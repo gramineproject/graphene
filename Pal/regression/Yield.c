@@ -1,6 +1,8 @@
 #include "pal.h"
 #include "pal_debug.h"
 
+/* XXX: What is this even supposed to test?? */
+
 PAL_HANDLE parent_thread, child_thread;
 
 static int child(void* args) {
@@ -22,9 +24,9 @@ int main(void) {
     pal_printf("Enter Parent Thread\n");
 
     parent_thread = pal_control.first_thread;
-    child_thread  = DkThreadCreate(&child, NULL);
+    int ret = DkThreadCreate(&child, NULL, &child_thread);
 
-    if (child_thread == NULL) {
+    if (ret < 0) {
         pal_printf("DkThreadCreate failed\n");
         return -1;
     }

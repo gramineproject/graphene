@@ -149,10 +149,9 @@ static long _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     PAL_BOL polled = false;
     long error = 0;
     if (pal_cnt) {
-        polled = DkStreamsWaitEvents(pal_cnt, pals, pal_events, ret_events, timeout_us);
-        if (!polled) {
-            error = -PAL_ERRNO();
-        }
+        error = DkStreamsWaitEvents(pal_cnt, pals, pal_events, ret_events, timeout_us);
+        polled = error == 0;
+        error = pal_to_unix_errno(error);
     }
 
     for (nfds_t i = 0; i < nfds; i++) {

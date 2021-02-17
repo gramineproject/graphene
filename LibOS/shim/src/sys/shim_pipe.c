@@ -35,15 +35,17 @@ static int create_pipes(struct shim_handle* srv, struct shim_handle* cli, int fl
         return ret;
     }
 
-    if (!(hdl2 = DkStreamOpen(uri, 0, 0, 0, LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(flags)))) {
-        ret = -PAL_ERRNO();
+    ret = DkStreamOpen(uri, 0, 0, 0, LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(flags), &hdl2);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         log_error("pipe connection failure\n");
         goto out;
     }
 
-    if (!(hdl1 = DkStreamWaitForClient(hdl0))) {
-        ret = -PAL_ERRNO();
-        log_error("pipe acceptation failure\n");
+    ret = DkStreamWaitForClient(hdl0, &hdl1);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
+        log_error("pipe acception failure\n");
         goto out;
     }
 
@@ -70,7 +72,7 @@ out:
         if (hdl2)
             DkObjectClose(hdl2);
     }
-    DkStreamDelete(hdl0, 0);
+    DkStreamDelete(hdl0, 0); // TODO: handle errors
     DkObjectClose(hdl0);
     return ret;
 }

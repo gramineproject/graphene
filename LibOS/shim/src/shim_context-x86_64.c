@@ -42,14 +42,14 @@ uint64_t shim_xstate_size(void) {
 
 void shim_xstate_init(void) {
     unsigned int value[4];
-    if (!DkCpuIdRetrieve(CPUID_LEAF_PROCINFO, 0, value))
+    if (DkCpuIdRetrieve(CPUID_LEAF_PROCINFO, 0, value) < 0)
         goto out;
 
     if (!(value[PAL_CPUID_WORD_ECX] & CPUID_FEATURE_XSAVE) ||
         !(value[PAL_CPUID_WORD_ECX] & CPUID_FEATURE_OSXSAVE))
         goto out;
 
-    if (!DkCpuIdRetrieve(CPUID_LEAF_XSAVE, 0, value))
+    if (DkCpuIdRetrieve(CPUID_LEAF_XSAVE, 0, value) < 0)
         goto out;
 
     uint32_t xsavesize = value[PAL_CPUID_WORD_ECX];

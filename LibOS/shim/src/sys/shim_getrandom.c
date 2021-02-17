@@ -28,7 +28,7 @@ long shim_do_getrandom(char* buf, size_t count, unsigned int flags) {
      */
     int ret = DkRandomBitsRead(buf, count);
     if (ret < 0)
-        return -EINVAL;
+        return pal_to_unix_errno(ret);
 
     return count;
 }
