@@ -10,10 +10,12 @@
 #include "sgx_log.h"
 
 static int g_gsgx_device = -1;
-static int g_isgx_device = -1;
+int g_isgx_device = -1;
 
 static void* g_zero_pages       = NULL;
 static size_t g_zero_pages_size = 0;
+
+extern struct pal_enclave g_pal_enclave;
 
 int open_sgx_driver(bool need_gsgx) {
     if (need_gsgx) {
@@ -138,14 +140,21 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
         request_mmap_addr  = MMAP_MIN_ADDR;
     }
 #endif
-
-    uint64_t addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
-                                   PROT_NONE, /* newer DCAP driver requires such initial mmap */
+    uint64_t addr;
+    if (g_pal_enclave.pal_sec.edmm_enable_heap) {
+        /* currently edmm support is available with legacy intel driver */
+        addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
+                              PROT_READ | PROT_WRITE | PROT_EXEC,
+                              MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
+    } else {
+        addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
+                              PROT_NONE, /* newer DCAP driver requires such initial mmap */
 #ifdef SGX_DCAP
-                                   MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                              MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #else
-                                   MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
+                              MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
 #endif
+    }
 
     if (IS_ERR_P(addr)) {
         if (ERRNO_P(addr) == EPERM) {

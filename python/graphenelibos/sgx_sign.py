@@ -563,6 +563,7 @@ def generate_measurement(enclave_base, attr, areas):
 
             include_page(digest, page, flags, start_zero + data + end_zero, True)
 
+    edmm_enable_heap = attr['edmm_enable_heap']
     for area in areas:
         if area.elf_filename is not None:
             with open(area.elf_filename, 'rb') as file:
@@ -590,6 +591,8 @@ def generate_measurement(enclave_base, attr, areas):
                     load_file(mrenclave, file, offset, baseaddr_ + addr, filesize, memsize,
                               desc, flags)
         else:
+            if edmm_enable_heap == 1 and (area.desc == "free"):
+                continue
             for addr in range(area.addr, area.addr + area.size, offs.PAGESIZE):
                 data = ZERO_PAGE
                 if area.content is not None:
@@ -740,6 +743,7 @@ def main_sign(args):
             ('thread_num', str(DEFAULT_THREAD_NUM), parse_int, 'thread_num'),
             ('isvprodid', '0', parse_int, 'isv_prod_id'),
             ('isvsvn', '0', parse_int, 'isv_svn'),
+            ('edmm_enable_heap', '0', parse_int, 'edmm_enable_heap'),
     ]:
         attr[attr_key] = parse(manifest.setdefault('sgx.' + key, default))
 
@@ -759,6 +763,7 @@ def main_sign(args):
     print('    attr.xfrm:   %016x' % int.from_bytes(attr['xfrms'], byteorder='big'))
     print('    misc_select: %08x' % int.from_bytes(attr['misc_select'], byteorder='big'))
     print('    date:        %d-%02d-%02d' % (attr['year'], attr['month'], attr['day']))
+    print("    edmm_heap:   %d" % (attr['edmm_enable_heap']))
 
     if manifest.get('sgx.remote_attestation', '0') == '1':
         spid = manifest.get('sgx.ra_client_spid', '')
