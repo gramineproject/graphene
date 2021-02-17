@@ -248,9 +248,6 @@ applications.
    :project: pal
 
 
-.. doxygendefine:: PAL_STREAM_ERROR
-   :project: pal
-
 Flags used for stream manipulation
 """"""""""""""""""""""""""""""""""
 

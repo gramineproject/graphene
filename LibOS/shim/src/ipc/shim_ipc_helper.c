@@ -139,11 +139,11 @@ static int init_ns_ipc_port(void) {
 
     if (!g_process_ipc_info.ns->pal_handle) {
         log_debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
-        g_process_ipc_info.ns->pal_handle = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri),
-                                                         0, 0, 0, 0);
-        if (!g_process_ipc_info.ns->pal_handle) {
+        int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0,
+                               &g_process_ipc_info.ns->pal_handle);
+        if (ret < 0) {
             unlock(&g_process_ipc_info.lock);
-            return -PAL_ERRNO();
+            return pal_to_unix_errno(ret);
         }
     }
 
@@ -287,7 +287,7 @@ static void __del_ipc_port(struct shim_ipc_port* port) {
 
     log_debug("Deleting port %p (handle %p) of process %u\n", port, port->pal_handle, port->vmid);
 
-    DkStreamDelete(port->pal_handle, 0);
+    DkStreamDelete(port->pal_handle, 0); // TODO: handle errors
     LISTP_DEL_INIT(port, &port_list, list);
 
     /* Check for pending messages on port (threads might be blocking for responses) */
@@ -563,19 +563,24 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 msg = tmp_buf;
             }
 
-            PAL_NUM read =
-                DkStreamRead(port->pal_handle, /*offset=*/0, expected_size - bytes + readahead,
-                             (void*)msg + bytes, NULL, 0);
+            size_t read = expected_size - bytes + readahead;
+            ret = DkStreamRead(port->pal_handle, /*offset=*/0, &read, (void*)msg + bytes, NULL, 0);
 
-            if (!read || read == PAL_STREAM_ERROR) {
-                int err = !read ? ENODATA : PAL_ERRNO();
-                if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK)
+            if (ret < 0 || !read) {
+                if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                     continue;
-
-                log_warning("Port %p (handle %p) closed while receiving IPC message\n", port,
-                            port->pal_handle);
+                }
+                if (ret == 0) {
+                    assert(read == 0);
+                    ret = -ENODATA;
+                    log_debug("Port %p (handle %p): closed while receiving IPC message\n", port,
+                              port->pal_handle);
+                } else {
+                    ret = pal_to_unix_errno(ret);
+                    log_debug("Port %p (handle %p): error while receiving IPC message: %d\n", port,
+                              port->pal_handle, ret);
+                }
                 del_ipc_port_fini(port);
-                ret = -err;
                 goto out;
             }
 
@@ -602,7 +607,6 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                     if (ret < 0) {
                         log_error("Sending IPC_MSG_RESP msg on port %p (handle %p) to %u failed\n",
                                   port, port->pal_handle, msg->src);
-                        ret = -PAL_ERRNO();
                         goto out;
                     }
                 }
@@ -750,8 +754,12 @@ noreturn static void shim_ipc_helper(void* dummy) {
         unlock(&ipc_helper_lock);
 
         /* wait on collected ports' PAL handles + install_new_event_pal */
-        PAL_BOL polled = DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events,
-                                             NO_TIMEOUT);
+        int ret = DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events, NO_TIMEOUT);
+        if (ret && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+            debug("shim_ipc_helper: DkStreamsWaitEvents failed: %ld\n", pal_to_unix_errno(ret));
+            goto out_err;
+        }
+        bool polled = ret == 0;
 
         for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {
@@ -768,19 +776,25 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
                 if (polled_port->type & IPC_PORT_LISTENING) {
                     /* listening port: accept client, create port, and add it to port list */
-                    PAL_HANDLE client = DkStreamWaitForClient(polled_port->pal_handle);
-                    if (client) {
+                    PAL_HANDLE client = NULL;
+                    ret = DkStreamWaitForClient(polled_port->pal_handle, &client);
+                    if (ret < 0) {
+                        log_warning("Port %p (handle %p) was removed during accepting client\n",
+                                    polled_port, polled_port->pal_handle);
+                        del_ipc_port_fini(polled_port);
+                    } else {
                         IDTYPE client_type = (polled_port->type & ~IPC_PORT_LISTENING) |
                                              IPC_PORT_CONNECTION;
                         add_ipc_port_by_id(polled_port->vmid, client, client_type, NULL, NULL);
-                    } else {
-                        log_debug("Port %p (handle %p) was removed during accepting client\n",
-                                  polled_port, polled_port->pal_handle);
-                        del_ipc_port_fini(polled_port);
                     }
                 } else {
                     PAL_STREAM_ATTR attr;
-                    if (DkStreamAttributesQueryByHandle(polled_port->pal_handle, &attr)) {
+                    ret = DkStreamAttributesQueryByHandle(polled_port->pal_handle, &attr);
+                    if (ret < 0) {
+                        log_warning("Port %p (handle %p) was removed during attr querying\n",
+                                    polled_port, polled_port->pal_handle);
+                        del_ipc_port_fini(polled_port);
+                    } else {
                         /* can read on this port, so receive messages */
                         if (attr.readable) {
                             /* NOTE: IPC helper thread does not handle failures currently */
@@ -791,10 +805,6 @@ noreturn static void shim_ipc_helper(void* dummy) {
                                       polled_port->pal_handle);
                             del_ipc_port_fini(polled_port);
                         }
-                    } else {
-                        log_debug("Port %p (handle %p) was removed during attr querying\n",
-                                  polled_port, polled_port->pal_handle);
-                        del_ipc_port_fini(polled_port);
                     }
                 }
             }
@@ -869,14 +879,14 @@ static int create_ipc_helper(void) {
     ipc_helper_thread = new;
     ipc_helper_state  = HELPER_ALIVE;
 
-    PAL_HANDLE handle = DkThreadCreate(shim_ipc_helper_prepare, new);
+    PAL_HANDLE handle = NULL;
+    int ret = DkThreadCreate(shim_ipc_helper_prepare, new, &handle);
 
-    if (!handle) {
-        int ret = -PAL_ERRNO(); /* put_thread() may overwrite errno */
+    if (ret < 0) {
         ipc_helper_thread = NULL;
         ipc_helper_state  = HELPER_NOTALIVE;
         put_thread(new);
-        return ret;
+        return pal_to_unix_errno(ret);
     }
 
     new->pal_handle = handle;

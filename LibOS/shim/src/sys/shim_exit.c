@@ -101,7 +101,7 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
      * set above (but only if we really set that flag). */
     if (need_wakeup) {
         thread_wakeup(thread);
-        DkThreadResume(thread->pal_handle);
+        (void)DkThreadResume(thread->pal_handle); // There is nothing we can do on errors.
     }
     return 1;
 }

@@ -28,23 +28,22 @@ static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
-    PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
+    int ret = DkStreamRead(hdl->pal_handle, 0, &count, buf, NULL, 0);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
-    if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO();
-
-    return (ssize_t)bytes;
+    return (ssize_t)count;
 }
 
 static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count) {
     if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
-    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
-
-    if (bytes == PAL_STREAM_ERROR) {
-        int err = PAL_ERRNO();
-        if (err == EPIPE) {
+    int ret = DkStreamWrite(hdl->pal_handle, 0, &count, (void*)buf, NULL);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
+        if (ret == -EPIPE) {
             siginfo_t info = {
                 .si_signo = SIGPIPE,
                 .si_pid = g_process.pid,
@@ -54,10 +53,10 @@ static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count
                 log_error("pipe_write: failed to deliver a signal\n");
             }
         }
-        return -err;
+        return ret;
     }
 
-    return (ssize_t)bytes;
+    return (ssize_t)count;
 }
 
 static int pipe_hstat(struct shim_handle* hdl, struct stat* stat) {
@@ -107,8 +106,9 @@ static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     }
 
     PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-        ret = -PAL_ERRNO();
+    int query_ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+    if (query_ret < 0) {
+        ret = pal_to_unix_errno(query_ret);
         goto out;
     }
 
@@ -136,8 +136,10 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
 
     PAL_STREAM_ATTR attr;
 
-    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO();
+    int ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     if (attr.nonblocking) {
         if (flags & O_NONBLOCK)
@@ -151,8 +153,10 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
         attr.nonblocking = PAL_TRUE;
     }
 
-    if (!DkStreamAttributesSetByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO();
+    ret = DkStreamAttributesSetByHandle(hdl->pal_handle, &attr);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     return 0;
 }

@@ -19,8 +19,6 @@ void* shim_init(int argc, void* args);
 
 /* important macros and static inline functions */
 
-#define PAL_NATIVE_ERRNO() SHIM_TCB_GET(pal_errno)
-
 #define INTERNAL_TID_BASE ((IDTYPE)1 << (sizeof(IDTYPE) * 8 - 1))
 
 static inline bool is_internal_tid(unsigned int tid) {
@@ -177,9 +175,12 @@ bool maybe_emulate_syscall(PAL_CONTEXT* context);
  */
 bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr);
 
-long convert_pal_errno(long err);
-
-#define PAL_ERRNO() convert_pal_errno(PAL_NATIVE_ERRNO())
+/*!
+ * \brief Translate PAL error code into UNIX error code.
+ *
+ * The sign of the error code is preserved.
+ */
+long pal_to_unix_errno(long err);
 
 void warn_unsupported_syscall(unsigned long sysno);
 void debug_print_syscall_before(unsigned long sysno, ...);
@@ -195,11 +196,7 @@ void debug_print_syscall_after(unsigned long sysno, ...);
  * Note that using `clear_event` probably requires external locking to avoid races.
  */
 static inline int create_event(AEVENTTYPE* e) {
-    e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, 0);
-    if (!e->event) {
-        return -PAL_ERRNO();
-    }
-    return 0;
+     return pal_to_unix_errno(DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, 0, &e->event));
 }
 
 static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
@@ -208,7 +205,7 @@ static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
 
 static inline void destroy_event(AEVENTTYPE* e) {
     if (e->event) {
-        DkObjectClose(e->event);
+        DkObjectClose(e->event); // TODO: handle errors
         e->event = NULL;
     }
 }
@@ -223,15 +220,19 @@ static inline int set_event(AEVENTTYPE* e, size_t n) {
     char bytes[n];
     memset(bytes, '\0', n);
     while (n > 0) {
-        PAL_NUM ret = DkStreamWrite(e->event, 0, n, bytes, NULL);
-        if (ret == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+        size_t size = n;
+        int ret = DkStreamWrite(e->event, 0, &size, bytes, NULL);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         }
-        n -= ret;
+        if (size == 0) {
+            /* This should never happen. */
+            return -EINVAL;
+        }
+        n -= size;
     }
 
     return 0;
@@ -244,14 +245,20 @@ static inline int wait_event(AEVENTTYPE* e) {
         return -EINVAL;
     }
 
-    int err = 0;
+    int ret = 0;
     do {
         char byte;
-        PAL_NUM ret = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
-        err = ret == PAL_STREAM_ERROR ? PAL_ERRNO() : (ret == 0 ? ENODATA : 0);
-    } while (err == EINTR || err == EAGAIN || err == EWOULDBLOCK);
+        size_t size = 1;
+        ret = DkStreamRead(e->event, 0, &size, &byte, NULL, 0);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
+        } else if (size == 0) {
+            ret = -ENODATA;
+        }
+    /* XXX(borysp): I think we should actually return both of these. */
+    } while (ret == -EINTR || ret == -EAGAIN);
 
-    return -err;
+    return ret;
 }
 
 static inline int clear_event(AEVENTTYPE* e) {
@@ -266,16 +273,14 @@ static inline int clear_event(AEVENTTYPE* e) {
         PAL_FLG ievent = PAL_WAIT_READ;
         PAL_FLG revent = 0;
 
-        shim_get_tcb()->pal_errno = PAL_ERROR_SUCCESS;
-        PAL_BOL ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
-        if (!ret) {
-            int err = PAL_ERRNO();
-            if (err == EINTR) {
+        int ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED) {
                 continue;
-            } else if (err == EAGAIN || err == EWOULDBLOCK) {
+            } else if (ret == -PAL_ERROR_TRYAGAIN) {
                 break;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         }
 
         /* Even if `revent` has `PAL_WAIT_ERROR` marked, let `DkSitreamRead()` report the error
@@ -283,18 +288,18 @@ static inline int clear_event(AEVENTTYPE* e) {
         assert(revent);
 
         char bytes[100];
-        PAL_NUM n = DkStreamRead(e->event, 0, sizeof(bytes), bytes, NULL, 0);
-        if (n == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR) {
+        size_t n = sizeof(bytes);
+        ret = DkStreamRead(e->event, 0, &n, bytes, NULL, 0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED) {
                 continue;
-            } else if (err == EAGAIN || err == EWOULDBLOCK) {
+            } else if (ret == -PAL_ERROR_TRYAGAIN) {
                 /* This should not happen, since we polled above... */
                 break;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         } else if (n == 0) {
-            /* This should not happen, since we polled above... */
+            /* This should not happen, something closed the handle? */
             return -ENODATA;
         }
     }

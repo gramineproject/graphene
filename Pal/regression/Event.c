@@ -19,38 +19,37 @@ static int thread2_run(void* args) {
     /* UNREACHABLE */
 }
 
-static void pal_failure_handler(bool is_in_pal, PAL_NUM error, PAL_CONTEXT* context) {
-    __UNUSED(is_in_pal);
-
-    pal_printf("pal_failure_handler called\n");
-
-    if (error == PAL_ERROR_TRYAGAIN) {
-        pal_printf("Timeout event received.\n");
-        timeouts += 1;
-    }
-}
-
 int main(void) {
     pal_printf("Started main thread.\n");
 
-    DkSetExceptionHandler(pal_failure_handler, PAL_EVENT_FAILURE);
-
-    event1 = DkNotificationEventCreate(0);
-    if (event1 == NULL) {
+    int ret = DkNotificationEventCreate(0, &event1);
+    if (ret < 0 || event1 == NULL) {
         pal_printf("DkNotificationEventCreate failed\n");
         return 1;
     }
 
-    PAL_HANDLE thread2 = DkThreadCreate(thread2_run, NULL);
-    if (thread2 == NULL) {
+    PAL_HANDLE thread2 = NULL;
+    ret = DkThreadCreate(thread2_run, NULL, &thread2);
+    if (ret < 0) {
         pal_printf("DkThreadCreate failed\n");
         return 1;
     }
-    uint64_t t_start = DkSystemTimeQuery();
+    uint64_t t_start = 0;
+    if (DkSystemTimeQuery(&t_start) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
 
     pal_printf("Testing wait with too short timeout...\n");
-    DkSynchronizationObjectWait(event1, 1000000);
-    uint64_t t_wait1  = DkSystemTimeQuery();
+    ret = DkSynchronizationObjectWait(event1, 1000000);
+    if (ret == -PAL_ERROR_TRYAGAIN) {
+        timeouts++;
+    }
+    uint64_t t_wait1 = 0;
+    if (DkSystemTimeQuery(&t_wait1) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
     uint64_t dt_wait1 = t_wait1 - t_start;
     pal_printf("Wait returned after %lu us.\n", dt_wait1);
     pal_printf("Timeout count: %d\n", timeouts);
@@ -59,8 +58,15 @@ int main(void) {
     }
 
     pal_printf("Testing wait with long enough timeout...\n");
-    DkSynchronizationObjectWait(event1, 5000000);
-    uint64_t t_wait2  = DkSystemTimeQuery();
+    ret = DkSynchronizationObjectWait(event1, 5000000);
+    if (ret == -PAL_ERROR_TRYAGAIN) {
+        timeouts++;
+    }
+    uint64_t t_wait2 = 0;
+    if (DkSystemTimeQuery(&t_wait2) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
     uint64_t dt_wait2 = t_wait2 - t_start;
     pal_printf("Wait returned after %lu us since start.\n", dt_wait2);
     pal_printf("Timeout count: %d\n", timeouts);

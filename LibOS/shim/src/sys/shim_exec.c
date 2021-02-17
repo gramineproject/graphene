@@ -71,7 +71,9 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
         if (bkeep_munmap(vma->addr, vma->length, !!(vma->flags & VMA_INTERNAL), &tmp_vma) < 0) {
             BUG();
         }
-        DkVirtualMemoryFree(vma->addr, vma->length);
+        if (DkVirtualMemoryFree(vma->addr, vma->length) < 0) {
+            BUG();
+        }
         bkeep_remove_tmp_vma(tmp_vma);
     }
 

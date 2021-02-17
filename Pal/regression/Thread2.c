@@ -52,8 +52,9 @@ static int thread4_run(void* args) {
 int main(void) {
     pal_printf("Thread 1 (main) started.\n");
 
-    PAL_HANDLE thread2 = DkThreadCreate(thread2_run, NULL);
-    if (!thread2) {
+    PAL_HANDLE thread2 = NULL;
+    int ret = DkThreadCreate(thread2_run, NULL, &thread2);
+    if (ret < 0) {
         pal_printf("DkThreadCreate failed for thread 2.\n");
         return 1;
     }
@@ -66,8 +67,9 @@ int main(void) {
         pal_printf("Thread 2 ok.\n");
     }
 
-    PAL_HANDLE thread3 = DkThreadCreate(thread3_run, NULL);
-    if (!thread3) {
+    PAL_HANDLE thread3 = NULL;
+    ret = DkThreadCreate(thread3_run, NULL, &thread3);
+    if (ret < 0) {
         pal_printf("DkThreadCreate failed for thread 3.\n");
         return 1;
     }
@@ -78,8 +80,9 @@ int main(void) {
         pal_printf("Thread 3 ok.\n");
     }
 
-    PAL_HANDLE thread4 = DkThreadCreate(thread4_run, NULL);
-    if (!thread4) {
+    PAL_HANDLE thread4 = NULL;
+    ret = DkThreadCreate(thread4_run, NULL, &thread4);
+    if (ret < 0) {
         pal_printf("DkThreadCreate failed for thread 4.\n");
         return 1;
     }

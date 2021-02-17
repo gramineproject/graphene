@@ -87,7 +87,11 @@ static int __add_msg_handle(unsigned long key, IDTYPE msqid, bool owned,
     msgq->owned       = owned;
     msgq->deleted     = false;
     msgq->currentsize = 0;
-    msgq->event       = DkSynchronizationEventCreate(PAL_FALSE);
+    int ret = DkSynchronizationEventCreate(PAL_FALSE, &msgq->event);
+    if (ret < 0) {
+        // Needs some cleanup, but this function is broken anyway...
+        return pal_to_unix_errno(ret);
+    }
 
     msgq->queue     = malloc(MSG_QOBJ_SIZE * DEFAULT_MSG_QUEUE_SIZE);
     msgq->queuesize = DEFAULT_MSG_QUEUE_SIZE;
@@ -555,7 +559,7 @@ int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const voi
     if ((ret = __store_msg_qobjs(msgq, mtype, size, data)) < 0)
         goto out_locked;
 
-    DkEventSet(msgq->event);
+    DkEventSet(msgq->event); // TODO: handle errors
     ret = 0;
 out_locked:
     unlock(&hdl->lock);
@@ -685,22 +689,26 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
     char fileuri[20];
     snprintf(fileuri, 20, URI_PREFIX_FILE "msgq.%08x", msgq->msqid);
 
-    PAL_HANDLE file = DkStreamOpen(fileuri, PAL_ACCESS_RDWR, PERM_rw_______, PAL_CREATE_TRY, 0);
-    if (!file) {
-        ret = -PAL_ERRNO();
+    PAL_HANDLE file = NULL;
+    ret = DkStreamOpen(fileuri, PAL_ACCESS_RDWR, PERM_rw_______, PAL_CREATE_TRY, 0, &file);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto out;
     }
 
     int expected_size = sizeof(struct msg_handle_backup) + sizeof(struct msg_backup) * msgq->nmsgs +
                         msgq->currentsize;
 
-    if (DkStreamSetLength(file, expected_size))
+    ret = DkStreamSetLength(file, expected_size);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto err_file;
+    }
 
-    void* mem = (void*)DkStreamMap(file, NULL, PAL_PROT_READ | PAL_PROT_WRITE, 0,
-                                   ALLOC_ALIGN_UP(expected_size));
-    if (!mem) {
-        ret = -EFAULT;
+    void* mem = NULL;
+    ret = DkStreamMap(file, &mem, PAL_PROT_READ | PAL_PROT_WRITE, 0, ALLOC_ALIGN_UP(expected_size));
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto err_file;
     }
 
@@ -725,7 +733,11 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
         mtype->msgs = mtype->msg_tail = NULL;
     }
 
-    DkStreamUnmap(mem, ALLOC_ALIGN_UP(expected_size));
+    ret = DkStreamUnmap(mem, ALLOC_ALIGN_UP(expected_size));
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
+        goto err_file;
+    }
 
     if (msgq->owned)
         for (mtype = msgq->types; mtype < &msgq->types[msgq->ntypes]; mtype++) {
@@ -748,13 +760,13 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
     goto out;
 
 err_file:
-    DkStreamDelete(file, 0);
+    DkStreamDelete(file, 0); // TODO: handle errors
     DkObjectClose(file);
 
 out:
     // To wake up any receiver waiting on local message which must
     // now be requested from new owner.
-    DkEventSet(msgq->event);
+    DkEventSet(msgq->event); // TODO: handle errors
     return ret;
 }
 

@@ -196,7 +196,7 @@ static inline void set_cur_thread(struct shim_thread* thread) {
 static inline void thread_setwait(struct shim_thread** queue, struct shim_thread* thread) {
     if (!thread)
         thread = get_cur_thread();
-    DkEventClear(thread->scheduler_event);
+    DkEventClear(thread->scheduler_event); // TODO: handle errors
     if (queue) {
         get_thread(thread);
         *queue = thread;
@@ -217,13 +217,11 @@ static inline int thread_sleep(uint64_t timeout_us, bool ignore_pending_signals)
         return -EINTR;
     }
 
-    if (!DkSynchronizationObjectWait(event, timeout_us))
-        return -PAL_ERRNO();
-
-    return 0;
+    return pal_to_unix_errno(DkSynchronizationObjectWait(event, timeout_us));
 }
 
 static inline void thread_wakeup(struct shim_thread* thread) {
+    // TODO: handle errors
     DkEventSet(thread->scheduler_event);
 }
 

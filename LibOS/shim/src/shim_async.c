@@ -58,9 +58,10 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
     /* if event happens on object, time must be zero */
     assert(!object || (object && !time));
 
-    uint64_t now = DkSystemTimeQuery();
-    if ((int64_t)now < 0) {
-        return (int64_t)now;
+    uint64_t now = 0;
+    int ret = DkSystemTimeQuery(&now);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
     }
 
     uint64_t max_prev_expire_time = now;
@@ -191,9 +192,11 @@ static void shim_async_helper(void* arg) {
     ret_events[0] = 0;
 
     while (true) {
-        uint64_t now = DkSystemTimeQuery();
-        if ((int64_t)now < 0) {
-            log_error("DkSystemTimeQuery failed with: %ld\n", (int64_t)now);
+        uint64_t now = 0;
+        int ret = DkSystemTimeQuery(&now);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
+            log_error("DkSystemTimeQuery failed with: %d\n", ret);
             goto out_err;
         }
 
@@ -282,12 +285,18 @@ static void shim_async_helper(void* arg) {
         unlock(&async_helper_lock);
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
-        PAL_BOL polled = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events,
-                                             sleep_time);
+        ret = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+            ret = pal_to_unix_errno(ret);
+            debug("Async helper: DkStreamsWaitEvents failed: %d\n", ret);
+            goto out_err;
+        }
+        PAL_BOL polled = ret == 0;
 
-        now = DkSystemTimeQuery();
-        if ((int64_t)now < 0) {
-            log_error("DkSystemTimeQuery failed with: %ld\n", (int64_t)now);
+        ret = DkSystemTimeQuery(&now);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
+            log_error("DkSystemTimeQuery failed with: %d\n", ret);
             goto out_err;
         }
 
@@ -376,13 +385,14 @@ static int create_async_helper(void) {
     async_helper_thread = new;
     async_helper_state  = HELPER_ALIVE;
 
-    PAL_HANDLE handle = DkThreadCreate(shim_async_helper, new);
+    PAL_HANDLE handle = NULL;
+    int ret = DkThreadCreate(shim_async_helper, new, &handle);
 
-    if (!handle) {
+    if (ret < 0) {
         async_helper_thread = NULL;
         async_helper_state  = HELPER_NOTALIVE;
         put_thread(new);
-        return -PAL_ERRNO();
+        return pal_to_unix_errno(ret);
     }
 
     new->pal_handle = handle;

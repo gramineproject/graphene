@@ -12,75 +12,49 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-PAL_PTR DkVirtualMemoryAlloc(PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot) {
-    void* map_addr = (void*)addr;
+int DkVirtualMemoryAlloc(PAL_PTR* addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot) {
+    assert(addr);
+    void* map_addr = *addr;
 
-    if ((addr && !IS_ALLOC_ALIGNED_PTR(addr)) || !size || !IS_ALLOC_ALIGNED(size)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return (PAL_PTR)NULL;
+    if ((map_addr && !IS_ALLOC_ALIGNED_PTR(map_addr)) || !size || !IS_ALLOC_ALIGNED(size)) {
+        return -PAL_ERROR_INVAL;
     }
 
     if (map_addr && _DkCheckMemoryMappable(map_addr, size)) {
-        _DkRaiseFailure(PAL_ERROR_DENIED);
-        return (PAL_PTR)NULL;
+        return -PAL_ERROR_DENIED;
     }
 
-    int ret = _DkVirtualMemoryAlloc(&map_addr, size, alloc_type, prot);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        map_addr = NULL;
-    }
-
-    return (PAL_PTR)map_addr;
+    return _DkVirtualMemoryAlloc(addr, size, alloc_type, prot);
 }
 
-void DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size) {
+int DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size) {
     if (!addr || !size) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return;
+        return -PAL_ERROR_INVAL;
     }
 
     if (!IS_ALLOC_ALIGNED_PTR(addr) || !IS_ALLOC_ALIGNED(size)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return;
+        return -PAL_ERROR_INVAL;
     }
 
     if (_DkCheckMemoryMappable((void*)addr, size)) {
-        _DkRaiseFailure(PAL_ERROR_DENIED);
-        return;
+        return -PAL_ERROR_DENIED;
     }
 
-    int ret = _DkVirtualMemoryFree((void*)addr, size);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-    }
+    return _DkVirtualMemoryFree((void*)addr, size);
 }
 
-PAL_BOL
-DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot) {
+int DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot) {
     if (!addr || !size) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
+        return -PAL_ERROR_INVAL;
     }
 
     if (!IS_ALLOC_ALIGNED_PTR(addr) || !IS_ALLOC_ALIGNED(size)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
+        return -PAL_ERROR_INVAL;
     }
 
     if (_DkCheckMemoryMappable((void*)addr, size)) {
-        _DkRaiseFailure(PAL_ERROR_DENIED);
-        return PAL_FALSE;
+        return -PAL_ERROR_DENIED;
     }
 
-    int ret = _DkVirtualMemoryProtect((void*)addr, size, prot);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        return PAL_FALSE;
-    }
-
-    return PAL_TRUE;
+    return _DkVirtualMemoryProtect((void*)addr, size, prot);
 }

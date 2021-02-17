@@ -460,7 +460,7 @@ void put_handle(struct shim_handle* hdl) {
 #ifdef DEBUG_REF
             log_debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
 #endif
-            DkObjectClose(hdl->pal_handle);
+            DkObjectClose(hdl->pal_handle); // TODO: handle errors
             hdl->pal_handle = NULL;
         }
 

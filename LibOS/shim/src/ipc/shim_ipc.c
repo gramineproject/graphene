@@ -258,19 +258,26 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     size_t bytes       = 0;
 
     do {
-        PAL_NUM ret =
-            DkStreamWrite(port->pal_handle, 0, total_bytes - bytes, (void*)msg + bytes, NULL);
+        size_t size = total_bytes - bytes;
+        int ret = DkStreamWrite(port->pal_handle, 0, &size, (void*)msg + bytes, NULL);
 
-        if (ret == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
+        if (ret < 0 || size == 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
+            }
+            if (ret == 0) {
+                assert(size == 0);
+                ret = -EINVAL;
+            } else {
+                ret = pal_to_unix_errno(ret);
+            }
 
             log_debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
             del_ipc_port_fini(port);
-            return -PAL_ERRNO();
+            return ret;
         }
 
-        bytes += ret;
+        bytes += size;
     } while (bytes < total_bytes);
 
     return 0;

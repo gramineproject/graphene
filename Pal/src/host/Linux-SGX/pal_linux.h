@@ -75,7 +75,7 @@ int _DkMutexAtomicCreate(struct mutex_handle* mut);
 int __DkMutexDestroy(struct mutex_handle* mut);
 int _DkMutexLock(struct mutex_handle* mut);
 int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
-int _DkMutexUnlock(struct mutex_handle* mut);
+void _DkMutexUnlock(struct mutex_handle* mut);
 
 int* get_futex(void);
 void free_futex(int* futex);

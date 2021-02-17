@@ -11,24 +11,13 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-PAL_HANDLE
-DkMutexCreate(PAL_NUM initialCount) {
-    PAL_HANDLE handle = NULL;
-    int ret = _DkMutexCreate(&handle, initialCount);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        handle = NULL;
-    }
-
-    return handle;
+int DkMutexCreate(PAL_NUM initialCount, PAL_HANDLE* handle) {
+    *handle = NULL;
+    return _DkMutexCreate(handle, initialCount);
 }
 
 void DkMutexRelease(PAL_HANDLE handle) {
-    if (!handle || !IS_HANDLE_TYPE(handle, mutex)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return;
-    }
+    assert(handle && IS_HANDLE_TYPE(handle, mutex));
 
     _DkMutexRelease(handle);
 }

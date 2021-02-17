@@ -159,15 +159,6 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     perform_signal_handling(event, ADDR_IN_PAL_OR_VDSO(rip), /*addr=*/0, uc);
 }
 
-/* TODO: remove this function. It's not an exception handling, it's just returning an error from
- * PAL... */
-void _DkRaiseFailure(int error) {
-    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
-    if (upcall) {
-        (*upcall)(/*is_in_pal=*/false, error, /*context=*/NULL);
-    }
-}
-
 void signal_setup(void) {
     int ret;
 

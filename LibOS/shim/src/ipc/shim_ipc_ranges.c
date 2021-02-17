@@ -731,11 +731,12 @@ int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr) {
             return -ESRCH;
         }
 
-        PAL_HANDLE pal_handle = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0);
+        PAL_HANDLE pal_handle = NULL;
+        int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0, &pal_handle);
 
-        if (!pal_handle) {
+        if (ret < 0) {
             unlock(&g_process_ipc_info.lock);
-            return -PAL_ERRNO();
+            return pal_to_unix_errno(ret);
         }
 
         add_ipc_port_by_id(g_process_ipc_info.ns->vmid, pal_handle, IPC_PORT_CONNECTION,
@@ -806,10 +807,11 @@ int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner) {
         goto success;
 
     if (!range.port) {
-        PAL_HANDLE pal_handle = DkStreamOpen(qstrgetstr(&range.uri), 0, 0, 0, 0);
+        PAL_HANDLE pal_handle = NULL;
+        ret = DkStreamOpen(qstrgetstr(&range.uri), 0, 0, 0, 0, &pal_handle);
 
-        if (!pal_handle) {
-            ret = -PAL_ERRNO() ?: -EACCES;
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret) ?: -EACCES;
             goto out;
         }
 
@@ -1470,7 +1472,12 @@ retry:
 
             unlock(&range_map_lock);
 
-            PAL_HANDLE pal_handle = DkStreamOpen(uri, 0, 0, 0, 0);
+            PAL_HANDLE pal_handle = NULL;
+            int ret = DkStreamOpen(uri, 0, 0, 0, 0, &pal_handle);
+            if (ret < 0) {
+                // I have no idea how to handle errors here, this function needs a rework.
+                BUG();
+            }
 
             if (pal_handle)
                 add_ipc_port_by_id(owner, pal_handle, IPC_PORT_CONNECTION, NULL, &port);

@@ -724,9 +724,10 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
         if (cmd != FUTEX_WAIT) {
             /* For FUTEX_WAIT, timeout is interpreted as a relative value, which differs from other
              * futex operations, where timeout is interpreted as an absolute value. */
-            uint64_t current_time = DkSystemTimeQuery();
-            if (!current_time) {
-                return -EINVAL;
+            uint64_t current_time = 0;
+            int ret = DkSystemTimeQuery(&current_time);
+            if (ret < 0) {
+                return pal_to_unix_errno(ret);
             }
             if (timeout < current_time) {
                 /* We timeouted even before reaching this point. */

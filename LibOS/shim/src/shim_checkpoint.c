@@ -217,13 +217,13 @@ static int read_exact(PAL_HANDLE handle, void* buf, size_t size) {
     size_t bytes = 0;
 
     while (bytes < size) {
-        PAL_NUM x = DkStreamRead(handle, 0, size - bytes, (char*)buf + bytes, NULL, 0);
-        if (x == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+        PAL_NUM x = size - bytes;
+        int ret = DkStreamRead(handle, 0, &x, (char*)buf + bytes, NULL, 0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         } else if (x == 0) {
             return -ENODATA;
         }
@@ -238,13 +238,15 @@ static int write_exact(PAL_HANDLE handle, void* buf, size_t size) {
     size_t bytes = 0;
 
     while (bytes < size) {
-        PAL_NUM x = DkStreamWrite(handle, 0, size - bytes, (char*)buf + bytes, NULL);
-        if (x == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+        size_t x = size - bytes;
+        int ret = DkStreamWrite(handle, 0, &x, (char*)buf + bytes, NULL);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
+        } else if (x == 0) {
+            return -EINVAL;
         }
 
         bytes += x;
@@ -264,8 +266,9 @@ static int send_memory_on_stream(PAL_HANDLE stream, struct shim_cp_store* store)
 
         if (!(mem_prot & PAL_PROT_READ) && mem_size > 0) {
             /* make the area readable */
-            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_prot | PAL_PROT_READ)) {
-                return -PAL_ERRNO();
+            ret = DkVirtualMemoryProtect(mem_addr, mem_size, mem_prot | PAL_PROT_READ);
+            if (ret < 0) {
+                return pal_to_unix_errno(ret);
             }
         }
 
@@ -273,9 +276,9 @@ static int send_memory_on_stream(PAL_HANDLE stream, struct shim_cp_store* store)
 
         if (!(mem_prot & PAL_PROT_READ) && mem_size > 0) {
             /* the area was made readable above; revert to original permissions */
-            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_prot)) {
-                if (!ret)
-                    ret = -PAL_ERRNO();
+            int ret2 = DkVirtualMemoryProtect(mem_addr, mem_size, mem_prot);
+            if (ret2 < 0 && !ret) {
+                ret = pal_to_unix_errno(ret2);
             }
         }
 
@@ -322,8 +325,9 @@ static int send_handles_on_stream(PAL_HANDLE stream, struct shim_cp_store* store
     /* now we can traverse PAL-handle entries in correct order and send them one by one */
     for (size_t i = 0; i < entries_cnt; i++) {
         /* we need to abort migration if DkSendHandle() returned error, otherwise app may fail */
-        if (!DkSendHandle(stream, entries[i]->handle)) {
-            ret = -EINVAL;
+        ret = DkSendHandle(stream, entries[i]->handle);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out;
         }
     }
@@ -349,19 +353,23 @@ static int receive_memory_on_stream(PAL_HANDLE handle, struct checkpoint_hdr* hd
             PAL_NUM size = (char*)ALLOC_ALIGN_UP_PTR(entry->addr + entry->size) - (char*)addr;
             PAL_FLG prot = entry->prot;
 
-            if (!DkVirtualMemoryAlloc(addr, size, 0, prot | PAL_PROT_WRITE)) {
+            int ret = DkVirtualMemoryAlloc(&addr, size, 0, prot | PAL_PROT_WRITE);
+            if (ret < 0) {
                 log_error("failed allocating %p-%p\n", addr, addr + size);
-                return -PAL_ERRNO();
+                return pal_to_unix_errno(ret);
             }
 
-            int ret = read_exact(handle, entry->addr, entry->size);
+            ret = read_exact(handle, entry->addr, entry->size);
             if (ret < 0) {
                 return ret;
             }
 
-            if (!(prot & PAL_PROT_WRITE) && !DkVirtualMemoryProtect(addr, size, prot)) {
-                log_error("failed protecting %p-%p\n", addr, addr + size);
-                return -PAL_ERRNO();
+            if (!(prot & PAL_PROT_WRITE)) {
+                ret = DkVirtualMemoryProtect(addr, size, prot);
+                if (ret < 0) {
+                    log_error("failed protecting %p-%p\n", addr, addr + size);
+                    return pal_to_unix_errno(ret);
+                }
             }
         }
     }
@@ -429,10 +437,11 @@ static int receive_handles_on_stream(struct checkpoint_hdr* hdr, void* base, ssi
         if (!entry->handle)
             continue;
 
-        PAL_HANDLE hdl = DkReceiveHandle(PAL_CB(parent_process));
+        PAL_HANDLE hdl = NULL;
+        ret = DkReceiveHandle(PAL_CB(parent_process), &hdl);
         /* need to abort migration if DkReceiveHandle() returned error, otherwise app may fail */
-        if (!hdl) {
-            ret = -EINVAL;
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out;
         }
         *entry->phandle = hdl;
@@ -478,13 +487,14 @@ static void* cp_alloc(void* addr, size_t size) {
         bkeep_remove_tmp_vma(tmp_vma);
     }
 
-    addr = (void*)DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!addr) {
+    int ret = DkVirtualMemoryAlloc(&addr, size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr, size, /*is_internal=*/true, &tmp_vma) < 0) {
             BUG();
         }
         bkeep_remove_tmp_vma(tmp_vma);
+        addr = NULL;
     }
 
     return addr;
@@ -502,9 +512,10 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     /* FIXME: Child process requires some time to initialize before starting to receive checkpoint
      * data. Parallelizing process creation and checkpointing could improve latency of forking. */
     const char* exec_uri = pal_control.executable;
-    PAL_HANDLE pal_process = DkProcessCreate(exec_uri, /*args=*/NULL);
-    if (!pal_process) {
-        ret = -PAL_ERRNO();
+    PAL_HANDLE pal_process = NULL;
+    ret = DkProcessCreate(exec_uri, /*args=*/NULL, &pal_process);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto out;
     }
 
@@ -590,7 +601,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
         log_error("failed unmaping checkpoint (ret = %d)\n", ret);
         goto out;
     }
-    DkVirtualMemoryFree((PAL_PTR)cpstore.base, cpstore.bound);
+    if (DkVirtualMemoryFree((PAL_PTR)cpstore.base, cpstore.bound) < 0) {
+        BUG();
+    }
     bkeep_remove_tmp_vma(tmp_vma);
 
     /* wait for final ack from child process (contains VMID of child) */
@@ -632,7 +645,6 @@ out:
 
 int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
     int ret = 0;
-    PAL_PTR mapped = NULL;
 
     void* base = hdr->addr;
     PAL_PTR mapaddr = (PAL_PTR)ALLOC_ALIGN_DOWN_PTR(base);
@@ -663,24 +675,26 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
         mapsize = (PAL_NUM)ALLOC_ALIGN_UP(hdr->size);
     }
 
-    log_debug("checkpoint mapped at %p-%p\n", base, base + hdr->size);
-
-    mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!mapped) {
-        ret = -PAL_ERRNO();
-        goto out;
+    ret = DkVirtualMemoryAlloc(&mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
+        void* tmp_vma = NULL;
+        if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0)
+            BUG();
+        bkeep_remove_tmp_vma(tmp_vma);
+        return pal_to_unix_errno(ret);
     }
-    assert(mapaddr == mapped);
+
+    log_debug("checkpoint mapped at %p-%p\n", base, base + hdr->size);
 
     ret = read_exact(PAL_CB(parent_process), base, hdr->size);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
     log_debug("read checkpoint of %lu bytes from parent\n", hdr->size);
 
     ret = receive_memory_on_stream(PAL_CB(parent_process), hdr, (uintptr_t)base);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
     log_debug("restored memory from checkpoint\n");
 
@@ -690,7 +704,7 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
 
     ret = receive_handles_on_stream(hdr, base, rebase);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
 
     migrated_memory_start = (void*)mapaddr;
@@ -698,20 +712,19 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
 
     ret = restore_checkpoint(hdr, (uintptr_t)base);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
 
-    ret = 0;
-out:
-    if (ret < 0) {
-        void* tmp_vma = NULL;
-        if (mapaddr)
-            if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0)
-                BUG();
-        if (mapped)
-            DkVirtualMemoryFree(mapped, mapsize);
-        if (mapaddr)
-            bkeep_remove_tmp_vma(tmp_vma);
+    return 0;
+
+out_fail:;
+    void* tmp_vma = NULL;
+    if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0) {
+        BUG();
     }
+    if (DkVirtualMemoryFree(mapaddr, mapsize) < 0) {
+        BUG();
+    }
+    bkeep_remove_tmp_vma(tmp_vma);
     return ret;
 }

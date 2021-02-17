@@ -3,8 +3,16 @@
 #include "pal_debug.h"
 
 int main(int argc, const char** argv, const char** envp) {
-    uint64_t time1 = DkSystemTimeQuery();
-    uint64_t time2 = DkSystemTimeQuery();
+    uint64_t time1 = 0;
+    if (DkSystemTimeQuery(&time1) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
+    uint64_t time2 = 0;
+    if (DkSystemTimeQuery(&time2) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
 
     pal_printf("Time Query 1: %ld\n", time1);
     pal_printf("Time Query 2: %ld\n", time2);
@@ -12,18 +20,34 @@ int main(int argc, const char** argv, const char** envp) {
     if (time1 <= time2)
         pal_printf("Query System Time OK\n");
 
-    uint64_t time3 = DkSystemTimeQuery();
+    uint64_t time3 = 0;
+    if (DkSystemTimeQuery(&time3) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
     DkThreadDelayExecution(10000);
-    uint64_t time4 = DkSystemTimeQuery();
+    uint64_t time4 = 0;
+    if (DkSystemTimeQuery(&time4) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
 
     pal_printf("Sleeped %ld Microseconds\n", time4 - time3);
 
     if (time3 < time4 && time4 - time3 > 10000)
         pal_printf("Delay Execution for 10000 Microseconds OK\n");
 
-    uint64_t time5 = DkSystemTimeQuery();
+    uint64_t time5 = 0;
+    if (DkSystemTimeQuery(&time5) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
     DkThreadDelayExecution(3000000);
-    uint64_t time6 = DkSystemTimeQuery();
+    uint64_t time6 = 0;
+    if (DkSystemTimeQuery(&time6) < 0) {
+        pal_printf("DkSystemTimeQuery failed\n");
+        return 1;
+    }
 
     pal_printf("Sleeped %ld Microseconds\n", time6 - time5);
 

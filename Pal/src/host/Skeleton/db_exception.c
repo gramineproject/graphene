@@ -21,9 +21,4 @@ int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])(int, PAL_UPCALL, int) = {
     /* Illegal    */ NULL,
     /* Quit       */ NULL,
     /* Interrupt  */ NULL,
-    /* Failure    */ NULL,
 };
-
-void _DkRaiseFailure(int error) {
-    /* needs to be implemented */
-}

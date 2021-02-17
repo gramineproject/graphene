@@ -295,13 +295,14 @@ static void* _vma_malloc(size_t size) {
         return NULL;
     }
 
-    if (DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_WRITE | PAL_PROT_READ) != addr) {
+    int ret = DkVirtualMemoryAlloc(&addr, size, 0, PAL_PROT_WRITE | PAL_PROT_READ);
+    if (ret < 0) {
         struct shim_vma* vmas_to_free = NULL;
 
         spinlock_lock(&vma_tree_lock);
         /* Since we are freeing a range we just created, additional vma is not needed. */
-        int ret = _vma_bkeep_remove((uintptr_t)addr, (uintptr_t)addr + size, /*is_internal=*/true,
-                                    NULL, &vmas_to_free);
+        ret = _vma_bkeep_remove((uintptr_t)addr, (uintptr_t)addr + size, /*is_internal=*/true, NULL,
+                                &vmas_to_free);
         spinlock_unlock(&vma_tree_lock);
         if (ret < 0) {
             log_error("Removing a vma we just created failed with %d!\n", ret);
@@ -593,7 +594,7 @@ int init_vma(void) {
 
             int ret = DkRandomBitsRead(&gap, sizeof(gap));
             if (ret < 0) {
-                return -convert_pal_errno(-ret);
+                return pal_to_unix_errno(ret);
             }
 
             /* Resulting distribution is not ideal, but it should not be an issue here. */
@@ -1313,9 +1314,10 @@ BEGIN_RS_FUNC(vma) {
         }
 
         if (need_mapped < vma->addr + vma->length) {
-            if (DkVirtualMemoryAlloc(need_mapped, vma->addr + vma->length - need_mapped,
-                                     /*alloc_type=*/0,
-                                     LINUX_PROT_TO_PAL(vma->prot, /*map_flags=*/0))) {
+            int ret = DkVirtualMemoryAlloc(need_mapped, vma->addr + vma->length - need_mapped,
+                                           /*alloc_type=*/0,
+                                           LINUX_PROT_TO_PAL(vma->prot, /*map_flags=*/0));
+            if (ret >= 0) {
                 need_mapped += vma->length;
             }
         }
