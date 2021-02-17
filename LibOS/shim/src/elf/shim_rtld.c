@@ -193,13 +193,10 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
 
     const ElfW(Phdr)* ph;
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph) {
+        /* These entries tell us where to find things once the file's
+           segments are mapped in.  We record the addresses it says
+           verbatim, and later correct for the run-time load address.  */
         switch (ph->p_type) {
-            /* These entries tell us where to find things once the file's
-               segments are mapped in.  We record the addresses it says
-               verbatim, and later correct for the run-time load address.  */
-            case PT_DYNAMIC:
-                break;
-
             case PT_INTERP:
                 l->l_interp_libname = (const char*)ph->p_vaddr;
                 break;
