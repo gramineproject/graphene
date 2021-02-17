@@ -127,6 +127,13 @@ sgx_raise:
 	# arguments: RDI - code, RSI - ms
 	.cfi_startproc
 
+#ifdef DEBUG
+	# For stack unwinding. See __morestack in enclave_entry.S.
+	.cfi_register %rip, %r8
+#else
+	.cfi_undefined %rip
+#endif
+
 	# increment per-thread EEXIT counter for stats
 	lock incq %gs:PAL_TCB_URTS_EEXIT_CNT
 

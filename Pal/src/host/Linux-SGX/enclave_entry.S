@@ -567,6 +567,11 @@ sgx_ocall:
 	pushq %rcx
 	pushq $0 # placeholder for RAX
 
+#ifdef DEBUG
+	# For stack unwinding. See __morestack below.
+	movq %rsp, %rbp
+#endif
+
 	# OCALL_EXIT should never return (see sgx_ocall_exit(): it always exits
 	# the thread). Skip setting SGX_PRE_OCALL_STACK to land in special-case
 	# of ECALL_THREAD_RESET (issued in sgx_ocall_exit()) later. Note that if
@@ -591,16 +596,7 @@ sgx_ocall:
 
 	movq %gs:SGX_USTACK, %rsp
 
-#ifdef DEBUG
-	# Push %rip of some code inside __morestack() on untrusted stack.
-	# At sgx_entry(), GDB deduces saved_rip by looking at CFA-8 = %rsp.
-	leaq .Lfor_cfa_debug_info(%rip), %r8
-	pushq %r8
-#endif
-
 	movq %gs:SGX_EXIT_TARGET, %rbx
-	.cfi_endproc
-	# fallthrough
 
 	# Clear other registers and similar state and then call EEXIT
 	#
@@ -610,27 +606,6 @@ sgx_ocall:
 	#     %rsp: untrusted stack
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
 .Lclear_and_eexit:
-
-#ifdef DEBUG
-	# Enclave and untrusted stacks are split (segmented). GDB refuses to
-	# unwind such stacks because it looks like stack frames "jump" back
-	# and forth. Luckily, GDB special-cases stack frames for a function
-	# with hardcoded name "__morestack". Declare this dummy function
-	# to make GDB happy.
-
-	.global __morestack
-	.type __morestack, @function
-__morestack:
-
-	.cfi_startproc
-
-	# Parse trusted stack frame from (saved) RBP.
-	.cfi_def_cfa %rbp, 0
-	.cfi_offset %rip, 8
-	.cfi_offset %rbp, 0
-#else
-	.cfi_startproc
-#endif
 
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 
@@ -653,16 +628,17 @@ __morestack:
 	# %rsi, %rdi are arguments to the untrusted code
 
 #ifdef DEBUG
-.Lfor_cfa_debug_info:
-	# Leave %rbp pointing to OCALL function on trusted stack.
+	# Pass information in RBP, R8, R9 for stack unwinding. See __morestack below.
+	leaq .Lmorestack_stage1(%rip), %r8
+	leaq .Lmorestack_stage2(%rip), %r9
 #else
-	# In non-debug mode, clear %rbp to not leak trusted stack address.
+	# In non-debug mode, clear these registers.
 	xorq %rbp, %rbp
+	xorq %r8, %r8
+	xorq %r9, %r0
 #endif
 
 	# %rsp points to untrusted stack
-	xorq %r8, %r8
-	xorq %r9, %r9
 	xorq %r10, %r10
 	xorq %r11, %r11
 	xorq %r12, %r12
@@ -873,3 +849,82 @@ restore_xregs:
 	popq %r11
 	jmp __restore_xregs
 	.cfi_endproc
+
+#ifdef DEBUG
+	# CFI "trampoline" to make GDB happy.
+	#
+	# Inserting a fake `__morestack` function is unfortunately the only way to keep GDB happy when
+	# switching stacks. Here, an additional complication is that the registers are saved on an
+	# signal stack, which might be different than application stack. As a result we have to insert
+	# *two* fake `__morestack` frames.
+	#
+	# To achieve that, when DEBUG is defined, we keep three values when exiting enclave:
+	# - RBP: pointer to the saved context (on signal stack)
+	# - R8: fake return address 1 (.Lmorestack_stage1)
+	# - R9: fake return address 2 (.Lmorestack_stage2)
+	#
+	# Here is the summary of stack frames, as recovered by debugger:
+	#
+	#   frame              return addr  CFA                         saved registers
+	#
+	#   sgx_raise          in R8        RBP (untrusted stack)       RBP
+	#   morestack_stage1   in R9        RBP (signal stack)          all registers, RIP as RAX
+	#   morestack_stage2   in RAX       RBP (app stack)
+	#   sgx_ocall          on stack     RBP (app stack)
+	#
+	# Note that we change stacks when entering morestack_stage1 and morestack_stage2.
+	#
+	# TODO: This could be simplified somewhat if we were able to use cfi_val_encoded_addr: instead
+	# of keeping a fake return address in a register, we could hardcode it by writing
+	# `.cfi_val_encoded_addr %rip, 0, .Lmorestack_stage1` etc. Unfortunately, this produces a
+	# relocation that currently causes trusted PAL to crash on startup when trying to relocate
+	# itself.
+
+	.global __morestack
+	.type __morestack, @function
+__morestack:
+	.cfi_startproc
+	.cfi_def_cfa %rbp, 0
+	.cfi_offset %rcx, 8 * 1
+	.cfi_offset %rdx, 8 * 2
+	.cfi_offset %rbx, 8 * 3
+	.cfi_offset %rsp, 8 * 4
+	.cfi_offset %rbp, 8 * 5
+	.cfi_offset %rsi, 8 * 6
+	.cfi_offset %rdi, 8 * 7
+	.cfi_offset %r8, 8 * 8
+	.cfi_offset %r9, 8 * 9
+	.cfi_offset %r10, 8 * 10
+	.cfi_offset %r11, 8 * 11
+	.cfi_offset %r12, 8 * 12
+	.cfi_offset %r13, 8 * 13
+	.cfi_offset %r14, 8 * 14
+	.cfi_offset %r15, 8 * 15
+	.cfi_offset %rflags, 8 * 16
+	.cfi_offset %rax, 8 * 17
+	.cfi_register %rip, %r9
+	nop
+.Lmorestack_stage1:
+	nop
+	.cfi_undefined rax
+	.cfi_register %rip, %rax
+	.cfi_same_value %rcx
+	.cfi_same_value %rdx
+	.cfi_same_value %rbx
+	.cfi_same_value %rsp
+	.cfi_same_value %rbp
+	.cfi_same_value %rsi
+	.cfi_same_value %rdi
+	.cfi_same_value %r8
+	.cfi_same_value %r9
+	.cfi_same_value %r10
+	.cfi_same_value %r11
+	.cfi_same_value %r12
+	.cfi_same_value %r13
+	.cfi_same_value %r14
+	.cfi_same_value %r15
+	nop
+.Lmorestack_stage2:
+	nop
+	.cfi_endproc
+#endif
