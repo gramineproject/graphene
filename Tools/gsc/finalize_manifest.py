@@ -21,18 +21,15 @@ def is_utf8(filename_bytes):
 
 
 def generate_trusted_files(root_dir):
-    cwd = os.getcwd() if os.getcwd() != '/' else ''
     excluded_paths_regex = (r'^/('
                                 r'boot/.*'
                                 r'|dev/.*'
                                 r'|etc/rc(\d|.)\.d/.*'
                                 r'|graphene/python/.*'
+                                r'|finalize_manifest\.py'
                                 r'|proc/.*'
                                 r'|sys/.*'
-                                r'|var/.*)'
-                            f'|^{cwd}/('
-                                r'.*\.manifest'
-                                r'|finalize_manifest\.py)$')
+                                r'|var/.*)$')
     exclude_re = re.compile(excluded_paths_regex)
 
     num_trusted = 0
@@ -87,7 +84,7 @@ def main(args=None):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('/'))
     env.globals.update({'library_paths': generate_library_paths(), 'env_path': os.getenv('PATH')})
 
-    manifest = 'entrypoint.manifest'
+    manifest = '/entrypoint.manifest'
     rendered_manifest = env.get_template(manifest).render()
     trusted_files = generate_trusted_files(args.dir)
     with open(manifest, 'wb') as manifest_file:

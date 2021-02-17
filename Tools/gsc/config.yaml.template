@@ -1,7 +1,26 @@
+# The only currently supported distro is Ubuntu 18.04; to add another distro, you must add three new
+# Dockerfiles (compile, build, sign) under templates/
 Distro: "ubuntu18.04"
+
+# If you're using your own fork and branch of Graphene, specify the GitHub link and the branch name
+# below; typically, you want to keep the default values though
 Graphene:
     Repository: "https://github.com/oscarlab/graphene.git"
-    Branch: "master"
+    Branch:     "master"
+
+# Specify the Intel SGX driver installed on your machine (more specifically, on the machine where
+# the graphenized Docker container will run); there are several variants of the SGX driver:
+#
+#   - legacy out-of-tree driver: use the defaults below, but adjust the branch name
+#
+#   - DCAP out-of-tree driver: use something like the below values
+#         Repository: "https://github.com/intel/SGXDataCenterAttestationPrimitives.git"
+#         Branch:     "DCAP_1.6 && cp -r driver/linux/* ."
+#
+#   - DCAP in-kernel driver: use empty values like below
+#         Repository: ""
+#         Branch:     ""
+#
 SGXDriver:
     Repository: "https://github.com/01org/linux-sgx-driver.git"
-    Branch: "sgx_driver_1.9"
+    Branch:     "sgx_driver_1.9"
