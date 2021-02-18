@@ -4,8 +4,6 @@
 #include "api.h"
 #include "pal_internal.h"
 
-#ifndef NO_INTERNAL_PRINTF
-
 // Collect up to PRINTBUF_SIZE characters into a buffer
 // and perform ONE system call to print all of them,
 // in order to make the lines output to the console atomic
@@ -33,6 +31,7 @@ static int fputch(void* f, int ch, void* putdat) {
     return 0;
 }
 
+__attribute__((format(printf, 1, 0)))
 int vprintf(const char* fmt, va_list ap) {
     struct printbuf b;
 
@@ -44,7 +43,7 @@ int vprintf(const char* fmt, va_list ap) {
     return b.cnt;
 }
 
-int log_vprintf(const char* fmt, va_list ap) {
+static int log_vprintf(const char* fmt, va_list ap) {
     struct printbuf b;
 
     b.idx = 0;
@@ -67,14 +66,11 @@ int printf(const char* fmt, ...) {
 }
 EXTERN_ALIAS(printf);
 
-int log_printf(const char* fmt, ...) {
-    va_list ap;
-    int cnt;
-
-    va_start(ap, fmt);
-    cnt = log_vprintf(fmt, ap);
-    va_end(ap);
-
-    return cnt;
+void _log(int level, const char* fmt, ...) {
+    if (level <= g_pal_control.log_level) {
+        va_list ap;
+        va_start(ap, fmt);
+        log_vprintf(fmt, ap);
+        va_end(ap);
+    }
 }
-#endif
