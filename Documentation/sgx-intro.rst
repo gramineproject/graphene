@@ -408,9 +408,9 @@ SGX terminology
    Intel Provisioning Service
    IPS
 
-      Older internet service provided by Intel for EPID-based remote
-      attestation. This service provides the corresponding EPID key to the
-      Provisioning Enclave on a remote SGX machine.
+      Internet service provided by Intel for EPID-based remote attestation.
+      This service provides the corresponding EPID key to the Provisioning
+      Enclave on a remote SGX machine.
 
    Intel Provisioning Certification Service
    PCS
