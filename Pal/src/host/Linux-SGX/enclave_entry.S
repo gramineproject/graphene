@@ -882,7 +882,6 @@ __morestack:
 	.cfi_offset %rbp, -16
 	.cfi_offset %rbx, -24
 
-	# RDI, RSI: not changed (function parameters to sgx_ocall)
 	# R12, R13, R14, R15: not changed (not cleared in debug mode)
 
 	nop
