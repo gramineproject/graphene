@@ -21,8 +21,19 @@ $(SRCDIR)/Makefile:
 $(SRCDIR)/configure: $(SRCDIR)/Makefile
 	$(MAKE) -C $(SRCDIR) autotools
 
+.SECONDARY: $(ROOTDIR)/PATCH_APPLIED
+$(ROOTDIR)/PATCH_APPLIED:
+	# To run LTP tests with SGX (which doesn't support shared memory mappings),
+	# as a workaround we change the mmap flag from MAP_SHARED to MAP_PRIVATE
+	# (unintuitively, the LTP framework still works correctly with this change)
+	@$(eval export patch-status = $(shell patch -p1 -l -N -s --dry-run < ltp_sgx_mmap_fix.patch 1>&2 2> /dev/null; echo $$?))
+	@if [ $(patch-status) -eq 0 ]; then \
+		patch -p1 -l < ltp_sgx_mmap_fix.patch; \
+	fi
+	touch $@
+
 .SECONDARY: $(BUILDDIR)/BUILD_SUCCESS
-$(BUILDDIR)/BUILD_SUCCESS: $(SRCDIR)/configure
+$(BUILDDIR)/BUILD_SUCCESS: $(SRCDIR)/configure $(if $(SGX), $(ROOTDIR)/PATCH_APPLIED)
 	# Out-of-tree build steps were taken from ltp/INSTALL.
 	# The instructions below assume that SRCDIR and BUILDDIR are absolute.
 	mkdir -p $(BUILDDIR)
@@ -71,4 +82,4 @@ ltp-sgx.xml: CFG = ltp.cfg ltp-sgx.cfg ltp-bug-1075.cfg
 .PHONY: clean-build
 clean-build:
 	$(MAKE) -C $(SRCDIR) clean
-	$(RM) -r $(BUILDDIR) $(INSTALLDIR) ltp*.xml
+	$(RM) -r $(BUILDDIR) $(INSTALLDIR) ltp*.xml PATCH_APPLIED
