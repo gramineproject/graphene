@@ -21,8 +21,11 @@ $(SRCDIR)/Makefile:
 $(SRCDIR)/configure: $(SRCDIR)/Makefile
 	$(MAKE) -C $(SRCDIR) autotools
 
+$(SRCDIR)/ltp_sgx_mmap_fix.patch:
+		$(eval export patch-status = $(shell patch -p1 -l -N -s --dry-run < ltp_sgx_mmap_fix.patch 1>&2 2> /dev/null; echo $$?))
+
 .SECONDARY: $(BUILDDIR)/BUILD_SUCCESS
-$(BUILDDIR)/BUILD_SUCCESS: $(SRCDIR)/configure
+$(BUILDDIR)/BUILD_SUCCESS: $(SRCDIR)/configure $(if $(SGX), sgx-apply-mmap-private-patch)
 	# Out-of-tree build steps were taken from ltp/INSTALL.
 	# The instructions below assume that SRCDIR and BUILDDIR are absolute.
 	mkdir -p $(BUILDDIR)
@@ -72,3 +75,9 @@ ltp-sgx.xml: CFG = ltp.cfg ltp-sgx.cfg ltp-bug-1075.cfg
 clean-build:
 	$(MAKE) -C $(SRCDIR) clean
 	$(RM) -r $(BUILDDIR) $(INSTALLDIR) ltp*.xml
+
+.PHONY: sgx-apply-mmap-private-patch
+sgx-apply-mmap-private-patch: $(SRCDIR)/ltp_sgx_mmap_fix.patch
+	@if [ $(patch-status) -eq 0 ]; then \
+		patch -p1 -l < ltp_sgx_mmap_fix.patch; \
+	fi
