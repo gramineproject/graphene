@@ -142,3 +142,12 @@ void debug_setprefix(shim_tcb_t* tcb) {
 
     buf->start = buf->end;
 }
+
+void _log(int level, const char* fmt, ...) {
+    if (level <= g_log_level) {
+        va_list ap;
+        va_start(ap, fmt);
+        debug_vprintf(fmt, ap);
+        va_end(ap);
+    }
+}

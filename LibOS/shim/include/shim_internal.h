@@ -46,12 +46,7 @@ void debug_puts(const char* str);
 void debug_putch(int ch);
 void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-#define _log(level, fmt...)                          \
-    do {                                             \
-        if ((level) <= g_log_level)                  \
-            debug_printf(fmt);                       \
-    } while (0)
-
+void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
 #define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
 #define log_debug(fmt...)    _log(PAL_LOG_DEBUG, fmt)
