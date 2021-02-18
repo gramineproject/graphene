@@ -367,9 +367,7 @@ that they have severe SGX-hardware limitations. In particular:
    restrict Graphene runs to only one NUMA domain, e.g., via the command
    ``numactl --cpunodebind=0 --membind=0``. Otherwise Graphene may spread
    enclave threads and enclave memory across several NUMA domains, which will
-   lead to higher memory access latencies and overall worse performance. Also,
-   it is typically beneficial to disable hyper-threading (or pin enclave threads
-   to CPU cores which are not hyper-threads).
+   lead to higher memory access latencies and overall worse performance.
 
 Other considerations
 --------------------
@@ -389,7 +387,8 @@ workloads. The manifest options include:
   arguments to system calls, so there is no need in additional checks.
 - ``sgx.preheat_enclave = 1`` -- pre-fault all enclave pages during enclave
   initialization. This shifts the overhead of page faults on non-present enclave
-  pages from runtime to enclave startup time.
+  pages from runtime to enclave startup time. Using this option makes sense only
+  if the whole enclave memory fits into EPC.
 
 If your application periodically fails and complains about seemingly irrelevant
 things, it may be due to insufficient enclave memory. Please try to increase
@@ -547,10 +546,11 @@ use it:
 #. Run ``perf report -i <data file>`` (see :ref:`perf` above).
 
 *Note*: The accuracy of this tool is unclear (though we had positive experiences
-using the tool). The SGX profiling works by measuring the value of instruction
-pointer on each asynchronous enclave exit (AEX), which happen on Linux scheduler
-interrupts, as well as other events such as page faults. While we attempt to
-measure time (and not only count occurences), the results might be inaccurate.
+using the tool so far). The SGX profiling works by measuring the value of
+instruction pointer on each asynchronous enclave exit (AEX), which happen on
+Linux scheduler interrupts, as well as other events such as page faults. While
+we attempt to measure time (and not only count occurences), the results might be
+inaccurate.
 
 Other useful tools for profiling
 --------------------------------
