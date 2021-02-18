@@ -50,22 +50,6 @@ PAL_BOL DkSegmentRegisterSet(PAL_FLG reg, PAL_PTR addr) {
 }
 #endif
 
-PAL_BOL DkInstructionCacheFlush(PAL_PTR addr, PAL_NUM size) {
-    if (!addr || !size) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
-    }
-
-    int ret = _DkInstructionCacheFlush((void*)addr, size);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        return PAL_FALSE;
-    }
-
-    return PAL_TRUE;
-}
-
 PAL_NUM DkMemoryAvailableQuota(void) {
     long quota = _DkMemoryAvailableQuota();
     if (quota < 0)

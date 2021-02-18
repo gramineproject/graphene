@@ -57,13 +57,6 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
     return 0;
 }
 
-int _DkInstructionCacheFlush(const void* addr, int size) {
-    __UNUSED(addr);
-    __UNUSED(size);
-
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
                          PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
                          PAL_NUM* report_size) {

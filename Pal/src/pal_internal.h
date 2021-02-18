@@ -245,7 +245,6 @@ int _DkSystemTimeQuery(uint64_t* out_usec);
 size_t _DkRandomBitsRead(void* buffer, size_t size);
 int _DkSegmentRegisterGet(int reg, void** addr);
 int _DkSegmentRegisterSet(int reg, void* addr);
-int _DkInstructionCacheFlush(const void* addr, int size);
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
                          PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
