@@ -365,12 +365,52 @@ SGX terminology
       .. todo:: TBD
 
    Provisioning Enclave
+   PE
 
-      .. todo:: TBD
+      One of the Architectural Enclaves of the Intel SGX software
+      infrastructure. It is part of the :term:`SGX Platform Software`. The
+      Provisioning Enclave is used in :term:`EPID` based remote attestation.
+      This enclave communicates with the Intel Provisioning Service
+      (:term:`IPS`) to perform EPID provisioning. The result of this
+      provisioning procedure is the private EPID key securely accessed by the
+      Provisioning Enclave. This procedure happens only during the first
+      deployment of the SGX machine (or, in rare cases, to provision a new EPID
+      key after TCB upgrade). The main user of the Provisioning Enclave is the
+      :term:`Quoting Enclave`.
 
       .. seealso::
 
          :term:`Architectural Enclaves`
+
+   Provisioning Certification Enclave
+   PCE
+
+      One of the Architectural Enclaves of the Intel SGX software
+      infrastructure. It is part of the :term:`SGX Platform Software` and
+      :term:`DCAP`. The Provisioning Certification Enclave is used in
+      :term:`DCAP` based remote attestation.  This enclave communicates with the
+      Intel Provisioning Certification Service (:term:`PCS`) to perform DCAP
+      provisioning. The result of this provisioning procedure is the DCAP/ECDSA
+      attestation collateral (mainly the X.509 certificate chains rooted in a
+      well-known Intel certificate and Certificate Revocation Lists). This
+      procedure happens during the first deployment of the SGX machine and then
+      periodically to refresh the cached attestation collateral. Typically, to
+      reduce the dependency on PCS, a cloud service provider introduces an
+      intermediate caching service (Provisioning Certification Caching Service,
+      or PCCS) that stores all the attestation collateral obtained from Intel.
+      The main user of the Provisioning Certification Enclave is the
+      :term:`Quoting Enclave`.
+
+      .. seealso::
+
+         :term:`Architectural Enclaves`
+
+   Intel Provisioning Service
+   IPS
+
+      Older internet service provided by Intel for EPID-based remote
+      attestation. This service provides the corresponding EPID key to the
+      Provisioning Enclave on a remote SGX machine.
 
    Intel Provisioning Certification Service
    PCS
@@ -386,6 +426,7 @@ SGX terminology
             Intel Attestation Service, another Internet service.
 
    Quoting Enclave
+   QE
 
       One of the Architectural Enclaves of the Intel SGX software
       infrastructure. It is part of the :term:`SGX Platform Software`. The
