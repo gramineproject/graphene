@@ -575,7 +575,7 @@ static int __check_elf_header(void* fbp, size_t len) {
     }
 
     /* Now we check if the host match the elf machine profile */
-    if (ehdr->e_machine != EM_X86_64) {
+    if (ehdr->e_machine != SHIM_ELF_HOST_MACHINE) {
         errstring = "ELF file does not match with the host";
         goto verify_failed;
     }
