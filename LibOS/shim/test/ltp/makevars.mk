@@ -7,3 +7,4 @@ INSTALLDIR = $(ROOTDIR)/install
 TESTCASEDIR = $(INSTALLDIR)/testcases/bin
 LTPSCENARIO = $(INSTALLDIR)/runtest/syscalls
 RUNLTPOPTS =
+MMAPPRIVATEPATCHPATH = $(ROOTDIR)/ltp_sgx_mmap_fix.patch

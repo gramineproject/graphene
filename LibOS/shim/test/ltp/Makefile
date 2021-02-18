@@ -72,3 +72,7 @@ ltp-sgx.xml: CFG = ltp.cfg ltp-sgx.cfg ltp-bug-1075.cfg
 clean-build:
 	$(MAKE) -C $(SRCDIR) clean
 	$(RM) -r $(BUILDDIR) $(INSTALLDIR) ltp*.xml
+
+.PHONY: sgx-apply-mmap-private-patch
+sgx-apply-mmap-private-patch:
+	patch -p1 -l < $(MMAPPRIVATEPATCHPATH) || exit 255 
