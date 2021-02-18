@@ -1,4 +1,16 @@
 stage('test-sgx') {
+    timeout(time: 45, unit: 'MINUTES') {
+        try {
+            sh '''
+                cd LibOS/shim/test/ltp
+                make ${MAKEOPTS} all sgx-tokens
+                make ltp-sgx.xml
+            '''
+        } finally {
+            archiveArtifacts 'LibOS/shim/test/ltp/ltp-sgx.xml'
+            junit 'LibOS/shim/test/ltp/ltp-sgx.xml'
+        }
+    }
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/python-simple
