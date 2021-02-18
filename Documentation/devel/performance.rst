@@ -332,13 +332,13 @@ Modern Icelake machines remove many of the hardware bottlenecks of Intel SGX. If
 you must use an older machine (Skylake, Caby Lake, Mehlow), you should be aware
 that they have severe SGX-hardware limitations. In particular:
 
-#. EPC size. You can think of EPC as a physical cache (just like L3 cache) for
-   enclave pages. On all currently available machines, EPC is only 128-256MB in
-   size. This means that if the application has a working set size of more than
-   100-200MB, enclave pages will be evicted from EPC into RAM.  Eviction of
-   enclave pages (also called EPC swapping or paging) is a very expensive
-   hardware operation. Some applications have a working set size of MBs/GBs of
-   data, so performance will be significantly impaired.
+#. :term:`EPC` size. You can think of EPC as a physical cache (just like L3
+   cache) for enclave pages. On all currently available machines, EPC is only
+   128-256MB in size. This means that if the application has a working set size
+   of more than 100-200MB, enclave pages will be evicted from EPC into RAM.
+   Eviction of enclave pages (also called EPC swapping or paging) is a very
+   expensive hardware operation. Some applications have a working set size of
+   MBs/GBs of data, so performance will be significantly impaired.
 
 #. RDTSC/RDTSCP instructions. These instructions are forbidden to execute in an
    SGX enclave on older machines. Unfortunately, many applications and runtimes
@@ -388,7 +388,7 @@ workloads. The manifest options include:
 - ``sgx.preheat_enclave = 1`` -- pre-fault all enclave pages during enclave
   initialization. This shifts the overhead of page faults on non-present enclave
   pages from runtime to enclave startup time. Using this option makes sense only
-  if the whole enclave memory fits into EPC.
+  if the whole enclave memory fits into :term:`EPC`.
 
 If your application periodically fails and complains about seemingly irrelevant
 things, it may be due to insufficient enclave memory. Please try to increase
