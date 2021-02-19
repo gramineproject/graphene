@@ -88,6 +88,17 @@ def extract_working_dir_from_image_config(config, env):
     env.globals.update({'working_dir': working_dir})
 
 
+def extract_environment_from_image_config(config):
+    env_list = config['Env']
+    base_image_environment = ''
+    for env_var in env_list:
+        env_var_name = 'loader.env.' + env_var.split('=')[0]
+        if env_var_name == 'loader.env.PATH':
+            continue  # PATH is already part of entrypoint.manifest.template and it's value is provided in finalize_manifest.py
+        env_var_value = '"' + env_var.split('=')[1] + '"'
+        base_image_environment += env_var_name + '=' + env_var_value + ' \n'
+    return base_image_environment
+
 def extract_build_args(args):
     buildargs_dict = {}
     for item in args.build_arg:
@@ -133,7 +144,8 @@ def gsc_build(args):
     env.globals.update({'app_image': original_image_name})
     extract_binary_cmd_from_image_config(original_image.attrs['Config'], env)
     extract_working_dir_from_image_config(original_image.attrs['Config'], env)
-
+    base_image_environment=extract_environment_from_image_config(original_image.attrs['Config'])
+    
     os.makedirs(tmp_build_path, exist_ok=True)
 
     # generate Dockerfile.build from Jinja-style templates/Dockerfile.<distro>.build.template
@@ -158,6 +170,8 @@ def gsc_build(args):
         entrypoint_manifest.write(env.get_template('entrypoint.manifest.template').render())
         entrypoint_manifest.write('\n')
         entrypoint_manifest.write(user_manifest_contents)
+        entrypoint_manifest.write('\n')
+        entrypoint_manifest.write(base_image_environment)
         entrypoint_manifest.write('\n')
 
     # copy helper script to finalize the manifest from within graphenized Docker image
