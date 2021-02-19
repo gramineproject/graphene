@@ -696,11 +696,6 @@ PAL_NUM DkSystemTimeQuery(void);
  */
 PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size);
 
-/*!
- * \todo document DkInstructionCacheFlush
- */
-PAL_BOL DkInstructionCacheFlush(PAL_PTR addr, PAL_NUM size);
-
 enum PAL_SEGMENT {
     PAL_SEGMENT_FS = 1,
     PAL_SEGMENT_GS,

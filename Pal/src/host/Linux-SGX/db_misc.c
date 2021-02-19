@@ -93,13 +93,6 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     return 0;
 }
 
-int _DkInstructionCacheFlush(const void* addr, int size) {
-    __UNUSED(addr);
-    __UNUSED(size);
-
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 #define CPUID_CACHE_SIZE 64 /* cache only 64 distinct CPUID entries; sufficient for most apps */
 static struct pal_cpuid {
     unsigned int leaf, subleaf;

@@ -250,7 +250,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkObjectClose',
         'DkSystemTimeQuery',
         'DkRandomBitsRead',
-        'DkInstructionCacheFlush',
         'DkMemoryAvailableQuota',
     ]
     if ON_X86:
