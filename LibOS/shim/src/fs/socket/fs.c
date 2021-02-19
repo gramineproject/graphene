@@ -97,7 +97,7 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
                 .si_code = SI_USER,
             };
             if (kill_current_proc(&info) < 0) {
-                debug("socket_write: failed to deliver a signal\n");
+                log_error("socket_write: failed to deliver a signal\n");
             }
         }
 
@@ -195,7 +195,7 @@ static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
 
 out:
     if (ret < 0) {
-        debug("socket_poll failed (%ld)\n", ret);
+        log_error("socket_poll failed (%ld)\n", ret);
         sock->error = -ret;
     }
 

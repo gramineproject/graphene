@@ -83,14 +83,14 @@ int sys_match_resource_num(const char* pathname) {
         }
         totalcnt = pal_control.topo_info.num_cache_index;
     } else {
-        debug("Invalid resource %s in file %s!", token, pathname);
+        log_debug("Invalid resource %s in file %s!", token, pathname);
         ret = 0;
         goto out;
     }
 
     /* sysfs resources like NUMA nodes, CPU cores, CPU caches have indexes from 0 to totalcnt - 1 */
     if (num >= totalcnt) {
-        debug("Incorrect index %d in file %s (max supported is %d)\n", num, pathname, totalcnt);
+        log_debug("Incorrect index %d in file %s (max supported is %d)\n", num, pathname, totalcnt);
         ret = 0;
         goto out;
     }
@@ -116,7 +116,7 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
     } else if (!strcmp(filename, "cpu")) {
         totalcnt = pal_control.cpu_info.online_logical_cores;
     } else {
-        debug("Invalid resource name in file %s\n", pathname);
+        log_debug("Invalid resource name in file %s\n", pathname);
         return -EINVAL;
     }
 

@@ -69,7 +69,7 @@ void remove_r_debug(void* addr) {
     if (!m)
         return;
 
-    debug("remove a library for gdb: %s\n", m->l_name);
+    log_debug("removing a library for gdb: %s\n", m->l_name);
 
     if (m->l_prev) {
         m->l_prev->l_next = m->l_next;
@@ -107,7 +107,7 @@ void append_r_debug(const char* uri, void* addr) {
         tail = &(*tail)->l_next;
     }
 
-    debug("add a library for gdb: %s\n", uri);
+    log_debug("adding a library for gdb: %s\n", uri);
 
     new->l_prev = prev;
     new->l_next = NULL;

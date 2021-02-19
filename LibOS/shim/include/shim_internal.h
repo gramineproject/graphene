@@ -61,16 +61,16 @@ void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)))
 #define DEBUG_BREAK_ON_FAILURE() do {} while (0)
 #endif
 
-#define BUG()                                       \
-    do {                                            \
-        warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
-        DEBUG_BREAK_ON_FAILURE();                   \
-        die_or_inf_loop();                          \
+#define BUG()                                           \
+    do {                                                \
+        log_error("BUG() " __FILE__ ":%d\n", __LINE__); \
+        DEBUG_BREAK_ON_FAILURE();                       \
+        die_or_inf_loop();                              \
     } while (0)
 
-#define DEBUG_HERE()                                         \
-    do {                                                     \
-        debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
+#define DEBUG_HERE()                                             \
+    do {                                                         \
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
     } while (0)
 
 /*!
@@ -316,7 +316,7 @@ static inline int __ref_dec(REFTYPE* ref) {
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         if (!_c) {
-            debug("Fail: Trying to drop reference count below 0\n");
+            log_error("Fail: Trying to drop reference count below 0\n");
             BUG();
             return 0;
         }

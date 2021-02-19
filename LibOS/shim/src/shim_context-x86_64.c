@@ -69,8 +69,8 @@ void shim_xstate_init(void) {
     g_shim_xsave_size      = xsavesize;
 
 out:
-    debug("LibOS xsave_enabled %d, xsave_size 0x%x(%u), xsave_features 0x%lx\n",
-          g_shim_xsave_enabled, g_shim_xsave_size, g_shim_xsave_size, g_shim_xsave_features);
+    log_debug("LibOS xsave_enabled %d, xsave_size 0x%x(%u), xsave_features 0x%lx\n",
+              g_shim_xsave_enabled, g_shim_xsave_size, g_shim_xsave_size, g_shim_xsave_features);
 }
 
 #if 0
@@ -275,8 +275,8 @@ void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, void* handler, v
      * register arguments in `rax`. */
     context->rax = 0;
 
-    debug("Created sigframe for sig: %d at %p (handler: %p, restorer: %p)\n",
-          siginfo->si_signo, sigframe, handler, restorer);
+    log_debug("Created sigframe for sig: %d at %p (handler: %p, restorer: %p)\n",
+              siginfo->si_signo, sigframe, handler, restorer);
 }
 
 void restart_syscall(PAL_CONTEXT* context, uint64_t syscall_nr) {

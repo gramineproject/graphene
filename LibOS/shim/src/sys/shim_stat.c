@@ -156,7 +156,7 @@ static int __do_statfs(struct shim_mount* fs, struct statfs* buf) {
     buf->f_bfree  = 10000000;
     buf->f_bavail = 10000000;
 
-    debug("statfs: %ld %ld %ld\n", buf->f_blocks, buf->f_bfree, buf->f_bavail);
+    log_debug("statfs: %ld %ld %ld\n", buf->f_blocks, buf->f_bfree, buf->f_bavail);
 
     return 0;
 }
@@ -199,7 +199,7 @@ long shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, i
         lookup_flags &= ~LOOKUP_FOLLOW;
     if (flags & AT_NO_AUTOMOUNT) {
         /* Do nothing as automount isn't supported */
-        debug("ignoring AT_NO_AUTOMOUNT.");
+        log_warning("newfstatat: ignoring AT_NO_AUTOMOUNT.");
     }
 
     int ret = 0;

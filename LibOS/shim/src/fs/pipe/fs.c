@@ -51,7 +51,7 @@ static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count
                 .si_code = SI_USER,
             };
             if (kill_current_proc(&info) < 0) {
-                debug("pipe_write: failed to deliver a signal\n");
+                log_error("pipe_write: failed to deliver a signal\n");
             }
         }
         return -err;
@@ -171,8 +171,8 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
         /* POSIX disallows FIFOs opened for read-write, but Linux allows it. We must choose only
          * one end (read or write) in our emulation, so we treat such FIFOs as read-only. This
          * covers most apps seen in the wild (in particular, LTP apps). */
-        debug("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
-              "Treating it as read-only.", qstrgetstr(&dent->fs->path));
+        log_warning("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
+                    "Treating it as read-only.", qstrgetstr(&dent->fs->path));
         flags = O_RDONLY;
     }
 

@@ -36,7 +36,7 @@ static IDTYPE g_internal_tid_alloc_idx = INTERNAL_TID_BASE;
 //#define DEBUG_REF
 
 #ifdef DEBUG_REF
-#define DEBUG_PRINT_REF_COUNT(rc) debug("%s %p ref_count = %d\n", __func__, dispositions, rc)
+#define DEBUG_PRINT_REF_COUNT(rc) log_debug("%s %p ref_count = %d\n", __func__, dispositions, rc)
 #else
 #define DEBUG_PRINT_REF_COUNT(rc) __UNUSED(rc)
 #endif
@@ -166,7 +166,7 @@ static int init_main_thread(void) {
 
     cur_thread->tid = get_new_tid();
     if (!cur_thread->tid) {
-        debug("Cannot allocate pid for the initial thread!\n");
+        log_error("Cannot allocate pid for the initial thread!\n");
         put_thread(cur_thread);
         return -ESRCH;
     }
@@ -255,7 +255,7 @@ struct shim_thread* get_new_thread(void) {
 
     thread->tid = get_new_tid();
     if (!thread->tid) {
-        debug("get_new_thread: could not allocate a tid!\n");
+        log_error("get_new_thread: could not allocate a tid!\n");
         put_thread(thread);
         return NULL;
     }
@@ -344,8 +344,8 @@ void put_thread(struct shim_thread* thread) {
             void* tmp_vma = NULL;
             char* addr = (char*)thread->libos_stack_bottom - SHIM_THREAD_LIBOS_STACK_SIZE;
             if (bkeep_munmap(addr, SHIM_THREAD_LIBOS_STACK_SIZE, /*is_internal=*/true, &tmp_vma) < 0) {
-                debug("[put_thread] Failed to remove bookkeeped memory at %p-%p!\n",
-                      addr, (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE);
+                log_error("[put_thread] Failed to remove bookkeeped memory at %p-%p!\n",
+                          addr, (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE);
                 BUG();
             }
             DkVirtualMemoryFree(addr, SHIM_THREAD_LIBOS_STACK_SIZE);

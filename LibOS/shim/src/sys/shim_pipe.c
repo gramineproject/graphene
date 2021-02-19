@@ -31,19 +31,19 @@ static int create_pipes(struct shim_handle* srv, struct shim_handle* cli, int fl
 
     if ((ret = create_pipe(name, uri, PIPE_URI_SIZE, &hdl0, qstr,
                            /*use_vmid_for_name=*/false)) < 0) {
-        debug("pipe creation failure\n");
+        log_error("pipe creation failure\n");
         return ret;
     }
 
     if (!(hdl2 = DkStreamOpen(uri, 0, 0, 0, LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(flags)))) {
         ret = -PAL_ERRNO();
-        debug("pipe connection failure\n");
+        log_error("pipe connection failure\n");
         goto out;
     }
 
     if (!(hdl1 = DkStreamWaitForClient(hdl0))) {
         ret = -PAL_ERRNO();
-        debug("pipe acception failure\n");
+        log_error("pipe acceptation failure\n");
         goto out;
     }
 
@@ -87,7 +87,7 @@ long shim_do_pipe2(int* filedes, int flags) {
     int ret = 0;
 
     if (flags & O_DIRECT) {
-        debug("shim_do_pipe2(): ignoring a not supported O_DIRECT flag\n");
+        log_warning("shim_do_pipe2(): ignoring not supported O_DIRECT flag\n");
         flags &= ~O_DIRECT;
     }
 
