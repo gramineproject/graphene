@@ -51,7 +51,7 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
         } else if (!strcmp(filename, "thread_siblings")) {
             cpu_filebuf = pal_control.topo_info.core_topology[cpunum].thread_siblings;
         } else {
-            debug("Unrecognized file %s\n", name);
+            log_debug("Unrecognized file %s\n", name);
             return -ENOENT;
         }
     }

@@ -9,7 +9,7 @@ int object_wait_with_retry(PAL_HANDLE handle) {
                       PAL_NATIVE_ERRNO() == PAL_ERROR_TRYAGAIN));
 
     if (!ret) {
-        debug("waiting on %p resulted in error %s", handle, pal_strerror(PAL_NATIVE_ERRNO()));
+        log_error("waiting an object resulted in error %s", pal_strerror(PAL_NATIVE_ERRNO()));
         return -PAL_NATIVE_ERRNO();
     }
     return 0;

@@ -343,14 +343,14 @@ static int receive_memory_on_stream(PAL_HANDLE handle, struct checkpoint_hdr* hd
         for (; entry; entry = entry->next) {
             CP_REBASE(entry->next);
 
-            debug("memory entry [%p]: %p-%p\n", entry, entry->addr, entry->addr + entry->size);
+            log_debug("memory entry [%p]: %p-%p\n", entry, entry->addr, entry->addr + entry->size);
 
             PAL_PTR addr = ALLOC_ALIGN_DOWN_PTR(entry->addr);
             PAL_NUM size = (char*)ALLOC_ALIGN_UP_PTR(entry->addr + entry->size) - (char*)addr;
             PAL_FLG prot = entry->prot;
 
             if (!DkVirtualMemoryAlloc(addr, size, 0, prot | PAL_PROT_WRITE)) {
-                debug("failed allocating %p-%p\n", addr, addr + size);
+                log_error("failed allocating %p-%p\n", addr, addr + size);
                 return -PAL_ERRNO();
             }
 
@@ -360,7 +360,7 @@ static int receive_memory_on_stream(PAL_HANDLE handle, struct checkpoint_hdr* hd
             }
 
             if (!(prot & PAL_PROT_WRITE) && !DkVirtualMemoryProtect(addr, size, prot)) {
-                debug("failed protecting %p-%p\n", addr, addr + size);
+                log_error("failed protecting %p-%p\n", addr, addr + size);
                 return -PAL_ERRNO();
             }
         }
@@ -373,7 +373,7 @@ static int restore_checkpoint(struct checkpoint_hdr* hdr, uintptr_t base) {
     size_t cpoffset = hdr->offset;
     size_t* offset  = &cpoffset;
 
-    debug("restoring checkpoint at 0x%08lx rebased from %p\n", base, hdr->addr);
+    log_debug("restoring checkpoint at 0x%08lx rebased from %p\n", base, hdr->addr);
 
     struct shim_cp_entry* cpent = NEXT_CP_ENTRY();
     ssize_t rebase = base - (uintptr_t)hdr->addr;
@@ -387,13 +387,14 @@ static int restore_checkpoint(struct checkpoint_hdr* hdr, uintptr_t base) {
         rs_func rs = __rs_func[cpent->cp_type - CP_FUNC_BASE];
         int ret = (*rs)(cpent, base, offset, rebase);
         if (ret < 0) {
-            debug("failed restoring checkpoint at %s (%d)\n", CP_FUNC_NAME(cpent->cp_type), ret);
+            log_error("failed restoring checkpoint at %s (%d)\n", CP_FUNC_NAME(cpent->cp_type),
+                      ret);
             return ret;
         }
         cpent = NEXT_CP_ENTRY();
     }
 
-    debug("successfully restored checkpoint at 0x%08lx - 0x%08lx\n", base, base + hdr->size);
+    log_debug("successfully restored checkpoint at 0x%08lx - 0x%08lx\n", base, base + hdr->size);
     return 0;
 }
 
@@ -407,7 +408,7 @@ static int receive_handles_on_stream(struct checkpoint_hdr* hdr, void* base, ssi
     if (!entries_cnt)
         return 0;
 
-    debug("receiving %lu PAL handles\n", entries_cnt);
+    log_debug("receiving %lu PAL handles\n", entries_cnt);
 
     struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * entries_cnt);
 
@@ -445,7 +446,7 @@ out:
 
 static void* cp_alloc(void* addr, size_t size) {
     if (addr) {
-        debug("extending checkpoint store: %p-%p (size = %lu)\n", addr, addr + size, size);
+        log_debug("extending checkpoint store: %p-%p (size = %lu)\n", addr, addr + size, size);
 
         if (bkeep_mmap_fixed(addr, size, PROT_READ | PROT_WRITE,
                              CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore") < 0)
@@ -460,7 +461,7 @@ static void* cp_alloc(void* addr, size_t size) {
          * reserved space is half of the size of the checkpoint space. */
         size_t reserve_size = ALLOC_ALIGN_UP(size >> 1);
 
-        debug("allocating checkpoint store (size = %ld, reserve = %ld)\n", size, reserve_size);
+        log_debug("allocating checkpoint store (size = %ld, reserve = %ld)\n", size, reserve_size);
 
         int ret = bkeep_mmap_any(size + reserve_size, PROT_READ | PROT_WRITE, CP_MMAP_FLAGS, NULL,
                                  0, "cpstore", &addr);
@@ -533,7 +534,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
 
     if (!cpstore.base) {
         ret = -ENOMEM;
-        debug("failed allocating enough memory for checkpoint\n");
+        log_error("failed allocating enough memory for checkpoint\n");
         goto out;
     }
 
@@ -542,11 +543,11 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     ret = (*migrate_func)(&cpstore, process_description, thread_description, process_ipc_info, ap);
     va_end(ap);
     if (ret < 0) {
-        debug("failed creating checkpoint (ret = %d)\n", ret);
+        log_error("failed creating checkpoint (ret = %d)\n", ret);
         goto out;
     }
 
-    debug("checkpoint of %lu bytes created\n", cpstore.offset);
+    log_debug("checkpoint of %lu bytes created\n", cpstore.offset);
 
     struct checkpoint_hdr hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -567,26 +568,26 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     /* send a checkpoint header to child process to notify it to start receiving checkpoint */
     ret = write_exact(pal_process, &hdr, sizeof(hdr));
     if (ret < 0) {
-        debug("failed writing checkpoint header to child process (ret = %d)\n", ret);
+        log_error("failed writing checkpoint header to child process (ret = %d)\n", ret);
         goto out;
     }
 
     ret = send_checkpoint_on_stream(pal_process, &cpstore);
     if (ret < 0) {
-        debug("failed sending checkpoint (ret = %d)\n", ret);
+        log_error("failed sending checkpoint (ret = %d)\n", ret);
         goto out;
     }
 
     ret = send_handles_on_stream(pal_process, &cpstore);
     if (ret < 0) {
-        debug("failed sending PAL handles as part of checkpoint (ret = %d)\n", ret);
+        log_error("failed sending PAL handles as part of checkpoint (ret = %d)\n", ret);
         goto out;
     }
 
     void* tmp_vma = NULL;
     ret = bkeep_munmap((void*)cpstore.base, cpstore.bound, /*is_internal=*/true, &tmp_vma);
     if (ret < 0) {
-        debug("failed unmaping checkpoint (ret = %d)\n", ret);
+        log_error("failed unmaping checkpoint (ret = %d)\n", ret);
         goto out;
     }
     DkVirtualMemoryFree((PAL_PTR)cpstore.base, cpstore.bound);
@@ -623,7 +624,7 @@ out:
     if (ret < 0) {
         if (pal_process)
             DkObjectClose(pal_process);
-        debug("process creation failed\n");
+        log_error("process creation failed\n");
     }
 
     return ret;
@@ -662,7 +663,7 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
         mapsize = (PAL_NUM)ALLOC_ALIGN_UP(hdr->size);
     }
 
-    debug("checkpoint mapped at %p-%p\n", base, base + hdr->size);
+    log_debug("checkpoint mapped at %p-%p\n", base, base + hdr->size);
 
     mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!mapped) {
@@ -675,13 +676,13 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
     if (ret < 0) {
         goto out;
     }
-    debug("read checkpoint of %lu bytes from parent\n", hdr->size);
+    log_debug("read checkpoint of %lu bytes from parent\n", hdr->size);
 
     ret = receive_memory_on_stream(PAL_CB(parent_process), hdr, (uintptr_t)base);
     if (ret < 0) {
         goto out;
     }
-    debug("restored memory from checkpoint\n");
+    log_debug("restored memory from checkpoint\n");
 
     /* if checkpoint is loaded at a different address in child from where it was created in parent,
      * need to rebase the pointers in the checkpoint */

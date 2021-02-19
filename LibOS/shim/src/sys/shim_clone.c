@@ -250,7 +250,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         CSIGNAL;
 
     if (flags & ~supported_flags) {
-        debug("clone called with unsupported flags argument.\n");
+        log_warning("clone called with unsupported flags argument.\n");
         return -EINVAL;
     }
 
@@ -270,7 +270,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
      * explicitly disallowed for now. */
     if (flags & CLONE_VM) {
         if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
-            debug("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
+            log_warning("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
             return -EINVAL;
         }
     }
@@ -280,7 +280,8 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
          * corner-cases in signal handling and syscalls -- we simply treat vfork() as fork(). We
          * assume that performance hit is negligible (Graphene has to migrate internal state anyway
          * which is slow) and apps do not rely on insane Linux-specific semantics of vfork().  */
-        debug("vfork was called by the application, implemented as an alias to fork in Graphene\n");
+        log_warning("vfork was called by the application, implemented as an alias to fork in "
+                    "Graphene\n");
         flags &= ~(CLONE_VFORK | CLONE_VM);
     }
 

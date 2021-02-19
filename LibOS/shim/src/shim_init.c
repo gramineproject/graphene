@@ -56,7 +56,7 @@ noreturn void __abort(void) {
 /* we use GCC's stack protector; when it detects corrupted stack, it calls __stack_chk_fail() */
 noreturn void __stack_chk_fail(void); /* to suppress GCC's warning "no previous prototype" */
 noreturn void __stack_chk_fail(void) {
-    debug("Stack protector: Graphene LibOS internal stack corruption detected\n");
+    log_error("Stack protector: Graphene LibOS internal stack corruption detected\n");
     __abort();
 }
 
@@ -146,7 +146,7 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
     if (bkeep_mprotect(stack, size, PROT_READ | PROT_WRITE, !!(flags & VMA_INTERNAL)) < 0)
         return NULL;
 
-    debug("Allocated stack at %p (size = %ld)\n", stack, size);
+    log_debug("Allocated stack at %p (size = %ld)\n", stack, size);
     return stack;
 }
 
@@ -283,7 +283,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     ret = toml_sizestring_in(g_manifest_root, "sys.stack.size", get_rlimit_cur(RLIMIT_STACK),
                              &stack_size);
     if (ret < 0) {
-        debug("Cannot parse \'sys.stack.size\' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sys.stack.size\' (the value must be put in double quotes!)\n");
         return -EINVAL;
     }
 
@@ -353,13 +353,13 @@ static int read_environs(const char** envp) {
 
 #define CALL_INIT(func, args...) func(args)
 
-#define RUN_INIT(func, ...)                                              \
-    do {                                                                 \
-        int _err = CALL_INIT(func, ##__VA_ARGS__);                       \
-        if (_err < 0) {                                                  \
-            debug("Error during shim_init() in " #func " (%d)\n", _err); \
-            DkProcessExit(-_err);                                        \
-        }                                                                \
+#define RUN_INIT(func, ...)                                                  \
+    do {                                                                     \
+        int _err = CALL_INIT(func, ##__VA_ARGS__);                           \
+        if (_err < 0) {                                                      \
+            log_error("Error during shim_init() in " #func " (%d)\n", _err); \
+            DkProcessExit(-_err);                                            \
+        }                                                                    \
     } while (0)
 
 noreturn void* shim_init(int argc, void* args) {
@@ -372,13 +372,13 @@ noreturn void* shim_init(int argc, void* args) {
     struct debug_buf debug_buf;
     (void)debug_setbuf(shim_get_tcb(), &debug_buf);
 
-    debug("Host: %s\n", PAL_CB(host_type));
+    log_debug("Host: %s\n", PAL_CB(host_type));
 
     DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE);
 
     g_pal_alloc_align = PAL_CB(alloc_align);
     if (!IS_POWER_OF_2(g_pal_alloc_align)) {
-        debug("Error during shim_init(): PAL allocation alignment not a power of 2\n");
+        log_error("Error during shim_init(): PAL allocation alignment not a power of 2\n");
         DkProcessExit(EINVAL);
     }
 
@@ -387,7 +387,7 @@ noreturn void* shim_init(int argc, void* args) {
     shim_xstate_init();
 
     if (!create_lock(&__master_lock)) {
-        debug("Error during shim_init(): failed to allocate __master_lock\n");
+        log_error("Error during shim_init(): failed to allocate __master_lock\n");
         DkProcessExit(ENOMEM);
     }
 
@@ -404,7 +404,7 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_dcache);
     RUN_INIT(init_handle);
 
-    debug("Shim loaded at %p, ready to initialize\n", &__load_address);
+    log_debug("Shim loaded at %p, ready to initialize\n", &__load_address);
 
     if (PAL_CB(parent_process)) {
         struct checkpoint_hdr hdr;
@@ -451,7 +451,7 @@ noreturn void* shim_init(int argc, void* args) {
             DkProcessExit(PAL_ERRNO());
     }
 
-    debug("Shim process initialized\n");
+    log_debug("Shim process initialized\n");
 
     shim_tcb_t* cur_tcb = shim_get_tcb();
 
@@ -510,7 +510,7 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
                 return ret;
         }
 
-        debug("Creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
+        log_debug("Creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
         len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
         if (len >= size)
             return -ERANGE;
