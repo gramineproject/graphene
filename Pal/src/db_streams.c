@@ -260,7 +260,7 @@ int64_t _DkStreamRead(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* 
         ret = ops->read(handle, offset, count, buf);
     }
 
-    return ret ? ret : -PAL_ERROR_ENDOFSTREAM;
+    return ret;
 }
 
 /* PAL call DkStreamRead: Read from stream at absolute offset. Return number
@@ -308,7 +308,7 @@ int64_t _DkStreamWrite(PAL_HANDLE handle, uint64_t offset, uint64_t count, const
         ret = ops->write(handle, offset, count, buf);
     }
 
-    return ret ? ret : -PAL_ERROR_ENDOFSTREAM;
+    return ret;
 }
 
 /* PAL call DkStreamWrite: Write to stream at absolute offset. Return number

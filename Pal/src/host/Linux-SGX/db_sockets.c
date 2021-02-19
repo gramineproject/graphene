@@ -403,7 +403,7 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
-        return -PAL_ERROR_ENDOFSTREAM;
+        return 0;
 
     if (len != (uint32_t)len)
         return -PAL_ERROR_INVAL;
@@ -412,9 +412,6 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
-
-    if (!bytes)
-        return -PAL_ERROR_ENDOFSTREAM;
 
     return bytes;
 }
