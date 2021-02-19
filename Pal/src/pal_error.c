@@ -31,7 +31,6 @@ static const struct pal_error_description g_pal_error_list[] = {
     {PAL_ERROR_NOTKILLABLE, "Thread state unkillable"},
     {PAL_ERROR_INCONSIST, "Inconsistent system state"},
     {PAL_ERROR_TRYAGAIN, "Try again"},
-    {PAL_ERROR_ENDOFSTREAM, "End of stream"},
     {PAL_ERROR_NOTSERVER, "Not a server"},
     {PAL_ERROR_NOTCONNECTION, "Not a connection"},
     {PAL_ERROR_CONNFAILED, "Connection failed"},

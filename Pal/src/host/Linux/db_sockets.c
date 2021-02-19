@@ -504,7 +504,7 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, size_t len, void* bu
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
-        return -PAL_ERROR_ENDOFSTREAM;
+        return 0;
 
     struct msghdr hdr;
     struct iovec iov;
@@ -522,9 +522,6 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, size_t len, void* bu
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
-
-    if (!bytes)
-        return -PAL_ERROR_ENDOFSTREAM;
 
     return bytes;
 }
