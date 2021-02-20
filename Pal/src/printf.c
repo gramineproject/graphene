@@ -66,23 +66,11 @@ int printf(const char* fmt, ...) {
 }
 EXTERN_ALIAS(printf);
 
-__attribute__((format(printf, 1, 2)))
-static int log_printf(const char* fmt, ...) {
-    va_list ap;
-    int cnt;
-
-    va_start(ap, fmt);
-    cnt = log_vprintf(fmt, ap);
-    va_end(ap);
-
-    return cnt;
-}
-
 void _log(int level, const char* fmt, ...) {
     if (level <= g_pal_control.log_level) {
         va_list ap;
         va_start(ap, fmt);
-        log_printf(fmt, ap);
+        log_vprintf(fmt, ap);
         va_end(ap);
     }
 }

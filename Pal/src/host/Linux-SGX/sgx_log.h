@@ -20,12 +20,7 @@ extern int g_urts_log_fd;
 int urts_log_init(const char* path);
 int urts_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
-#define _urts_log(level, fmt...)                          \
-    do {                                                 \
-        if ((level) <= g_urts_log_level)                  \
-            pal_fdprintf(g_urts_log_fd, fmt);             \
-    }  while(0)
-
+void _urts_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 #define urts_log_error(fmt...)    _urts_log(PAL_LOG_ERROR, fmt)
 #define urts_log_warning(fmt...)  _urts_log(PAL_LOG_WARNING, fmt)
 #define urts_log_debug(fmt...)    _urts_log(PAL_LOG_DEBUG, fmt)
