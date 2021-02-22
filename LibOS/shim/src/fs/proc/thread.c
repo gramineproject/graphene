@@ -594,6 +594,73 @@ static const struct pseudo_fs_ops fs_thread_maps = {
     .stat = &proc_thread_maps_stat,
 };
 
+static int proc_thread_cmdline_open(struct shim_handle* hdl, const char* name, int flags) {
+    if (flags & (O_WRONLY | O_RDWR))
+        return -EACCES;
+
+    const char* next;
+    size_t next_len;
+    char* buffer = NULL;
+    IDTYPE pid = 0;
+
+    int ret = parse_thread_name(name, &pid, &next, &next_len, NULL);
+    if (ret < 0)
+        return ret;
+
+    size_t buffer_size = g_process.cmdline_length;
+    buffer = calloc(buffer_size, sizeof(char));
+    if (!buffer) {
+        return -ENOMEM;
+    }
+
+    memcpy(buffer, g_process.cmdline, buffer_size);
+
+    struct shim_str_data* data = calloc(1, sizeof(*data));
+    if (!data) {
+        free(buffer);
+        return -ENOMEM;
+    }
+
+    data->str          = buffer;
+    data->len          = buffer_size;
+    hdl->type          = TYPE_STR;
+    hdl->flags         = flags & ~O_RDONLY;
+    hdl->acc_mode      = MAY_READ;
+    hdl->info.str.data = data;
+
+    // Don't really need to do any work here, but keeping as a placeholder,
+    // just in case.
+
+    return 0;
+}
+
+static int proc_thread_cmdline_mode(const char* name, mode_t* mode) {
+    // Only used by one file
+    __UNUSED(name);
+    *mode = PERM_r________;
+    return 0;
+}
+
+static int proc_thread_cmdline_stat(const char* name, struct stat* buf) {
+    // Only used by one file
+    __UNUSED(name);
+    memset(buf, 0, sizeof(struct stat));
+
+    buf->st_dev = buf->st_ino = 1;
+    buf->st_mode              = PERM_r________ | S_IFREG;
+    buf->st_uid               = 0;
+    buf->st_gid               = 0;
+    buf->st_size              = 0;
+
+    return 0;
+}
+
+static const struct pseudo_fs_ops fs_thread_cmdline = {
+    .open = &proc_thread_cmdline_open,
+    .mode = &proc_thread_cmdline_mode,
+    .stat = &proc_thread_cmdline_stat,
+};
+
 static int proc_thread_dir_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(hdl);
     __UNUSED(name);
@@ -734,7 +801,7 @@ static const struct pseudo_dir dir_task = {
 };
 
 const struct pseudo_dir dir_thread = {
-    .size = 6,
+    .size = 7,
     .ent  = {
         {.name = "cwd",  .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
         {.name = "exe",  .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
@@ -742,5 +809,6 @@ const struct pseudo_dir dir_thread = {
         {.name = "fd",   .fs_ops = &fs_thread_fd,   .dir  = &dir_fd,   .type = LINUX_DT_DIR},
         {.name = "maps", .fs_ops = &fs_thread_maps, .type = LINUX_DT_REG},
         {.name = "task", .fs_ops = &fs_thread,      .dir  = &dir_task, .type = LINUX_DT_DIR},
+        {.name = "cmdline",  .fs_ops = &fs_thread_cmdline, .type = LINUX_DT_REG},
     }
 };

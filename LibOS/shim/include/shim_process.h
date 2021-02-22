@@ -58,11 +58,15 @@ struct shim_process {
 
     struct shim_lock children_lock;
     struct shim_lock fs_lock;
+
+    /* complete command line for the process, as reported by /proc/[pid]/cmdline */
+    char cmdline[STR_SIZE];
+    size_t cmdline_length;
 };
 
 extern struct shim_process g_process;
 
-int init_process(void);
+int init_process(int argc, const char** argv);
 
 /* Allocates a new child process structure, initializing all fields. */
 struct shim_child_process* create_child_process(void);

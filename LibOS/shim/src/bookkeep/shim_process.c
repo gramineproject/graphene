@@ -20,7 +20,7 @@ typedef bool (*child_cmp_t)(const struct shim_child_process*, unsigned long);
 
 struct shim_process g_process = { .pid = 0 };
 
-int init_process(void) {
+int init_process(int argc, const char** argv) {
     if (g_process.pid) {
         /* `g_process` is already initialized, e.g. via checkpointing code. */
         return 0;
@@ -59,6 +59,24 @@ int init_process(void) {
 
     /* `g_process.exec` will be initialized later on (in `init_important_handles`). */
     g_process.exec = NULL;
+
+    /* The command line arguments passed are stored in /proc/self/cmdline as part of the proc fs.
+     * They are not separated by space, but by NUL instead. So, it is essential to maintain the
+     * cmdline_length also as a member here. */
+
+    g_process.cmdline_length = 0;
+    memset(g_process.cmdline, '\0', ARRAY_SIZE(g_process.cmdline));
+    size_t tmplen = 0;
+
+    for (int i = 0; i < argc; i++) {
+        if (tmplen + strlen(argv[i]) + 1 > ARRAY_SIZE(g_process.cmdline))
+            return -ENOMEM;
+
+        memcpy(g_process.cmdline + tmplen, argv[i], strlen(argv[i]));
+        tmplen += strlen(argv[i]) + 1;
+    }
+
+    g_process.cmdline_length = tmplen;
 
     return 0;
 }
@@ -208,6 +226,10 @@ BEGIN_CP_FUNC(process_description) {
     new_process->pid = process->pid;
     new_process->ppid = process->ppid;
     new_process->pgid = process->pgid;
+
+    /* copy cmdline (used by /proc/[pid]/cmdline) from the current process */
+    memcpy(new_process->cmdline, g_process.cmdline, ARRAY_SIZE(g_process.cmdline));
+    new_process->cmdline_length = g_process.cmdline_length;
 
     DO_CP_MEMBER(dentry, process, new_process, root);
     DO_CP_MEMBER(dentry, process, new_process, cwd);
