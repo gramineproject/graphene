@@ -304,6 +304,9 @@ ssize_t _DkDebugLog(const void* buf, size_t size);
 void _DkPrintConsole(const void* buf, int size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
+
+// TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
+// pasting it here and making `inline`, but our current linker scripts prevent both.
 void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #define PAL_LOG_DEFAULT_LEVEL  PAL_LOG_ERROR

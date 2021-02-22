@@ -20,7 +20,10 @@ extern int g_urts_log_fd;
 int urts_log_init(const char* path);
 int urts_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
+// TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
+// pasting it here and making `inline`, but our current linker scripts prevent both.
 void _urts_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+
 #define urts_log_error(fmt...)    _urts_log(PAL_LOG_ERROR, fmt)
 #define urts_log_warning(fmt...)  _urts_log(PAL_LOG_WARNING, fmt)
 #define urts_log_debug(fmt...)    _urts_log(PAL_LOG_DEBUG, fmt)
