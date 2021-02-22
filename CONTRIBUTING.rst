@@ -183,9 +183,6 @@ For SGX, one needs to do the following::
    cd Pal/regression
    make SGX=1 regression
 
-If a |nbsp| test fails unexpectedly, one can use the :makevar:`KEEP_LOG=1`
-option to get the complete output.
-
 One can run tests manually (prepend the command with ``SGX=1`` or
 ``PAL_HOST=Linux-SGX`` to run the SGX variant)::
 
