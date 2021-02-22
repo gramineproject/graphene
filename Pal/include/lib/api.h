@@ -224,10 +224,10 @@ void* calloc(size_t nmemb, size_t size);
     })
 
 /* Libc printf functions. stdio.h/stdarg.h. */
-void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt, ...)
+void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const char* fmt, ...)
     __attribute__((format(printf, 4, 5)));
 
-void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt,
+void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const char* fmt,
                 va_list ap) __attribute__((format(printf, 4, 0)));
 
 int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap);

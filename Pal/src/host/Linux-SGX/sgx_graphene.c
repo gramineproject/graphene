@@ -19,15 +19,17 @@ struct printbuf {
     char buf[PRINTBUF_SIZE];
 };
 
-static int fputch(void* f, int ch, struct printbuf* b) {
+static int fputch(void* f, int ch, void* _buf) {
     __UNUSED(f);
 
-    b->buf[b->idx++] = ch;
-    if (b->idx == PRINTBUF_SIZE - 1) {
-        INLINE_SYSCALL(write, 3, 2, b->buf, b->idx);
-        b->idx = 0;
+    struct printbuf* buf = (struct printbuf*)_buf;
+
+    buf->buf[buf->idx++] = ch;
+    if (buf->idx == PRINTBUF_SIZE - 1) {
+        INLINE_SYSCALL(write, 3, 2, buf->buf, buf->idx);
+        buf->idx = 0;
     }
-    b->cnt++;
+    buf->cnt++;
     return 0;
 }
 
@@ -36,7 +38,7 @@ static int vfdprintf(int fd, const char* fmt, va_list ap) {
 
     b.idx = 0;
     b.cnt = 0;
-    vfprintfmt((void*)&fputch, NULL, &b, fmt, ap);
+    vfprintfmt(fputch, NULL, &b, fmt, ap);
     INLINE_SYSCALL(write, 3, fd, b.buf, b.idx);
 
     return b.cnt;
