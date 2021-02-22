@@ -428,7 +428,7 @@ noreturn void* shim_init(int argc, void* args) {
 
     RUN_INIT(init_mount_root);
     RUN_INIT(init_ipc);
-    RUN_INIT(init_process);
+    RUN_INIT(init_process, argc, argv);
     RUN_INIT(init_threading);
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
