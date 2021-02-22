@@ -224,6 +224,8 @@ static int read_exact(PAL_HANDLE handle, void* buf, size_t size) {
                 continue;
             }
             return -err;
+        } else if (x == 0) {
+            return -ENODATA;
         }
 
         bytes += x;

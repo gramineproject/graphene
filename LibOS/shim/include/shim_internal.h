@@ -249,7 +249,7 @@ static inline int wait_event(AEVENTTYPE* e) {
     do {
         char byte;
         PAL_NUM ret = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
-        err = ret == PAL_STREAM_ERROR ? PAL_ERRNO() : 0;
+        err = ret == PAL_STREAM_ERROR ? PAL_ERRNO() : (ret == 0 ? ENODATA : 0);
     } while (err == EINTR || err == EAGAIN || err == EWOULDBLOCK);
 
     return -err;
@@ -273,7 +273,7 @@ static inline int clear_event(AEVENTTYPE* e) {
             int err = PAL_ERRNO();
             if (err == EINTR) {
                 continue;
-            } else if (!err || err == EAGAIN || err == EWOULDBLOCK) {
+            } else if (err == EAGAIN || err == EWOULDBLOCK) {
                 break;
             }
             return -err;
@@ -290,10 +290,13 @@ static inline int clear_event(AEVENTTYPE* e) {
             if (err == EINTR) {
                 continue;
             } else if (err == EAGAIN || err == EWOULDBLOCK) {
-                /* This should not happen, since we polled above  ... */
+                /* This should not happen, since we polled above... */
                 break;
             }
             return -err;
+        } else if (n == 0) {
+            /* This should not happen, since we polled above... */
+            return -ENODATA;
         }
     }
 

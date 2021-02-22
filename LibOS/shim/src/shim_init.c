@@ -410,8 +410,17 @@ noreturn void* shim_init(int argc, void* args) {
         struct checkpoint_hdr hdr;
 
         PAL_NUM ret = DkStreamRead(PAL_CB(parent_process), 0, sizeof(hdr), &hdr, NULL, 0);
-        if (ret == PAL_STREAM_ERROR || ret != sizeof(hdr))
-            DkProcessExit(PAL_ERRNO());
+        int err = 0;
+        if (ret == PAL_STREAM_ERROR) {
+            /* PAL_ERRNO() == 0 should not be possible now, but old code allowed for such case.
+             * This will be removed soon anyway. */
+            err = PAL_ERRNO() ?: ENOTRECOVERABLE;
+        } else if (ret != sizeof(hdr)) {
+            err = ENODATA;
+        }
+        if (err) {
+            DkProcessExit(err);
+        }
 
         assert(hdr.size);
         RUN_INIT(receive_checkpoint_and_restore, &hdr);
