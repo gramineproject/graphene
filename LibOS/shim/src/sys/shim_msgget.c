@@ -696,8 +696,8 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
         goto out;
     }
 
-    int expected_size = sizeof(struct msg_handle_backup) + sizeof(struct msg_backup) * msgq->nmsgs +
-                        msgq->currentsize;
+    size_t expected_size = sizeof(struct msg_handle_backup)
+                           + sizeof(struct msg_backup) * msgq->nmsgs + msgq->currentsize;
 
     ret = DkStreamSetLength(file, expected_size);
     if (ret < 0) {

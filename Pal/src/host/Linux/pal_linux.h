@@ -117,7 +117,7 @@ int handle_set_cloexec(PAL_HANDLE handle, bool enable);
 
 /* serialize/deserialize a handle into/from a malloc'ed buffer */
 int handle_serialize(PAL_HANDLE handle, void** data);
-int handle_deserialize(PAL_HANDLE* handle, const void* data, int size);
+int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size);
 
 #define ACCESS_R 4
 #define ACCESS_W 2

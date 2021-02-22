@@ -12,7 +12,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-void _DkPrintConsole(const void* buf, int size) {
+void _DkPrintConsole(const void* buf, size_t size) {
     /* needs to be implemented */
 }
 

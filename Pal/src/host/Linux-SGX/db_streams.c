@@ -73,7 +73,7 @@ out:
     return (mode & acc);
 }
 
-void _DkPrintConsole(const void* buf, int size) {
+void _DkPrintConsole(const void* buf, size_t size) {
     ocall_write(2 /*stderr*/, buf, size);
 }
 

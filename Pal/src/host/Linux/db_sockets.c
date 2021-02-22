@@ -90,8 +90,8 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
         for (end = port_str; *end >= '0' && *end <= '9'; end++)
             ;
         addr_in6->sin6_family = af = AF_INET6;
-        addr_buf                   = &addr_in6->sin6_addr.s6_addr;
-        port_buf                   = &addr_in6->sin6_port;
+        addr_buf = &addr_in6->sin6_addr.s6_addr;
+        port_buf = &addr_in6->sin6_port;
     } else {
         /* for IP, the address will be in the form of "x.x.x.x:port". */
         struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
@@ -112,8 +112,8 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
         for (end = port_str; *end >= '0' && *end <= '9'; end++)
             ;
         addr_in->sin_family = af = AF_INET;
-        addr_buf                 = &addr_in->sin_addr.s_addr;
-        port_buf                 = &addr_in->sin_port;
+        addr_buf = &addr_in->sin_addr.s_addr;
+        port_buf = &addr_in->sin_port;
     }
 
     if (af == AF_INET) {
@@ -136,8 +136,9 @@ inval:
 }
 
 /* create the string of uri from the given socket address */
-static int inet_create_uri(char* uri, size_t count, struct sockaddr* addr, size_t addrlen) {
-    size_t len = 0;
+static int inet_create_uri(char* buf, size_t buf_size, struct sockaddr* addr, size_t addrlen,
+                           size_t* output_len) {
+    int len = 0; /* snprintf returns `int` */
 
     if (addr->sa_family == AF_INET) {
         if (addrlen < sizeof(struct sockaddr_in))
@@ -147,8 +148,9 @@ static int inet_create_uri(char* uri, size_t count, struct sockaddr* addr, size_
         char* addr                  = (char*)&addr_in->sin_addr.s_addr;
 
         /* for IP, the address will be in the form of "x.x.x.x:port". */
-        len = snprintf(uri, count, "%u.%u.%u.%u:%u", (unsigned char)addr[0], (unsigned char)addr[1],
-                       (unsigned char)addr[2], (unsigned char)addr[3], __ntohs(addr_in->sin_port));
+        len = snprintf(buf, buf_size, "%u.%u.%u.%u:%u", (unsigned char)addr[0],
+                       (unsigned char)addr[1], (unsigned char)addr[2], (unsigned char)addr[3],
+                       __ntohs(addr_in->sin_port));
     } else if (addr->sa_family == AF_INET6) {
         if (addrlen < sizeof(struct sockaddr_in6))
             return -PAL_ERROR_INVAL;
@@ -158,17 +160,21 @@ static int inet_create_uri(char* uri, size_t count, struct sockaddr* addr, size_
 
         /* for IPv6, the address will be in the form of
            "[xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]:port". */
-        len = snprintf(uri, count, "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]:%u", addr[0], addr[1],
-                       addr[2], addr[3], addr[4], addr[5], addr[6], addr[7],
+        len = snprintf(buf, buf_size, "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]:%u", addr[0],
+                       addr[1], addr[2], addr[3], addr[4], addr[5], addr[6], addr[7],
                        __ntohs(addr_in6->sin6_port));
     } else {
         return -PAL_ERROR_INVAL;
     }
 
-    if (len >= count)
+    if (len < 0)
+        return len;
+    if ((size_t)len >= buf_size)
         return -PAL_ERROR_TOOLONG;
 
-    return len;
+    if (output_len)
+        *output_len = (size_t)len;
+    return 0;
 }
 
 /* parse the uri for a socket stream. The uri might have both binding
@@ -769,8 +775,8 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, size_t len,
     if (!addr_uri)
         return -PAL_ERROR_OVERFLOW;
 
-    int ret = inet_create_uri(addr_uri, addr + addrlen - addr_uri,
-                              (struct sockaddr*)&conn_addr, hdr.msg_namelen);
+    int ret = inet_create_uri(addr_uri, addr + addrlen - addr_uri, (struct sockaddr*)&conn_addr,
+                              hdr.msg_namelen, NULL);
     if (ret < 0)
         return ret;
 
@@ -1093,12 +1099,14 @@ static int socket_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     count -= prefix_len;
 
     if (bind_addr) {
-        if ((ret = inet_create_uri(buffer, count, bind_addr, addr_size(bind_addr))) < 0) {
+        size_t uri_size;
+        ret = inet_create_uri(buffer, count, bind_addr, addr_size(bind_addr), &uri_size);
+        if (ret < 0) {
             return ret;
         }
 
-        buffer += ret;
-        count -= ret;
+        buffer += uri_size;
+        count -= uri_size;
     }
 
     if (dest_addr) {
@@ -1112,12 +1120,14 @@ static int socket_getname(PAL_HANDLE handle, char* buffer, size_t count) {
             count--;
         }
 
-        if ((ret = inet_create_uri(buffer, count, dest_addr, addr_size(dest_addr))) < 0) {
+        size_t uri_size;
+        ret = inet_create_uri(buffer, count, dest_addr, addr_size(dest_addr), &uri_size);
+        if (ret < 0) {
             return ret;
         }
 
-        buffer += ret;
-        count -= ret;
+        buffer += uri_size;
+        count -= uri_size;
     }
 
     return orig_count - count;

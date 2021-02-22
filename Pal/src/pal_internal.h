@@ -187,7 +187,7 @@ int _DkStreamMap(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint
 int _DkStreamUnmap(void* addr, uint64_t size);
 int64_t _DkStreamSetLength(PAL_HANDLE handle, uint64_t length);
 int _DkStreamFlush(PAL_HANDLE handle);
-int _DkStreamGetName(PAL_HANDLE handle, char* buf, int size);
+int _DkStreamGetName(PAL_HANDLE handle, char* buf, size_t size);
 const char* _DkStreamRealpath(PAL_HANDLE hdl);
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo);
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo);
@@ -274,7 +274,7 @@ bool is_elf_object(PAL_HANDLE handle);
 int load_elf_object(const char* uri, enum object_type type);
 int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** out_loading_base);
 
-void init_slab_mgr(int alignment);
+void init_slab_mgr(size_t alignment);
 void* malloc(size_t size);
 void* malloc_copy(const void* mem, size_t size);
 void* calloc(size_t nmem, size_t size);
@@ -299,7 +299,7 @@ void free(void* mem);
 
 int _DkInitDebugStream(const char* path);
 ssize_t _DkDebugLog(const void* buf, size_t size);
-void _DkPrintConsole(const void* buf, int size);
+void _DkPrintConsole(const void* buf, size_t size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 

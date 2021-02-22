@@ -218,8 +218,9 @@ void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const
 void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const char* fmt,
                 va_list ap) __attribute__((format(printf, 4, 0)));
 
-int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap);
-int snprintf(char* buf, size_t n, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
+int vsnprintf(char* buf, size_t buf_size, const char* fmt, va_list ap);
+int snprintf(char* buf, size_t buf_size, const char* fmt, ...)
+    __attribute__((format(printf, 3, 4)));
 
 /* Miscelleneous */
 
