@@ -599,7 +599,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                     /* send IPC_MSG_RESP message to sender of this msg */
                     ret = send_response_ipc_message(port, msg->src, ret, msg->seq);
                     if (ret < 0) {
-                        log_debug("Sending IPC_MSG_RESP msg on port %p (handle %p) to %u failed\n",
+                        log_error("Sending IPC_MSG_RESP msg on port %p (handle %p) to %u failed\n",
                                   port, port->pal_handle, msg->src);
                         ret = -PAL_ERRNO();
                         goto out;
