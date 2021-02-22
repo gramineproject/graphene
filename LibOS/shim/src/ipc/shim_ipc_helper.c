@@ -567,14 +567,15 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 DkStreamRead(port->pal_handle, /*offset=*/0, expected_size - bytes + readahead,
                              (void*)msg + bytes, NULL, 0);
 
-            if (read == PAL_STREAM_ERROR) {
-                if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
+            if (!read || read == PAL_STREAM_ERROR) {
+                int err = !read ? ENODATA : PAL_ERRNO();
+                if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK)
                     continue;
 
                 debug("Port %p (handle %p) closed while receiving IPC message\n", port,
                       port->pal_handle);
                 del_ipc_port_fini(port);
-                ret = -PAL_ERRNO();
+                ret = -err;
                 goto out;
             }
 
