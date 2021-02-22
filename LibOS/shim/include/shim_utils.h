@@ -107,7 +107,7 @@ static inline char* qstrsetstrs(struct shim_qstr* qstr, int nstrs, const char** 
     qstr->len = 0;
 
     for (int i = 0; i < nstrs; i++) {
-        int size = sizes[i];
+        size_t size = sizes[i];
         memcpy(ptr, strs[i], size);
         ptr[size] = 0;
         qstr->len += size;

@@ -79,7 +79,7 @@ int handle_set_cloexec(PAL_HANDLE handle, bool enable) {
     return 0;
 }
 
-void _DkPrintConsole(const void* buf, int size) {
+void _DkPrintConsole(const void* buf, size_t size) {
     INLINE_SYSCALL(write, 3, 2 /*stderr*/, buf, size);
 }
 
@@ -159,7 +159,7 @@ int handle_serialize(PAL_HANDLE handle, void** data) {
     return hdlsz + dsz1 + dsz2;
 }
 
-int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
+int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size) {
     PAL_HANDLE hdl = malloc(size);
     if (!hdl)
         return -PAL_ERROR_NOMEM;

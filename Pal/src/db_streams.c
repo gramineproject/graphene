@@ -436,7 +436,7 @@ PAL_BOL DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
     return PAL_TRUE;
 }
 
-int _DkStreamGetName(PAL_HANDLE handle, char* buffer, int size) {
+int _DkStreamGetName(PAL_HANDLE handle, char* buffer, size_t size) {
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
     if (!ops)
@@ -445,12 +445,12 @@ int _DkStreamGetName(PAL_HANDLE handle, char* buffer, int size) {
     if (!ops->getname)
         return -PAL_ERROR_NOTSUPPORT;
 
-    int ret = ops->getname(handle, buffer, size - 1);
+    int ret = ops->getname(handle, buffer, size ? size - 1 : 0);
 
     if (ret < 0)
         return ret;
 
-    ((char*)buffer)[ret] = 0;
+    buffer[ret] = 0;
     return ret;
 }
 
