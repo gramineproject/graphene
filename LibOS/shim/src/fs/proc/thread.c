@@ -607,8 +607,8 @@ static int proc_thread_cmdline_open(struct shim_handle* hdl, const char* name, i
     if (ret < 0)
         return ret;
 
-    size_t buffer_size = g_process.cmdline_length;
-    buffer = calloc(buffer_size, sizeof(char));
+    size_t buffer_size = g_process.cmdline_size;
+    buffer = malloc(buffer_size);
     if (!buffer) {
         return -ENOMEM;
     }
@@ -627,9 +627,6 @@ static int proc_thread_cmdline_open(struct shim_handle* hdl, const char* name, i
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-
-    // Don't really need to do any work here, but keeping as a placeholder,
-    // just in case.
 
     return 0;
 }
