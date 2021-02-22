@@ -61,7 +61,7 @@ struct shim_process {
 
     /* complete command line for the process, as reported by /proc/[pid]/cmdline */
     char cmdline[STR_SIZE];
-    size_t cmdline_length;
+    size_t cmdline_size;
 };
 
 extern struct shim_process g_process;

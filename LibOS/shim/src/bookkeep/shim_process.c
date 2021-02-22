@@ -62,21 +62,21 @@ int init_process(int argc, const char** argv) {
 
     /* The command line arguments passed are stored in /proc/self/cmdline as part of the proc fs.
      * They are not separated by space, but by NUL instead. So, it is essential to maintain the
-     * cmdline_length also as a member here. */
+     * cmdline_size also as a member here. */
 
-    g_process.cmdline_length = 0;
+    g_process.cmdline_size = 0;
     memset(g_process.cmdline, '\0', ARRAY_SIZE(g_process.cmdline));
-    size_t tmplen = 0;
+    size_t tmp_size = 0;
 
     for (int i = 0; i < argc; i++) {
-        if (tmplen + strlen(argv[i]) + 1 > ARRAY_SIZE(g_process.cmdline))
+        if (tmp_size + strlen(argv[i]) + 1 > ARRAY_SIZE(g_process.cmdline))
             return -ENOMEM;
 
-        memcpy(g_process.cmdline + tmplen, argv[i], strlen(argv[i]));
-        tmplen += strlen(argv[i]) + 1;
+        memcpy(g_process.cmdline + tmp_size, argv[i], strlen(argv[i]));
+        tmp_size += strlen(argv[i]) + 1;
     }
 
-    g_process.cmdline_length = tmplen;
+    g_process.cmdline_size = tmp_size;
 
     return 0;
 }
@@ -229,7 +229,7 @@ BEGIN_CP_FUNC(process_description) {
 
     /* copy cmdline (used by /proc/[pid]/cmdline) from the current process */
     memcpy(new_process->cmdline, g_process.cmdline, ARRAY_SIZE(g_process.cmdline));
-    new_process->cmdline_length = g_process.cmdline_length;
+    new_process->cmdline_size = g_process.cmdline_size;
 
     DO_CP_MEMBER(dentry, process, new_process, root);
     DO_CP_MEMBER(dentry, process, new_process, cwd);

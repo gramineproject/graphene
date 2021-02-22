@@ -607,15 +607,15 @@ static int proc_thread_cmdline_open(struct shim_handle* hdl, const char* name, i
     if (ret < 0)
         return ret;
 
-    size_t buffer_size = g_process.cmdline_length;
-    buffer = calloc(buffer_size, sizeof(char));
+    size_t buffer_size = g_process.cmdline_size;
+    buffer = malloc(buffer_size);
     if (!buffer) {
         return -ENOMEM;
     }
 
     memcpy(buffer, g_process.cmdline, buffer_size);
 
-    struct shim_str_data* data = calloc(1, sizeof(*data));
+    struct shim_str_data* data = malloc(sizeof(*data));
     if (!data) {
         free(buffer);
         return -ENOMEM;
@@ -627,9 +627,6 @@ static int proc_thread_cmdline_open(struct shim_handle* hdl, const char* name, i
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-
-    // Don't really need to do any work here, but keeping as a placeholder,
-    // just in case.
 
     return 0;
 }
@@ -644,7 +641,7 @@ static int proc_thread_cmdline_mode(const char* name, mode_t* mode) {
 static int proc_thread_cmdline_stat(const char* name, struct stat* buf) {
     // Only used by one file
     __UNUSED(name);
-    memset(buf, 0, sizeof(struct stat));
+    memset(buf, 0, sizeof(*buf));
 
     buf->st_dev = buf->st_ino = 1;
     buf->st_mode              = PERM_r________ | S_IFREG;
