@@ -7,7 +7,9 @@
 #ifndef _SPINLOCK_H
 #define _SPINLOCK_H
 
-#include "api.h"
+#include <stdbool.h>
+
+#include "assert.h"
 #include "cpu.h"
 
 #ifdef DEBUG
@@ -60,11 +62,11 @@ static inline void debug_spinlock_giveup_ownership(spinlock_t* lock) {
 }
 #else
 static inline void debug_spinlock_take_ownership(spinlock_t* lock) {
-    __UNUSED(lock);
+    (void)lock;
 }
 
 static inline void debug_spinlock_giveup_ownership(spinlock_t* lock) {
-    __UNUSED(lock);
+    (void)lock;
 }
 #endif // DEBUG_SPINLOCKS_SHIM
 
@@ -158,7 +160,8 @@ out_success:
  * returned.
  */
 static inline int spinlock_cmpxchg(spinlock_t* lock, int* expected, int desired) {
-    static_assert(SAME_TYPE(&lock->lock, expected), "spinlock is not implemented as int*");
+    static_assert(__builtin_types_compatible_p(__typeof__(&lock->lock), __typeof__(expected)),
+                  "spinlock is not implemented as int*");
     return __atomic_compare_exchange_n(&lock->lock, expected, desired, /*weak=*/false,
                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
 }
