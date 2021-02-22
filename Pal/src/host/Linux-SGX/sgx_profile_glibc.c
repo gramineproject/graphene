@@ -14,20 +14,18 @@
 #ifdef DEBUG
 
 #define _GNU_SOURCE
+#include <link.h>
 #include <stdlib.h>
 #include <string.h>
-#include <link.h>
-
-extern const char* g_pal_loader_path;
 
 /* Function prototypes. Declared also in sgx_internal.h, but we cannot include it here due to header
  * conflict. */
 void sgx_profile_report_urts_elfs(void);
 void sgx_profile_report_elf(const char* filename, void* addr);
 
-static int callback(struct dl_phdr_info *info,
+static int callback(struct dl_phdr_info* info,
                     __attribute__((unused)) size_t size,
-                    __attribute__((unused)) void *data) {
+                    __attribute__((unused)) void* data) {
 
     sgx_profile_report_elf(info->dlpi_name, (void*)info->dlpi_addr);
     return 0;
