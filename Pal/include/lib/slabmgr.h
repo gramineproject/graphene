@@ -74,7 +74,7 @@ typedef struct __attribute__((packed)) slab_area {
     unsigned char raw[];
 } SLAB_AREA_TYPE, *SLAB_AREA;
 
-static_assert(IS_ALIGNED((uintptr_t)((struct slab_area*)0)->raw, 16),
+static_assert(IS_ALIGNED((uintptr_t)&((struct slab_area*)0)->raw, 16),
               "slab_area::raw must be aligned to 16 B");
 
 #ifdef SLAB_CANARY
