@@ -1,3 +1,4 @@
 [submodule "LibOS/shim/test/ltp/src"]
 	path = LibOS/shim/test/ltp/src
 	url = https://github.com/linux-test-project/ltp.git
+	ignore = dirty
