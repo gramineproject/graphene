@@ -680,7 +680,7 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
     if (msgq->deleted)
         goto out;
 
-    debug("store msgq %d to persistent store\n", msgq->msqid);
+    log_debug("store msgq %d to persistent store\n", msgq->msqid);
 
     char fileuri[20];
     snprintf(fileuri, 20, URI_PREFIX_FILE "msgq.%08x", msgq->msqid);

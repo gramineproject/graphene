@@ -80,13 +80,10 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
-    int bytes = INLINE_SYSCALL(read, 3, handle->eventfd.fd, buffer, len);
+    int64_t bytes = INLINE_SYSCALL(read, 3, handle->eventfd.fd, buffer, len);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
-
-    if (!bytes)
-        return -PAL_ERROR_ENDOFSTREAM;
 
     return bytes;
 }
@@ -102,7 +99,7 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
-    int bytes = INLINE_SYSCALL(write, 3, handle->eventfd.fd, buffer, len);
+    int64_t bytes = INLINE_SYSCALL(write, 3, handle->eventfd.fd, buffer, len);
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
 

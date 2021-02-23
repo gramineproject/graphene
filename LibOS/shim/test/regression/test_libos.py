@@ -766,6 +766,7 @@ class TC_80_Socket(RegressionTestCase):
     def test_300_socket_tcp_msg_peek(self):
         stdout, _ = self.run_binary(['tcp_msg_peek'], timeout=50)
         self.assertIn('[client] receiving with MSG_PEEK: Hello from server!', stdout)
+        self.assertIn('[client] receiving with MSG_PEEK again: Hello from server!', stdout)
         self.assertIn('[client] receiving without MSG_PEEK: Hello from server!', stdout)
         self.assertIn('[client] checking how many bytes are left unread: 0', stdout)
         self.assertIn('[client] done', stdout)

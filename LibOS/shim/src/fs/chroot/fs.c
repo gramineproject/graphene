@@ -620,13 +620,15 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
     lock(&hdl->lock);
 
     PAL_NUM pal_ret = DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0);
-    if (pal_ret != PAL_STREAM_ERROR) {
+    if (pal_ret == 0) {
+        ret = 0;
+    } else if (pal_ret == PAL_STREAM_ERROR) {
+        ret = -PAL_ERRNO();
+    } else {
         if (__builtin_add_overflow(pal_ret, 0, &ret))
             BUG();
         if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, pal_ret, &file->marker))
             BUG();
-    } else {
-        ret = PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM ? 0 : -PAL_ERRNO();
     }
 
     unlock(&hdl->lock);
@@ -660,7 +662,11 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     lock(&hdl->lock);
 
     PAL_NUM pal_ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void*)buf, NULL);
-    if (pal_ret != PAL_STREAM_ERROR) {
+    if (pal_ret == 0) {
+        ret = 0;
+    } else if (pal_ret == PAL_STREAM_ERROR) {
+        ret = -PAL_ERRNO();
+    } else {
         if (__builtin_add_overflow(pal_ret, 0, &ret))
             BUG();
         if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, pal_ret, &file->marker))
@@ -669,8 +675,6 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
             file->size = file->marker;
             chroot_update_size(hdl, file, FILE_HANDLE_DATA(hdl));
         }
-    } else {
-        ret = PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM ? 0 : -PAL_ERRNO();
     }
 
     unlock(&hdl->lock);
@@ -827,14 +831,12 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
         /* DkStreamRead for directory will return as many entries as fits into the buffer. */
         PAL_NUM bytes = DkStreamRead(pal_hdl, 0, buf_size, buf, NULL, 0);
         if (bytes == PAL_STREAM_ERROR) {
-            if (PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM) {
-                /* End of directory listing */
-                ret = 0;
-                break;
-            }
-
             ret = -PAL_ERRNO();
             goto out;
+        } else if (bytes == 0) {
+            /* End of directory listing */
+            ret = 0;
+            break;
         }
         /* Last entry must be null-terminated */
         assert(buf[bytes - 1] == '\0');

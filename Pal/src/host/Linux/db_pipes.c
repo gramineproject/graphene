@@ -294,9 +294,6 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
 
-    if (!bytes)
-        return -PAL_ERROR_ENDOFSTREAM;
-
     return bytes;
 }
 

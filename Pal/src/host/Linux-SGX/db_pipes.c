@@ -394,9 +394,6 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
         bytes = _DkStreamSecureRead(handle->pipe.ssl_ctx, buffer, len);
     }
 
-    if (!bytes)
-        return -PAL_ERROR_ENDOFSTREAM;
-
     return bytes;
 }
 

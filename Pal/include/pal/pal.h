@@ -146,7 +146,7 @@ typedef struct PAL_CONTROL_ {
     PAL_STR executable;          /*!< initial executable name. TODO: remove from PAL */
     PAL_HANDLE parent_process;   /*!< handle of parent process */
     PAL_HANDLE first_thread;     /*!< handle of first thread */
-    PAL_NUM log_level;           /*!< what log messsages to enable */
+    int log_level;               /*!< what log messages to enable */
 
     /*
      * Memory layout

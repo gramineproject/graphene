@@ -631,13 +631,16 @@ sgx_ocall:
 	# %rax is argument to EEXIT
 	# %rbx is argument to EEXIT
 	# %rcx is set to AEP by EEXIT
-	xorq %rdx, %rdx
 	# %rsi, %rdi are arguments to the untrusted code
 
 #ifdef DEBUG
+	# Store pointer to context in RDX, for the SGX profiler.
+	movq %gs:SGX_PRE_OCALL_STACK, %rdx
+
 	# Keep callee-saved registers in order to recover stack later (see __morestack() below).
 #else
 	# In non-debug mode, clear these registers to prevent information leaks.
+	xorq %rdx, %rdx
 	xorq %rbp, %rbp
 	xorq %r12, %r12
 	xorq %r13, %r13

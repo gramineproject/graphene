@@ -551,11 +551,30 @@ collect samples and save them to ``sgx-perf-<PID>.data``.
 The saved files can be viewed with the ``perf`` tool, e.g. ``perf report -i
 sgx-perf.data``.
 
-See :doc:`devel/performance` for more information.
+See :ref:`sgx-profile` for more information.
 
 *Note:* this option is insecure and cannot be used with production enclaves
 (``sgx.debug = 0``). If the production enclave is started with this option set,
 Graphene will fail initialization of the enclave.
+
+::
+
+    sgx.profile.mode = ["aex"|"ocall_inner"|"ocall_outer"]
+    (Default: "aex")
+
+Specifies what events to record:
+
+* ``aex``: Records enclave state during asynchronous enclave exit (AEX). Use
+  this to check where the CPU time is spent in the enclave.
+
+* ``ocall_inner``: Records enclave state during OCALL.
+
+* ``ocall_outer``: Records the outer OCALL function, i.e. what OCALL handlers
+  are going to be executed. Does not include stack information (cannot be used
+  with ``sgx.profile.with_stack = 1``).
+
+See also :ref:`sgx-profile-ocall` for more detailed advice regarding the OCALL
+modes.
 
 ::
 
@@ -577,3 +596,6 @@ lower overhead.
 
 Note that the accuracy is limited by how often the process is interrupted by
 Linux scheduler: the effective maximum is 250 samples per second.
+
+**Note**: This option applies only to ``aex`` mode. In the ``ocall_*`` modes,
+currently all samples are taken.

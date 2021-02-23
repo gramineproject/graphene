@@ -27,7 +27,7 @@ static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
     ret = toml_int_in(g_manifest_root, "sys.insecure__allow_eventfd", /*defaultval=*/0,
                       &allow_eventfd);
     if (ret < 0 || (allow_eventfd != 0 && allow_eventfd != 1)) {
-        debug("Cannot parse \'sys.insecure__allow_eventfd\' (the value must be 0 or 1)\n");
+        log_error("Cannot parse \'sys.insecure__allow_eventfd\' (the value must be 0 or 1)\n");
         return -ENOSYS;
     }
 
@@ -46,7 +46,7 @@ static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
     /* eventfd() requires count (aka initval) but PAL's DkStreamOpen() doesn't have such an
      * argument. Using create arg as a work-around (note: initval is uint32 but create is int32). */
     if (!(hdl = DkStreamOpen(URI_PREFIX_EVENTFD, 0, 0, count, pal_flags))) {
-        debug("eventfd open failure\n");
+        log_error("eventfd open failure\n");
         return -PAL_ERRNO();
     }
 

@@ -627,17 +627,17 @@ static const char* signal_name(int sig, char str[6]) {
     return str;
 }
 
-#define PRINTF(fmt, ...)                \
-    do {                                \
-        debug_printf(fmt, __VA_ARGS__); \
+#define PRINTF(fmt, ...)             \
+    do {                             \
+        log_trace(fmt, __VA_ARGS__); \
     } while (0)
-#define PUTS(str)        \
-    do {                 \
-        debug_puts(str); \
+#define PUTS(str)             \
+    do {                      \
+        log_trace("%s", str); \
     } while (0)
-#define PUTCH(ch)        \
-    do {                 \
-        debug_putch(ch); \
+#define PUTCH(ch)            \
+    do {                     \
+        log_trace("%c", ch); \
     } while (0)
 
 struct flag_table {

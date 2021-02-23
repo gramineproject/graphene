@@ -39,7 +39,7 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
             node_filebuf =
                 pal_control.topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_1G].nr_hugepages;
         } else {
-            debug("Unrecognized file %s\n", name);
+            log_debug("Unrecognized file %s\n", name);
             return -ENOENT;
         }
     }

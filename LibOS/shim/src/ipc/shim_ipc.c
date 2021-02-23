@@ -252,7 +252,7 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     assert(msg->size >= IPC_MSG_MINIMAL_SIZE);
 
     msg->src = g_process_ipc_info.vmid;
-    debug("Sending ipc message to port %p (handle %p)\n", port, port->pal_handle);
+    log_debug("Sending ipc message to port %p (handle %p)\n", port, port->pal_handle);
 
     size_t total_bytes = msg->size;
     size_t bytes       = 0;
@@ -265,7 +265,7 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
             if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
                 continue;
 
-            debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
+            log_debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
             del_ipc_port_fini(port);
             return -PAL_ERRNO();
         }
@@ -321,7 +321,7 @@ int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc
     if (seq)
         *seq = msg->msg.seq;
 
-    debug("Waiting for response (seq = %lu)\n", msg->msg.seq);
+    log_debug("Waiting for response (seq = %lu)\n", msg->msg.seq);
 
     /* force thread which will send the message to wait for response;
      * ignore unrelated interrupts but fail on actual errors */
@@ -331,7 +331,7 @@ int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc
             goto out;
     } while (ret != 0);
 
-    debug("Finished waiting for response (seq = %lu, ret = %d)\n", msg->msg.seq, msg->retval);
+    log_debug("Finished waiting for response (seq = %lu, ret = %d)\n", msg->msg.seq, msg->retval);
     ret = msg->retval;
 out:
     lock(&port->msgs_lock);

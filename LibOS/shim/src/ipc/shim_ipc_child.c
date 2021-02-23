@@ -29,9 +29,9 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid) {
      * killed by SIGKILL.
      */
     if (mark_child_exited_by_vmid(vmid, /*uid=*/0, /*exit_code=*/0, SIGKILL)) {
-        debug("Child process (vmid: 0x%x) got disconnected\n", vmid);
+        log_debug("Child process (vmid: 0x%x) got disconnected\n", vmid);
     } else {
-        debug("Unknown process (vmid: 0x%x) disconnected\n", vmid);
+        log_debug("Unknown process (vmid: 0x%x) disconnected\n", vmid);
     }
 }
 
@@ -78,16 +78,16 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     __UNUSED(port);
     struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
 
-    debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", msg->src,
+    log_debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", msg->src,
           msgin->ppid, msgin->pid, msgin->exitcode, msgin->term_signal);
 
     /* Message cannot come from our own process. */
     assert(msg->src != g_process_ipc_info.vmid);
 
     if (mark_child_exited_by_pid(msgin->pid, msgin->uid, msgin->exitcode, msgin->term_signal)) {
-        debug("Child process (pid: %u) died\n", msgin->pid);
+        log_debug("Child process (pid: %u) died\n", msgin->pid);
     } else {
-        debug("Unknown process died, pid: %d\n", msgin->pid);
+        log_debug("Unknown process died, pid: %d\n", msgin->pid);
     }
 
     return 0;

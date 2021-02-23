@@ -46,11 +46,9 @@ void debug_puts(const char* str);
 void debug_putch(int ch);
 void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-#define _log(level, fmt...)                          \
-    do {                                             \
-        if ((level) <= g_log_level)                  \
-            debug_printf(fmt);                       \
-    } while (0)
+// TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
+// pasting it here and making `inline`, but our current linker scripts prevent both.
+void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
 #define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
@@ -66,16 +64,16 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
 #define DEBUG_BREAK_ON_FAILURE() do {} while (0)
 #endif
 
-#define BUG()                                       \
-    do {                                            \
-        warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
-        DEBUG_BREAK_ON_FAILURE();                   \
-        die_or_inf_loop();                          \
+#define BUG()                                           \
+    do {                                                \
+        log_error("BUG() " __FILE__ ":%d\n", __LINE__); \
+        DEBUG_BREAK_ON_FAILURE();                       \
+        die_or_inf_loop();                              \
     } while (0)
 
-#define DEBUG_HERE()                                         \
-    do {                                                     \
-        debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
+#define DEBUG_HERE()                                             \
+    do {                                                         \
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
     } while (0)
 
 /*!
@@ -249,7 +247,7 @@ static inline int wait_event(AEVENTTYPE* e) {
     do {
         char byte;
         PAL_NUM ret = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
-        err = ret == PAL_STREAM_ERROR ? PAL_ERRNO() : 0;
+        err = ret == PAL_STREAM_ERROR ? PAL_ERRNO() : (ret == 0 ? ENODATA : 0);
     } while (err == EINTR || err == EAGAIN || err == EWOULDBLOCK);
 
     return -err;
@@ -273,7 +271,7 @@ static inline int clear_event(AEVENTTYPE* e) {
             int err = PAL_ERRNO();
             if (err == EINTR) {
                 continue;
-            } else if (!err || err == EAGAIN || err == EWOULDBLOCK) {
+            } else if (err == EAGAIN || err == EWOULDBLOCK) {
                 break;
             }
             return -err;
@@ -290,10 +288,13 @@ static inline int clear_event(AEVENTTYPE* e) {
             if (err == EINTR) {
                 continue;
             } else if (err == EAGAIN || err == EWOULDBLOCK) {
-                /* This should not happen, since we polled above  ... */
+                /* This should not happen, since we polled above... */
                 break;
             }
             return -err;
+        } else if (n == 0) {
+            /* This should not happen, since we polled above... */
+            return -ENODATA;
         }
     }
 
@@ -321,7 +322,7 @@ static inline int __ref_dec(REFTYPE* ref) {
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         if (!_c) {
-            debug("Fail: Trying to drop reference count below 0\n");
+            log_error("Fail: Trying to drop reference count below 0\n");
             BUG();
             return 0;
         }

@@ -533,6 +533,33 @@ measuring the value of instruction pointer on each asynchronous enclave exit
 as page faults. While we attempt to measure time (and not only count
 occurences), the results might be inaccurate.
 
+.. _sgx-profile-ocall:
+
+OCALL profiling
+"""""""""""""""
+
+It's also possible to discover what OCALLs are being executed, which should help
+attribute the EEXIT numbers given by ``sgx.enable_stats``. There are two ways to
+do that:
+
+* Use ``sgx.profile.mode = "ocall_inner"`` and ``sgx.profile.with_stack =
+  1``. This will give you a report on what enclave code is causing the OCALLs
+  (best viewed with ``perf report --no-children``).
+
+  The ``with_stack`` option is important: without it, the report will only show
+  the last function before enclave exit, which is usually the same regardless of
+  which OCALL we're executing.
+
+* Use ``sgx.profile.mode = "ocall_outer"``. This will give you a report on what
+  outer PAL code is handling the OCALLs (``sgx_ocall_open``, ``sgx_ocall_write``
+  etc.)
+
+**Warning**: The report for OCALL modes should be interpreted in term of *number
+of OCALLs*, not time spent in them. The profiler records a sample every time an
+OCALL is executed, and ``perf report`` displays percentages based on the number
+of samples.
+
+
 Other useful tools for profiling
 --------------------------------
 

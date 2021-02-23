@@ -455,7 +455,7 @@ do_remap:
 
 call_lose:
     free(new_phdr);
-    debug("loading %s: %s\n", l->l_name, errstring);
+    log_debug("loading %s: %s\n", l->l_name, errstring);
     free(l);
     return NULL;
 }
@@ -505,7 +505,7 @@ static int __remove_elf_object(struct link_map* l) {
 }
 
 static int __free_elf_object(struct link_map* l) {
-    debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name, l->l_map_start);
+    log_debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name, l->l_map_start);
 
     struct loadcmd* c = l->loadcmds;
 
@@ -595,7 +595,7 @@ static int __check_elf_header(void* fbp, size_t len) {
     return 0;
 
 verify_failed:
-    debug("load runtime object: %s\n", errstring);
+    log_debug("load runtime object: %s\n", errstring);
     return -EINVAL;
 }
 
@@ -649,7 +649,7 @@ int load_elf_object(struct shim_handle* file) {
     if (!file)
         return -EINVAL;
 
-    debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
+    log_debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
 
     return __load_elf_object(file, NULL, OBJECT_LOAD);
 }
@@ -759,7 +759,7 @@ static int __load_interp_object(struct link_map* exec_map) {
         interp_path[plen] = '/';
         memcpy(interp_path + plen + 1, filename, len + 1);
 
-        debug("search interpreter: %s\n", interp_path);
+        log_debug("searching for interpreter: %s\n", interp_path);
 
         struct shim_dentry* dent = NULL;
         int ret = 0;
@@ -899,10 +899,10 @@ int init_loader(void) {
         ret = load_elf_object(exec);
         if (ret < 0) {
             // TODO: Actually verify that the non-PIE-ness was the real cause of loading failure.
-            warn("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, in "
-                 "which case Graphene requires a specially-crafted memory layout. You can enable "
-                 "it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
-                 qstrgetstr(&exec->path));
+            log_error("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, "
+                      "in which case Graphene requires a specially-crafted memory layout. You can "
+                      "enable it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
+                      qstrgetstr(&exec->path));
             goto out;
         }
 
@@ -939,7 +939,7 @@ int init_brk_from_executable(struct shim_handle* exec) {
 }
 
 int register_library(const char* name, unsigned long load_address) {
-    debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
+    log_debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
 
     struct shim_handle* hdl = get_new_handle();
 
@@ -960,7 +960,7 @@ int register_library(const char* name, unsigned long load_address) {
 noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
-        warn("Could not initialize vDSO (error code = %d)", ret);
+        log_error("Could not initialize vDSO (error code = %d)", ret);
         process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
     }
 
@@ -1016,7 +1016,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
     ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
-        debug("execute_elf_object: DkRandomBitsRead failed.\n");
+        log_error("execute_elf_object: DkRandomBitsRead failed.\n");
         DkThreadExit(/*clear_child_tid=*/NULL);
         /* UNREACHABLE */
     }
