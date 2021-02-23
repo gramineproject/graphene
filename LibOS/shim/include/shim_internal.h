@@ -181,8 +181,9 @@ long convert_pal_errno(long err);
 
 #define PAL_ERRNO() convert_pal_errno(PAL_NATIVE_ERRNO())
 
-void debug_print_syscall_before(int sysno, ...);
-void debug_print_syscall_after(int sysno, ...);
+void warn_unsupported_syscall(unsigned long sysno);
+void debug_print_syscall_before(unsigned long sysno, ...);
+void debug_print_syscall_after(unsigned long sysno, ...);
 
 #define PAL_CB(member) (pal_control.member)
 

@@ -1537,17 +1537,24 @@ static void parse_pointer_ret(va_list* ap) {
     }
 }
 
-static void print_syscall_name(const char* name, int sysno) {
+static void print_syscall_name(const char* name, unsigned long sysno) {
     PUTS("shim_");
     if (name) {
         PRINTF("%s", name);
     } else {
-        PRINTF("syscall%d", sysno);
+        PRINTF("syscall%lu", sysno);
     }
 }
 
-void debug_print_syscall_before(int sysno, ...) {
-    if (g_log_level < PAL_LOG_DEBUG)
+void warn_unsupported_syscall(unsigned long sysno) {
+    if (sysno < ARRAY_SIZE(syscall_parser_table) && syscall_parser_table[sysno].name)
+        log_warning("Unsupported system call %s\n", syscall_parser_table[sysno].name);
+    else
+        log_warning("Unsupported system call %lu\n", sysno);
+}
+
+void debug_print_syscall_before(unsigned long sysno, ...) {
+    if (g_log_level < PAL_LOG_TRACE)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
@@ -1578,8 +1585,8 @@ void debug_print_syscall_before(int sysno, ...) {
     va_end(ap);
 }
 
-void debug_print_syscall_after(int sysno, ...) {
-    if (g_log_level < PAL_LOG_DEBUG)
+void debug_print_syscall_after(unsigned long sysno, ...) {
+    if (g_log_level < PAL_LOG_TRACE)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
