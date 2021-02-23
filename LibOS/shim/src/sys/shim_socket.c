@@ -109,7 +109,7 @@ err:
 }
 
 static int unix_create_uri(char* buf, size_t buf_size, enum shim_sock_state state, char* name,
-                           size_t* output_size) {
+                           size_t* output_len) {
     int bytes = 0; /* snprintf returns `int` */
 
     switch (state) {
@@ -134,8 +134,8 @@ static int unix_create_uri(char* buf, size_t buf_size, enum shim_sock_state stat
 
     if (bytes < 0)
         return bytes;
-    *output_size = (size_t)bytes;
-    return *output_size == buf_size ? -ENAMETOOLONG : 0;
+    *output_len = (size_t)bytes;
+    return *output_len >= buf_size ? -ENAMETOOLONG : 0;
 }
 
 static void inet_rebase_port(bool reverse, int domain, struct addr_inet* addr, bool local) {
@@ -148,7 +148,7 @@ static void inet_rebase_port(bool reverse, int domain, struct addr_inet* addr, b
 }
 
 static int inet_translate_addr(int domain, char* buf, size_t buf_size, struct addr_inet* addr,
-                               size_t* output_size) {
+                               size_t* output_len) {
     int len; /* snprintf returns `int` */
     if (domain == AF_INET) {
         unsigned char* ad = (unsigned char*)&addr->addr.v4.s_addr;
@@ -163,15 +163,15 @@ static int inet_translate_addr(int domain, char* buf, size_t buf_size, struct ad
     }
     if (len < 0)
         return len;
-    if (output_size)
-        *output_size = (size_t)len;
-    return 0;
+    if (output_len)
+        *output_len = (size_t)len;
+    return *output_len >= buf_size ? -ENAMETOOLONG : 0;
 }
 
 static int inet_create_uri(int domain, char* buf, size_t buf_size, int sock_type,
                            enum shim_sock_state state, struct addr_inet* bind,
-                           struct addr_inet* conn, size_t* output_size) {
-    size_t bytes = 0;
+                           struct addr_inet* conn, size_t* output_len) {
+    size_t written = 0;
     int ret;
     size_t addr_len;
 
@@ -183,42 +183,44 @@ static int inet_create_uri(int domain, char* buf, size_t buf_size, int sock_type
 
             case SOCK_BOUND:
             case SOCK_LISTENED:
-                bytes = static_strlen(URI_PREFIX_TCP_SRV);
-                if (buf_size < bytes + 1)
+                written = static_strlen(URI_PREFIX_TCP_SRV);
+                if (buf_size < written + 1)
                     return -ENAMETOOLONG;
-                memcpy(buf, URI_PREFIX_TCP_SRV, bytes + 1);
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, bind,
+                memcpy(buf, URI_PREFIX_TCP_SRV, written + 1);
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, bind,
                                           &addr_len);
                 if (ret < 0)
                     return ret;
-                bytes += addr_len;
+                written += addr_len;
                 break;
             case SOCK_BOUNDCONNECTED:
-                bytes = static_strlen(URI_PREFIX_TCP);
-                if (buf_size < bytes + 1)
+                written = static_strlen(URI_PREFIX_TCP);
+                if (buf_size < written + 1)
                     return -ENAMETOOLONG;
-                memcpy(buf, URI_PREFIX_TCP, bytes + 1);
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, bind, &addr_len);
+                memcpy(buf, URI_PREFIX_TCP, written + 1);
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, bind,
+                                          &addr_len);
                 if (ret < 0)
                     return ret;
-                buf[bytes + addr_len] = ':';
-                bytes += addr_len + 1;
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, conn, &addr_len);
+                buf[written + addr_len] = ':';
+                written += addr_len + 1;
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, conn,
+                                          &addr_len);
                 if (ret < 0)
                     return ret;
-                bytes += addr_len;
+                written += addr_len;
                 break;
             case SOCK_CONNECTED:
             case SOCK_ACCEPTED:
-                bytes = static_strlen(URI_PREFIX_TCP);
-                if (buf_size < bytes + 1)
+                written = static_strlen(URI_PREFIX_TCP);
+                if (buf_size < written + 1)
                     return -ENAMETOOLONG;
-                memcpy(buf, URI_PREFIX_TCP, bytes + 1);
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, conn,
+                memcpy(buf, URI_PREFIX_TCP, written + 1);
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, conn,
                                           &addr_len);
                 if (ret < 0)
                     return ret;
-                bytes += addr_len;
+                written += addr_len;
                 break;
         }
     } else if (sock_type == SOCK_DGRAM) {
@@ -232,41 +234,43 @@ static int inet_create_uri(int domain, char* buf, size_t buf_size, int sock_type
                 return -EOPNOTSUPP;
 
             case SOCK_BOUNDCONNECTED:
-                bytes = static_strlen(URI_PREFIX_UDP_SRV);
-                if (buf_size < bytes + 1)
+                written = static_strlen(URI_PREFIX_UDP_SRV);
+                if (buf_size < written + 1)
                     return -ENAMETOOLONG;
-                memcpy(buf, URI_PREFIX_UDP_SRV, bytes + 1);
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, bind, &addr_len);
+                memcpy(buf, URI_PREFIX_UDP_SRV, written + 1);
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, bind,
+                                          &addr_len);
                 if (ret < 0)
                     return ret;
-                buf[bytes + addr_len] = ':';
-                bytes += addr_len + 1;
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, conn, &addr_len);
+                buf[written + addr_len] = ':';
+                written += addr_len + 1;
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, conn,
+                                          &addr_len);
                 if (ret < 0)
                     return ret;
-                bytes += addr_len;
+                written += addr_len;
                 break;
             case SOCK_BOUND:
-                bytes = static_strlen(URI_PREFIX_UDP_SRV);
-                if (buf_size < bytes + 1)
+                written = static_strlen(URI_PREFIX_UDP_SRV);
+                if (buf_size < written + 1)
                     return -ENAMETOOLONG;
-                memcpy(buf, URI_PREFIX_UDP_SRV, bytes + 1);
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, bind,
+                memcpy(buf, URI_PREFIX_UDP_SRV, written + 1);
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, bind,
                                           &addr_len);
                 if (ret < 0)
                     return ret;
-                bytes += addr_len;
+                written += addr_len;
                 break;
             case SOCK_CONNECTED:
-                bytes = static_strlen(URI_PREFIX_UDP);
-                if (buf_size < bytes + 1)
+                written = static_strlen(URI_PREFIX_UDP);
+                if (buf_size < written + 1)
                     return -ENAMETOOLONG;
-                memcpy(buf, URI_PREFIX_UDP, bytes + 1);
-                ret = inet_translate_addr(domain, buf + bytes, buf_size - bytes, conn,
+                memcpy(buf, URI_PREFIX_UDP, written + 1);
+                ret = inet_translate_addr(domain, buf + written, buf_size - written, conn,
                                           &addr_len);
                 if (ret < 0)
                     return ret;
-                bytes += addr_len;
+                written += addr_len;
                 break;
         }
     } else {
@@ -274,7 +278,7 @@ static int inet_create_uri(int domain, char* buf, size_t buf_size, int sock_type
     }
 
     /* success */
-    *output_size = bytes;
+    *output_len = written;
     return 0;
 }
 
@@ -381,25 +385,25 @@ static int create_socket_uri(struct shim_handle* hdl) {
 
     if (sock->domain == AF_UNIX) {
         char uri_buf[32];
-        size_t uri_size;
-        int ret = unix_create_uri(uri_buf, 32, sock->sock_state, sock->addr.un.name, &uri_size);
+        size_t uri_len;
+        int ret = unix_create_uri(uri_buf, 32, sock->sock_state, sock->addr.un.name, &uri_len);
         if (ret < 0)
             return ret;
 
-        qstrsetstr(&hdl->uri, uri_buf, uri_size);
+        qstrsetstr(&hdl->uri, uri_buf, uri_len);
         return 0;
     }
 
     if (sock->domain == AF_INET || sock->domain == AF_INET6) {
         char uri_buf[SOCK_URI_SIZE];
-        size_t uri_size;
+        size_t uri_len;
         int ret = inet_create_uri(sock->domain, uri_buf, SOCK_URI_SIZE, sock->sock_type,
                                   sock->sock_state, &sock->addr.in.bind, &sock->addr.in.conn,
-                                  &uri_size);
+                                  &uri_len);
         if (ret < 0)
             return ret;
 
-        qstrsetstr(&hdl->uri, uri_buf, uri_size);
+        qstrsetstr(&hdl->uri, uri_buf, uri_len);
         return 0;
     }
 

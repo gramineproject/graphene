@@ -214,7 +214,7 @@ static inline SLAB_MGR create_slab_mgr(void) {
     mgr = (SLAB_MGR)mem;
 
     void* addr = (void*)mgr + sizeof(SLAB_MGR_TYPE);
-    for (int i = 0; i < SLAB_LEVEL; i++) {
+    for (size_t i = 0; i < SLAB_LEVEL; i++) {
         area       = (SLAB_AREA)addr;
         area->size = size;
 
@@ -235,7 +235,7 @@ static inline SLAB_MGR create_slab_mgr(void) {
 static inline void destroy_slab_mgr(SLAB_MGR mgr) {
     void* addr = (void*)mgr + sizeof(SLAB_MGR_TYPE);
     SLAB_AREA area, tmp, n;
-    for (int i = 0; i < SLAB_LEVEL; i++) {
+    for (size_t i = 0; i < SLAB_LEVEL; i++) {
         area = (SLAB_AREA)addr;
 
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &mgr->area_list[i], __list) {
@@ -293,15 +293,15 @@ static inline int maybe_enlarge_slab_mgr(SLAB_MGR mgr, int level) {
 
 static inline void* slab_alloc(SLAB_MGR mgr, size_t size) {
     SLAB_OBJ mobj;
-    int level = -1;
+    size_t level = -1;
 
-    for (int i = 0; i < SLAB_LEVEL; i++)
+    for (size_t i = 0; i < SLAB_LEVEL; i++)
         if (size <= slab_levels[i]) {
             level = i;
             break;
         }
 
-    if (level == -1) {
+    if (level == (size_t)-1) {
         size = ALIGN_UP_POW2(size, MIN_MALLOC_ALIGNMENT);
 
         LARGE_MEM_OBJ mem = (LARGE_MEM_OBJ)system_malloc(sizeof(LARGE_MEM_OBJ_TYPE) + size);

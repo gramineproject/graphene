@@ -134,7 +134,7 @@ inval:
 
 /* create the string of uri from the given socket address */
 static int inet_create_uri(char* buf, size_t buf_size, struct sockaddr* addr, size_t addrlen,
-                           size_t* output_size) {
+                           size_t* output_len) {
     int len = 0; /* snprintf returns `int` */
 
     if (addr->sa_family == AF_INET) {
@@ -169,8 +169,8 @@ static int inet_create_uri(char* buf, size_t buf_size, struct sockaddr* addr, si
     if ((size_t)len >= buf_size)
         return -PAL_ERROR_TOOLONG;
 
-    if (output_size)
-        *output_size = (size_t)len;
+    if (output_len)
+        *output_len = (size_t)len;
     return 0;
 }
 
