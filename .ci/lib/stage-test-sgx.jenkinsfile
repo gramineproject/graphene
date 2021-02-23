@@ -1,4 +1,23 @@
 stage('test-sgx') {
+    timeout(time: 45, unit: 'MINUTES') {
+        try {
+            sh '''
+                cd LibOS/shim/test/ltp
+
+                # To run LTP tests with SGX and work around the mmap issue, which
+                # is basically that LTP uses shared memory that isn't
+                # supported on SGX, as a workaround we changed the mmap flag
+                # from MAP_SHARED to MAP_PRIVATE inside the LTP framework.
+                sed -i 's/MAP_SHARED/MAP_PRIVATE/g' src/lib/tst_test.c
+
+                make ${MAKEOPTS} all sgx-tokens
+                make ltp-sgx.xml
+            '''
+        } finally {
+            archiveArtifacts 'LibOS/shim/test/ltp/ltp-sgx.xml'
+            junit 'LibOS/shim/test/ltp/ltp-sgx.xml'
+        }
+    }
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/python-simple

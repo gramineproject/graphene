@@ -1,5 +1,6 @@
 /build
 /install
+/LibOS/shim/test/ltp/src
 
 # No editor backup files.
 *.sw*
