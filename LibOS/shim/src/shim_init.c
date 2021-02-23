@@ -68,7 +68,6 @@ static unsigned pal_errno_to_unix_errno_table[PAL_ERROR_NATIVE_COUNT + 1] = {
     [PAL_ERROR_OVERFLOW]        = EFAULT,
     [PAL_ERROR_BADADDR]         = EFAULT,
     [PAL_ERROR_NOMEM]           = ENOMEM,
-    [PAL_ERROR_NOTKILLABLE]     = EACCES,
     [PAL_ERROR_INCONSIST]       = EFAULT,
     [PAL_ERROR_TRYAGAIN]        = EAGAIN,
     [PAL_ERROR_NOTSERVER]       = EINVAL,
@@ -110,6 +109,8 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
     size = ALLOC_ALIGN_UP(size);
     protect_size = ALLOC_ALIGN_UP(protect_size);
 
+    log_debug("Allocating stack at %p (size = %ld)\n", stack, size);
+
     if (!user) {
         stack = system_malloc(size + protect_size);
         if (!stack) {
@@ -147,7 +148,6 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
         goto out_fail;
     }
 
-    log_debug("Allocated stack at %p (size = %ld)\n", stack, size);
     return stack + protect_size;
 
 out_fail:;

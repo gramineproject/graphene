@@ -418,7 +418,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
 
     DkEventSet(new_args.create_event); // TODO: handle errors
     object_wait_with_retry(new_args.initialize_event);
-    DkObjectClose(new_args.initialize_event);
+    DkObjectClose(new_args.initialize_event); // TODO: handle errors
 
     IDTYPE tid = thread->tid;
 

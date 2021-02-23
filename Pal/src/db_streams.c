@@ -396,11 +396,7 @@ int DkStreamGetName(PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size) {
         return -PAL_ERROR_INVAL;
     }
 
-    int ret = _DkStreamGetName(handle, (void*)buffer, size);
-    if (ret < 0) {
-        return ret;
-    }
-    return 0;
+    return _DkStreamGetName(handle, (void*)buffer, size);
 }
 
 /* _DkStreamMap for internal use. Map specific handle to certain memory,
@@ -523,17 +519,6 @@ int DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo) {
     return _DkSendHandle(handle, cargo);
 }
 
-/* XXX: what the duck is this */
-/* 1. Should i take the received PAL_HANDLE as an input argument and
-      pass by reference or return it rather?
-    Ans - We are not aware of the size of the variable members to return
-   2. Would the recieved PAL_HANDLE start functioning automatically in
-      the new process environment? Should we initialize/modify some
-      attibutes of the handle?
-    Ans - Yes, Initialize and make it compatibile in the target process
-   3. Should malloc_copy be done or the process shares the same references?
-    Ans - Variables members have to allocated data again.
-*/
 int DkReceiveHandle(PAL_HANDLE handle, PAL_HANDLE* cargo) {
     // return error if any of the handle is NULL
     if (!handle) {

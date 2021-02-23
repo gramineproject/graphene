@@ -356,7 +356,7 @@ static int receive_memory_on_stream(PAL_HANDLE handle, struct checkpoint_hdr* hd
             int ret = DkVirtualMemoryAlloc(&addr, size, 0, prot | PAL_PROT_WRITE);
             if (ret < 0) {
                 log_error("failed allocating %p-%p\n", addr, addr + size);
-                return -pal_to_unix_errno(-ret);
+                return pal_to_unix_errno(ret);
             }
 
             ret = read_exact(handle, entry->addr, entry->size);
@@ -681,20 +681,20 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
         if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0)
             BUG();
         bkeep_remove_tmp_vma(tmp_vma);
-        return -pal_to_unix_errno(-ret);
+        return pal_to_unix_errno(ret);
     }
 
     log_debug("checkpoint mapped at %p-%p\n", base, base + hdr->size);
 
     ret = read_exact(PAL_CB(parent_process), base, hdr->size);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
     log_debug("read checkpoint of %lu bytes from parent\n", hdr->size);
 
     ret = receive_memory_on_stream(PAL_CB(parent_process), hdr, (uintptr_t)base);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
     log_debug("restored memory from checkpoint\n");
 
@@ -704,7 +704,7 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
 
     ret = receive_handles_on_stream(hdr, base, rebase);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
 
     migrated_memory_start = (void*)mapaddr;
@@ -712,12 +712,12 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
 
     ret = restore_checkpoint(hdr, (uintptr_t)base);
     if (ret < 0) {
-        goto out;
+        goto out_fail;
     }
 
     return 0;
 
-out:;
+out_fail:;
     void* tmp_vma = NULL;
     if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0)
         BUG();

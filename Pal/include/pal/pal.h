@@ -354,7 +354,8 @@ int DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client);
  * \brief Read data from an open stream.
  *
  * \param handle handle to the stream.
- * \param offset offset to read at. If \p handle is a file, \p offset must be specified at each call
+ * \param offset offset to read at. If \p handle is a file, \p offset must be specified at each
+ *               call.
  * \param[in,out] count on function call should contain the size of \p buffer. On successful return
  *                contains the number of bytes read.
  * \param buffer pointer to the buffer to read into.
@@ -374,7 +375,8 @@ int DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buff
  * \brief Write data to an open stream.
  *
  * \param handle handle to the stream.
- * \param offset offset to read at. If \p handle is a file, \p offset must be specified at each call
+ * \param offset offset to read at. If \p handle is a file, \p offset must be specified at each
+ *               call.
  * \param[in,out] count on function call should contain the size of \p buffer. On successful return
  *                contains the number of bytes written.
  * \param buffer pointer to the buffer to write from.
@@ -400,12 +402,7 @@ int DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
  * \brief Map a file to a virtual memory address in the current process.
  *
  * \param handle handle to the stream to be mapped.
- * \param[in,out] addr
- *  `*addr` can be any valid address aligned at the allocation alignment or `NULL`, in which case
- *  a suitable address will be picked automatically. Any memory previously allocated at the same
- *  address will be discarded (only if `*addr` was provided). Overwriting any part of PAL memory is
- *  forbidden. On successful return `*addr` will contain the allocated address (which can differ
- *  only in the `NULL` case).
+ * \param[in,out] addr see #DkVirtualMemoryAlloc()
  * \param prot see #DkVirtualMemoryAlloc()
  * \param offset offset in the stream to be mapped. Must be properly aligned.
  * \param size size of the requested mapping. Must be non-zero and properly aligned.
@@ -451,7 +448,7 @@ int DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo);
 /*!
  * \brief This API receives a handle over another handle.
  *
- * TODO: document usage and paramteres.
+ * TODO: document usage and parameters.
  *
  * \return 0 on success, negative error code on failure.
  */
@@ -623,7 +620,7 @@ void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
  * Destroy a mutex using DkObjectClose.
  *
  * \param initialCount 0 is unlocked, 1 is locked
- * \param[out] handle on success contains the mutetx handle
+ * \param[out] handle on success contains the mutex handle
  */
 int DkMutexCreate(PAL_NUM initialCount, PAL_HANDLE* handle);
 

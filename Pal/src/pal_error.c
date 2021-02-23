@@ -28,7 +28,6 @@ static const struct pal_error_description g_pal_error_list[] = {
     {PAL_ERROR_OVERFLOW, "Buffer overflowed"},
     {PAL_ERROR_BADADDR, "Invalid address"},
     {PAL_ERROR_NOMEM, "Not enough memory"},
-    {PAL_ERROR_NOTKILLABLE, "Thread state unkillable"},
     {PAL_ERROR_INCONSIST, "Inconsistent system state"},
     {PAL_ERROR_TRYAGAIN, "Try again"},
     {PAL_ERROR_NOTSERVER, "Not a server"},

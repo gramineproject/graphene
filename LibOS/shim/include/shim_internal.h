@@ -214,19 +214,19 @@ static inline int set_event(AEVENTTYPE* e, size_t n) {
     char bytes[n];
     memset(bytes, '\0', n);
     while (n > 0) {
-        size_t this_read = n;
-        int ret = DkStreamWrite(e->event, 0, &this_read, bytes, NULL);
+        size_t size = n;
+        int ret = DkStreamWrite(e->event, 0, &size, bytes, NULL);
         if (ret < 0) {
-            if (ret == -PAL_ERROR_INVAL || ret == -PAL_ERROR_TRYAGAIN) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
             }
             return pal_to_unix_errno(ret);
         }
-        if (this_read == 0) {
+        if (size == 0) {
             /* This should never happen. */
             return -EINVAL;
         }
-        n -= this_read;
+        n -= size;
     }
 
     return 0;
@@ -271,13 +271,12 @@ static inline int clear_event(AEVENTTYPE* e) {
 
         int ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
         if (ret < 0) {
-            ret = pal_to_unix_errno(ret);
-            if (ret == -EINTR) {
+            if (ret == -PAL_ERROR_INTERRUPTED) {
                 continue;
-            } else if (ret == -EAGAIN || ret == -EWOULDBLOCK) {
+            } else if (ret == -PAL_ERROR_TRYAGAIN) {
                 break;
             }
-            return ret;
+            return pal_to_unix_errno(ret);
         }
 
         /* Even if `revent` has `PAL_WAIT_ERROR` marked, let `DkSitreamRead()` report the error

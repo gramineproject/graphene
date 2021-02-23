@@ -778,21 +778,21 @@ noreturn static void shim_ipc_helper(void* dummy) {
                     /* listening port: accept client, create port, and add it to port list */
                     PAL_HANDLE client = NULL;
                     ret = DkStreamWaitForClient(polled_port->pal_handle, &client);
-                    if (ret >= 0) {
+                    if (ret < 0) {
+                        log_warning("Port %p (handle %p) was removed during accepting client\n",
+                                    polled_port, polled_port->pal_handle);
+                        del_ipc_port_fini(polled_port);
+                    } else {
                         IDTYPE client_type = (polled_port->type & ~IPC_PORT_LISTENING) |
                                              IPC_PORT_CONNECTION;
                         add_ipc_port_by_id(polled_port->vmid, client, client_type, NULL, NULL);
-                    } else {
-                        log_debug("Port %p (handle %p) was removed during accepting client\n",
-                                  polled_port, polled_port->pal_handle);
-                        del_ipc_port_fini(polled_port);
                     }
                 } else {
                     PAL_STREAM_ATTR attr;
                     ret = DkStreamAttributesQueryByHandle(polled_port->pal_handle, &attr);
                     if (ret < 0) {
-                        debug("Port %p (handle %p) was removed during attr querying\n", polled_port,
-                              polled_port->pal_handle);
+                        log_warning("Port %p (handle %p) was removed during attr querying\n",
+                                    polled_port, polled_port->pal_handle);
                         del_ipc_port_fini(polled_port);
                     } else {
                         /* can read on this port, so receive messages */

@@ -286,7 +286,7 @@ static void shim_async_helper(void* arg) {
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
         ret = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
-        if (ret && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             ret = pal_to_unix_errno(ret);
             debug("Async helper: DkStreamsWaitEvents failed: %d\n", ret);
             goto out_err;

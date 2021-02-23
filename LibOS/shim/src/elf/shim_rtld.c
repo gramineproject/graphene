@@ -1027,9 +1027,8 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
     ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
-        ret = pal_to_unix_errno(ret);
         log_error("execute_elf_object: DkRandomBitsRead failed: %d\n", ret);
-        DkThreadExit(/*clear_child_tid=*/NULL);
+        DkProcessExit(1);
         /* UNREACHABLE */
     }
     auxp[5].a_un.a_val = random;
