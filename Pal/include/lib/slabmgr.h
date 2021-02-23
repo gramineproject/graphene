@@ -61,10 +61,9 @@ typedef struct __attribute__((packed)) slab_obj {
     };
 } SLAB_OBJ_TYPE, *SLAB_OBJ;
 
-/* In order for slab elements to be 16-byte aligned, struct slab_area must
- * be a multiple of 16 bytes. TODO: Add compile time assertion that this
- * invariant is respected. */
-#define AREA_PADDING 12
+/* In order for slab elements to be 16-byte aligned, struct slab_area must be a multiple of 16 B.
+ */
+#define AREA_PADDING 8
 
 DEFINE_LIST(slab_area);
 
@@ -75,9 +74,12 @@ typedef struct __attribute__((packed)) slab_area {
     unsigned char raw[];
 } SLAB_AREA_TYPE, *SLAB_AREA;
 
+static_assert(IS_ALIGNED((uintptr_t)((struct slab_area*)0)->raw, 16),
+              "slab_area::raw must be aligned to 16 B");
+
 #ifdef SLAB_CANARY
 #define SLAB_CANARY_STRING 0xDEADBEEF
-#define SLAB_CANARY_SIZE   sizeof(unsigned long)
+#define SLAB_CANARY_SIZE   (sizeof(unsigned long))
 #else
 #define SLAB_CANARY_SIZE 0
 #endif

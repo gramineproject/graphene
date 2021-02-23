@@ -171,7 +171,7 @@ static int inet_create_uri(char* buf, size_t buf_size, struct sockaddr* addr, si
         return len;
     if ((size_t)len >= buf_size)
         return -PAL_ERROR_TOOLONG;
-    
+
     if (output_size)
         *output_size = (size_t)len;
     return 0;
