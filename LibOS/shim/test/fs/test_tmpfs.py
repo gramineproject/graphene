@@ -3,16 +3,18 @@
 import filecmp
 import os
 import shutil
+import unittest
 
 from regression import (
     HAS_SGX,
-    RegressionTestCase,
     expectedFailureIf,
 )
 
+from test_fs import TC_00_FileSystem
+
 # Do tmpfs tests.
 # pylint: disable=too-many-public-methods
-class TC_10_Tmpfs(RegressionTestCase):
+class TC_10_Tmpfs(TC_00_FileSystem):
     @classmethod
     def setUpClass(cls):
         cls.FILE_SIZES = [0, 1, 2, 15, 16, 17, 255, 256, 257, 1023, 1024, 1025, 65535, 65536, 65537,
@@ -23,7 +25,6 @@ class TC_10_Tmpfs(RegressionTestCase):
         cls.INPUT_FILES = [os.path.join(cls.INPUT_DIR, str(x)) for x in cls.FILE_SIZES]
         cls.OUTPUT_DIR = os.path.abspath('/mnt-tmpfs')
         cls.OUTPUT_FILES = [os.path.join(cls.OUTPUT_DIR, str(x)) for x in cls.FILE_SIZES]
-        cls.TARGET_DIR = os.path.join(cls.TEST_DIR, 'output')
 
         # create directory structure and test files
         os.mkdir(cls.TEST_DIR)
@@ -32,52 +33,23 @@ class TC_10_Tmpfs(RegressionTestCase):
             with open(cls.INPUT_FILES[i], 'wb') as file:
                 file.write(os.urandom(cls.FILE_SIZES[i]))
 
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.TEST_DIR)
-
     def setUp(self):
-        # the target directory is for verfication in copying related test,
-        # and the output on tmpfs is not necessary to be cleaned
-        shutil.rmtree(self.TARGET_DIR, ignore_errors=True)
-        os.mkdir(self.TARGET_DIR)
+        # clean output for each test
+        shutil.rmtree(self.OUTPUT_DIR, ignore_errors=True)
 
-    def verify_open_close(self, stdout, stderr, path, mode):
-        self.assertNotIn('ERROR: ', stderr)
-        self.assertIn('open(' + path + ') ' + mode + ' OK', stdout)
-        self.assertIn('close(' + path + ') ' + mode + ' OK', stdout)
-        self.assertIn('open(' + path + ') ' + mode + ' 1 OK', stdout)
-        self.assertIn('open(' + path + ') ' + mode + ' 2 OK', stdout)
-        self.assertIn('close(' + path + ') ' + mode + ' 1 OK', stdout)
-        self.assertIn('close(' + path + ') ' + mode + ' 2 OK', stdout)
-        self.assertIn('fopen(' + path + ') ' + mode + ' OK', stdout)
-        self.assertIn('fclose(' + path + ') ' + mode + ' OK', stdout)
-        self.assertIn('fopen(' + path + ') ' + mode + ' 1 OK', stdout)
-        self.assertIn('fopen(' + path + ') ' + mode + ' 2 OK', stdout)
-        self.assertIn('fclose(' + path + ') ' + mode + ' 1 OK', stdout)
-        self.assertIn('fclose(' + path + ') ' + mode + ' 2 OK', stdout)
-
+    # overrides TC_00_FileSystem to skip verification by python
     def test_100_open_close(self):
+        input_path = self.INPUT_FILES[-1] # existing file
         output_path = os.path.join(self.OUTPUT_DIR, 'test_100') # new file to be created
+        stdout, stderr = self.run_binary(['open_close', 'R', input_path])
+        self.verify_open_close(stdout, stderr, input_path, 'input')
         stdout, stderr = self.run_binary(['open_close', 'W', output_path])
         self.verify_open_close(stdout, stderr, output_path, 'output')
 
-    def verify_open_flags(self, stdout, stderr):
-        self.assertNotIn('ERROR: ', stderr)
-        self.assertIn('open(O_CREAT | O_EXCL | O_RDWR) [doesn\'t exist] succeeded as expected',
-                      stdout)
-        self.assertIn('open(O_CREAT | O_EXCL | O_RDWR) [exists] failed as expected', stdout)
-        self.assertIn('open(O_CREAT | O_RDWR) [exists] succeeded as expected', stdout)
-        self.assertIn('open(O_CREAT | O_RDWR) [doesn\'t exist] succeeded as expected', stdout)
-        self.assertIn('open(O_CREAT | O_TRUNC | O_RDWR) [doesn\'t exist] succeeded as expected',
-                      stdout)
-        self.assertIn('open(O_CREAT | O_TRUNC | O_RDWR) [exists] succeeded as expected', stdout)
-
     def test_101_open_flags(self):
-        file_path = os.path.join(self.OUTPUT_DIR, 'test_101') # new file to be created
-        stdout, stderr = self.run_binary(['open_flags', file_path])
-        self.verify_open_flags(stdout, stderr)
+        TC_00_FileSystem.test_101_open_flags(self)
 
+    # overrides TC_00_FileSystem to skip verification by python
     def test_110_read_write(self):
         file_path = os.path.join(self.OUTPUT_DIR, 'test_110') # new file to be created
         stdout, stderr = self.run_binary(['read_write', file_path])
@@ -89,131 +61,27 @@ class TC_10_Tmpfs(RegressionTestCase):
         self.assertIn('compare(' + file_path + ') RW OK', stdout)
         self.assertIn('close(' + file_path + ') RW OK', stdout)
 
-    def verify_seek_tell(self, stdout, stderr, input_path, output_path_1, output_path_2, size):
-        self.assertNotIn('ERROR: ', stderr)
-        self.assertIn('open(' + input_path + ') input OK', stdout)
-        self.assertIn('seek(' + input_path + ') input start OK', stdout)
-        self.assertIn('seek(' + input_path + ') input end OK', stdout)
-        self.assertIn('tell(' + input_path + ') input end OK: ' + str(size), stdout)
-        self.assertIn('seek(' + input_path + ') input rewind OK', stdout)
-        self.assertIn('tell(' + input_path + ') input start OK: 0', stdout)
-        self.assertIn('close(' + input_path + ') input OK', stdout)
-        self.assertIn('fopen(' + input_path + ') input OK', stdout)
-        self.assertIn('fseek(' + input_path + ') input start OK', stdout)
-        self.assertIn('fseek(' + input_path + ') input end OK', stdout)
-        self.assertIn('ftell(' + input_path + ') input end OK: ' + str(size), stdout)
-        self.assertIn('fseek(' + input_path + ') input rewind OK', stdout)
-        self.assertIn('ftell(' + input_path + ') input start OK: 0', stdout)
-        self.assertIn('fclose(' + input_path + ') input OK', stdout)
-
-        self.assertIn('open(' + output_path_1 + ') output OK', stdout)
-        self.assertIn('seek(' + output_path_1 + ') output start OK', stdout)
-        self.assertIn('seek(' + output_path_1 + ') output end OK', stdout)
-        self.assertIn('tell(' + output_path_1 + ') output end OK: ' + str(size), stdout)
-        self.assertIn('seek(' + output_path_1 + ') output end 2 OK', stdout)
-        self.assertIn('seek(' + output_path_1 + ') output end 3 OK', stdout)
-        self.assertIn('tell(' + output_path_1 + ') output end 2 OK: ' + str(size + 4098), stdout)
-        self.assertIn('close(' + output_path_1 + ') output OK', stdout)
-        self.assertIn('fopen(' + output_path_2 + ') output OK', stdout)
-        self.assertIn('fseek(' + output_path_2 + ') output start OK', stdout)
-        self.assertIn('fseek(' + output_path_2 + ') output end OK', stdout)
-        self.assertIn('ftell(' + output_path_2 + ') output end OK: ' + str(size), stdout)
-        self.assertIn('fseek(' + output_path_2 + ') output end 2 OK', stdout)
-        self.assertIn('fseek(' + output_path_2 + ') output end 3 OK', stdout)
-        self.assertIn('ftell(' + output_path_2 + ') output end 2 OK: ' + str(size + 4098), stdout)
-        self.assertIn('fclose(' + output_path_2 + ') output OK', stdout)
-
+    # will decide to drop or enchance it for tmpfs
+    @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_115_seek_tell(self):
-        input_path = self.INPUT_FILES[-1] # existing file
-        output_path_1 = os.path.join(self.OUTPUT_DIR, 'test_115a') # writable files
-        output_path_2 = os.path.join(self.OUTPUT_DIR, 'test_115b')
-        stdout, stderr = self.run_binary(['seek_tell_tmpfs', input_path, output_path_1, output_path_2])
-        self.verify_seek_tell(stdout, stderr, input_path, output_path_1, output_path_2,
-                              self.FILE_SIZES[-1])        
+        TC_00_FileSystem.test_115_seek_tell(self)
 
+    # will decide to drop or enchance it for tmpfs
+    @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_120_file_delete(self):
-        file_path = 'test_120'
-        file_in = self.INPUT_FILES[-1] # existing file to be copied
-        file_out_1 = os.path.join(self.OUTPUT_DIR, file_path + 'a')
-        file_out_2 = os.path.join(self.OUTPUT_DIR, file_path + 'b')
-        file_out_3 = os.path.join(self.OUTPUT_DIR, file_path + 'c')
-        file_out_4 = os.path.join(self.OUTPUT_DIR, file_path + 'd')
-        file_out_5 = os.path.join(self.OUTPUT_DIR, file_path + 'e')
-        stdout, stderr = self.run_binary(['delete_tmpfs', file_in, file_out_1, file_out_2, file_out_3, file_out_4,
-                                         file_out_5])
-        # verify
-        self.assertNotIn('ERROR: ', stderr)
-        self.assertFalse(os.path.isfile(file_out_1))
-        self.assertFalse(os.path.isfile(file_out_2))
-        self.assertFalse(os.path.isfile(file_out_3))
-        self.assertFalse(os.path.isfile(file_out_4))
-        self.assertFalse(os.path.isfile(file_out_5))
-        self.assertIn('unlink(' + file_out_1 + ') OK', stdout)
-        self.assertIn('open(' + file_out_2 + ') input 1 OK', stdout)
-        self.assertIn('close(' + file_out_2 + ') input 1 OK', stdout)
-        self.assertIn('unlink(' + file_out_2 + ') input 1 OK', stdout)
-        self.assertIn('open(' + file_out_3 + ') input 2 OK', stdout)
-        self.assertIn('unlink(' + file_out_3 + ') input 2 OK', stdout)
-        self.assertIn('close(' + file_out_3 + ') input 2 OK', stdout)
-        self.assertIn('open(' + file_out_4 + ') output 1 OK', stdout)
-        self.assertIn('close(' + file_out_4 + ') output 1 OK', stdout)
-        self.assertIn('unlink(' + file_out_4 + ') output 1 OK', stdout)
-        self.assertIn('open(' + file_out_5 + ') output 2 OK', stdout)
-        self.assertIn('unlink(' + file_out_5 + ') output 2 OK', stdout)
-        self.assertIn('close(' + file_out_5 + ') output 2 OK', stdout)
+        TC_00_FileSystem.test_120_file_delete(self)
 
-    # pylint: disable=too-many-arguments
-    def verify_stat(self, stdout, stderr, input_path, output_path, size):
-        self.assertNotIn('ERROR: ', stderr)
-        self.assertIn('stat(' + input_path + ') input 1 OK', stdout)
-        self.assertIn('open(' + input_path + ') input 2 OK', stdout)
-        self.assertIn('stat(' + input_path + ') input 2 OK: ' + size, stdout)
-        self.assertIn('fstat(' + input_path + ') input 2 OK: ' + size, stdout)
-        self.assertIn('close(' + input_path + ') input 2 OK', stdout)
-
-        self.assertIn('stat(' + output_path + ') output 1 OK', stdout)
-        self.assertIn('open(' + output_path + ') output 2 OK', stdout)
-        self.assertIn('stat(' + output_path + ') output 2 OK: ' + size, stdout)
-        self.assertIn('fstat(' + output_path + ') output 2 OK: ' + size, stdout)
-        self.assertIn('close(' + output_path + ') output 2 OK', stdout)
-
+    # will decide to drop or enchance it for tmpfs
+    @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_130_file_stat(self):
-        # running for every file separately so the process doesn't need to enumerate directory
-        # (different code path, enumeration also performs stat)
-        for i in self.INDEXES:
-            input_path = self.INPUT_FILES[i] # existing file
-            output_path = self.OUTPUT_FILES[i] # file that will be opened in write mode
-            size = str(self.FILE_SIZES[i])
-            stdout, stderr = self.run_binary(['stat_tmpfs', input_path, output_path])
-            self.verify_stat(stdout, stderr, input_path, output_path, size)
+        TC_00_FileSystem.test_130_file_stat(self)
 
-    def do_truncate_test(self, size_in, size_out):
-        # prepare paths/files
-        i = self.FILE_SIZES.index(size_in)
-        input_path = self.INPUT_FILES[i] # source file to be truncated
-        out_1_path = self.OUTPUT_FILES[i] + 'a'
-        out_2_path = self.OUTPUT_FILES[i] + 'b'
-        # run test
-        stdout, stderr = self.run_binary(['truncate_tmpfs', input_path, out_1_path, out_2_path, str(size_out)])
-        self.assertNotIn('ERROR: ', stderr)
-        self.assertIn('truncate(' + out_1_path + ') to ' + str(size_out) + ' OK', stdout)
-        self.assertIn('open(' + out_2_path + ') output OK', stdout)
-        self.assertIn('ftruncate(' + out_2_path + ') to ' + str(size_out) + ' OK', stdout)
-        self.assertIn('close(' + out_2_path + ') output OK', stdout)
-
+    # will decide to drop or enchance it for tmpfs
+    @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_140_file_truncate(self):
-        self.do_truncate_test(0, 1)
-        self.do_truncate_test(0, 16)
-        self.do_truncate_test(0, 65537)
-        self.do_truncate_test(1, 0)
-        self.do_truncate_test(1, 17)
-        self.do_truncate_test(16, 0)
-        self.do_truncate_test(16, 1048576)
-        self.do_truncate_test(255, 15)
-        self.do_truncate_test(255, 256)
-        self.do_truncate_test(65537, 65535)
-        self.do_truncate_test(65537, 65536)
+        TC_00_FileSystem.test_140_file_truncate(self)
 
+    # overrides TC_00_FileSystem to skip verification by python
     def verify_copy(self, stdout, stderr, input_dir, executable):
         self.assertNotIn('ERROR: ', stderr)
         self.assertIn('opendir(' + input_dir + ') OK', stdout)
@@ -244,46 +112,32 @@ class TC_10_Tmpfs(RegressionTestCase):
             self.assertIn('close(' + size + ') input OK', stdout)
             self.assertIn('close(' + size + ') output OK', stdout)
 
-    def do_copy_test(self, executable, timeout):
-        stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR],
-                                         timeout=timeout)
-        self.verify_copy(stdout, stderr, self.INPUT_DIR, executable)
-
     def test_200_copy_dir_whole(self):
-        self.do_copy_test('copy_whole', 30)
+        TC_00_FileSystem.test_200_copy_dir_whole(self)
 
     def test_201_copy_dir_seq(self):
-        self.do_copy_test('copy_seq', 60)
+        TC_00_FileSystem.test_201_copy_dir_seq(self)
 
     def test_202_copy_dir_rev(self):
-        self.do_copy_test('copy_rev', 60)
+        TC_00_FileSystem.test_202_copy_dir_rev(self)
 
     def test_203_copy_dir_sendfile(self):
-        self.do_copy_test('copy_sendfile', 60)
+        TC_00_FileSystem.test_203_copy_dir_sendfile(self)
 
+    @expectedFailureIf(HAS_SGX)
+    def test_204_copy_dir_mmap_whole(self):
+        TC_00_FileSystem.test_204_copy_dir_mmap_whole(self)
+
+    @expectedFailureIf(HAS_SGX)
+    def test_205_copy_dir_mmap_seq(self):
+        TC_00_FileSystem.test_205_copy_dir_mmap_seq(self)
+
+    @expectedFailureIf(HAS_SGX)
+    def test_206_copy_dir_mmap_rev(self):
+        TC_00_FileSystem.test_206_copy_dir_mmap_rev(self)
+
+    # overrides TC_00_FileSystem to skip verification by python
     def test_210_copy_dir_mounted(self):
         executable = 'copy_whole'
         stdout, stderr = self.run_binary([executable, '/mounted/input', '/mnt-tmpfs'],
                                          timeout=30)
-
-    def verify_copy_content(self, input_path, output_path):
-        self.assertTrue(filecmp.cmp(input_path, output_path, shallow=False))
-
-    def test_220_copy_dir_tmpfs(self):
-        # copy files to tmpfs and then copy them back to 'target', in order to do comparation in the following steps
-        executable = 'copy_tmpfs'
-        stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR, self.TARGET_DIR],
-                                          timeout=30)
-        for i in self.INDEXES:
-            target_path = [os.path.join(self.TARGET_DIR, str(x)) for x in self.FILE_SIZES]
-            self.verify_copy_content(self.INPUT_FILES[i], target_path[i])
-
-    def test_230_copy_subdir_tmpfs(self):
-        # copy files to a subfolder on tmpfs and then copy them back to 'target', 
-        # in order to do comparation in the following steps
-        executable = 'copy_subdir_tmpfs'
-        stdout, stderr = self.run_binary([executable, self.INPUT_DIR, self.OUTPUT_DIR, "subfolder", self.TARGET_DIR],
-                                         timeout=30)
-        for i in self.INDEXES:
-            target_path = [os.path.join(self.TARGET_DIR, str(x)) for x in self.FILE_SIZES]
-            self.verify_copy_content(self.INPUT_FILES[i], target_path[i])

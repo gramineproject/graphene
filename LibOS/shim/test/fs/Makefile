@@ -12,19 +12,13 @@ copy_execs = \
 
 execs = \
 	$(copy_execs) \
-	copy_subdir_tmpfs \
-	copy_tmpfs \
 	delete \
-	delete_tmpfs \
 	open_close \
 	open_flags \
 	read_write \
 	seek_tell \
-	seek_tell_tmpfs \
 	stat \
-	stat_tmpfs \
-	truncate \
-	truncate_tmpfs
+	truncate
 
 manifests = $(addsuffix .manifest,$(execs))
 

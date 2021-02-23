@@ -17,12 +17,6 @@
 /seek_tell
 /stat
 /truncate
-/copy_subdir_tmpfs
-/copy_tmpfs
-/delete_tmpfs
-/seek_tell_tmpfs
-/stat_tmpfs
-/truncate_tmpfs
 
 /.cache
 

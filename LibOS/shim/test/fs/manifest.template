@@ -25,7 +25,7 @@ fs.mount.output.uri = "file:tmp"
 
 fs.mount.tmpfs.type = "tmpfs"
 fs.mount.tmpfs.path = "/mnt-tmpfs"
-fs.mount.tmpfs.uri = "file:tmpfs"
+fs.mount.tmpfs.uri = "file:dummy-unused-by-tmpfs-uri"
 
 sgx.trusted_files.entrypoint = "file:$(ENTRYPOINT)"
 
