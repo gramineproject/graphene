@@ -46,7 +46,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     char* path = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
-        log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(-ret));
+        log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
         free(hdl);
         return ret;
     }
@@ -123,7 +123,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         if (ret < 0) {
             log_error("Accessing file:%s is denied (%s). This file is not trusted or allowed."
                       " Trusted files should be regular files (seekable).\n", hdl->file.realpath,
-                      pal_strerror(-ret));
+                      pal_strerror(ret));
             goto out;
         }
 
@@ -651,7 +651,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     size_t len = URI_MAX;
     ret = get_norm_path(uri, path, &len);
     if (ret < 0) {
-        log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(-ret));
+        log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
         goto out;
     }
 

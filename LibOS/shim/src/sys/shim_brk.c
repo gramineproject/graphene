@@ -125,8 +125,10 @@ void reset_brk(void) {
         BUG();
     }
 
-    if (DkVirtualMemoryFree(brk_region.brk_start, allocated_size) < 0) {
-        BUG();
+    if (allocated_size > 0) {
+        if (DkVirtualMemoryFree(brk_region.brk_start, allocated_size) < 0) {
+            BUG();
+        }
     }
     bkeep_remove_tmp_vma(tmp_vma);
 

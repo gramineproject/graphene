@@ -60,7 +60,7 @@ typedef enum _pal_error_t {
 #define PAL_ERROR_CRYPTO_END PAL_ERROR_CRYPTO_INVALID_DH_STATE
 } pal_error_t;
 
-/* err - positive value of error code */
+/* err - value of error code, either positive or negative */
 const char* pal_strerror(int err);
 
 #endif

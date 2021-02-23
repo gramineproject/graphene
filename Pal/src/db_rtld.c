@@ -23,7 +23,7 @@ struct link_map* g_exec_map = NULL;
 
 struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym)** ref);
 
-/* err - positive value of error code */
+/* err - positive or negative value of error code */
 static inline void print_error(const char* msg, int err) {
     printf("%s (%s)\n", msg, pal_strerror(err));
 }
