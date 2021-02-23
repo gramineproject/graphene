@@ -110,7 +110,7 @@ err:
 
 static int unix_create_uri(char* buf, size_t buf_size, enum shim_sock_state state, char* name,
                            size_t* output_len) {
-    int bytes = 0; /* snprintf returns `int` */
+    int written = 0; /* snprintf returns `int` */
 
     switch (state) {
         case SOCK_CREATED:
@@ -121,20 +121,20 @@ static int unix_create_uri(char* buf, size_t buf_size, enum shim_sock_state stat
         case SOCK_BOUND:
         case SOCK_LISTENED:
         case SOCK_ACCEPTED:
-            bytes = snprintf(buf, buf_size, URI_PREFIX_PIPE_SRV "%s", name);
+            written = snprintf(buf, buf_size, URI_PREFIX_PIPE_SRV "%s", name);
             break;
 
         case SOCK_CONNECTED:
-            bytes = snprintf(buf, buf_size, URI_PREFIX_PIPE "%s", name);
+            written = snprintf(buf, buf_size, URI_PREFIX_PIPE "%s", name);
             break;
 
         default:
             return -ENOTCONN;
     }
 
-    if (bytes < 0)
-        return bytes;
-    *output_len = (size_t)bytes;
+    if (written < 0)
+        return written;
+    *output_len = (size_t)written;
     return *output_len >= buf_size ? -ENAMETOOLONG : 0;
 }
 
