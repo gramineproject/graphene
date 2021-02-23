@@ -1,0 +1,13 @@
+diff --git a/LibOS/shim/test/ltp/src/lib/tst_test.c b/LibOS/shim/test/ltp/src/lib/tst_test.c
+index 535c0ff4..b53a0daa 100644
+--- a/LibOS/shim/test/ltp/src/lib/tst_test.c
++++ b/LibOS/shim/test/ltp/src/lib/tst_test.c
+@@ -105,7 +105,7 @@ static void setup_ipc(void)
+ 
+ 	SAFE_FTRUNCATE(ipc_fd, size);
+ 
+-	results = SAFE_MMAP(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ipc_fd, 0);
++	results = SAFE_MMAP(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, ipc_fd, 0);
+ 
+ 	/* Checkpoints needs to be accessible from processes started by exec() */
+ 	if (tst_test->needs_checkpoints || tst_test->child_needs_reinit) {
