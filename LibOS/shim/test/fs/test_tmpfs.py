@@ -80,21 +80,21 @@ class TC_10_Tmpfs(TC_00_FileSystem):
         pass
 
     # mmap is not yet implemented in tmpfs
-    @expectedFailureIf(HAS_SGX)
+    @unittest.skip("mmap is not yet implemented in tmpfs")
     def test_204_copy_dir_mmap_whole(self):
         TC_00_FileSystem.test_204_copy_dir_mmap_whole(self)
 
     # mmap is not yet implemented in tmpfs
-    @expectedFailureIf(HAS_SGX)
+    @unittest.skip("mmap is not yet implemented in tmpfs")
     def test_205_copy_dir_mmap_seq(self):
         TC_00_FileSystem.test_205_copy_dir_mmap_seq(self)
 
     # mmap is not yet implemented in tmpfs
-    @expectedFailureIf(HAS_SGX)
+    @unittest.skip("mmap is not yet implemented in tmpfs")
     def test_206_copy_dir_mmap_rev(self):
         TC_00_FileSystem.test_206_copy_dir_mmap_rev(self)
 
     # overrides TC_00_FileSystem to skip it
     @unittest.skip("not applicable for tmpfs")
     def test_210_copy_dir_mounted(self):
-        skip
+        TC_00_FileSystem.test_210_copy_dir_mounted(self)
