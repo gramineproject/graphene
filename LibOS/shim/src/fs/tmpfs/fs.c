@@ -188,7 +188,9 @@ static int tmpfs_dput(struct shim_dentry* dent) {
         unlock(&dent->lock);
         return 0;
     }
-    __destroy_data(tmpfs_data);
+    /* Don't destroy data when DENTRY_NEGATIVE. Renamed dent is using this data. */
+    if (!(dent->state & DENTRY_NEGATIVE))
+        __destroy_data(tmpfs_data);
 
     dent->data  = NULL;
     dent->state = DENTRY_NEGATIVE;
@@ -544,15 +546,20 @@ static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
 
     new->data = old->data;
     __destroy_data(tmpfs_data);
-    old->data = NULL;
 
     new->mode = old->mode;
-    old->mode = NO_MODE;
-
     new->type = old->type;
 
     tmpfs_data        = new->data;
     tmpfs_data->ctime = time / 1000000;
+
+    if (REF_GET(old->ref_count) > 0) {
+        /* old dentry is opened. Only change state. */
+        old->state |= DENTRY_NEGATIVE;
+    } else {
+        old->data = NULL;
+        old->mode = NO_MODE;
+    }
 
     return 0;
 }
