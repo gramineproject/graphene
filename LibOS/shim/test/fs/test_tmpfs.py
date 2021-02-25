@@ -79,22 +79,18 @@ class TC_10_Tmpfs(TC_00_FileSystem):
     def verify_copy_content(self, input_path, output_path):
         pass
 
-    # mmap is not yet implemented in tmpfs
     @unittest.skip("mmap is not yet implemented in tmpfs")
     def test_204_copy_dir_mmap_whole(self):
         TC_00_FileSystem.test_204_copy_dir_mmap_whole(self)
 
-    # mmap is not yet implemented in tmpfs
     @unittest.skip("mmap is not yet implemented in tmpfs")
     def test_205_copy_dir_mmap_seq(self):
         TC_00_FileSystem.test_205_copy_dir_mmap_seq(self)
 
-    # mmap is not yet implemented in tmpfs
     @unittest.skip("mmap is not yet implemented in tmpfs")
     def test_206_copy_dir_mmap_rev(self):
         TC_00_FileSystem.test_206_copy_dir_mmap_rev(self)
 
-    # overrides TC_00_FileSystem to skip it
     @unittest.skip("not applicable for tmpfs")
     def test_210_copy_dir_mounted(self):
         TC_00_FileSystem.test_210_copy_dir_mounted(self)
