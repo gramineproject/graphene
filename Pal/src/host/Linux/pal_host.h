@@ -21,7 +21,7 @@
  * If DEBUG_MUTEX is defined, mutex_handle will record the owner of mutex locking.
  */
 typedef struct mutex_handle {
-    uint32_t locked;
+    int locked;
     struct atomic_int nwaiters;
 #ifdef DEBUG_MUTEX
     int owner;
@@ -141,12 +141,12 @@ typedef struct pal_handle {
         } mutex;
 
         struct {
-            uint32_t signaled;
+            int signaled;
             struct atomic_int nwaiters;
             PAL_BOL isnotification;
         } event;
     };
-} * PAL_HANDLE;
+}* PAL_HANDLE;
 
 #define RFD(n)   (1 << (MAX_FDS * 0 + (n)))
 #define WFD(n)   (1 << (MAX_FDS * 1 + (n)))

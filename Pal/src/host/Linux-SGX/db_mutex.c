@@ -31,12 +31,12 @@ int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
     PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
     SET_HANDLE_TYPE(mut, mutex);
     __atomic_store_n(&mut->mutex.mut.nwaiters.counter, 0, __ATOMIC_SEQ_CST);
-    mut->mutex.mut.locked = malloc_untrusted(sizeof(uint32_t));
+    mut->mutex.mut.locked = malloc_untrusted(sizeof(*mut->mutex.mut.locked));
     if (!mut->mutex.mut.locked) {
         free(mut);
         return -PAL_ERROR_NOMEM;
     }
-    *handle                  = mut;
+    *handle = mut;
     __atomic_store_n(mut->mutex.mut.locked, initialCount, __ATOMIC_SEQ_CST);
     return 0;
 }
@@ -44,7 +44,7 @@ int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
 int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     int ret = 0;
 
-    uint32_t t = MUTEX_UNLOCKED;
+    int t = MUTEX_UNLOCKED;
     if (__atomic_compare_exchange_n(m->locked, &t, MUTEX_LOCKED, /*weak=*/false, __ATOMIC_ACQUIRE,
                                     __ATOMIC_RELAXED))
         goto success;
@@ -58,7 +58,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     __atomic_add_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
     while (true) {
-        uint32_t t = MUTEX_UNLOCKED;
+        int t = MUTEX_UNLOCKED;
         if (__atomic_compare_exchange_n(m->locked, &t, MUTEX_LOCKED, /*weak=*/false,
                                         __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
             break;

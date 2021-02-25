@@ -905,7 +905,7 @@ int ocall_create_process(const char* uri, size_t nargs, const char** args, int* 
     return retval;
 }
 
-int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
+int ocall_futex(int* futex, int op, int val, int64_t timeout_us) {
     int retval = 0;
     ms_ocall_futex_t* ms;
 
