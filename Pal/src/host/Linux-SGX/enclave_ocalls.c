@@ -95,7 +95,7 @@ static long sgx_exitless_ocall(uint64_t code, void* ms) {
     if (timedout) {
         /* OCALL takes a lot of time, so fallback to waiting on a futex; at this point we exit
          * enclave to perform syscall; this code is based on Mutex 2 from Futexes are Tricky */
-        int c = SPINLOCK_UNLOCKED;
+        uint32_t c = SPINLOCK_UNLOCKED;
 
         /* at this point can be a subtle data race: RPC thread is only now done with OCALL and
          * moved lock in UNLOCKED state; in this racey case, lock = UNLOCKED = 0 and we do not
@@ -905,7 +905,7 @@ int ocall_create_process(const char* uri, size_t nargs, const char** args, int* 
     return retval;
 }
 
-int ocall_futex(int* futex, int op, int val, int64_t timeout_us) {
+int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
     int retval = 0;
     ms_ocall_futex_t* ms;
 
