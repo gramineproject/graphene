@@ -554,9 +554,6 @@ static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
     tmpfs_data        = new->data;
     tmpfs_data->ctime = time / 1000000;
 
-    /* both new and old file use this string from now on */
-    REF_INC(tmpfs_data->str_data.ref_count);
-
     /* mark old file as non-existing now, after renaming */
     old->state |= DENTRY_NEGATIVE;
     return 0;
