@@ -113,7 +113,8 @@ int main(int argc, char** argv) {
                 }
             }
 
-            ret = DkStreamOpen("file:to_send.tmp", PAL_ACCESS_RDWR, 0600, PAL_CREATE_TRY, 0, &handles[2]);
+            ret = DkStreamOpen("file:to_send.tmp", PAL_ACCESS_RDWR, 0600, PAL_CREATE_TRY, 0,
+                               &handles[2]);
 
             if (ret >= 0 && handles[2]) {
                 pal_printf("Send Handle OK\n");

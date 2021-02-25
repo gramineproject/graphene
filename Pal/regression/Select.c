@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
         pal_printf("DkStreamOpen failed\n");
         return 1;
     }
-    wakeup     = handles[2];
+    wakeup = handles[2];
 
     PAL_HANDLE thd = NULL;
     ret = DkThreadCreate(&thread_func, NULL, &thd);

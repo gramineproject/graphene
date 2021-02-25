@@ -257,7 +257,7 @@ static inline int wait_event(AEVENTTYPE* e) {
     /* XXX(borysp): I think we should actually return both of these. */
     } while (ret == -EINTR || ret == -EAGAIN);
 
-    return ret < 0 ? ret : 0;
+    return ret;
 }
 
 static inline int clear_event(AEVENTTYPE* e) {
