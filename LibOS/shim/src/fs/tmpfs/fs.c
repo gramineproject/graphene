@@ -188,9 +188,7 @@ static int tmpfs_dput(struct shim_dentry* dent) {
         unlock(&dent->lock);
         return 0;
     }
-    /* Don't destroy data when DENTRY_NEGATIVE. Renamed dent is using this data. */
-    if (!(dent->state & DENTRY_NEGATIVE))
-        __destroy_data(tmpfs_data);
+    __destroy_data(tmpfs_data);
 
     dent->data  = NULL;
     dent->state = DENTRY_NEGATIVE;
@@ -544,23 +542,23 @@ static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
         return -EPERM;
     }
 
-    new->data = old->data;
     __destroy_data(tmpfs_data);
 
+    /* old file must be existing, otherwise some bug */
+    assert(REF_GET(old->ref_count) > 0);
+
+    new->data = old->data;
     new->mode = old->mode;
     new->type = old->type;
 
     tmpfs_data        = new->data;
     tmpfs_data->ctime = time / 1000000;
 
-    if (REF_GET(old->ref_count) > 0) {
-        /* old dentry is opened. Only change state. */
-        old->state |= DENTRY_NEGATIVE;
-    } else {
-        old->data = NULL;
-        old->mode = NO_MODE;
-    }
+    /* both new and old file use this string from now on */
+    REF_INC(tmpfs_data->str_data.ref_count);
 
+    /* mark old file as non-existing now, after renaming */
+    old->state |= DENTRY_NEGATIVE;
     return 0;
 }
 
