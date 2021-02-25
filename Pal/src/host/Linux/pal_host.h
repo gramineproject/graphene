@@ -146,7 +146,7 @@ typedef struct pal_handle {
             PAL_BOL isnotification;
         } event;
     };
-} * PAL_HANDLE;
+}* PAL_HANDLE;
 
 #define RFD(n)   (1 << (MAX_FDS * 0 + (n)))
 #define WFD(n)   (1 << (MAX_FDS * 1 + (n)))
