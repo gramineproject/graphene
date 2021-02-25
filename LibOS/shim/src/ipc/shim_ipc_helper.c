@@ -574,11 +574,11 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                     assert(read == 0);
                     ret = -ENODATA;
                     log_debug("Port %p (handle %p): closed while receiving IPC message\n", port,
-                          port->pal_handle);
+                              port->pal_handle);
                 } else {
                     ret = pal_to_unix_errno(ret);
                     log_debug("Port %p (handle %p): error while receiving IPC message: %d\n", port,
-                          port->pal_handle, ret);
+                              port->pal_handle, ret);
                 }
                 del_ipc_port_fini(port);
                 goto out;
@@ -759,7 +759,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
             debug("shim_ipc_helper: DkStreamsWaitEvents failed: %ld\n", pal_to_unix_errno(ret));
             goto out_err;
         }
-        PAL_BOL polled = ret == 0;
+        bool polled = ret == 0;
 
         for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {

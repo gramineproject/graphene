@@ -719,8 +719,9 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
 
 out_fail:;
     void* tmp_vma = NULL;
-    if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0)
+    if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0) {
         BUG();
+    }
     if (DkVirtualMemoryFree(mapaddr, mapsize) < 0) {
         BUG();
     }

@@ -1474,7 +1474,10 @@ retry:
 
             PAL_HANDLE pal_handle = NULL;
             int ret = DkStreamOpen(uri, 0, 0, 0, 0, &pal_handle);
-            (void)ret; // I have no idea how to handle errors here, this function needs a rework.
+            if (ret < 0) {
+                // I have no idea how to handle errors here, this function needs a rework.
+                BUG();
+            }
 
             if (pal_handle)
                 add_ipc_port_by_id(owner, pal_handle, IPC_PORT_CONNECTION, NULL, &port);

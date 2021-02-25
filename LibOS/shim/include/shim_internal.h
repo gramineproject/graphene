@@ -175,6 +175,11 @@ bool maybe_emulate_syscall(PAL_CONTEXT* context);
  */
 bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr);
 
+/*!
+ * \brief Translate PAL error code into UNIX error code.
+ *
+ * The sign of the error code is preserved.
+ */
 long pal_to_unix_errno(long err);
 
 void debug_print_syscall_before(int sysno, ...);
@@ -239,22 +244,20 @@ static inline int wait_event(AEVENTTYPE* e) {
         return -EINVAL;
     }
 
-    while (1) {
+    int ret = 0;
+    do {
         char byte;
         size_t size = 1;
-        int ret = DkStreamRead(e->event, 0, &size, &byte, NULL, 0);
+        ret = DkStreamRead(e->event, 0, &size, &byte, NULL, 0);
         if (ret < 0) {
-            /* XXX(borysp): I think we should actually return both of these. */
-            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
-                continue;
-            }
-            return pal_to_unix_errno(ret);
+            ret = pal_to_unix_errno(ret);
         } else if (size == 0) {
-            return -ENODATA;
+            ret = -ENODATA;
         }
-    }
+    /* XXX(borysp): I think we should actually return both of these. */
+    } while (ret == -EINTR || ret == -EAGAIN);
 
-    return 0;
+    return ret < 0 ? ret : 0;
 }
 
 static inline int clear_event(AEVENTTYPE* e) {

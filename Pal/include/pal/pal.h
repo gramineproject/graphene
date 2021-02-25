@@ -230,7 +230,7 @@ int DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size);
  *
  * \param addr the address
  * \param size the size
- * \param prot see #DkVirtualMemoryAlloc()
+ * \param prot see #DkVirtualMemoryAlloc
  *
  * Both `addr` and `size` must be non-zero and aligned at the allocation alignment.
  */
@@ -375,7 +375,7 @@ int DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buff
  * \brief Write data to an open stream.
  *
  * \param handle handle to the stream.
- * \param offset offset to read at. If \p handle is a file, \p offset must be specified at each
+ * \param offset offset to write to. If \p handle is a file, \p offset must be specified at each
  *               call.
  * \param[in,out] count on function call should contain the size of \p buffer. On successful return
  *                contains the number of bytes written.
@@ -402,8 +402,8 @@ int DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
  * \brief Map a file to a virtual memory address in the current process.
  *
  * \param handle handle to the stream to be mapped.
- * \param[in,out] addr see #DkVirtualMemoryAlloc()
- * \param prot see #DkVirtualMemoryAlloc()
+ * \param[in,out] addr see #DkVirtualMemoryAlloc
+ * \param prot see #DkVirtualMemoryAlloc
  * \param offset offset in the stream to be mapped. Must be properly aligned.
  * \param size size of the requested mapping. Must be non-zero and properly aligned.
  *

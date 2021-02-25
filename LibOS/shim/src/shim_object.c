@@ -8,7 +8,7 @@ int object_wait_with_retry(PAL_HANDLE handle) {
     } while (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN);
 
     if (ret < 0) {
-        log_error("waiting on %p resulted in error %s", handle, pal_strerror(ret));
+        log_error("waiting an object resulted in error %s",  pal_strerror(ret));
         return pal_to_unix_errno(ret);
     }
     return 0;

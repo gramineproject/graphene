@@ -626,9 +626,10 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
     } else {
+        if (__builtin_add_overflow(count, 0, &ret))
+            BUG();
         if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, count, &file->marker))
             BUG();
-        ret = count;
     }
 
     unlock(&hdl->lock);

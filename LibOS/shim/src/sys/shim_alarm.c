@@ -79,7 +79,7 @@ long shim_do_setitimer(int which, struct __kernel_itimerval* value,
         return -EFAULT;
 
     uint64_t setup_time = 0;
-    int64_t ret = DkSystemTimeQuery(&setup_time);
+    int ret = DkSystemTimeQuery(&setup_time);
     if (ret < 0) {
         return pal_to_unix_errno(ret);
     }
@@ -95,11 +95,12 @@ long shim_do_setitimer(int which, struct __kernel_itimerval* value,
                                : 0;
     uint64_t current_reset = real_itimer.reset;
 
-    ret = install_async_event(NULL, next_value, &signal_itimer, (void*)(setup_time + next_value));
+    int64_t install_ret = install_async_event(NULL, next_value, &signal_itimer,
+                                              (void*)(setup_time + next_value));
 
-    if (ret < 0) {
+    if (install_ret < 0) {
         MASTER_UNLOCK();
-        return ret;
+        return install_ret;
     }
 
     real_itimer.timeout = setup_time + next_value;
