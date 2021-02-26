@@ -20,7 +20,7 @@ static void callback(void* args) {
 
     pal_printf("Threads Run in Parallel OK\n");
 
-    if (!DkSegmentRegisterSet(PAL_SEGMENT_FS, &private2)) {
+    if (DkSegmentRegisterSet(PAL_SEGMENT_FS, &private2) < 0) {
         pal_printf("Failed to set FS\n");
         DkThreadExit(/*clear_child_tid=*/NULL);
     }
@@ -35,7 +35,7 @@ static void callback(void* args) {
 }
 
 int main() {
-    if (!DkSegmentRegisterSet(PAL_SEGMENT_FS, &private1)) {
+    if (DkSegmentRegisterSet(PAL_SEGMENT_FS, &private1) < 0) {
         pal_printf("Failed to set FS\n");
         return 1;
     }
@@ -43,8 +43,9 @@ int main() {
     __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr1)::"memory");
     pal_printf("Private Message (FS Segment) 1: %s\n", ptr1);
 
-    PAL_HANDLE thread1 = DkThreadCreate(callback, "Hello World");
-    if (!thread1)
+    PAL_HANDLE thread1 = NULL;
+    int ret = DkThreadCreate(callback, "Hello World", &thread1);
+    if (ret < 0)
         return 1;
 
     pal_printf("Child Thread Created\n");

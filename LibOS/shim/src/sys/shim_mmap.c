@@ -165,18 +165,19 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
     /* From now on `addr` contains the actual address we want to map (and already bookkeeped). */
 
     if (!hdl) {
-        if (DkVirtualMemoryAlloc(addr, length, 0, LINUX_PROT_TO_PAL(prot, flags)) != addr) {
-            if (PAL_NATIVE_ERRNO() == PAL_ERROR_DENIED) {
+        ret = DkVirtualMemoryAlloc(&addr, length, 0, LINUX_PROT_TO_PAL(prot, flags));
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_DENIED) {
                 ret = -EPERM;
             } else {
-                ret = -PAL_ERRNO();
+                ret = pal_to_unix_errno(ret);
             }
         }
     } else {
         void* ret_addr = addr;
         ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, prot, flags, offset);
         if (ret_addr != addr) {
-            debug("Requested address (%p) differs from allocated (%p)!\n", addr, ret_addr);
+            log_error("Requested address (%p) differs from allocated (%p)!\n", addr, ret_addr);
             BUG();
         }
     }
@@ -184,8 +185,9 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
     if (ret < 0) {
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr, length, /*is_internal=*/false, &tmp_vma) < 0) {
-            debug("[mmap] Failed to remove bookkeeped memory that was not allocated at %p-%p!\n",
-                  addr, (char*)addr + length);
+            log_error(
+                "[mmap] Failed to remove bookkeeped memory that was not allocated at %p-%p!\n",
+                addr, (char*)addr + length);
             BUG();
         }
         bkeep_remove_tmp_vma(tmp_vma);
@@ -251,13 +253,16 @@ long shim_do_mprotect(void* addr, size_t length, int prot) {
                 put_handle(vma_info.file);
             }
         } else {
-            warn("Memory that was about to be mprotected was unmapped, your program is buggy!\n");
+            log_warning("Memory that was about to be mprotected was unmapped, your program is "
+                        "buggy!\n");
             return -ENOTRECOVERABLE;
         }
     }
 
-    if (!DkVirtualMemoryProtect(addr, length, LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))
-        return -PAL_ERRNO();
+    ret = DkVirtualMemoryProtect(addr, length, LINUX_PROT_TO_PAL(prot, /*map_flags=*/0));
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     return 0;
 }
@@ -282,7 +287,9 @@ long shim_do_munmap(void* addr, size_t length) {
         return ret;
     }
 
-    DkVirtualMemoryFree(addr, length);
+    if (DkVirtualMemoryFree(addr, length) < 0) {
+        BUG();
+    }
 
     bkeep_remove_tmp_vma(tmp_vma);
 
@@ -311,7 +318,8 @@ long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     static atomic_bool warned = false;
     if (!warned) {
         warned = true;
-        warn("mincore emulation always tells pages are _NOT_ in RAM. This may cause issues.\n");
+        log_warning(
+            "mincore emulation always tells pages are _NOT_ in RAM. This may cause issues.\n");
     }
 
     /* There is no good way to know if the page is in RAM.

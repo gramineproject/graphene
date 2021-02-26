@@ -327,7 +327,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
         log_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
-                  pal_strerror(-ret));
+                  pal_strerror(ret));
         return ret;
     }
     len += URI_PREFIX_FILE_LEN;
@@ -746,7 +746,7 @@ static int init_trusted_file(const char* key, const char* uri) {
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
         log_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
-                  pal_strerror(-ret));
+                  pal_strerror(ret));
         goto out;
     }
 
@@ -876,7 +876,7 @@ no_trusted:
 
         if (ret < 0) {
             log_error("Path (%s) normalization failed: %s\n",
-                      toml_allowed_file_str + URI_PREFIX_FILE_LEN, pal_strerror(-ret));
+                      toml_allowed_file_str + URI_PREFIX_FILE_LEN, pal_strerror(ret));
             return ret;
         }
 

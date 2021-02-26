@@ -20,24 +20,24 @@ static ssize_t eventfd_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (count < sizeof(uint64_t))
         return -EINVAL;
 
-    PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
+    int ret = DkStreamRead(hdl->pal_handle, 0, &count, buf, NULL, 0);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
-    if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO();
-
-    return (ssize_t)bytes;
+    return (ssize_t)count;
 }
 
 static ssize_t eventfd_write(struct shim_handle* hdl, const void* buf, size_t count) {
     if (count < sizeof(uint64_t))
         return -EINVAL;
 
-    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
+    int ret = DkStreamWrite(hdl->pal_handle, 0, &count, (void*)buf, NULL);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
-    if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO();
-
-    return (ssize_t)bytes;
+    return (ssize_t)count;
 }
 
 static off_t eventfd_poll(struct shim_handle* hdl, int poll_type) {
@@ -51,8 +51,9 @@ static off_t eventfd_poll(struct shim_handle* hdl, int poll_type) {
     }
 
     PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-        ret = -PAL_ERRNO();
+    int query_ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+    if (query_ret < 0) {
+        ret = pal_to_unix_errno(query_ret);
         goto out;
     }
 

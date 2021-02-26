@@ -398,7 +398,7 @@ void get_handle(struct shim_handle* hdl) {
 #ifdef DEBUG_REF
     int ref_count = REF_INC(hdl->ref_count);
 
-    debug("get handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
+    log_debug("get handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
 #else
     REF_INC(hdl->ref_count);
 #endif
@@ -414,7 +414,7 @@ void put_handle(struct shim_handle* hdl) {
     int ref_count = REF_DEC(hdl->ref_count);
 
 #ifdef DEBUG_REF
-    debug("put handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
+    log_debug("put handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
 #endif
 
     if (!ref_count) {
@@ -458,9 +458,9 @@ void put_handle(struct shim_handle* hdl) {
 
         if (hdl->pal_handle) {
 #ifdef DEBUG_REF
-            debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
+            log_debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
 #endif
-            DkObjectClose(hdl->pal_handle);
+            DkObjectClose(hdl->pal_handle); // TODO: handle errors
             hdl->pal_handle = NULL;
         }
 

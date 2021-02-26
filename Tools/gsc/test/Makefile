@@ -1,5 +1,8 @@
-TESTCASES ?= python3 python3-trusted-args base-python3 hello-world nodejs bash numpy pytorch
 DISTRIBUTIONS ?= ubuntu18.04
+
+TESTCASES ?= python3 python3-trusted-args base-python3 hello-world nodejs bash numpy pytorch
+MAXTESTNUM ?= 12
+TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 
 GRAPHENE_REPO ?= https://github.com/oscarlab/graphene.git
 GRAPHENE_BRANCH ?= master
@@ -8,17 +11,18 @@ SGXDRIVER_BRANCH ?= sgx_driver_1.9
 
 DOCKER_BUILD_FLAGS ?= --rm --no-cache
 GSC_BUILD_FLAGS ?= --rm --no-cache
-TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
-MAXTESTNUM ?= 12
 KEY_FILE ?= ../enclave-key.pem
-ifeq ($(wildcard /dev/isgx), )
-	SGX_DEVICE = sgx
-else
-	SGX_DEVICE = isgx
-endif
-DEVICES_VOLUMES = --device=/dev/gsgx --device=/dev/${SGX_DEVICE} -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
 ENV_VARS ?=
 IMAGE_SUFFIX ?=
+
+# use "isgx" for legacy driver, "sgx/enclave" for DCAP driver, "sgx_enclave" for in-kernel driver
+INTEL_SGX_DEVICE ?= isgx
+# "gsgx" is needed on Linux before v5.9 (before FSGSBASE was merged), otherwise leave empty
+ADDITIONAL_DEVICES ?= --device=/dev/gsgx
+# use if AESM daemon from the host is needed (e.g. for remote attestation), otherwise leave empty
+ADDITIONAL_VOLUMES ?= --volume /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
+
+DEVICES_VOLUMES = --device=/dev/${INTEL_SGX_DEVICE} ${ADDITIONAL_DEVICES} ${ADDITIONAL_VOLUMES}
 
 .PHONY: all
 all: $(KEY_FILE)
@@ -137,7 +141,7 @@ test-4-%: gsc-%-python3
 .PHONY: test-5-%
 test-5-%: gsc-%-python3
 	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' 2>&1 | tee out
-	grep -q "ls.manifest.sgx" out
+	grep -q "entrypoint.manifest.sgx" out
 	$(RM) out
 
 .PHONY: test-6-%
@@ -176,7 +180,7 @@ test-10-%: gsc-%-numpy
 .PHONY: test-11-%
 test-11-%: gsc-%-bash
 	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' 2>&1 | tee out
-	grep -q "ls.manifest.sgx" out
+	grep -q "entrypoint.manifest.sgx" out
 	$(RM) out
 
 .PHONY: test-12-%

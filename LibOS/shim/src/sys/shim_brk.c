@@ -31,7 +31,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     int ret;
 
     if (!create_lock(&brk_lock)) {
-        debug("Creating brk_lock failed!\n");
+        log_error("Creating brk_lock failed!\n");
         return -ENOMEM;
     }
 
@@ -48,16 +48,16 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     ret = toml_sizestring_in(g_manifest_root, "sys.brk.max_size", DEFAULT_BRK_MAX_SIZE,
                              &brk_max_size);
     if (ret < 0) {
-        debug("Cannot parse \'sys.brk.max_size\' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sys.brk.max_size\' (the value must be put in double quotes!)\n");
         return -EINVAL;
     }
 
     if (brk_start && !IS_ALLOC_ALIGNED_PTR(brk_start)) {
-        debug("Starting brk address is not aligned!\n");
+        log_error("Starting brk address is not aligned!\n");
         return -EINVAL;
     }
     if (!IS_ALLOC_ALIGNED(brk_max_size)) {
-        debug("Max brk size is not aligned!\n");
+        log_error("Max brk size is not aligned!\n");
         return -EINVAL;
     }
 
@@ -70,7 +70,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
         if (!PAL_CB(disable_aslr)) {
             ret = DkRandomBitsRead(&offset, sizeof(offset));
             if (ret < 0) {
-                return -convert_pal_errno(-ret);
+                return pal_to_unix_errno(ret);
             }
             /* Linux randomizes brk at offset from 0 to 0x2000000 from main executable data section
              * https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/kernel/process.c#L914 */
@@ -125,7 +125,11 @@ void reset_brk(void) {
         BUG();
     }
 
-    DkVirtualMemoryFree(brk_region.brk_start, allocated_size);
+    if (allocated_size > 0) {
+        if (DkVirtualMemoryFree(brk_region.brk_start, allocated_size) < 0) {
+            BUG();
+        }
+    }
     bkeep_remove_tmp_vma(tmp_vma);
 
     brk_region.brk_start         = NULL;
@@ -157,7 +161,9 @@ void* shim_do_brk(void* _brk) {
                 goto out;
             }
 
-            DkVirtualMemoryFree(brk_aligned, size);
+            if (DkVirtualMemoryFree(brk_aligned, size) < 0) {
+                BUG();
+            }
         }
 
         brk_region.brk_current = brk;
@@ -183,7 +189,8 @@ void* shim_do_brk(void* _brk) {
         goto out;
     }
 
-    if (!DkVirtualMemoryAlloc(brk_current, size, 0, PAL_PROT_READ | PAL_PROT_WRITE)) {
+    int ret = DkVirtualMemoryAlloc((void**)&brk_current, size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
         if (bkeep_mmap_fixed(brk_current, brk_region.brk_end - brk_current, PROT_NONE,
                              MAP_FIXED | VMA_UNMAPPED, NULL, 0, "heap") < 0) {
             BUG();

@@ -150,7 +150,7 @@ int remove_loaded_libraries(void);
 
 /* gdb debugging support */
 void remove_r_debug(void* addr);
-void append_r_debug(const char* uri, void* addr, void* dyn_addr);
+void append_r_debug(const char* uri, void* addr);
 void clean_link_map_list(void);
 
 /* create unique files/pipes */

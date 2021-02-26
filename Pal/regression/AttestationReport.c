@@ -8,7 +8,7 @@
 char zerobuf[sizeof(sgx_report_t)] = {0};
 
 int main(int argc, char** argv) {
-    bool ret;
+    int ret;
 
     size_t user_report_data_size;
     size_t target_info_size;
@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     ret = DkAttestationReport(/*user_report_data=*/NULL, &user_report_data_size,
                               /*target_info=*/NULL, &target_info_size,
                               /*report=*/NULL, &report_size);
-    if (!ret) {
+    if (ret < 0) {
         pal_printf("ERROR: DkAttestationReport() to get sizes of SGX structs failed\n");
         return -1;
     }
@@ -39,23 +39,26 @@ int main(int argc, char** argv) {
     pal_printf("user_report_data_size = %lu, target_info_size = %lu, report_size = %lu\n",
                user_report_data_size, target_info_size, report_size);
 
-    char* user_report_data = DkVirtualMemoryAlloc(NULL, ALLOC_ALIGN_UP(user_report_data_size), 0,
-                                                  PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!user_report_data) {
+    void* user_report_data = NULL;
+    ret = DkVirtualMemoryAlloc(&user_report_data, ALLOC_ALIGN_UP(user_report_data_size), 0,
+                               PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
         pal_printf("ERROR: Cannot allocate memory for user_report_data\n");
         return -1;
     }
 
-    char* target_info = DkVirtualMemoryAlloc(NULL, ALLOC_ALIGN_UP(target_info_size), 0,
-                                             PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!target_info) {
+    void* target_info = NULL;
+    ret = DkVirtualMemoryAlloc(&target_info, ALLOC_ALIGN_UP(target_info_size), 0,
+                               PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
         pal_printf("ERROR: Cannot allocate memory for target_info\n");
         return -1;
     }
 
-    char* report = DkVirtualMemoryAlloc(NULL, ALLOC_ALIGN_UP(report_size), 0,
-                                        PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!report) {
+    void* report = NULL;
+    ret = DkVirtualMemoryAlloc(&report, ALLOC_ALIGN_UP(report_size), 0,
+                               PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
         pal_printf("ERROR: Cannot allocate memory for report\n");
         return -1;
     }
@@ -66,7 +69,7 @@ int main(int argc, char** argv) {
 
     ret = DkAttestationReport(user_report_data, &user_report_data_size, target_info,
                               &target_info_size, report, &report_size);
-    if (!ret) {
+    if (ret < 0) {
         pal_printf("ERROR: DkAttestationReport() to get SGX report failed\n");
         return -1;
     }
@@ -88,9 +91,18 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    DkVirtualMemoryFree(user_report_data, ALLOC_ALIGN_UP(user_report_data_size));
-    DkVirtualMemoryFree(target_info, ALLOC_ALIGN_UP(target_info_size));
-    DkVirtualMemoryFree(report, ALLOC_ALIGN_UP(report_size));
+    if (DkVirtualMemoryFree(user_report_data, ALLOC_ALIGN_UP(user_report_data_size)) < 0) {
+        pal_printf("DkVirtualMemoryFree on `user_report_data` failed\n");
+        return 1;
+    }
+    if (DkVirtualMemoryFree(target_info, ALLOC_ALIGN_UP(target_info_size)) < 0) {
+        pal_printf("DkVirtualMemoryFree on `target_info` failed\n");
+        return 1;
+    }
+    if (DkVirtualMemoryFree(report, ALLOC_ALIGN_UP(report_size)) < 0) {
+        pal_printf("DkVirtualMemoryFree on `report` failed\n");
+        return 1;
+    }
 
     pal_printf("Success\n");
     return 0;

@@ -8,6 +8,8 @@
 #include <asm/stat.h>
 #include <linux/mman.h>
 #include <sigset.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -103,6 +105,9 @@ int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void
 /* PAL main function */
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);
 
+uintptr_t get_vdso_start(void);
+bool is_in_vdso(uintptr_t addr);
+
 struct link_map;
 void setup_pal_map(struct link_map* map);
 void setup_vdso_map(ElfW(Addr) addr);
@@ -133,17 +138,13 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START ((void*)(&__text_start))
 #define DATA_END   ((void*)(&__text_end))
 
-#define ADDR_IN_PAL(addr) \
-        ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
-
-#define MAX_SIGNAL_LOG 32
+#define ADDR_IN_PAL_OR_VDSO(addr) \
+        (((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END) || is_in_vdso(addr))
 
 typedef struct pal_tcb_linux {
     PAL_TCB common;
     struct {
         /* private to Linux PAL */
-        int        pending_events[MAX_SIGNAL_LOG];
-        int        pending_events_num;
         PAL_HANDLE handle;
         void*      alt_stack;
         int        (*callback)(void*);

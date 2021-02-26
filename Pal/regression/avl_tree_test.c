@@ -306,7 +306,7 @@ int main(void) {
 
     uint32_t seed = 0;
     if (DkRandomBitsRead(&seed, sizeof(seed)) < 0) {
-        pal_printf("\n");
+        pal_printf("Getting a seed failed\n");
         return 1;
     }
     pal_printf("Running dynamic tests (with seed: %u): ", seed);

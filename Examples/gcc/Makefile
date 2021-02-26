@@ -54,9 +54,12 @@ trusted-libs: ../common_tools/get_deps.sh
 		$<; \
 	cat trusted-libs) > $@
 
-# Rules to generate the SGX-specific manifest (.manifest.sgx), the enclave signature (.sig), and the
-# enclave initialization token (.token).
-gcc.sig gcc.manifest.sgx &: gcc.manifest
+# Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
+# we need to hack around.
+gcc.sig gcc.manifest.sgx: sgx_outputs
+
+.INTERMEDIATE: sgx_outputs
+sgx_outputs: gcc.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \

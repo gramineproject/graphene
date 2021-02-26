@@ -23,7 +23,7 @@ static void signal_alarm(IDTYPE caller, void* arg) {
         .si_code = SI_USER,
     };
     if (kill_current_proc(&info) < 0) {
-        debug("signal_alarm: failed to deliver a signal\n");
+        log_warning("signal_alarm: failed to deliver a signal\n");
     }
 }
 
@@ -78,7 +78,11 @@ long shim_do_setitimer(int which, struct __kernel_itimerval* value,
     if (ovalue && test_user_memory(ovalue, sizeof(*ovalue), true))
         return -EFAULT;
 
-    uint64_t setup_time = DkSystemTimeQuery();
+    uint64_t setup_time = 0;
+    int ret = DkSystemTimeQuery(&setup_time);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     uint64_t next_value = value->it_value.tv_sec * (uint64_t)1000000 + value->it_value.tv_usec;
     uint64_t next_reset = value->it_interval.tv_sec * (uint64_t)1000000
@@ -91,12 +95,12 @@ long shim_do_setitimer(int which, struct __kernel_itimerval* value,
                                : 0;
     uint64_t current_reset = real_itimer.reset;
 
-    int64_t ret = install_async_event(NULL, next_value, &signal_itimer,
-                                      (void*)(setup_time + next_value));
+    int64_t install_ret = install_async_event(NULL, next_value, &signal_itimer,
+                                              (void*)(setup_time + next_value));
 
-    if (ret < 0) {
+    if (install_ret < 0) {
         MASTER_UNLOCK();
-        return ret;
+        return install_ret;
     }
 
     real_itimer.timeout = setup_time + next_value;
@@ -123,7 +127,11 @@ long shim_do_getitimer(int which, struct __kernel_itimerval* value) {
     if (test_user_memory(value, sizeof(*value), true))
         return -EFAULT;
 
-    uint64_t setup_time = DkSystemTimeQuery();
+    uint64_t setup_time = 0;
+    int ret = DkSystemTimeQuery(&setup_time);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     MASTER_LOCK();
     uint64_t current_timeout = real_itimer.timeout > setup_time

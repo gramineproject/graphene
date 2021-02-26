@@ -254,7 +254,8 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         goto out;
     }
 
-    enclave->ssaframesize = enclave_secs.ssa_frame_size * g_page_size;
+    /* SECS contains SSA frame size in pages, convert to size in bytes */
+    enclave->ssa_frame_size = enclave_secs.ssa_frame_size * g_page_size;
 
     /* Start populating enclave memory */
     struct mem_area {
@@ -309,7 +310,8 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                           .skip_eextend = false,
                           .data_src     = ZERO,
                           .addr         = 0,
-                          .size         = enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
+                          .size         = enclave->thread_num * enclave->ssa_frame_size *
+                                              SSA_FRAME_NUM,
                           .prot         = PROT_READ | PROT_WRITE,
                           .type         = SGX_PAGE_REG};
     struct mem_area* ssa_area = &areas[area_num++];
@@ -425,8 +427,8 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                 gs->initial_stack_addr = stack_areas[t].addr + ENCLAVE_STACK_SIZE;
                 gs->sig_stack_low = sig_stack_areas[t].addr;
                 gs->sig_stack_high = sig_stack_areas[t].addr + ENCLAVE_SIG_STACK_SIZE;
-                gs->ssa = (void*)ssa_area->addr + enclave->ssaframesize * SSAFRAMENUM * t;
-                gs->gpr = gs->ssa + enclave->ssaframesize - sizeof(sgx_pal_gpr_t);
+                gs->ssa = (void*)ssa_area->addr + enclave->ssa_frame_size * SSA_FRAME_NUM * t;
+                gs->gpr = gs->ssa + enclave->ssa_frame_size - sizeof(sgx_pal_gpr_t);
                 gs->manifest_size = manifest_size;
                 gs->heap_min = (void*)enclave_heap_min;
                 gs->heap_max = (void*)pal_area->addr;
@@ -438,8 +440,8 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                 memset(tcs, 0, g_page_size);
                 // .ossa, .oentry, .ofs_base and .ogs_base are offsets from enclave base, not VAs.
                 tcs->ossa      = ssa_area->addr - enclave->baseaddr
-                                 + enclave->ssaframesize * SSAFRAMENUM * t;
-                tcs->nssa      = SSAFRAMENUM;
+                                 + enclave->ssa_frame_size * SSA_FRAME_NUM * t;
+                tcs->nssa      = SSA_FRAME_NUM;
                 tcs->oentry    = enclave_entry_addr - enclave->baseaddr;
                 tcs->ofs_base  = 0;
                 tcs->ogs_base  = tls_area->addr - enclave->baseaddr + t * g_page_size;
@@ -483,7 +485,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         dbg->pid            = INLINE_SYSCALL(getpid, 0);
         dbg->base           = enclave->baseaddr;
         dbg->size           = enclave->size;
-        dbg->ssaframesize   = enclave->ssaframesize;
+        dbg->ssa_frame_size = enclave->ssa_frame_size;
         dbg->aep            = async_exit_pointer;
         dbg->eresume        = eresume_pointer;
         dbg->thread_tids[0] = dbg->pid;
@@ -532,6 +534,9 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     debug_map_add(enclave->libpal_uri + URI_PREFIX_FILE_LEN, (void*)pal_area->addr);
     sgx_profile_report_elf(enclave->libpal_uri + URI_PREFIX_FILE_LEN, (void*)pal_area->addr);
+
+    /* Report outer PAL maps to profiler, so that we can record samples pointing to outer PAL. */
+    sgx_profile_report_urts_elfs();
 #endif
 
     ret = 0;
@@ -763,6 +768,29 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         goto out;
     }
 
+    char* profile_mode_str = NULL;
+    ret = toml_string_in(manifest_root, "sgx.profile.mode", &profile_mode_str);
+    if (ret < 0) {
+        urts_log_error("Cannot parse 'sgx.profile.mode' "
+                       "(the value must be \"aex\", \"ocall_inner\" or \"ocall_outer\")\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    if (!profile_mode_str) {
+        enclave_info->profile_mode = SGX_PROFILE_MODE_AEX;
+    } else if (!strcmp(profile_mode_str, "aex")) {
+        enclave_info->profile_mode = SGX_PROFILE_MODE_AEX;
+    } else if (!strcmp(profile_mode_str, "ocall_inner")) {
+        enclave_info->profile_mode = SGX_PROFILE_MODE_OCALL_INNER;
+    } else if (!strcmp(profile_mode_str, "ocall_outer")) {
+        enclave_info->profile_mode = SGX_PROFILE_MODE_OCALL_OUTER;
+    } else {
+        urts_log_error("Invalid 'sgx.profile.mode' "
+                       "(the value must be \"aex\", \"ocall_inner\" or \"ocall_outer\")\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
     int64_t profile_with_stack;
     ret = toml_int_in(manifest_root, "sgx.profile.with_stack", /*defaultval=*/0,
                       &profile_with_stack);
@@ -772,6 +800,15 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         goto out;
     }
     enclave_info->profile_with_stack = profile_with_stack;
+
+    if (enclave_info->profile_with_stack &&
+        enclave_info->profile_mode == SGX_PROFILE_MODE_OCALL_OUTER) {
+
+        urts_log_error("Invalid 'sgx.profile.mode' and 'sgx.profile.with_stack' combination "
+                       "(\"ocall_outer\" mode cannot be used with stack)\n");
+        ret = -EINVAL;
+        goto out;
+    }
 
     int64_t profile_frequency;
     ret = toml_int_in(manifest_root, "sgx.profile.frequency", SGX_PROFILE_DEFAULT_FREQUENCY,

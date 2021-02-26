@@ -25,7 +25,7 @@ static void signal_io(IDTYPE caller, void* arg) {
         .si_fd = 0,
     };
     if (kill_current_proc(&info) < 0) {
-        debug("signal_io: failed to deliver a signal\n");
+        log_warning("signal_io: failed to deliver a signal\n");
     }
 }
 
@@ -84,8 +84,9 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
                 size = stat.st_size;
             } else if (hdl->pal_handle) {
                 PAL_STREAM_ATTR attr;
-                if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-                    ret = -PAL_ERRNO();
+                ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+                if (ret < 0) {
+                    ret = pal_to_unix_errno(ret);
                     break;
                 }
                 size = attr.pending_size;

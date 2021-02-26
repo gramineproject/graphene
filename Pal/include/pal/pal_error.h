@@ -28,10 +28,8 @@ typedef enum _pal_error_t {
     PAL_ERROR_OVERFLOW,
     PAL_ERROR_BADADDR,
     PAL_ERROR_NOMEM,
-    PAL_ERROR_NOTKILLABLE,
     PAL_ERROR_INCONSIST,
     PAL_ERROR_TRYAGAIN,
-    PAL_ERROR_ENDOFSTREAM,
     PAL_ERROR_NOTSERVER,
     PAL_ERROR_NOTCONNECTION,
     PAL_ERROR_CONNFAILED,
@@ -62,7 +60,7 @@ typedef enum _pal_error_t {
 #define PAL_ERROR_CRYPTO_END PAL_ERROR_CRYPTO_INVALID_DH_STATE
 } pal_error_t;
 
-/* err - positive value of error code */
+/* err - value of error code, either positive or negative */
 const char* pal_strerror(int err);
 
 #endif

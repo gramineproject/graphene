@@ -2,357 +2,356 @@
 /* Copyright (C) 2014 Stony Brook University
  * Copyright (C) 2020 Intel Corporation
  *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
 /*
  * This file contains the system call table.
  */
 
+#include <asm/unistd.h>
+
 #include "shim_internal.h"
 #include "shim_table.h"
 
-void debug_unsupp(int num) {
-    debug("Unsupported system call %d\n", num);
-}
-
 shim_fp shim_table[LIBOS_SYSCALL_BOUND] = {
-    (shim_fp)__shim_read,
-    (shim_fp)__shim_write,
-    (shim_fp)__shim_open,
-    (shim_fp)__shim_close,
-    (shim_fp)__shim_stat,
-    (shim_fp)__shim_fstat,
-    (shim_fp)__shim_lstat,
-    (shim_fp)__shim_poll,
-    (shim_fp)__shim_lseek,
-    (shim_fp)__shim_mmap,
-    (shim_fp)__shim_mprotect,
-    (shim_fp)__shim_munmap,
-    (shim_fp)__shim_brk,
-    (shim_fp)__shim_rt_sigaction,
-    (shim_fp)__shim_rt_sigprocmask,
-    (shim_fp)__shim_rt_sigreturn,
-    (shim_fp)__shim_ioctl,
-    (shim_fp)__shim_pread64,
-    (shim_fp)__shim_pwrite64,
-    (shim_fp)__shim_readv,
-    (shim_fp)__shim_writev,
-    (shim_fp)__shim_access,
-    (shim_fp)__shim_pipe,
-    (shim_fp)__shim_select,
-    (shim_fp)__shim_sched_yield,
-    (shim_fp)__shim_mremap,
-    (shim_fp)__shim_msync,
-    (shim_fp)__shim_mincore,
-    (shim_fp)__shim_madvise,
-    (shim_fp)__shim_shmget,
-    (shim_fp)__shim_shmat,
-    (shim_fp)__shim_shmctl,
-    (shim_fp)__shim_dup,
-    (shim_fp)__shim_dup2,
-    (shim_fp)__shim_pause,
-    (shim_fp)__shim_nanosleep,
-    (shim_fp)__shim_getitimer,
-    (shim_fp)__shim_alarm,
-    (shim_fp)__shim_setitimer,
-    (shim_fp)__shim_getpid,
-    (shim_fp)__shim_sendfile,
-    (shim_fp)__shim_socket,
-    (shim_fp)__shim_connect,
-    (shim_fp)__shim_accept,
-    (shim_fp)__shim_sendto,
-    (shim_fp)__shim_recvfrom,
-    (shim_fp)__shim_sendmsg,
-    (shim_fp)__shim_recvmsg,
-    (shim_fp)__shim_shutdown,
-    (shim_fp)__shim_bind,
-    (shim_fp)__shim_listen,
-    (shim_fp)__shim_getsockname,
-    (shim_fp)__shim_getpeername,
-    (shim_fp)__shim_socketpair,
-    (shim_fp)__shim_setsockopt,
-    (shim_fp)__shim_getsockopt,
-    (shim_fp)__shim_clone,
-    (shim_fp)__shim_fork,
-    (shim_fp)__shim_vfork,
-    (shim_fp)__shim_execve,
-    (shim_fp)__shim_exit,
-    (shim_fp)__shim_wait4,
-    (shim_fp)__shim_kill,
-    (shim_fp)__shim_uname,
-    (shim_fp)__shim_semget,
-    (shim_fp)__shim_semop,
-    (shim_fp)__shim_semctl,
-    (shim_fp)__shim_shmdt,
-    (shim_fp)__shim_msgget,
-    (shim_fp)__shim_msgsnd,
-    (shim_fp)__shim_msgrcv,
-    (shim_fp)__shim_msgctl,
-    (shim_fp)__shim_fcntl,
-    (shim_fp)__shim_flock,
-    (shim_fp)__shim_fsync,
-    (shim_fp)__shim_fdatasync,
-    (shim_fp)__shim_truncate,
-    (shim_fp)__shim_ftruncate,
-    (shim_fp)__shim_getdents,
-    (shim_fp)__shim_getcwd,
-    (shim_fp)__shim_chdir,
-    (shim_fp)__shim_fchdir,
-    (shim_fp)__shim_rename,
-    (shim_fp)__shim_mkdir,
-    (shim_fp)__shim_rmdir,
-    (shim_fp)__shim_creat,
-    (shim_fp)__shim_link,
-    (shim_fp)__shim_unlink,
-    (shim_fp)__shim_symlink,
-    (shim_fp)__shim_readlink,
-    (shim_fp)__shim_chmod,
-    (shim_fp)__shim_fchmod,
-    (shim_fp)__shim_chown,
-    (shim_fp)__shim_fchown,
-    (shim_fp)__shim_lchown,
-    (shim_fp)__shim_umask,
-    (shim_fp)__shim_gettimeofday,
-    (shim_fp)__shim_getrlimit,
-    (shim_fp)__shim_getrusage,
-    (shim_fp)__shim_sysinfo,
-    (shim_fp)__shim_times,
-    (shim_fp)__shim_ptrace,
-    (shim_fp)__shim_getuid,
-    (shim_fp)__shim_syslog,
-    (shim_fp)__shim_getgid,
-    (shim_fp)__shim_setuid,
-    (shim_fp)__shim_setgid,
-    (shim_fp)__shim_geteuid,
-    (shim_fp)__shim_getegid,
-    (shim_fp)__shim_setpgid,
-    (shim_fp)__shim_getppid,
-    (shim_fp)__shim_getpgrp,
-    (shim_fp)__shim_setsid,
-    (shim_fp)__shim_setreuid,
-    (shim_fp)__shim_setregid,
-    (shim_fp)__shim_getgroups,
-    (shim_fp)__shim_setgroups,
-    (shim_fp)__shim_setresuid,
-    (shim_fp)__shim_getresuid,
-    (shim_fp)__shim_setresgid,
-    (shim_fp)__shim_getresgid,
-    (shim_fp)__shim_getpgid,
-    (shim_fp)__shim_setfsuid,
-    (shim_fp)__shim_setfsgid,
-    (shim_fp)__shim_getsid,
-    (shim_fp)__shim_capget,
-    (shim_fp)__shim_capset,
-    (shim_fp)__shim_rt_sigpending,
-    (shim_fp)__shim_rt_sigtimedwait,
-    (shim_fp)__shim_rt_sigqueueinfo,
-    (shim_fp)__shim_rt_sigsuspend,
-    (shim_fp)__shim_sigaltstack,
-    (shim_fp)__shim_utime,
-    (shim_fp)__shim_mknod,
-    (shim_fp)__shim_uselib,
-    (shim_fp)__shim_personality,
-    (shim_fp)__shim_ustat,
-    (shim_fp)__shim_statfs,
-    (shim_fp)__shim_fstatfs,
-    (shim_fp)__shim_sysfs,
-    (shim_fp)__shim_getpriority,
-    (shim_fp)__shim_setpriority,
-    (shim_fp)__shim_sched_setparam,
-    (shim_fp)__shim_sched_getparam,
-    (shim_fp)__shim_sched_setscheduler,
-    (shim_fp)__shim_sched_getscheduler,
-    (shim_fp)__shim_sched_get_priority_max,
-    (shim_fp)__shim_sched_get_priority_min,
-    (shim_fp)__shim_sched_rr_get_interval,
-    (shim_fp)__shim_mlock,
-    (shim_fp)__shim_munlock,
-    (shim_fp)__shim_mlockall,
-    (shim_fp)__shim_munlockall,
-    (shim_fp)__shim_vhangup,
-    (shim_fp)__shim_modify_ldt,
-    (shim_fp)__shim_pivot_root,
-    (shim_fp)__shim__sysctl,
-    (shim_fp)__shim_prctl,
-    (shim_fp)__shim_arch_prctl,
-    (shim_fp)__shim_adjtimex,
-    (shim_fp)__shim_setrlimit,
-    (shim_fp)__shim_chroot,
-    (shim_fp)__shim_sync,
-    (shim_fp)__shim_acct,
-    (shim_fp)__shim_settimeofday,
-    (shim_fp)__shim_mount,
-    (shim_fp)__shim_umount2,
-    (shim_fp)__shim_swapon,
-    (shim_fp)__shim_swapoff,
-    (shim_fp)__shim_reboot,
-    (shim_fp)__shim_sethostname,
-    (shim_fp)__shim_setdomainname,
-    (shim_fp)__shim_iopl,
-    (shim_fp)__shim_ioperm,
-    (shim_fp)__shim_create_module,
-    (shim_fp)__shim_init_module,
-    (shim_fp)__shim_delete_module,
-    (shim_fp)0,  // shim_get_kernel_syms,
-    (shim_fp)__shim_query_module,
-    (shim_fp)__shim_quotactl,
-    (shim_fp)0,  // shim_nfsservctl,
-    (shim_fp)0,  // shim_getpmsg,
-    (shim_fp)0,  // shim_putpmsg,
-    (shim_fp)0,  // shim_afs_syscall,
-    (shim_fp)0,  // shim_tuxcall,
-    (shim_fp)0,  // shim_security,
-    (shim_fp)__shim_gettid,
-    (shim_fp)__shim_readahead,
-    (shim_fp)__shim_setxattr,
-    (shim_fp)__shim_lsetxattr,
-    (shim_fp)__shim_fsetxattr,
-    (shim_fp)__shim_getxattr,
-    (shim_fp)__shim_lgetxattr,
-    (shim_fp)__shim_fgetxattr,
-    (shim_fp)__shim_listxattr,
-    (shim_fp)__shim_llistxattr,
-    (shim_fp)__shim_flistxattr,
-    (shim_fp)__shim_removexattr,
-    (shim_fp)__shim_lremovexattr,
-    (shim_fp)__shim_fremovexattr,
-    (shim_fp)__shim_tkill,
-    (shim_fp)__shim_time,
-    (shim_fp)__shim_futex,
-    (shim_fp)__shim_sched_setaffinity,
-    (shim_fp)__shim_sched_getaffinity,
-    (shim_fp)__shim_set_thread_area,
-    (shim_fp)__shim_io_setup,
-    (shim_fp)__shim_io_destroy,
-    (shim_fp)__shim_io_getevents,
-    (shim_fp)__shim_io_submit,
-    (shim_fp)__shim_io_cancel,
-    (shim_fp)__shim_get_thread_area,
-    (shim_fp)__shim_lookup_dcookie,
-    (shim_fp)__shim_epoll_create,
-    (shim_fp)0,  // shim_epoll_ctl_old,
-    (shim_fp)0,  // shim_epoll_wait_old,
-    (shim_fp)__shim_remap_file_pages,
-    (shim_fp)__shim_getdents64,
-    (shim_fp)__shim_set_tid_address,
-    (shim_fp)__shim_restart_syscall,
-    (shim_fp)__shim_semtimedop,
-    (shim_fp)__shim_fadvise64,
-    (shim_fp)__shim_timer_create,
-    (shim_fp)__shim_timer_settime,
-    (shim_fp)__shim_timer_gettime,
-    (shim_fp)__shim_timer_getoverrun,
-    (shim_fp)__shim_timer_delete,
-    (shim_fp)__shim_clock_settime,
-    (shim_fp)__shim_clock_gettime,
-    (shim_fp)__shim_clock_getres,
-    (shim_fp)__shim_clock_nanosleep,
-    (shim_fp)__shim_exit_group,
-    (shim_fp)__shim_epoll_wait,
-    (shim_fp)__shim_epoll_ctl,
-    (shim_fp)__shim_tgkill,
-    (shim_fp)__shim_utimes,
-    (shim_fp)0,  // shim_vserver,
-    (shim_fp)__shim_mbind,
-    (shim_fp)__shim_set_mempolicy,
-    (shim_fp)__shim_get_mempolicy,
-    (shim_fp)__shim_mq_open,
-    (shim_fp)__shim_mq_unlink,
-    (shim_fp)__shim_mq_timedsend,
-    (shim_fp)__shim_mq_timedreceive,
-    (shim_fp)__shim_mq_notify,
-    (shim_fp)__shim_mq_getsetattr,
-    (shim_fp)0,  // shim_kexec_load,
-    (shim_fp)__shim_waitid,
-    (shim_fp)0,  // shim_add_key,
-    (shim_fp)0,  // shim_request_key,
-    (shim_fp)0,  // shim_keyctl,
-    (shim_fp)__shim_ioprio_set,
-    (shim_fp)__shim_ioprio_get,
-    (shim_fp)__shim_inotify_init,
-    (shim_fp)__shim_inotify_add_watch,
-    (shim_fp)__shim_inotify_rm_watch,
-    (shim_fp)__shim_migrate_pages,
-    (shim_fp)__shim_openat,
-    (shim_fp)__shim_mkdirat,
-    (shim_fp)__shim_mknodat,
-    (shim_fp)__shim_fchownat,
-    (shim_fp)__shim_futimesat,
-    (shim_fp)__shim_newfstatat,
-    (shim_fp)__shim_unlinkat,
-    (shim_fp)__shim_renameat,
-    (shim_fp)__shim_linkat,
-    (shim_fp)__shim_symlinkat,
-    (shim_fp)__shim_readlinkat,
-    (shim_fp)__shim_fchmodat,
-    (shim_fp)__shim_faccessat,
-    (shim_fp)__shim_pselect6,
-    (shim_fp)__shim_ppoll,
-    (shim_fp)__shim_unshare,
-    (shim_fp)__shim_set_robust_list,
-    (shim_fp)__shim_get_robust_list,
-    (shim_fp)__shim_splice,
-    (shim_fp)__shim_tee,
-    (shim_fp)__shim_sync_file_range,
-    (shim_fp)__shim_vmsplice,
-    (shim_fp)__shim_move_pages,
-    (shim_fp)__shim_utimensat,
-    (shim_fp)__shim_epoll_pwait,
-    (shim_fp)__shim_signalfd,
-    (shim_fp)__shim_timerfd_create,
-    (shim_fp)__shim_eventfd,
-    (shim_fp)__shim_fallocate,
-    (shim_fp)__shim_timerfd_settime,
-    (shim_fp)__shim_timerfd_gettime,
-    (shim_fp)__shim_accept4,
-    (shim_fp)__shim_signalfd4,
-    (shim_fp)__shim_eventfd2,
-    (shim_fp)__shim_epoll_create1,
-    (shim_fp)__shim_dup3,
-    (shim_fp)__shim_pipe2,
-    (shim_fp)__shim_inotify_init1,
-    (shim_fp)__shim_preadv,
-    (shim_fp)__shim_pwritev,
-    (shim_fp)__shim_rt_tgsigqueueinfo,
-    (shim_fp)__shim_perf_event_open,
-    (shim_fp)__shim_recvmmsg,
-    (shim_fp)__shim_fanotify_init,
-    (shim_fp)__shim_fanotify_mark,
-    (shim_fp)__shim_prlimit64,
-    (shim_fp)__shim_name_to_handle_at,
-    (shim_fp)__shim_open_by_handle_at,
-    (shim_fp)__shim_clock_adjtime,
-    (shim_fp)__shim_syncfs,
-    (shim_fp)__shim_sendmmsg,
-    (shim_fp)__shim_setns,
-    (shim_fp)__shim_getcpu,
-    (shim_fp)__shim_process_vm_readv,
-    (shim_fp)__shim_process_vm_writev,
-    (shim_fp)__shim_kcmp,
-    (shim_fp)__shim_finit_module,
-    (shim_fp)__shim_sched_setattr,
-    (shim_fp)__shim_sched_getattr,
-    (shim_fp)__shim_renameat2,
-    (shim_fp)__shim_seccomp,
-    (shim_fp)__shim_getrandom,
-    (shim_fp)__shim_memfd_create,
-    (shim_fp)__shim_kexec_file_load,
-    (shim_fp)__shim_bpf,
-    (shim_fp)__shim_execveat,
-    (shim_fp)__shim_userfaultfd,
-    (shim_fp)__shim_membarrier,
-    (shim_fp)__shim_mlock2,
-    (shim_fp)__shim_copy_file_range,
-    (shim_fp)__shim_preadv2,
-    (shim_fp)__shim_pwritev2,
-    (shim_fp)__shim_pkey_mprotect,
-    (shim_fp)__shim_pkey_alloc,
-    (shim_fp)__shim_pkey_free,
-    (shim_fp)__shim_statx,
-    (shim_fp)__shim_io_pgetevents,
-    (shim_fp)__shim_rseq,
-    (shim_fp)__shim_pidfd_send_signal,
-    (shim_fp)__shim_io_uring_setup,
-    (shim_fp)__shim_io_uring_enter,
-    (shim_fp)__shim_io_uring_register,
+    [__NR_read]                   = (shim_fp)shim_do_read,
+    [__NR_write]                  = (shim_fp)shim_do_write,
+    [__NR_open]                   = (shim_fp)shim_do_open,
+    [__NR_close]                  = (shim_fp)shim_do_close,
+    [__NR_stat]                   = (shim_fp)shim_do_stat,
+    [__NR_fstat]                  = (shim_fp)shim_do_fstat,
+    [__NR_lstat]                  = (shim_fp)shim_do_lstat,
+    [__NR_poll]                   = (shim_fp)shim_do_poll,
+    [__NR_lseek]                  = (shim_fp)shim_do_lseek,
+    [__NR_mmap]                   = (shim_fp)shim_do_mmap,
+    [__NR_mprotect]               = (shim_fp)shim_do_mprotect,
+    [__NR_munmap]                 = (shim_fp)shim_do_munmap,
+    [__NR_brk]                    = (shim_fp)shim_do_brk,
+    [__NR_rt_sigaction]           = (shim_fp)shim_do_rt_sigaction,
+    [__NR_rt_sigprocmask]         = (shim_fp)shim_do_rt_sigprocmask,
+    [__NR_rt_sigreturn]           = (shim_fp)shim_do_rt_sigreturn,
+    [__NR_ioctl]                  = (shim_fp)shim_do_ioctl,
+    [__NR_pread64]                = (shim_fp)shim_do_pread64,
+    [__NR_pwrite64]               = (shim_fp)shim_do_pwrite64,
+    [__NR_readv]                  = (shim_fp)shim_do_readv,
+    [__NR_writev]                 = (shim_fp)shim_do_writev,
+    [__NR_access]                 = (shim_fp)shim_do_access,
+    [__NR_pipe]                   = (shim_fp)shim_do_pipe,
+    [__NR_select]                 = (shim_fp)shim_do_select,
+    [__NR_sched_yield]            = (shim_fp)shim_do_sched_yield,
+    [__NR_mremap]                 = (shim_fp)0, // shim_do_mremap
+    [__NR_msync]                  = (shim_fp)0, // shim_do_msync,
+    [__NR_mincore]                = (shim_fp)shim_do_mincore,
+    [__NR_madvise]                = (shim_fp)shim_do_madvise,
+    [__NR_shmget]                 = (shim_fp)0, // shim_do_shmget
+    [__NR_shmat]                  = (shim_fp)0, // shim_do_shmat
+    [__NR_shmctl]                 = (shim_fp)0, // shim_do_shmctl
+    [__NR_dup]                    = (shim_fp)shim_do_dup,
+    [__NR_dup2]                   = (shim_fp)shim_do_dup2,
+    [__NR_pause]                  = (shim_fp)shim_do_pause,
+    [__NR_nanosleep]              = (shim_fp)shim_do_nanosleep,
+    [__NR_getitimer]              = (shim_fp)shim_do_getitimer,
+    [__NR_alarm]                  = (shim_fp)shim_do_alarm,
+    [__NR_setitimer]              = (shim_fp)shim_do_setitimer,
+    [__NR_getpid]                 = (shim_fp)shim_do_getpid,
+    [__NR_sendfile]               = (shim_fp)shim_do_sendfile,
+    [__NR_socket]                 = (shim_fp)shim_do_socket,
+    [__NR_connect]                = (shim_fp)shim_do_connect,
+    [__NR_accept]                 = (shim_fp)shim_do_accept,
+    [__NR_sendto]                 = (shim_fp)shim_do_sendto,
+    [__NR_recvfrom]               = (shim_fp)shim_do_recvfrom,
+    [__NR_sendmsg]                = (shim_fp)shim_do_sendmsg,
+    [__NR_recvmsg]                = (shim_fp)shim_do_recvmsg,
+    [__NR_shutdown]               = (shim_fp)shim_do_shutdown,
+    [__NR_bind]                   = (shim_fp)shim_do_bind,
+    [__NR_listen]                 = (shim_fp)shim_do_listen,
+    [__NR_getsockname]            = (shim_fp)shim_do_getsockname,
+    [__NR_getpeername]            = (shim_fp)shim_do_getpeername,
+    [__NR_socketpair]             = (shim_fp)shim_do_socketpair,
+    [__NR_setsockopt]             = (shim_fp)shim_do_setsockopt,
+    [__NR_getsockopt]             = (shim_fp)shim_do_getsockopt,
+    [__NR_clone]                  = (shim_fp)shim_do_clone,
+    [__NR_fork]                   = (shim_fp)shim_do_fork,
+    [__NR_vfork]                  = (shim_fp)shim_do_vfork,
+    [__NR_execve]                 = (shim_fp)shim_do_execve,
+    [__NR_exit]                   = (shim_fp)shim_do_exit,
+    [__NR_wait4]                  = (shim_fp)shim_do_wait4,
+    [__NR_kill]                   = (shim_fp)shim_do_kill,
+    [__NR_uname]                  = (shim_fp)shim_do_uname,
+    [__NR_semget]                 = (shim_fp)shim_do_semget,
+    [__NR_semop]                  = (shim_fp)shim_do_semop,
+    [__NR_semctl]                 = (shim_fp)shim_do_semctl,
+    [__NR_shmdt]                  = (shim_fp)0, // shim_do_shmdt
+    [__NR_msgget]                 = (shim_fp)shim_do_msgget,
+    [__NR_msgsnd]                 = (shim_fp)shim_do_msgsnd,
+    [__NR_msgrcv]                 = (shim_fp)shim_do_msgrcv,
+    [__NR_msgctl]                 = (shim_fp)shim_do_msgctl,
+    [__NR_fcntl]                  = (shim_fp)shim_do_fcntl,
+    [__NR_flock]                  = (shim_fp)0, // shim_do_flock
+    [__NR_fsync]                  = (shim_fp)shim_do_fsync,
+    [__NR_fdatasync]              = (shim_fp)shim_do_fdatasync,
+    [__NR_truncate]               = (shim_fp)shim_do_truncate,
+    [__NR_ftruncate]              = (shim_fp)shim_do_ftruncate,
+    [__NR_getdents]               = (shim_fp)shim_do_getdents,
+    [__NR_getcwd]                 = (shim_fp)shim_do_getcwd,
+    [__NR_chdir]                  = (shim_fp)shim_do_chdir,
+    [__NR_fchdir]                 = (shim_fp)shim_do_fchdir,
+    [__NR_rename]                 = (shim_fp)shim_do_rename,
+    [__NR_mkdir]                  = (shim_fp)shim_do_mkdir,
+    [__NR_rmdir]                  = (shim_fp)shim_do_rmdir,
+    [__NR_creat]                  = (shim_fp)shim_do_creat,
+    [__NR_link]                   = (shim_fp)0, // shim_do_link
+    [__NR_unlink]                 = (shim_fp)shim_do_unlink,
+    [__NR_symlink]                = (shim_fp)0, // shim_do_symlink
+    [__NR_readlink]               = (shim_fp)shim_do_readlink,
+    [__NR_chmod]                  = (shim_fp)shim_do_chmod,
+    [__NR_fchmod]                 = (shim_fp)shim_do_fchmod,
+    [__NR_chown]                  = (shim_fp)shim_do_chown,
+    [__NR_fchown]                 = (shim_fp)shim_do_fchown,
+    [__NR_lchown]                 = (shim_fp)0, // shim_do_lchown
+    [__NR_umask]                  = (shim_fp)shim_do_umask,
+    [__NR_gettimeofday]           = (shim_fp)shim_do_gettimeofday,
+    [__NR_getrlimit]              = (shim_fp)shim_do_getrlimit,
+    [__NR_getrusage]              = (shim_fp)0, // shim_do_getrusage
+    [__NR_sysinfo]                = (shim_fp)0, // shim_do_sysinfo
+    [__NR_times]                  = (shim_fp)0, // shim_do_times
+    [__NR_ptrace]                 = (shim_fp)0, // shim_do_ptrace
+    [__NR_getuid]                 = (shim_fp)shim_do_getuid,
+    [__NR_syslog]                 = (shim_fp)0, // shim_do_syslog
+    [__NR_getgid]                 = (shim_fp)shim_do_getgid,
+    [__NR_setuid]                 = (shim_fp)shim_do_setuid,
+    [__NR_setgid]                 = (shim_fp)shim_do_setgid,
+    [__NR_geteuid]                = (shim_fp)shim_do_geteuid,
+    [__NR_getegid]                = (shim_fp)shim_do_getegid,
+    [__NR_setpgid]                = (shim_fp)shim_do_setpgid,
+    [__NR_getppid]                = (shim_fp)shim_do_getppid,
+    [__NR_getpgrp]                = (shim_fp)shim_do_getpgrp,
+    [__NR_setsid]                 = (shim_fp)shim_do_setsid,
+    [__NR_setreuid]               = (shim_fp)0, // shim_do_setreuid
+    [__NR_setregid]               = (shim_fp)0, // shim_do_setregid
+    [__NR_getgroups]              = (shim_fp)shim_do_getgroups,
+    [__NR_setgroups]              = (shim_fp)shim_do_setgroups,
+    [__NR_setresuid]              = (shim_fp)0, // shim_do_setresuid
+    [__NR_getresuid]              = (shim_fp)0, // shim_do_getresuid
+    [__NR_setresgid]              = (shim_fp)0, // shim_do_setresgid
+    [__NR_getresgid]              = (shim_fp)0, // shim_do_getresgid
+    [__NR_getpgid]                = (shim_fp)shim_do_getpgid,
+    [__NR_setfsuid]               = (shim_fp)0, // shim_do_setfsuid
+    [__NR_setfsgid]               = (shim_fp)0, // shim_do_setfsgid
+    [__NR_getsid]                 = (shim_fp)shim_do_getsid,
+    [__NR_capget]                 = (shim_fp)0, // shim_do_capget
+    [__NR_capset]                 = (shim_fp)0, // shim_do_capset
+    [__NR_rt_sigpending]          = (shim_fp)shim_do_rt_sigpending,
+    [__NR_rt_sigtimedwait]        = (shim_fp)0, // shim_do_rt_sigtimedwait
+    [__NR_rt_sigqueueinfo]        = (shim_fp)0, // shim_do_rt_sigqueueinfo
+    [__NR_rt_sigsuspend]          = (shim_fp)shim_do_rt_sigsuspend,
+    [__NR_sigaltstack]            = (shim_fp)shim_do_sigaltstack,
+    [__NR_utime]                  = (shim_fp)0, // shim_do_utime
+    [__NR_mknod]                  = (shim_fp)shim_do_mknod,
+    [__NR_uselib]                 = (shim_fp)0, // shim_do_uselib
+    [__NR_personality]            = (shim_fp)0, // shim_do_personality
+    [__NR_ustat]                  = (shim_fp)0, // shim_do_ustat
+    [__NR_statfs]                 = (shim_fp)shim_do_statfs,
+    [__NR_fstatfs]                = (shim_fp)shim_do_fstatfs,
+    [__NR_sysfs]                  = (shim_fp)0, // shim_do_sysfs
+    [__NR_getpriority]            = (shim_fp)shim_do_getpriority,
+    [__NR_setpriority]            = (shim_fp)shim_do_setpriority,
+    [__NR_sched_setparam]         = (shim_fp)shim_do_sched_setparam,
+    [__NR_sched_getparam]         = (shim_fp)shim_do_sched_getparam,
+    [__NR_sched_setscheduler]     = (shim_fp)shim_do_sched_setscheduler,
+    [__NR_sched_getscheduler]     = (shim_fp)shim_do_sched_getscheduler,
+    [__NR_sched_get_priority_max] = (shim_fp)shim_do_sched_get_priority_max,
+    [__NR_sched_get_priority_min] = (shim_fp)shim_do_sched_get_priority_min,
+    [__NR_sched_rr_get_interval]  = (shim_fp)shim_do_sched_rr_get_interval,
+    [__NR_mlock]                  = (shim_fp)0, // shim_do_mlock
+    [__NR_munlock]                = (shim_fp)0, // shim_do_munlock
+    [__NR_mlockall]               = (shim_fp)0, // shim_do_mlockall
+    [__NR_munlockall]             = (shim_fp)0, // shim_do_munlockall
+    [__NR_vhangup]                = (shim_fp)0, // shim_do_vhangup
+    [__NR_modify_ldt]             = (shim_fp)0, // shim_do_modify_ldt
+    [__NR_pivot_root]             = (shim_fp)0, // shim_do_pivot_root
+    [__NR__sysctl]                = (shim_fp)0, // shim_do__sysctl
+    [__NR_prctl]                  = (shim_fp)0, // shim_do_prctl
+    [__NR_arch_prctl]             = (shim_fp)shim_do_arch_prctl,
+    [__NR_adjtimex]               = (shim_fp)0, // shim_do_adjtimex
+    [__NR_setrlimit]              = (shim_fp)shim_do_setrlimit,
+    [__NR_chroot]                 = (shim_fp)shim_do_chroot,
+    [__NR_sync]                   = (shim_fp)0, // shim_do_sync
+    [__NR_acct]                   = (shim_fp)0, // shim_do_acct
+    [__NR_settimeofday]           = (shim_fp)0, // shim_do_settimeofday
+    [__NR_mount]                  = (shim_fp)0, // shim_do_mount
+    [__NR_umount2]                = (shim_fp)0, // shim_do_umount2
+    [__NR_swapon]                 = (shim_fp)0, // shim_do_swapon
+    [__NR_swapoff]                = (shim_fp)0, // shim_do_swapoff
+    [__NR_reboot]                 = (shim_fp)0, // shim_do_reboot
+    [__NR_sethostname]            = (shim_fp)shim_do_sethostname,
+    [__NR_setdomainname]          = (shim_fp)shim_do_setdomainname,
+    [__NR_iopl]                   = (shim_fp)0, // shim_do_iopl
+    [__NR_ioperm]                 = (shim_fp)0, // shim_do_ioperm
+    [__NR_create_module]          = (shim_fp)0, // shim_do_create_module
+    [__NR_init_module]            = (shim_fp)0, // shim_do_init_module
+    [__NR_delete_module]          = (shim_fp)0, // shim_do_delete_module
+    [__NR_get_kernel_syms]        = (shim_fp)0, // shim_do_get_kernel_syms,
+    [__NR_query_module]           = (shim_fp)0, // shim_do_query_module
+    [__NR_quotactl]               = (shim_fp)0, // shim_do_quotactl
+    [__NR_nfsservctl]             = (shim_fp)0, // shim_do_nfsservctl,
+    [__NR_getpmsg]                = (shim_fp)0, // shim_do_getpmsg,
+    [__NR_putpmsg]                = (shim_fp)0, // shim_do_putpmsg,
+    [__NR_afs_syscall]            = (shim_fp)0, // shim_do_afs_syscall,
+    [__NR_tuxcall]                = (shim_fp)0, // shim_do_tuxcall,
+    [__NR_security]               = (shim_fp)0, // shim_do_security,
+    [__NR_gettid]                 = (shim_fp)shim_do_gettid,
+    [__NR_readahead]              = (shim_fp)0, // shim_do_readahead
+    [__NR_setxattr]               = (shim_fp)0, // shim_do_setxattr
+    [__NR_lsetxattr]              = (shim_fp)0, // shim_do_lsetxattr
+    [__NR_fsetxattr]              = (shim_fp)0, // shim_do_fsetxattr
+    [__NR_getxattr]               = (shim_fp)0, // shim_do_getxattr
+    [__NR_lgetxattr]              = (shim_fp)0, // shim_do_lgetxattr
+    [__NR_fgetxattr]              = (shim_fp)0, // shim_do_fgetxattr
+    [__NR_listxattr]              = (shim_fp)0, // shim_do_listxattr
+    [__NR_llistxattr]             = (shim_fp)0, // shim_do_llistxattr
+    [__NR_flistxattr]             = (shim_fp)0, // shim_do_flistxattr
+    [__NR_removexattr]            = (shim_fp)0, // shim_do_removexattr
+    [__NR_lremovexattr]           = (shim_fp)0, // shim_do_lremovexattr
+    [__NR_fremovexattr]           = (shim_fp)0, // shim_do_fremovexattr
+    [__NR_tkill]                  = (shim_fp)shim_do_tkill,
+    [__NR_time]                   = (shim_fp)shim_do_time,
+    [__NR_futex]                  = (shim_fp)shim_do_futex,
+    [__NR_sched_setaffinity]      = (shim_fp)shim_do_sched_setaffinity,
+    [__NR_sched_getaffinity]      = (shim_fp)shim_do_sched_getaffinity,
+    [__NR_set_thread_area]        = (shim_fp)0, // shim_do_set_thread_area
+    [__NR_io_setup]               = (shim_fp)0, // shim_do_io_setup
+    [__NR_io_destroy]             = (shim_fp)0, // shim_do_io_destroy
+    [__NR_io_getevents]           = (shim_fp)0, // shim_do_io_getevents
+    [__NR_io_submit]              = (shim_fp)0, // shim_do_io_submit
+    [__NR_io_cancel]              = (shim_fp)0, // shim_do_io_cancel
+    [__NR_get_thread_area]        = (shim_fp)0, // shim_do_get_thread_area
+    [__NR_lookup_dcookie]         = (shim_fp)0, // shim_do_lookup_dcookie
+    [__NR_epoll_create]           = (shim_fp)shim_do_epoll_create,
+    [__NR_epoll_ctl_old]          = (shim_fp)0, // shim_do_epoll_ctl_old,
+    [__NR_epoll_wait_old]         = (shim_fp)0, // shim_do_epoll_wait_old,
+    [__NR_remap_file_pages]       = (shim_fp)0, // shim_do_remap_file_pages
+    [__NR_getdents64]             = (shim_fp)shim_do_getdents64,
+    [__NR_set_tid_address]        = (shim_fp)shim_do_set_tid_address,
+    [__NR_restart_syscall]        = (shim_fp)0, // shim_do_restart_syscall
+    [__NR_semtimedop]             = (shim_fp)shim_do_semtimedop,
+    [__NR_fadvise64]              = (shim_fp)0, // shim_do_fadvise64
+    [__NR_timer_create]           = (shim_fp)0, // shim_do_timer_create
+    [__NR_timer_settime]          = (shim_fp)0, // shim_do_timer_settime
+    [__NR_timer_gettime]          = (shim_fp)0, // shim_do_timer_gettime
+    [__NR_timer_getoverrun]       = (shim_fp)0, // shim_do_timer_getoverrun
+    [__NR_timer_delete]           = (shim_fp)0, // shim_do_timer_delete
+    [__NR_clock_settime]          = (shim_fp)0, // shim_do_clock_settime
+    [__NR_clock_gettime]          = (shim_fp)shim_do_clock_gettime,
+    [__NR_clock_getres]           = (shim_fp)shim_do_clock_getres,
+    [__NR_clock_nanosleep]        = (shim_fp)shim_do_clock_nanosleep,
+    [__NR_exit_group]             = (shim_fp)shim_do_exit_group,
+    [__NR_epoll_wait]             = (shim_fp)shim_do_epoll_wait,
+    [__NR_epoll_ctl]              = (shim_fp)shim_do_epoll_ctl,
+    [__NR_tgkill]                 = (shim_fp)shim_do_tgkill,
+    [__NR_utimes]                 = (shim_fp)0, // shim_do_utimes
+    [__NR_vserver]                = (shim_fp)0, // shim_do_vserver,
+    [__NR_mbind]                  = (shim_fp)shim_do_mbind,
+    [__NR_set_mempolicy]          = (shim_fp)0, // shim_do_set_mempolicy
+    [__NR_get_mempolicy]          = (shim_fp)0, // shim_do_get_mempolicy
+    [__NR_mq_open]                = (shim_fp)0, // shim_do_mq_open
+    [__NR_mq_unlink]              = (shim_fp)0, // shim_do_mq_unlink
+    [__NR_mq_timedsend]           = (shim_fp)0, // shim_do_mq_timedsend
+    [__NR_mq_timedreceive]        = (shim_fp)0, // shim_do_mq_timedreceive
+    [__NR_mq_notify]              = (shim_fp)0, // shim_do_mq_notify
+    [__NR_mq_getsetattr]          = (shim_fp)0, // shim_do_mq_getsetattr
+    [__NR_kexec_load]             = (shim_fp)0, // shim_do_kexec_load,
+    [__NR_waitid]                 = (shim_fp)shim_do_waitid,
+    [__NR_add_key]                = (shim_fp)0, // shim_do_add_key,
+    [__NR_request_key]            = (shim_fp)0, // shim_do_request_key,
+    [__NR_keyctl]                 = (shim_fp)0, // shim_do_keyctl,
+    [__NR_ioprio_set]             = (shim_fp)0, // shim_do_ioprio_set
+    [__NR_ioprio_get]             = (shim_fp)0, // shim_do_ioprio_get
+    [__NR_inotify_init]           = (shim_fp)0, // shim_do_inotify_init
+    [__NR_inotify_add_watch]      = (shim_fp)0, // shim_do_inotify_add_watch
+    [__NR_inotify_rm_watch]       = (shim_fp)0, // shim_do_inotify_rm_watch
+    [__NR_migrate_pages]          = (shim_fp)0, // shim_do_migrate_pages
+    [__NR_openat]                 = (shim_fp)shim_do_openat,
+    [__NR_mkdirat]                = (shim_fp)shim_do_mkdirat,
+    [__NR_mknodat]                = (shim_fp)shim_do_mknodat,
+    [__NR_fchownat]               = (shim_fp)shim_do_fchownat,
+    [__NR_futimesat]              = (shim_fp)0, // shim_do_futimesat
+    [__NR_newfstatat]             = (shim_fp)shim_do_newfstatat,
+    [__NR_unlinkat]               = (shim_fp)shim_do_unlinkat,
+    [__NR_renameat]               = (shim_fp)shim_do_renameat,
+    [__NR_linkat]                 = (shim_fp)0, // shim_do_linkat
+    [__NR_symlinkat]              = (shim_fp)0, // shim_do_symlinkat
+    [__NR_readlinkat]             = (shim_fp)shim_do_readlinkat,
+    [__NR_fchmodat]               = (shim_fp)shim_do_fchmodat,
+    [__NR_faccessat]              = (shim_fp)shim_do_faccessat,
+    [__NR_pselect6]               = (shim_fp)shim_do_pselect6,
+    [__NR_ppoll]                  = (shim_fp)shim_do_ppoll,
+    [__NR_unshare]                = (shim_fp)0, // shim_do_unshare
+    [__NR_set_robust_list]        = (shim_fp)shim_do_set_robust_list,
+    [__NR_get_robust_list]        = (shim_fp)shim_do_get_robust_list,
+    [__NR_splice]                 = (shim_fp)0, // shim_do_splice
+    [__NR_tee]                    = (shim_fp)0, // shim_do_tee
+    [__NR_sync_file_range]        = (shim_fp)0, // shim_do_sync_file_range
+    [__NR_vmsplice]               = (shim_fp)0, // shim_do_vmsplice
+    [__NR_move_pages]             = (shim_fp)0, // shim_do_move_pages
+    [__NR_utimensat]              = (shim_fp)0, // shim_do_utimensat
+    [__NR_epoll_pwait]            = (shim_fp)shim_do_epoll_pwait,
+    [__NR_signalfd]               = (shim_fp)0, // shim_do_signalfd
+    [__NR_timerfd_create]         = (shim_fp)0, // shim_do_timerfd_create
+    [__NR_eventfd]                = (shim_fp)shim_do_eventfd,
+    [__NR_fallocate]              = (shim_fp)0, // shim_do_fallocate
+    [__NR_timerfd_settime]        = (shim_fp)0, // shim_do_timerfd_settime
+    [__NR_timerfd_gettime]        = (shim_fp)0, // shim_do_timerfd_gettime
+    [__NR_accept4]                = (shim_fp)shim_do_accept4,
+    [__NR_signalfd4]              = (shim_fp)0, // shim_do_signalfd4
+    [__NR_eventfd2]               = (shim_fp)shim_do_eventfd2,
+    [__NR_epoll_create1]          = (shim_fp)shim_do_epoll_create1,
+    [__NR_dup3]                   = (shim_fp)shim_do_dup3,
+    [__NR_pipe2]                  = (shim_fp)shim_do_pipe2,
+    [__NR_inotify_init1]          = (shim_fp)0, // shim_do_inotify_init1
+    [__NR_preadv]                 = (shim_fp)0, // shim_do_preadv
+    [__NR_pwritev]                = (shim_fp)0, // shim_do_pwritev
+    [__NR_rt_tgsigqueueinfo]      = (shim_fp)0, // shim_do_rt_tgsigqueueinfo
+    [__NR_perf_event_open]        = (shim_fp)0, // shim_do_perf_event_open
+    [__NR_recvmmsg]               = (shim_fp)shim_do_recvmmsg,
+    [__NR_fanotify_init]          = (shim_fp)0, // shim_do_fanotify_init
+    [__NR_fanotify_mark]          = (shim_fp)0, // shim_do_fanotify_mark
+    [__NR_prlimit64]              = (shim_fp)shim_do_prlimit64,
+    [__NR_name_to_handle_at]      = (shim_fp)0, // shim_do_name_to_handle_at
+    [__NR_open_by_handle_at]      = (shim_fp)0, // shim_do_open_by_handle_at
+    [__NR_clock_adjtime]          = (shim_fp)0, // shim_do_clock_adjtime
+    [__NR_syncfs]                 = (shim_fp)0, // shim_do_syncfs
+    [__NR_sendmmsg]               = (shim_fp)shim_do_sendmmsg,
+    [__NR_setns]                  = (shim_fp)0, // shim_do_setns
+    [__NR_getcpu]                 = (shim_fp)shim_do_getcpu,
+    [__NR_process_vm_readv]       = (shim_fp)0, // shim_do_process_vm_readv
+    [__NR_process_vm_writev]      = (shim_fp)0, // shim_do_process_vm_writev
+    [__NR_kcmp]                   = (shim_fp)0, // shim_do_kcmp
+    [__NR_finit_module]           = (shim_fp)0, // shim_do_finit_module
+    [__NR_sched_setattr]          = (shim_fp)0, // shim_do_sched_setattr
+    [__NR_sched_getattr]          = (shim_fp)0, // shim_do_sched_getattr
+    [__NR_renameat2]              = (shim_fp)0, // shim_do_renameat2
+    [__NR_seccomp]                = (shim_fp)0, // shim_do_seccomp
+    [__NR_getrandom]              = (shim_fp)shim_do_getrandom,
+    [__NR_memfd_create]           = (shim_fp)0, // shim_do_memfd_create
+    [__NR_kexec_file_load]        = (shim_fp)0, // shim_do_kexec_file_load
+    [__NR_bpf]                    = (shim_fp)0, // shim_do_bpf
+    [__NR_execveat]               = (shim_fp)0, // shim_do_execveat
+    [__NR_userfaultfd]            = (shim_fp)0, // shim_do_userfaultfd
+    [__NR_membarrier]             = (shim_fp)0, // shim_do_membarrier
+    [__NR_mlock2]                 = (shim_fp)0, // shim_do_mlock2
+    [__NR_copy_file_range]        = (shim_fp)0, // shim_do_copy_file_range
+    [__NR_preadv2]                = (shim_fp)0, // shim_do_preadv2
+    [__NR_pwritev2]               = (shim_fp)0, // shim_do_pwritev2
+    [__NR_pkey_mprotect]          = (shim_fp)0, // shim_do_pkey_mprotect
+    [__NR_pkey_alloc]             = (shim_fp)0, // shim_do_pkey_alloc
+    [__NR_pkey_free]              = (shim_fp)0, // shim_do_pkey_free
+    [__NR_statx]                  = (shim_fp)0, // shim_do_statx
+    [__NR_io_pgetevents]          = (shim_fp)0, // shim_do_io_pgetevents
+    [__NR_rseq]                   = (shim_fp)0, // shim_do_rseq
+    [__NR_pidfd_send_signal]      = (shim_fp)0, // shim_do_pidfd_send_signal
+    [__NR_io_uring_setup]         = (shim_fp)0, // shim_do_io_uring_setup
+    [__NR_io_uring_enter]         = (shim_fp)0, // shim_do_io_uring_enter
+    [__NR_io_uring_register]      = (shim_fp)0, // shim_do_io_uring_register
 };

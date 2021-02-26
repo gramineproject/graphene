@@ -32,6 +32,10 @@ echo-cmd = $(if $($(quiet)cmd_$(1)), echo '  $(call escsq,$($(quiet)cmd_$(1)))';
 cmd = @$(echo-cmd) $(cmd_$(1))
 
 
+# pal map
+PAL_SYMBOL_FILE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../Pal/src/pal-symbols
+PAL_SYMBOLS = $(shell sed -e 's|$$|;|g' $(PAL_SYMBOL_FILE))
+
 quiet_cmd_generated_offsets_s = [ $@ ]
       cmd_generated_offsets_s = $(CC) $(CFLAGS) -MD -MP -MF $@.d $(defs) -S $< -o $@
 
@@ -43,7 +47,7 @@ CLEAN_FILES += generated-offsets.s generated-offsets.s.d
 
 # Convert inline assembly into preprocessor directives.
 # The source line is something like:
-#     .ascii "GENERATED_INTEGER SHIM_TCB_OFFSET $8 "
+#     .ascii "GENERATED_INTEGER SHIM_TCB_OFF $8 "
 # (see the DEFINE macro Pal/include/pal/generated-offsets-build.h)
 #
 # Because of clang compatibility, we need to:
@@ -154,10 +158,6 @@ quiet_cmd_sgx_sign_depend = [ $@ ]
 quiet_cmd_manifest = [ $@ ]
       cmd_manifest = \
   $(if $(2),sed $(3) -e 's:\$$(ENTRYPOINT):$(2):g' $< > $@,cp -f $< $@)
-
-# pal map
-PAL_SYMBOL_FILE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../Pal/src/pal-symbols
-PAL_SYMBOLS = $(shell sed -e 's|$$|;|g' $(PAL_SYMBOL_FILE))
 
 quiet_cmd_pal_map = [ $@ ]
       cmd_pal_map = \

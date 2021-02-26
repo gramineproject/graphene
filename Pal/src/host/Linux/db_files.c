@@ -374,7 +374,7 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* 
     }
 
     if (handle->dir.endofstream == PAL_TRUE) {
-        return -PAL_ERROR_ENDOFSTREAM;
+        return 0;
     }
 
     while (1) {
@@ -437,7 +437,7 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* 
     }
 
 out:
-    return (int64_t)bytes_written ?: -PAL_ERROR_ENDOFSTREAM;
+    return (int64_t)bytes_written;
 }
 
 /* 'close' operation of directory streams */

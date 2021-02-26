@@ -28,9 +28,8 @@ struct shim_clone_args {
     PAL_HANDLE initialize_event;
     struct shim_thread* thread;
     void* stack;
-    unsigned long tls_base;
-    struct shim_regs regs;
-    struct shim_ext_context ext_ctx;
+    unsigned long tls;
+    PAL_CONTEXT* regs;
 };
 
 /*
@@ -60,7 +59,6 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     shim_tcb_init();
     set_cur_thread(my_thread);
-    update_tls_base(arg->tls_base);
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
      * do not move the below functions before shim_tcb_init/set_cur_thread()! */
@@ -68,13 +66,9 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     DkObjectClose(arg->create_event);
 
     shim_tcb_t* tcb = my_thread->shim_tcb;
-    __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
-                            // will be re-enabled when the thread starts.
 
     struct debug_buf debug_buf;
     (void)debug_setbuf(tcb, &debug_buf);
-
-    debug("set tls_base to 0x%lx\n", tcb->context.tls_base);
 
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
@@ -95,21 +89,15 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     add_thread(my_thread);
 
-    /* New thread inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words of parent thread. */
-    tcb->context.ext_ctx = arg->ext_ctx;
-
     /* Copy regs before we let the parent release them. */
-    struct shim_regs regs = arg->regs;
+    PAL_CONTEXT regs;
+    pal_context_copy(&regs, arg->regs);
+    pal_context_set_sp(&regs, (unsigned long)stack);
+    tcb->context.regs = &regs;
+    tcb->context.tls = arg->tls;
 
     /* Inform the parent thread that we finished initialization. */
-    DkEventSet(arg->initialize_event);
-
-    debug("child swapping stack to %p return 0x%lx: %d\n", stack, shim_regs_get_ip(&regs),
-          my_thread->tid);
-
-    tcb->context.regs = &regs;
-    fixup_child_context(tcb->context.regs);
-    shim_context_set_sp(&tcb->context, (unsigned long)stack);
+    DkEventSet(arg->initialize_event); // TODO: handle errors
 
     put_thread(my_thread);
 
@@ -141,7 +129,7 @@ static int migrate_fork(struct shim_cp_store* store, struct shim_process* proces
     return START_MIGRATE(store, fork, process_description, thread_description, process_ipc_info);
 }
 
-static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long tls_base,
+static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long tls,
                             unsigned long user_stack_addr, int* set_parent_tid) {
     assert(!(flags & CLONE_VM));
 
@@ -156,19 +144,10 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
      * since we might need to modify some registers. */
     shim_tcb_t shim_tcb = { 0 };
     __shim_tcb_init(&shim_tcb);
-    /* Preemption is disabled and we are copying our own tcb, which should be ok to do,
-     * even without any locks. Note this is a shallow copy, so `shim_tcb.context.regs` will be
-     * shared with the parent. */
+    /* We are copying our own tcb, which should be ok to do, even without any locks. Note this is
+     * a shallow copy, so `shim_tcb.context.regs` will be shared with the parent. */
     shim_tcb.context.regs = self->shim_tcb->context.regs;
-
-    /* new process inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words */
-    shim_tcb.context.ext_ctx = self->shim_tcb->context.ext_ctx;
-
-    if (flags & CLONE_SETTLS) {
-        shim_tcb.context.tls_base = tls_base;
-    } else {
-        shim_tcb.context.tls_base = self->shim_tcb->context.tls_base;
-    }
+    shim_tcb.context.tls = tls;
 
     thread->shim_tcb = &shim_tcb;
 
@@ -181,8 +160,8 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
         }
         thread->stack_top = (char*)vma_info.addr + vma_info.length;
         thread->stack_red = thread->stack = vma_info.addr;
-        parent_stack = shim_context_get_sp(&self->shim_tcb->context);
-        shim_context_set_sp(&thread->shim_tcb->context, user_stack_addr);
+        parent_stack = pal_context_get_sp(self->shim_tcb->context.regs);
+        pal_context_set_sp(thread->shim_tcb->context.regs, user_stack_addr);
 
         if (vma_info.file) {
             put_handle(vma_info.file);
@@ -221,7 +200,7 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
                                                   &process_description, thread);
 
     if (parent_stack) {
-        shim_context_set_sp(&self->shim_tcb->context, parent_stack);
+        pal_context_set_sp(self->shim_tcb->context.regs, parent_stack);
     }
 
     thread->shim_tcb = NULL;
@@ -271,7 +250,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         CSIGNAL;
 
     if (flags & ~supported_flags) {
-        debug("clone called with unsupported flags argument.\n");
+        log_warning("clone called with unsupported flags argument.\n");
         return -EINVAL;
     }
 
@@ -291,7 +270,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
      * explicitly disallowed for now. */
     if (flags & CLONE_VM) {
         if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
-            debug("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
+            log_warning("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
             return -EINVAL;
         }
     }
@@ -301,7 +280,8 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
          * corner-cases in signal handling and syscalls -- we simply treat vfork() as fork(). We
          * assume that performance hit is negligible (Graphene has to migrate internal state anyway
          * which is slow) and apps do not rely on insane Linux-specific semantics of vfork().  */
-        debug("vfork was called by the application, implemented as an alias to fork in Graphene\n");
+        log_warning("vfork was called by the application, implemented as an alias to fork in "
+                    "Graphene\n");
         flags &= ~(CLONE_VFORK | CLONE_VM);
     }
 
@@ -324,8 +304,6 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         set_parent_tid = parent_tidptr;
     }
 
-    disable_preempt(NULL);
-
     long ret = 0;
 
     struct shim_thread* thread = get_new_thread();
@@ -345,9 +323,8 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (flags & CLONE_CHILD_CLEARTID)
         thread->clear_child_tid = child_tidptr;
 
-    unsigned long tls_base = 0;
-    if (flags & CLONE_SETTLS) {
-        tls_base = tls_to_tls_base(tls);
+    if (!(flags & CLONE_SETTLS)) {
+        tls = get_tls();
     }
 
     if (!(flags & CLONE_VM)) {
@@ -355,7 +332,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
          * another process. */
         assert(!(flags & CLONE_THREAD));
 
-        ret = do_clone_new_vm(flags, thread, tls_base, user_stack_addr, set_parent_tid);
+        ret = do_clone_new_vm(flags, thread, tls, user_stack_addr, set_parent_tid);
 
         /* We should not have saved any references to this thread anywhere and `put_thread` below
          * should free it. */
@@ -366,11 +343,15 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         thread->tid = 0;
         put_thread(thread);
 
-        enable_preempt(NULL);
         return ret;
     }
 
     assert(flags & CLONE_THREAD);
+
+    ret = alloc_thread_libos_stack(thread);
+    if (ret < 0) {
+        goto failed;
+    }
 
     /* Threads do not generate signals on death, ignore it. */
     flags &= ~CSIGNAL;
@@ -394,15 +375,15 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     struct shim_clone_args new_args;
     memset(&new_args, 0, sizeof(new_args));
 
-    new_args.create_event = DkNotificationEventCreate(PAL_FALSE);
-    if (!new_args.create_event) {
-        ret = -PAL_ERRNO();
+    ret = DkNotificationEventCreate(PAL_FALSE, &new_args.create_event);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto clone_thread_failed;
     }
 
-    new_args.initialize_event = DkNotificationEventCreate(PAL_FALSE);
-    if (!new_args.initialize_event) {
-        ret = -PAL_ERRNO();
+    ret = DkNotificationEventCreate(PAL_FALSE, &new_args.initialize_event);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto clone_thread_failed;
     }
 
@@ -411,11 +392,10 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     /* Increasing refcount due to copy below. Passing ownership of the new copy
      * of this pointer to the new thread (receiver of new_args). */
     get_thread(thread);
-    new_args.thread   = thread;
-    new_args.stack    = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
-    new_args.tls_base = tls_base;
-    new_args.regs     = *self->shim_tcb->context.regs;
-    new_args.ext_ctx  = self->shim_tcb->context.ext_ctx;
+    new_args.thread = thread;
+    new_args.stack  = (void*)(user_stack_addr ?: pal_context_get_sp(self->shim_tcb->context.regs));
+    new_args.tls    = tls;
+    new_args.regs   = self->shim_tcb->context.regs;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child
@@ -423,9 +403,10 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     // child to run on the Parent allocated stack , so once the DkThreadCreate
     // returns .The parent comes back here - however, the child is Happily
     // running the function we gave to DkThreadCreate.
-    PAL_HANDLE pal_handle = DkThreadCreate(clone_implementation_wrapper, &new_args);
-    if (!pal_handle) {
-        ret = -PAL_ERRNO();
+    PAL_HANDLE pal_handle = NULL;
+    ret = DkThreadCreate(clone_implementation_wrapper, &new_args, &pal_handle);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         put_thread(new_args.thread);
         goto clone_thread_failed;
     }
@@ -435,14 +416,13 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (set_parent_tid)
         *set_parent_tid = thread->tid;
 
-    DkEventSet(new_args.create_event);
+    DkEventSet(new_args.create_event); // TODO: handle errors
     object_wait_with_retry(new_args.initialize_event);
-    DkObjectClose(new_args.initialize_event);
+    DkObjectClose(new_args.initialize_event); // TODO: handle errors
 
     IDTYPE tid = thread->tid;
 
     put_thread(thread);
-    enable_preempt(NULL);
     return tid;
 
 clone_thread_failed:
@@ -453,6 +433,5 @@ clone_thread_failed:
 failed:
     if (thread)
         put_thread(thread);
-    enable_preempt(NULL);
     return ret;
 }

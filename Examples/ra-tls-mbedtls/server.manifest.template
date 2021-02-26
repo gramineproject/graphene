@@ -11,6 +11,9 @@ loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu"
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = 1
+
 # Request remote attestation functionality from Graphene
 sgx.remote_attestation = 1
 

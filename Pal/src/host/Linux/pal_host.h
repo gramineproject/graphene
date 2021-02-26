@@ -43,7 +43,7 @@ typedef struct mutex_handle {
 /* Locking and unlocking of Mutexes */
 int _DkMutexLock(struct mutex_handle* mut);
 int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
-int _DkMutexUnlock(struct mutex_handle* mut);
+void _DkMutexUnlock(struct mutex_handle* mut);
 
 typedef struct {
     PAL_HDR hdr;
@@ -153,18 +153,5 @@ typedef struct pal_handle {
 #define ERROR(n) (1 << (MAX_FDS * 2 + (n)))
 
 #define HANDLE_TYPE(handle) ((handle)->hdr.type)
-
-extern void __check_pending_event(void);
-
-#define LEAVE_PAL_CALL()         \
-    do {                         \
-        __check_pending_event(); \
-    } while (0)
-
-#define LEAVE_PAL_CALL_RETURN(retval) \
-    do {                              \
-        __check_pending_event();      \
-        return (retval);              \
-    } while (0)
 
 #endif /* PAL_HOST_H */

@@ -5,6 +5,7 @@
 #define _SHIM_INTERNAL_H_
 
 #include <stdbool.h>
+#include <stdnoreturn.h>
 
 #include "api.h"
 #include "assert.h"
@@ -17,8 +18,6 @@
 void* shim_init(int argc, void* args);
 
 /* important macros and static inline functions */
-
-#define PAL_NATIVE_ERRNO() SHIM_TCB_GET(pal_errno)
 
 #define INTERNAL_TID_BASE ((IDTYPE)1 << (sizeof(IDTYPE) * 8 - 1))
 
@@ -45,11 +44,9 @@ void debug_puts(const char* str);
 void debug_putch(int ch);
 void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-#define _log(level, fmt...)                          \
-    do {                                             \
-        if ((level) <= g_log_level)                  \
-            debug_printf(fmt);                       \
-    } while (0)
+// TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
+// pasting it here and making `inline`, but our current linker scripts prevent both.
+void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
 #define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
@@ -65,247 +62,131 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
 #define DEBUG_BREAK_ON_FAILURE() do {} while (0)
 #endif
 
-#define BUG()                                       \
-    do {                                            \
-        warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
-        DEBUG_BREAK_ON_FAILURE();                   \
-        die_or_inf_loop();                          \
+#define BUG()                                           \
+    do {                                                \
+        log_error("BUG() " __FILE__ ":%d\n", __LINE__); \
+        DEBUG_BREAK_ON_FAILURE();                       \
+        die_or_inf_loop();                              \
     } while (0)
 
-#define DEBUG_HERE()                                         \
-    do {                                                     \
-        debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
+#define DEBUG_HERE()                                             \
+    do {                                                         \
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
     } while (0)
 
-/* definition for syscall table */
-void handle_signals(void);
-long convert_pal_errno(long err);
-void syscall_wrapper(void);
-void syscall_wrapper_after_syscalldb(void);
+/*!
+ * \brief High-level syscall emulation entrypoint.
+ *
+ * \param context CPU context at syscall entry.
+ *
+ * Emulates the syscall given the entry \p context.
+ */
+noreturn void shim_emulate_syscall(PAL_CONTEXT* context);
+/*!
+ * \brief Restore the CPU context.
+ *
+ * \param context CPU context to restore.
+ *
+ * This function restores the given \p context. It is only called on returning from a syscall, so
+ * it does not need to be reentrant (there is no such thing as nested syscalls), but it cannot
+ * assume that the CPU context is the same as at the entry to the syscall (e.g. sigreturn, or signal
+ * handling may change it).
+ */
+noreturn void return_from_syscall(PAL_CONTEXT* context);
+/*!
+ * \brief Restore the context after clone/fork.
+ *
+ * \param context LibOS context to restore.
+ *
+ * Restores LibOS \p context after a successful clone or fork.
+ */
+noreturn void restore_child_context_after_clone(struct shim_context* context);
+/*!
+ * \brief Creates a signal frame
+ *
+ * \param context CPU context
+ * \param siginfo signal to be delivered
+ * \param handler pointer to the user app signal handler
+ * \param restorer pointer to the restorer function
+ * \param should_use_altstack `true` - use alternative stack if possible, `false` - never use it
+ * \param old_mask old signal mask (to be stored in the signal frame)
+ *
+ * Creates a signal frame on the user app stack (either normal or alternative stack, depending on
+ * \p use_altstack and the currently used stack). Arranges \p context so that restoring it jumps
+ * to \p handler with appropriate arguments and returning from \p handler will jump to \p restorer,
+ * (which usually just calls `sigreturn` syscall). On most (all?) architectures old \p context,
+ * \p siginfo and \p old_mask are saved into the signal frame.
+ */
+void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, void* handler, void* restorer,
+                      bool should_use_altstack, __sigset_t* old_mask);
+/*!
+ * \brief Restart a syscall
+ *
+ * \param context CPU context
+ * \param syscall_nr syscall number
+ *
+ * Arranges \p context so that upon return to it redoes the \p syscall_nr syscall.
+ */
+void restart_syscall(PAL_CONTEXT* context, uint64_t syscall_nr);
+/*!
+ * \brief Restores a sigreturn context
+ *
+ * \param context original CPU context
+ * \param[out] new_mask new signal mask
+ *
+ * Restores CPU context in an architecture-specific way. On entry to this function \p context holds
+ * initial CPU context and this function extracts signal frame (generated by `prepare_sigframe`)
+ * and restores it into \p context. The signal mask extracted from the signal frame is written into
+ * \p new_mask.
+ */
+void restore_sigreturn_context(PAL_CONTEXT* context, __sigset_t* new_mask);
+/*!
+ * \brief Emulate a syscall
+ *
+ * \param context CPU context
+ *
+ * If the current instruction pointer in \p context points to a syscall instruction, arrange
+ * \p context so that the syscall is emulated.
+ * Returns `true` if it was a syscall instruction (hence a syscall will be emulated).
+ * Note that this function merely changes context, so the actual emulation is done upon returning
+ * to that context.
+ * Used e.g. in Linux-SGX Pal to handle `syscall` instruction.
+ */
+bool maybe_emulate_syscall(PAL_CONTEXT* context);
+/*!
+ * \brief Handle a signal
+ *
+ * \param context CPU context
+ * \param old_mask_ptr pointer to the old signal mask
+ *
+ * If there is a signal to be handled, this function arranges its delivery using `prepare_sigframe`.
+ * If \p old_mask_ptr is not `NULL`, it is stored into the signal frame, otherwise the current
+ * signal mask is used.
+ * Returns `true` if a not-ignored signal was handled (hence \p context was changed), `false`
+ * otherwise.
+ *
+ * XXX: Signals are delivered only during transition from LibOS to the user app, so a situation is
+ * possible when a signal is queued, but is not delivered for an arbitrary amount of time. There are
+ * two distinct situations when this can happen:
+ * 1) A blocking host-level syscall was issued and the signal arrived at any point before it and
+ *    after the thread entered LibOS code. In such case the host syscall can block indefinitely.
+ * 2) The signal arrived in the middle of or after `handle_signal`. In such case delivery of this
+ *    signal is delayed until the next syscall is issued or another signal arrives.
+ */
+bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr);
 
-#define PAL_ERRNO() convert_pal_errno(PAL_NATIVE_ERRNO())
+/*!
+ * \brief Translate PAL error code into UNIX error code.
+ *
+ * The sign of the error code is preserved.
+ */
+long pal_to_unix_errno(long err);
 
-#define SHIM_ARG_TYPE long
-
-static inline int64_t get_cur_preempt(void) {
-    shim_tcb_t* tcb = shim_get_tcb();
-    assert(tcb);
-    return __atomic_load_n(&tcb->context.preempt.counter, __ATOMIC_SEQ_CST);
-}
-
-#define BEGIN_SHIM(name, args...)              \
-    SHIM_ARG_TYPE __shim_##name(args) {        \
-        SHIM_ARG_TYPE ret = 0;                 \
-        int64_t preempt = get_cur_preempt();   \
-        __UNUSED(preempt);
-
-#define END_SHIM(name)                        \
-        handle_signals();                     \
-        assert(preempt == get_cur_preempt()); \
-        return ret;                           \
-    }
-
-#define DEFINE_SHIM_SYSCALL(name, n, func, ...) \
-    SHIM_SYSCALL_##n(name, func, __VA_ARGS__)
-
-#define PROTO_ARGS_0()              void
-#define PROTO_ARGS_1(t, a)          t a
-#define PROTO_ARGS_2(t, a, rest...) t a, PROTO_ARGS_1(rest)
-#define PROTO_ARGS_3(t, a, rest...) t a, PROTO_ARGS_2(rest)
-#define PROTO_ARGS_4(t, a, rest...) t a, PROTO_ARGS_3(rest)
-#define PROTO_ARGS_5(t, a, rest...) t a, PROTO_ARGS_4(rest)
-#define PROTO_ARGS_6(t, a, rest...) t a, PROTO_ARGS_5(rest)
-
-#define CAST_ARGS_0()
-#define CAST_ARGS_1(t, a)          (SHIM_ARG_TYPE)a
-#define CAST_ARGS_2(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_1(rest)
-#define CAST_ARGS_3(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_2(rest)
-#define CAST_ARGS_4(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_3(rest)
-#define CAST_ARGS_5(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_4(rest)
-#define CAST_ARGS_6(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_5(rest)
-
-#define DEFINE_SHIM_FUNC(func, n, r, args...) \
-    r func(PROTO_ARGS_##n(args));
-
-#define PARSE_SYSCALL1(name, ...) \
-    debug_print_syscall_before(__NR_##name, ##__VA_ARGS__);
-
-#define PARSE_SYSCALL2(name, ret_val, ...) \
-    debug_print_syscall_after(__NR_##name, ret_val, ##__VA_ARGS__);
-
-void debug_print_syscall_before(int sysno, ...);
-void debug_print_syscall_after(int sysno, ...);
-
-#define SHIM_SYSCALL_0(name, func, r)       \
-    BEGIN_SHIM(name, void)                  \
-        PARSE_SYSCALL1(name);               \
-        r __ret = (func)();                 \
-        PARSE_SYSCALL2(name, __ret);        \
-        ret = (SHIM_ARG_TYPE)__ret;         \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_1(name, func, r, t1, a1)        \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1)           \
-        t1 a1 = (t1)__arg1;                          \
-        PARSE_SYSCALL1(name, a1);                    \
-        r __ret = (func)(a1);                        \
-        PARSE_SYSCALL2(name, __ret, a1);             \
-        ret = (SHIM_ARG_TYPE)__ret;                  \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_2(name, func, r, t1, a1, t2, a2)                \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2)     \
-        t1 a1 = (t1)__arg1;                                          \
-        t2 a2 = (t2)__arg2;                                          \
-        PARSE_SYSCALL1(name, a1, a2);                                \
-        r __ret = (func)(a1, a2);                                    \
-        PARSE_SYSCALL2(name, __ret, a1, a2);                         \
-        ret = (SHIM_ARG_TYPE)__ret;                                  \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_3(name, func, r, t1, a1, t2, a2, t3, a3)                              \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3)     \
-        t1 a1 = (t1)__arg1;                                                                \
-        t2 a2 = (t2)__arg2;                                                                \
-        t3 a3 = (t3)__arg3;                                                                \
-        PARSE_SYSCALL1(name, a1, a2, a3);                                                  \
-        r __ret = (func)(a1, a2, a3);                                                      \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3);                                           \
-        ret = (SHIM_ARG_TYPE)__ret;                                                        \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_4(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4)                      \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,     \
-               SHIM_ARG_TYPE __arg4)                                                       \
-        t1 a1 = (t1)__arg1;                                                                \
-        t2 a2 = (t2)__arg2;                                                                \
-        t3 a3 = (t3)__arg3;                                                                \
-        t4 a4 = (t4)__arg4;                                                                \
-        PARSE_SYSCALL1(name, a1, a2, a3, a4);                                              \
-        r __ret = (func)(a1, a2, a3, a4);                                                  \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4);                                       \
-        ret = (SHIM_ARG_TYPE)__ret;                                                        \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_5(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5)              \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,     \
-               SHIM_ARG_TYPE __arg4, SHIM_ARG_TYPE __arg5)                                 \
-        t1 a1 = (t1)__arg1;                                                                \
-        t2 a2 = (t2)__arg2;                                                                \
-        t3 a3 = (t3)__arg3;                                                                \
-        t4 a4 = (t4)__arg4;                                                                \
-        t5 a5 = (t5)__arg5;                                                                \
-        PARSE_SYSCALL1(name, a1, a2, a3, a4, a5);                                          \
-        r __ret = (func)(a1, a2, a3, a4, a5);                                              \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4, a5);                                   \
-        ret = (SHIM_ARG_TYPE)__ret;                                                        \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_6(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6)             \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,            \
-               SHIM_ARG_TYPE __arg4, SHIM_ARG_TYPE __arg5, SHIM_ARG_TYPE __arg6)                  \
-        t1 a1 = (t1)__arg1;                                                                       \
-        t2 a2 = (t2)__arg2;                                                                       \
-        t3 a3 = (t3)__arg3;                                                                       \
-        t4 a4 = (t4)__arg4;                                                                       \
-        t5 a5 = (t5)__arg5;                                                                       \
-        t6 a6 = (t6)__arg6;                                                                       \
-        PARSE_SYSCALL1(name, a1, a2, a3, a4, a5, a6);                                             \
-        r __ret = (func)(a1, a2, a3, a4, a5, a6);                                                 \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4, a5, a6);                                      \
-        ret = (SHIM_ARG_TYPE)__ret;                                                               \
-    END_SHIM(name)
-
-#define SHIM_PROTO_ARGS_0 void
-#define SHIM_PROTO_ARGS_1 SHIM_ARG_TYPE __arg1
-#define SHIM_PROTO_ARGS_2 SHIM_PROTO_ARGS_1, SHIM_ARG_TYPE __arg2
-#define SHIM_PROTO_ARGS_3 SHIM_PROTO_ARGS_2, SHIM_ARG_TYPE __arg3
-#define SHIM_PROTO_ARGS_4 SHIM_PROTO_ARGS_3, SHIM_ARG_TYPE __arg4
-#define SHIM_PROTO_ARGS_5 SHIM_PROTO_ARGS_4, SHIM_ARG_TYPE __arg5
-#define SHIM_PROTO_ARGS_6 SHIM_PROTO_ARGS_5, SHIM_ARG_TYPE __arg6
-
-#define SHIM_UNUSED_ARGS_0()
-
-#define SHIM_UNUSED_ARGS_1() \
-    do {                     \
-        __UNUSED(__arg1);    \
-    } while (0)
-#define SHIM_UNUSED_ARGS_2()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_1(); \
-        __UNUSED(__arg2);     \
-    } while (0)
-#define SHIM_UNUSED_ARGS_3()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_2(); \
-        __UNUSED(__arg3);     \
-    } while (0)
-#define SHIM_UNUSED_ARGS_4()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_3(); \
-        __UNUSED(__arg4);     \
-    } while (0)
-
-#define SHIM_UNUSED_ARGS_5()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_4(); \
-        __UNUSED(__arg5);     \
-    } while (0)
-
-#define SHIM_UNUSED_ARGS_6()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_5(); \
-        __UNUSED(__arg6);     \
-    } while (0)
-
-#define SHIM_SYSCALL_RETURN_ENOSYS(name, n, ...)                                   \
-    BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                                          \
-        debug("WARNING: syscall " #name " not implemented. Returning -ENOSYS.\n"); \
-        SHIM_UNUSED_ARGS_##n();                                                    \
-        ret = -ENOSYS;                                                             \
-    END_SHIM(name)
+void warn_unsupported_syscall(unsigned long sysno);
+void debug_print_syscall_before(unsigned long sysno, ...);
+void debug_print_syscall_after(unsigned long sysno, ...);
 
 #define PAL_CB(member) (pal_control.member)
-
-static inline int64_t __disable_preempt(shim_tcb_t* tcb) {
-    // tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
-    int64_t preempt = __atomic_add_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
-    /* Assert if this counter overflows */
-    assert(preempt != 0);
-    // debug("disable preempt: %d\n", preempt);
-    return preempt;
-}
-
-static inline void disable_preempt(shim_tcb_t* tcb) {
-    if (!tcb && !(tcb = shim_get_tcb()))
-        return;
-
-    __disable_preempt(tcb);
-}
-
-static inline void __enable_preempt(shim_tcb_t* tcb) {
-    int64_t preempt = __atomic_sub_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
-    /* Assert if this counter underflows */
-    __UNUSED(preempt);
-    assert(preempt >= 0);
-    // debug("enable preempt: %d\n", preempt);
-}
-
-void __handle_signals(shim_tcb_t* tcb);
-
-static inline void enable_preempt(shim_tcb_t* tcb) {
-    if (!tcb && !(tcb = shim_get_tcb()))
-        return;
-
-    int64_t preempt = __atomic_load_n(&tcb->context.preempt.counter, __ATOMIC_SEQ_CST);
-    if (!preempt)
-        return;
-
-    if (preempt == 1)
-        __handle_signals(tcb);
-
-    __enable_preempt(tcb);
-}
 
 /*
  * These events have counting semaphore semantics:
@@ -315,11 +196,7 @@ static inline void enable_preempt(shim_tcb_t* tcb) {
  * Note that using `clear_event` probably requires external locking to avoid races.
  */
 static inline int create_event(AEVENTTYPE* e) {
-    e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, 0);
-    if (!e->event) {
-        return -PAL_ERRNO();
-    }
-    return 0;
+     return pal_to_unix_errno(DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, 0, &e->event));
 }
 
 static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
@@ -328,7 +205,7 @@ static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
 
 static inline void destroy_event(AEVENTTYPE* e) {
     if (e->event) {
-        DkObjectClose(e->event);
+        DkObjectClose(e->event); // TODO: handle errors
         e->event = NULL;
     }
 }
@@ -343,15 +220,19 @@ static inline int set_event(AEVENTTYPE* e, size_t n) {
     char bytes[n];
     memset(bytes, '\0', n);
     while (n > 0) {
-        PAL_NUM ret = DkStreamWrite(e->event, 0, n, bytes, NULL);
-        if (ret == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+        size_t size = n;
+        int ret = DkStreamWrite(e->event, 0, &size, bytes, NULL);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         }
-        n -= ret;
+        if (size == 0) {
+            /* This should never happen. */
+            return -EINVAL;
+        }
+        n -= size;
     }
 
     return 0;
@@ -364,14 +245,20 @@ static inline int wait_event(AEVENTTYPE* e) {
         return -EINVAL;
     }
 
-    int err = 0;
+    int ret = 0;
     do {
         char byte;
-        PAL_NUM ret = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
-        err = ret == PAL_STREAM_ERROR ? PAL_ERRNO() : 0;
-    } while (err == EINTR || err == EAGAIN || err == EWOULDBLOCK);
+        size_t size = 1;
+        ret = DkStreamRead(e->event, 0, &size, &byte, NULL, 0);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
+        } else if (size == 0) {
+            ret = -ENODATA;
+        }
+    /* XXX(borysp): I think we should actually return both of these. */
+    } while (ret == -EINTR || ret == -EAGAIN);
 
-    return -err;
+    return ret;
 }
 
 static inline int clear_event(AEVENTTYPE* e) {
@@ -386,16 +273,14 @@ static inline int clear_event(AEVENTTYPE* e) {
         PAL_FLG ievent = PAL_WAIT_READ;
         PAL_FLG revent = 0;
 
-        shim_get_tcb()->pal_errno = PAL_ERROR_SUCCESS;
-        PAL_BOL ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
-        if (!ret) {
-            int err = PAL_ERRNO();
-            if (err == EINTR) {
+        int ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED) {
                 continue;
-            } else if (!err || err == EAGAIN || err == EWOULDBLOCK) {
+            } else if (ret == -PAL_ERROR_TRYAGAIN) {
                 break;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         }
 
         /* Even if `revent` has `PAL_WAIT_ERROR` marked, let `DkSitreamRead()` report the error
@@ -403,16 +288,19 @@ static inline int clear_event(AEVENTTYPE* e) {
         assert(revent);
 
         char bytes[100];
-        PAL_NUM n = DkStreamRead(e->event, 0, sizeof(bytes), bytes, NULL, 0);
-        if (n == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR) {
+        size_t n = sizeof(bytes);
+        ret = DkStreamRead(e->event, 0, &n, bytes, NULL, 0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED) {
                 continue;
-            } else if (err == EAGAIN || err == EWOULDBLOCK) {
-                /* This should not happen, since we polled above  ... */
+            } else if (ret == -PAL_ERROR_TRYAGAIN) {
+                /* This should not happen, since we polled above... */
                 break;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
+        } else if (n == 0) {
+            /* This should not happen, something closed the handle? */
+            return -ENODATA;
         }
     }
 
@@ -440,7 +328,7 @@ static inline int __ref_dec(REFTYPE* ref) {
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         if (!_c) {
-            debug("Fail: Trying to drop reference count below 0\n");
+            log_error("Fail: Trying to drop reference count below 0\n");
             BUG();
             return 0;
         }
@@ -479,8 +367,6 @@ static inline bool memory_migrated(void* mem) {
 
 extern void* __load_address;
 extern void* __load_address_end;
-extern void* __code_address;
-extern void* __code_address_end;
 
 extern const char** migrated_envp;
 

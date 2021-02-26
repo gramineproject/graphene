@@ -24,46 +24,55 @@ int main(int argc, char** argv, char** envp) {
 
     /* test regular file opening */
 
-    PAL_HANDLE file1 = DkStreamOpen("file:File", PAL_ACCESS_RDWR, 0, 0, 0);
-    if (file1) {
+    PAL_HANDLE file1 = NULL;
+    ret = DkStreamOpen("file:File", PAL_ACCESS_RDWR, 0, 0, 0, &file1);
+    if (ret >= 0 && file1) {
         pal_printf("File Open Test 1 OK\n");
 
         /* test file read */
-
-        ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
-        if (ret > 0) {
-            print_hex("Read Test 1 (0th - 40th): %s\n", buffer1, 40);
+        size_t size = sizeof(buffer1);
+        ret = DkStreamRead(file1, 0, &size, buffer1, NULL, 0);
+        if (ret == 0 && size == sizeof(buffer1)) {
+            print_hex("Read Test 1 (0th - 40th): %s\n", buffer1, size);
         }
 
-        ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
-        if (ret > 0) {
-            print_hex("Read Test 2 (0th - 40th): %s\n", buffer1, 40);
+        size = sizeof(buffer1);
+        ret = DkStreamRead(file1, 0, &size, buffer1, NULL, 0);
+        if (ret == 0 && size == sizeof(buffer1)) {
+            print_hex("Read Test 2 (0th - 40th): %s\n", buffer1, size);
         }
 
-        ret = DkStreamRead(file1, 200, 40, buffer2, NULL, 0);
-        if (ret > 0) {
-            print_hex("Read Test 3 (200th - 240th): %s\n", buffer2, 40);
+        size = sizeof(buffer2);
+        ret = DkStreamRead(file1, 200, &size, buffer2, NULL, 0);
+        if (ret == 0 && size == sizeof(buffer2)) {
+            print_hex("Read Test 3 (200th - 240th): %s\n", buffer2, size);
         }
 
         /* test file attribute query */
 
         PAL_STREAM_ATTR attr1;
-        if (DkStreamAttributesQueryByHandle(file1, &attr1))
+        ret = DkStreamAttributesQueryByHandle(file1, &attr1);
+        if (ret >= 0) {
             pal_printf("Query by Handle: type = %d, size = %ld\n", attr1.handle_type,
                        attr1.pending_size);
+        }
 
         /* test file map */
 
-        void* mem1 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0,
-                                        PAGE_SIZE);
-        if (mem1) {
+        void* mem1 = NULL;
+        ret = DkStreamMap(file1, &mem1, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, PAGE_SIZE);
+        if (ret >= 0 && mem1) {
             memcpy(buffer1, mem1, 40);
             print_hex("Map Test 1 (0th - 40th): %s\n", buffer1, 40);
 
             memcpy(buffer2, mem1 + 200, 40);
             print_hex("Map Test 2 (200th - 240th): %s\n", buffer2, 40);
 
-            DkStreamUnmap(mem1, PAGE_SIZE);
+            ret = DkStreamUnmap(mem1, PAGE_SIZE);
+            if (ret < 0) {
+                pal_printf("DkStreamUnmap failed\n");
+                return 1;
+            }
         } else {
             pal_printf("Map Test 1 & 2: Failed to map buffer\n");
         }
@@ -71,40 +80,47 @@ int main(int argc, char** argv, char** envp) {
         DkObjectClose(file1);
     }
 
-    PAL_HANDLE file2 = DkStreamOpen("file:File", PAL_ACCESS_RDWR, 0, 0, 0);
-    if (file2) {
+    PAL_HANDLE file2 = NULL;
+    ret = DkStreamOpen("file:File", PAL_ACCESS_RDWR, 0, 0, 0, &file2);
+    if (ret >= 0 && file2) {
         pal_printf("File Open Test 2 OK\n");
         DkObjectClose(file2);
     }
 
-    PAL_HANDLE file3 = DkStreamOpen("file:../regression/File", PAL_ACCESS_RDWR, 0, 0, 0);
-    if (file3) {
+    PAL_HANDLE file3 = NULL;
+    ret = DkStreamOpen("file:../regression/File", PAL_ACCESS_RDWR, 0, 0, 0, &file3);
+    if (ret >= 0 && file3) {
         pal_printf("File Open Test 3 OK\n");
         DkObjectClose(file3);
     }
 
     PAL_STREAM_ATTR attr2;
-    if (DkStreamAttributesQuery("file:File", &attr2))
+    ret = DkStreamAttributesQuery("file:File", &attr2);
+    if (ret >= 0) {
         pal_printf("Query: type = %d, size = %ld\n", attr2.handle_type, attr2.pending_size);
+    }
 
     /* test regular file creation */
 
-    PAL_HANDLE file4 = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
-                                    PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
-    if (file4)
+    PAL_HANDLE file4 = NULL;
+    ret = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
+                       PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0, &file4);
+    if (ret >= 0 && file4)
         pal_printf("File Creation Test 1 OK\n");
 
-    PAL_HANDLE file5 = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
-                                    PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
-    if (file5) {
+    PAL_HANDLE file5 = NULL;
+    ret = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
+                       PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0, &file5);
+    if (ret >= 0) {
         DkObjectClose(file5);
     } else {
         pal_printf("File Creation Test 2 OK\n");
     }
 
-    PAL_HANDLE file6 = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
-                                    PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_TRY, 0);
-    if (file6) {
+    PAL_HANDLE file6 = NULL;
+    ret = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
+                       PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_TRY, 0, &file6);
+    if (ret >= 0 && file6) {
         pal_printf("File Creation Test 3 OK\n");
         DkObjectClose(file6);
     }
@@ -112,28 +128,42 @@ int main(int argc, char** argv, char** envp) {
     if (file4) {
         /* test file writing */
 
-        ret = DkStreamWrite(file4, 0, 40, buffer1, NULL);
+        size_t size = sizeof(buffer1);
+        ret = DkStreamWrite(file4, 0, &size, buffer1, NULL);
         if (ret < 0)
             goto fail_writing;
 
-        ret = DkStreamWrite(file4, 0, 40, buffer2, NULL);
+        size = sizeof(buffer2);
+        ret = DkStreamWrite(file4, 0, &size, buffer2, NULL);
         if (ret < 0)
             goto fail_writing;
 
-        ret = DkStreamWrite(file4, 200, 40, buffer1, NULL);
+        size = sizeof(buffer1);
+        ret = DkStreamWrite(file4, 200, &size, buffer1, NULL);
         if (ret < 0)
             goto fail_writing;
 
         /* test file truncate */
-        DkStreamSetLength(file4, pal_control.alloc_align);
+        ret = DkStreamSetLength(file4, pal_control.alloc_align);
+        if (ret < 0) {
+            goto fail_writing;
+        }
 
     fail_writing:
         DkObjectClose(file4);
+        if (ret < 0) {
+            return 1;
+        }
     }
 
-    PAL_HANDLE file7 = DkStreamOpen("file:file_delete.tmp", PAL_ACCESS_RDONLY, 0, 0, 0);
-    if (file7) {
-        DkStreamDelete(file7, 0);
+    PAL_HANDLE file7 = NULL;
+    ret = DkStreamOpen("file:file_delete.tmp", PAL_ACCESS_RDONLY, 0, 0, 0, &file7);
+    if (ret >= 0 && file7) {
+        ret = DkStreamDelete(file7, 0);
+        if (ret < 0) {
+            pal_printf("DkStreamDelete failed\n");
+            return 1;
+        }
         DkObjectClose(file7);
     }
 
