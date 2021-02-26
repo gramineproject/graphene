@@ -1,0 +1,17 @@
+diff --git a/server/Makefile.in b/server/Makefile.in
+index 1fa334467d0877e014f6b0e29ca581d1ebe79724..dfc6ea87b470c172de75640436187b914dafb321 100644
+--- a/server/Makefile.in
++++ b/server/Makefile.in
+@@ -89,7 +89,11 @@ httpd.exp: exports.c export_vars.h
+ #   developer stuff
+ #   (we really don't expect end users to use these targets!)
+ #
+-util_expr_scan.c util_expr_parse.c util_expr_parse.h: util_expr_scan.l util_expr_parse.y
++util_expr_scan.c util_expr_parse.c util_expr_parse.h: util_expr_outputs
++	@:
++
++.INTERMEDIATE: util_expr_outputs
++util_expr_outputs: util_expr_scan.l util_expr_parse.y
+ 	bison -pap_expr_yy --defines=$(builddir)/util_expr_parse.h \
+ 	    -o $(builddir)/util_expr_parse.c $(srcdir)/util_expr_parse.y
+ 	flex -Pap_expr_yy -o $(builddir)/util_expr_scan.c $(srcdir)/util_expr_scan.l
