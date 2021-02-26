@@ -92,6 +92,7 @@ redis-server.manifest: redis-server.manifest.template
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
 redis-server.sig redis-server.manifest.sgx: sgx_outputs
+	@:
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: redis-server.manifest $(SRCDIR)/src/redis-server

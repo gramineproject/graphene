@@ -57,6 +57,7 @@ trusted-libs: ../common_tools/get_deps.sh
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
 gcc.sig gcc.manifest.sgx: sgx_outputs
+	@:
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: gcc.manifest
