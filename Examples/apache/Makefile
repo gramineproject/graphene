@@ -55,8 +55,11 @@ $(INSTALL_DIR)/bin/httpd: $(HTTPD_SRC)/configure
 	cd $(HTTPD_SRC) && $(MAKE)
 	cd $(HTTPD_SRC) && $(MAKE) install
 
+# We need to patch the Apache makefile: it has broken group-target, which does not work on
+# parallel builds.
 $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
 	tar --touch -xzf $<
+	cd $(HTTPD_SRC) && patch -p1 -l < ../apache_makefile.patch
 
 $(HTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) $(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)httpd/$(HTTPD_SRC).tar.gz)
