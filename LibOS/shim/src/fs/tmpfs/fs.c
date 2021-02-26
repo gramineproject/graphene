@@ -74,11 +74,12 @@ static int create_data(struct shim_dentry* dent) {
     data->type = FILE_UNKNOWN;
     data->mode = NO_MODE;
 
-    uint64_t time = DkSystemTimeQuery();
-    if ((int64_t)time < 0) {
+    uint64_t time = 0;
+    if (DkSystemTimeQuery(&time) < 0) {
         __destroy_data(data);
         return -EPERM;
     }
+
     data->atime = time / 1000000;
     data->mtime = data->atime;
     data->ctime = data->atime;
@@ -237,8 +238,8 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t coun
         return -EISDIR;
     }
 
-    uint64_t time = DkSystemTimeQuery();
-    if ((int64_t)time < 0) {
+    uint64_t time = 0;
+    if (DkSystemTimeQuery(&time) < 0) {
         return -EPERM;
     }
 
@@ -537,8 +538,8 @@ static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
     struct shim_tmpfs_data* tmpfs_data = new->data;
     assert(tmpfs_data && tmpfs_data->str_data.str == NULL);
 
-    uint64_t time = DkSystemTimeQuery();
-    if ((int64_t)time < 0) {
+    uint64_t time = 0;
+    if (DkSystemTimeQuery(&time) < 0) {
         return -EPERM;
     }
 
@@ -564,8 +565,8 @@ static int tmpfs_chmod(struct shim_dentry* dent, mode_t mode) {
     if (!tmpfs_data)
         return -ENOENT;
 
-    uint64_t time = DkSystemTimeQuery();
-    if ((int64_t)time < 0) {
+    uint64_t time = 0;
+    if (DkSystemTimeQuery(&time) < 0) {
         return -EPERM;
     }
 
