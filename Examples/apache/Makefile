@@ -13,8 +13,8 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 INSTALL_DIR ?= $(THIS_DIR)install
-HTTPD_SRC ?= $(THIS_DIR)httpd-2.4.41
-HTTPD_CHECKSUM ?= 3c0f9663240beb0f008acf3b4501c4f339d7467ee345a36c86c46b4d6f3a5461
+HTTPD_SRC ?= $(THIS_DIR)httpd-2.4.46
+HTTPD_CHECKSUM ?= 44b759ce932dc090c0e75c0210b4485ebf6983466fb8ca1b446c8168e1a1aec2
 
 # Mirros for downloading the Apache source code
 HTTPD_MIRRORS ?= \
