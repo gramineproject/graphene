@@ -85,7 +85,7 @@ long shim_do_socket(int family, int type, int protocol) {
             break;
 
         default:
-            debug("shim_socket: unknown socket domain %d\n", sock->domain);
+            log_warning("shim_socket: unknown socket domain %d\n", sock->domain);
             goto err;
     }
 
@@ -97,7 +97,7 @@ long shim_do_socket(int family, int type, int protocol) {
             break;
 
         default:
-            debug("shim_socket: unknown socket type %d\n", sock->sock_type);
+            log_warning("shim_socket: unknown socket type %d\n", sock->sock_type);
             goto err;
     }
 
@@ -260,7 +260,7 @@ static inline void unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* de
     dentry_get_path(dent, path);
 
     if (size > ARRAY_SIZE(un->sun_path)) {
-        debug("unix_copy_addr(): path too long, truncating: %s\n", path);
+        log_warning("unix_copy_addr(): path too long, truncating: %s\n", path);
         memcpy(un->sun_path, path, ARRAY_SIZE(un->sun_path) - 1);
         un->sun_path[ARRAY_SIZE(un->sun_path) - 1] = 0;
     } else {
@@ -425,7 +425,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     enum shim_sock_state state = sock->sock_state;
 
     if (state != SOCK_CREATED) {
-        debug("shim_bind: bind on a bound socket\n");
+        log_debug("shim_bind: bind on a bound socket\n");
         goto out;
     }
 
@@ -476,12 +476,13 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
         create_flags &= ~PAL_CREATE_DUALSTACK;
     }
 
-    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, create_flags,
-                                      hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0);
+    PAL_HANDLE pal_hdl = NULL;
+    ret = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, create_flags,
+                       hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0, &pal_hdl);
 
-    if (!pal_hdl) {
-        ret = (PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST) ? -EADDRINUSE : -PAL_ERRNO();
-        debug("bind: invalid handle returned\n");
+    if (ret < 0) {
+        ret = (ret == -PAL_ERROR_STREAMEXIST) ? -EADDRINUSE : pal_to_unix_errno(ret);
+        log_error("bind: invalid handle returned\n");
         goto out;
     }
 
@@ -497,8 +498,9 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (sock->domain == AF_INET || sock->domain == AF_INET6) {
         char uri[SOCK_URI_SIZE];
 
-        if (!DkStreamGetName(pal_hdl, uri, SOCK_URI_SIZE)) {
-            ret = -PAL_ERRNO();
+        ret = DkStreamGetName(pal_hdl, uri, sizeof(uri));
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out;
         }
 
@@ -616,7 +618,7 @@ long shim_do_listen(int sockfd, int backlog) {
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (sock->sock_type != SOCK_STREAM) {
-        debug("shim_listen: not a stream socket\n");
+        log_warning("shim_listen: not a stream socket\n");
         put_handle(hdl);
         return -EINVAL;
     }
@@ -627,7 +629,7 @@ long shim_do_listen(int sockfd, int backlog) {
     int ret = -EINVAL;
 
     if (state != SOCK_BOUND && state != SOCK_LISTENED) {
-        debug("shim_listen: listen on unbound socket\n");
+        log_warning("shim_listen: listen on unbound socket\n");
         goto out;
     }
 
@@ -680,23 +682,23 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
         if (addr->sa_family == AF_UNSPEC) {
             sock->sock_state = SOCK_CREATED;
             if (sock->sock_type == SOCK_STREAM && hdl->pal_handle) {
-                DkStreamDelete(hdl->pal_handle, 0);
+                DkStreamDelete(hdl->pal_handle, 0); // TODO: handle errors
                 DkObjectClose(hdl->pal_handle);
                 hdl->pal_handle = NULL;
                 pal_handle_updated = true;
             }
-            debug("shim_connect: reconnect on a stream socket\n");
+            log_debug("shim_connect: reconnect on a stream socket\n");
             ret = 0;
             goto out;
         }
 
-        debug("shim_connect: reconnect on a stream socket\n");
+        log_debug("shim_connect: reconnect on a stream socket\n");
         ret = -EISCONN;
         goto out;
     }
 
     if (state != SOCK_BOUND && state != SOCK_CREATED) {
-        debug("shim_connect: connect on invalid socket\n");
+        log_warning("shim_connect: connect on invalid socket\n");
         goto out;
     }
 
@@ -738,7 +740,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (state == SOCK_BOUND) {
         /* if the socket is bound, the stream needs to be shut and rebound. */
         assert(hdl->pal_handle);
-        DkStreamDelete(hdl->pal_handle, 0);
+        DkStreamDelete(hdl->pal_handle, 0); // TODO: handle errors
         DkObjectClose(hdl->pal_handle);
         hdl->pal_handle = NULL;
         pal_handle_updated = true;
@@ -756,11 +758,12 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     if ((ret = create_socket_uri(hdl)) < 0)
         goto out;
 
-    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, 0,
-                                      hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0);
+    PAL_HANDLE pal_hdl = NULL;
+    ret = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, 0,
+                       hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0, &pal_hdl);
 
-    if (!pal_hdl) {
-        ret = (PAL_NATIVE_ERRNO() == PAL_ERROR_DENIED) ? -ECONNREFUSED : -PAL_ERRNO();
+    if (ret < 0) {
+        ret = (ret == -PAL_ERROR_DENIED) ? -ECONNREFUSED : pal_to_unix_errno(ret);
         goto out;
     }
 
@@ -780,8 +783,9 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (sock->domain == AF_INET || sock->domain == AF_INET6) {
         char uri[SOCK_URI_SIZE];
 
-        if (!DkStreamGetName(pal_hdl, uri, SOCK_URI_SIZE)) {
-            ret = -PAL_ERRNO();
+        ret = DkStreamGetName(pal_hdl, uri, sizeof(uri));
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out;
         }
 
@@ -826,7 +830,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
     PAL_HANDLE accepted = NULL;
 
     if (sock->sock_type != SOCK_STREAM) {
-        debug("shim_accept: not a stream socket\n");
+        log_warning("shim_accept: not a stream socket\n");
         return -EOPNOTSUPP;
     }
 
@@ -845,7 +849,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     PAL_HANDLE handle = hdl->pal_handle;
     if (sock->sock_state != SOCK_LISTENED) {
-        debug("shim_accept: invalid socket\n");
+        log_warning("shim_accept: invalid socket\n");
         ret = -EINVAL;
         goto out;
     }
@@ -854,10 +858,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
     /* NOTE: DkStreamWaitForClient() is blocking so we need to unlock before it and lock again
      * afterwards; we rely on DkStreamWaitForClient() being thread-safe and that `handle` is not
      * freed during the wait. */
-    accepted = DkStreamWaitForClient(handle);
-    if (!accepted) {
-        ret = -PAL_ERRNO();
-    }
+    ret = pal_to_unix_errno(DkStreamWaitForClient(handle, &accepted));
 
     lock(&hdl->lock);
     if (ret < 0) {
@@ -866,7 +867,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     assert(hdl->pal_handle == handle);
     if (sock->sock_state != SOCK_LISTENED) {
-        debug("shim_accept: socket changed while waiting for a client connection\n");
+        log_debug("shim_accept: socket changed while waiting for a client connection\n");
         ret = -ECONNABORTED;
         goto out;
     }
@@ -874,15 +875,17 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
     if (flags & O_NONBLOCK) {
         PAL_STREAM_ATTR attr;
 
-        if (!DkStreamAttributesQueryByHandle(accepted, &attr)) {
-            ret = -PAL_ERRNO();
+        ret = DkStreamAttributesQueryByHandle(accepted, &attr);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out;
         }
 
         attr.nonblocking = PAL_TRUE;
 
-        if (!DkStreamAttributesSetByHandle(accepted, &attr)) {
-            ret = -PAL_ERRNO();
+        ret = DkStreamAttributesSetByHandle(accepted, &attr);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out;
         }
     }
@@ -925,10 +928,10 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     if (sock->domain == AF_INET || sock->domain == AF_INET6) {
         char uri[SOCK_URI_SIZE];
-        int uri_len;
 
-        if (!(uri_len = DkStreamGetName(cli->pal_handle, uri, SOCK_URI_SIZE))) {
-            ret = -PAL_ERRNO();
+        ret = DkStreamGetName(cli->pal_handle, uri, sizeof(uri));
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out_cli;
         }
 
@@ -936,7 +939,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
                                    &cli_sock->addr.in.bind, &cli_sock->addr.in.conn)) < 0)
             goto out_cli;
 
-        qstrsetstr(&cli->uri, uri, uri_len);
+        qstrsetstr(&cli->uri, uri, strlen(uri));
 
         inet_rebase_port(true, cli_sock->domain, &cli_sock->addr.in.bind, true);
         inet_rebase_port(true, cli_sock->domain, &cli_sock->addr.in.conn, false);
@@ -991,8 +994,8 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         goto out;
 
     if (flags & ~(MSG_NOSIGNAL | MSG_DONTWAIT)) {
-        debug("sendmsg()/sendmmsg()/sendto(): unknown flag (only MSG_NOSIGNAL and MSG_DONTWAIT"
-              " are supported).\n");
+        log_warning("sendmsg()/sendmmsg()/sendto(): unknown flag (only MSG_NOSIGNAL and "
+                    "MSG_DONTWAIT are supported).\n");
         ret = -EOPNOTSUPP;
         goto out;
     }
@@ -1010,8 +1013,8 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
 
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
-            debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a write that"
-                  " unexpectedly blocks.\n");
+            log_warning("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a write "
+                        "that unexpectedly blocks.\n");
         }
         flags &= ~MSG_DONTWAIT;
     }
@@ -1044,10 +1047,10 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         }
 
         if (sock->sock_state == SOCK_CREATED && !pal_hdl) {
-            pal_hdl = DkStreamOpen(URI_PREFIX_UDP, 0, 0, 0,
-                                   hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0);
-            if (!pal_hdl) {
-                ret = -PAL_ERRNO();
+            ret = DkStreamOpen(URI_PREFIX_UDP, 0, 0, 0,
+                               hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0, &pal_hdl);
+            if (ret < 0) {
+                ret = pal_to_unix_errno(ret);
                 goto out_locked;
             }
 
@@ -1077,32 +1080,32 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
             goto out_locked;
         }
 
-        debug("next packet send to %s\n", uri);
+        log_debug("next packet send to %s\n", uri);
     }
 
     int bytes = 0;
     ret = 0;
 
     for (int i = 0; i < nbufs; i++) {
-        PAL_NUM pal_ret = DkStreamWrite(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri);
+        size_t this_size = bufs[i].iov_len;
+        ret = DkStreamWrite(pal_hdl, 0, &this_size, bufs[i].iov_base, uri);
 
-        if (pal_ret == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO() == EPIPE && !(flags & MSG_NOSIGNAL)) {
+        if (ret < 0) {
+            ret = ret == -PAL_ERROR_STREAMEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
+            if (ret == -EPIPE && !(flags & MSG_NOSIGNAL)) {
                 siginfo_t info = {
                     .si_signo = SIGPIPE,
                     .si_pid = g_process.pid,
                     .si_code = SI_USER,
                 };
                 if (kill_current_proc(&info) < 0) {
-                    debug("do_sendmsg: failed to deliver a signal\n");
+                    log_error("do_sendmsg: failed to deliver a signal\n");
                 }
             }
-
-            ret = (PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST) ? -ECONNABORTED : -PAL_ERRNO();
             break;
         }
 
-        bytes += pal_ret;
+        bytes += this_size;
     }
 
     if (bytes)
@@ -1239,8 +1242,8 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
     }
 
     if (flags & ~(MSG_PEEK | MSG_DONTWAIT | MSG_WAITALL)) {
-        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK, MSG_DONTWAIT and"
-              " MSG_WAITALL are supported).\n");
+        log_warning("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK, MSG_DONTWAIT and"
+                    " MSG_WAITALL are supported).\n");
         ret = -EOPNOTSUPP;
         goto out;
     }
@@ -1248,15 +1251,15 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
     lock(&hdl->lock);
 
     if (flags & MSG_WAITALL) {
-        log_debug("recvmsg()/recvmmsg()/recvfrom(): MSG_WAITALL is ignored, may lead to a read"
-                  " that returns less data.\n");
+        log_warning("recvmsg()/recvmmsg()/recvfrom(): MSG_WAITALL is ignored, may lead to a read"
+                    " that returns less data.\n");
         flags &= ~MSG_WAITALL;
     }
 
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
-            debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a read that"
-                  " unexpectedly blocks.\n");
+            log_warning("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a read "
+                        "that unexpectedly blocks.\n");
         }
         flags &= ~MSG_DONTWAIT;
     }
@@ -1322,18 +1325,15 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
             /* fill peek buffer if this MSG_PEEK read request cannot be satisfied with data already
              * present in peek buffer; note that buffer can hold expected read size at this point */
             size_t left_to_read = expected_size - (peek_buffer->end - peek_buffer->start);
-            PAL_NUM pal_ret = DkStreamRead(pal_hdl, /*offset=*/0, left_to_read,
-                                           &peek_buffer->buf[peek_buffer->end],
-                                           uri, uri ? SOCK_URI_SIZE : 0);
-            if (pal_ret == PAL_STREAM_ERROR) {
-                ret = PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMNOTEXIST
-                      ? -ECONNABORTED
-                      : -PAL_ERRNO();
+            ret = DkStreamRead(pal_hdl, /*offset=*/0, &left_to_read,
+                               &peek_buffer->buf[peek_buffer->end], uri, uri ? SOCK_URI_SIZE : 0);
+            if (ret < 0) {
+                ret = ret == -PAL_ERROR_STREAMNOTEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
                 lock(&hdl->lock);
                 goto out_locked;
             }
 
-            peek_buffer->end += pal_ret;
+            peek_buffer->end += left_to_read;
             if (uri)
                 memcpy(peek_buffer->uri, uri, SOCK_URI_SIZE);
         }
@@ -1354,15 +1354,14 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
                    iov_bytes);
             uri = peek_buffer->uri;
         } else {
-            PAL_NUM pal_ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri,
-                                           uri ? SOCK_URI_SIZE : 0);
-            if (pal_ret == PAL_STREAM_ERROR) {
-                ret = PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMNOTEXIST
-                      ? -ECONNABORTED
-                      : -PAL_ERRNO();
+            size_t read_size = bufs[i].iov_len;
+            ret = DkStreamRead(pal_hdl, 0, &read_size, bufs[i].iov_base, uri,
+                               uri ? SOCK_URI_SIZE : 0);
+            if (ret < 0) {
+                ret = ret == -PAL_ERROR_STREAMNOTEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
                 break;
             }
-            iov_bytes = pal_ret;
+            iov_bytes = read_size;
         }
 
         total_bytes += iov_bytes;
@@ -1383,7 +1382,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
                         goto out_locked;
                     }
 
-                    debug("last packet received from %s\n", uri);
+                    log_debug("last packet received from %s\n", uri);
 
                     inet_rebase_port(true, sock->domain, &conn, false);
                     *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &conn);
@@ -1506,7 +1505,7 @@ long shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int fl
     // Issue # 753 - https://github.com/oscarlab/graphene/issues/753
     /* TODO(donporter): timeout properly. For now, explicitly return an error. */
     if (timeout) {
-        debug("recvmmsg(): timeout parameter unsupported.\n");
+        log_warning("recvmmsg(): timeout parameter unsupported.\n");
         return -EOPNOTSUPP;
     }
 
@@ -1553,18 +1552,33 @@ long shim_do_shutdown(int sockfd, int how) {
 
     switch (how) {
         case SHUT_RD:
-            DkStreamDelete(hdl->pal_handle, PAL_DELETE_RD);
+            ret = DkStreamDelete(hdl->pal_handle, PAL_DELETE_RD);
+            if (ret < 0) {
+                ret = pal_to_unix_errno(ret);
+                goto out_locked;
+            }
             hdl->acc_mode &= ~MAY_READ;
             break;
         case SHUT_WR:
-            DkStreamDelete(hdl->pal_handle, PAL_DELETE_WR);
+            ret = DkStreamDelete(hdl->pal_handle, PAL_DELETE_WR);
+            if (ret < 0) {
+                ret = pal_to_unix_errno(ret);
+                goto out_locked;
+            }
             hdl->acc_mode &= ~MAY_WRITE;
             break;
         case SHUT_RDWR:
-            DkStreamDelete(hdl->pal_handle, 0);
+            ret = DkStreamDelete(hdl->pal_handle, 0);
+            if (ret < 0) {
+                ret = pal_to_unix_errno(ret);
+                goto out_locked;
+            }
             hdl->acc_mode    = 0;
             sock->sock_state = SOCK_SHUTDOWN;
             break;
+        default:
+            ret = -EINVAL;
+            goto out_locked;
     }
 
     ret = 0;
@@ -1792,14 +1806,18 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
     PAL_STREAM_ATTR local_attr;
     if (!attr) {
         attr = &local_attr;
-        if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, attr))
-            return -PAL_ERRNO();
+        int ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, attr);
+        if (ret < 0) {
+            return pal_to_unix_errno(ret);
+        }
     }
 
     bool need_set_attr = __update_attr(attr, level, optname, optval);
     if (need_set_attr) {
-        if (!DkStreamAttributesSetByHandle(hdl->pal_handle, attr))
-            return -PAL_ERRNO();
+        int ret = DkStreamAttributesSetByHandle(hdl->pal_handle, attr);
+        if (ret < 0) {
+            return pal_to_unix_errno(ret);
+        }
     }
 
     return 0;
@@ -1813,8 +1831,10 @@ static int __process_pending_options(struct shim_handle* hdl) {
 
     PAL_STREAM_ATTR attr;
 
-    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO();
+    int ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     struct shim_sock_option* o = sock->pending_options;
 
@@ -1987,8 +2007,9 @@ long shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optle
         }
     } else {
         /* query PAL to get current attributes */
-        if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-            ret = -PAL_ERRNO();
+        ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
             goto out;
         }
     }

@@ -97,7 +97,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     tcb->context.tls = arg->tls;
 
     /* Inform the parent thread that we finished initialization. */
-    DkEventSet(arg->initialize_event);
+    DkEventSet(arg->initialize_event); // TODO: handle errors
 
     put_thread(my_thread);
 
@@ -250,7 +250,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         CSIGNAL;
 
     if (flags & ~supported_flags) {
-        debug("clone called with unsupported flags argument.\n");
+        log_warning("clone called with unsupported flags argument.\n");
         return -EINVAL;
     }
 
@@ -270,7 +270,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
      * explicitly disallowed for now. */
     if (flags & CLONE_VM) {
         if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
-            debug("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
+            log_warning("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
             return -EINVAL;
         }
     }
@@ -280,7 +280,8 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
          * corner-cases in signal handling and syscalls -- we simply treat vfork() as fork(). We
          * assume that performance hit is negligible (Graphene has to migrate internal state anyway
          * which is slow) and apps do not rely on insane Linux-specific semantics of vfork().  */
-        debug("vfork was called by the application, implemented as an alias to fork in Graphene\n");
+        log_warning("vfork was called by the application, implemented as an alias to fork in "
+                    "Graphene\n");
         flags &= ~(CLONE_VFORK | CLONE_VM);
     }
 
@@ -374,15 +375,15 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     struct shim_clone_args new_args;
     memset(&new_args, 0, sizeof(new_args));
 
-    new_args.create_event = DkNotificationEventCreate(PAL_FALSE);
-    if (!new_args.create_event) {
-        ret = -PAL_ERRNO();
+    ret = DkNotificationEventCreate(PAL_FALSE, &new_args.create_event);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto clone_thread_failed;
     }
 
-    new_args.initialize_event = DkNotificationEventCreate(PAL_FALSE);
-    if (!new_args.initialize_event) {
-        ret = -PAL_ERRNO();
+    ret = DkNotificationEventCreate(PAL_FALSE, &new_args.initialize_event);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         goto clone_thread_failed;
     }
 
@@ -402,9 +403,10 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     // child to run on the Parent allocated stack , so once the DkThreadCreate
     // returns .The parent comes back here - however, the child is Happily
     // running the function we gave to DkThreadCreate.
-    PAL_HANDLE pal_handle = DkThreadCreate(clone_implementation_wrapper, &new_args);
-    if (!pal_handle) {
-        ret = -PAL_ERRNO();
+    PAL_HANDLE pal_handle = NULL;
+    ret = DkThreadCreate(clone_implementation_wrapper, &new_args, &pal_handle);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
         put_thread(new_args.thread);
         goto clone_thread_failed;
     }
@@ -414,9 +416,9 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (set_parent_tid)
         *set_parent_tid = thread->tid;
 
-    DkEventSet(new_args.create_event);
+    DkEventSet(new_args.create_event); // TODO: handle errors
     object_wait_with_retry(new_args.initialize_event);
-    DkObjectClose(new_args.initialize_event);
+    DkObjectClose(new_args.initialize_event); // TODO: handle errors
 
     IDTYPE tid = thread->tid;
 

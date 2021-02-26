@@ -71,7 +71,9 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
         if (bkeep_munmap(vma->addr, vma->length, !!(vma->flags & VMA_INTERNAL), &tmp_vma) < 0) {
             BUG();
         }
-        DkVirtualMemoryFree(vma->addr, vma->length);
+        if (DkVirtualMemoryFree(vma->addr, vma->length) < 0) {
+            BUG();
+        }
         bkeep_remove_tmp_vma(tmp_vma);
     }
 
@@ -92,13 +94,13 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     cur_thread->robust_list = NULL;
 
-    debug("execve: start execution\n");
+    log_debug("execve: start execution\n");
     /* Passing ownership of `exec` to `execute_elf_object`. */
     execute_elf_object(exec, arg.new_argp, arg.new_auxv);
     /* NOTREACHED */
 
 error:
-    debug("execve: failed %d\n", ret);
+    log_error("execve: failed %d\n", ret);
     process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
 }
 
@@ -283,7 +285,7 @@ reopen:
         } while (!ended);
 
         if (!started) {
-            debug("file not recognized as ELF or shebang");
+            log_warning("file not recognized as ELF or shebang");
             put_handle(exec);
             return -ENOEXEC;
         }
@@ -295,7 +297,7 @@ reopen:
 
         struct sharg* first = LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
         assert(first);
-        debug("detected as script: run by %s\n", first->arg);
+        log_debug("detected as script: run by %s\n", first->arg);
         file = first->arg;
         LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
         put_handle(exec);

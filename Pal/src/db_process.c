@@ -16,22 +16,14 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-PAL_HANDLE DkProcessCreate(PAL_STR exec_uri, PAL_STR* args) {
+int DkProcessCreate(PAL_STR exec_uri, PAL_STR* args, PAL_HANDLE* handle) {
     assert(exec_uri);
 
-    PAL_HANDLE handle = NULL;
-    int ret = _DkProcessCreate(&handle, exec_uri, args);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        handle = NULL;
-    }
-
-    return handle;
+    *handle = NULL;
+    return _DkProcessCreate(handle, exec_uri, args);
 }
 
 noreturn void DkProcessExit(PAL_NUM exitcode) {
     _DkProcessExit(exitcode);
-    _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
     die_or_inf_loop();
 }

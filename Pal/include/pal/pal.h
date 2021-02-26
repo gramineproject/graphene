@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-/*
- * This file contains definition of PAL host ABI.
+/*!
+ * \file pal.h
+ * \brief This file contains definition of PAL host ABI.
  */
 
 #ifndef PAL_H
@@ -146,7 +147,7 @@ typedef struct PAL_CONTROL_ {
     PAL_STR executable;          /*!< initial executable name. TODO: remove from PAL */
     PAL_HANDLE parent_process;   /*!< handle of parent process */
     PAL_HANDLE first_thread;     /*!< handle of first thread */
-    PAL_NUM log_level;           /*!< what log messsages to enable */
+    int log_level;               /*!< what log messages to enable */
 
     /*
      * Memory layout
@@ -203,16 +204,17 @@ enum PAL_PROT {
 /*!
  * \brief Allocate virtual memory for the library OS and zero it out.
  *
- * \param addr
- *  can be either `NULL` or any valid address aligned at the allocation alignment. When `addr` is
- *  non-NULL, the API will try to allocate the memory at the given address and potentially rewrite
- *  any memory previously allocated at the same address. Overwriting any part of PAL and host kernel
- *  is forbidden.
+ * \param[in,out] addr
+ *  `*addr` can be any valid address aligned at the allocation alignment or `NULL`, in which case
+ *  a suitable address will be picked automatically. Any memory previously allocated at the same
+ *  address will be discarded (only if `*addr` was provided). Overwriting any part of PAL memory is
+ *  forbidden. On successful return `*addr` will contain the allocated address (which can differ
+ *  only in the `NULL` case).
  * \param size must be a positive number, aligned at the allocation alignment.
  * \param alloc_type can be a combination of any of the #PAL_ALLOC flags
  * \param prot can be a combination of the #PAL_PROT flags
  */
-PAL_PTR DkVirtualMemoryAlloc(PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot);
+int DkVirtualMemoryAlloc(PAL_PTR* addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot);
 
 /*!
  * \brief This API deallocates a previously allocated memory mapping.
@@ -222,18 +224,18 @@ PAL_PTR DkVirtualMemoryAlloc(PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type, PAL
  *
  * Both `addr` and `size` must be non-zero and aligned at the allocation alignment.
  */
-void DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size);
+int DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size);
 
 /*!
  * \brief Modify the permissions of a previously allocated memory mapping.
  *
  * \param addr the address
  * \param size the size
- * \param prot see #DkVirtualMemoryAlloc()
+ * \param prot see #DkVirtualMemoryAlloc
  *
  * Both `addr` and `size` must be non-zero and aligned at the allocation alignment.
  */
-PAL_BOL DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
+int DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 
 /*
  * PROCESS CREATION
@@ -246,8 +248,9 @@ PAL_BOL DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
  *
  * \param exec_uri the URI of the executable to be loaded in the new process.
  * \param args an array of strings -- the arguments to be passed to the new process.
+ * \param[out] handle on success contains the process handle.
  */
-PAL_HANDLE DkProcessCreate(PAL_STR exec_uri, PAL_STR* args);
+int DkProcessCreate(PAL_STR exec_uri, PAL_STR* args, PAL_HANDLE* handle);
 
 /*!
  * \brief Terminate all threads in the process immediately.
@@ -307,9 +310,6 @@ enum PAL_OPTION {
     PAL_OPTION_MASK          = 7,
 };
 
-/*! error value of read/write */
-#define PAL_STREAM_ERROR ((PAL_NUM)-1L)
-
 #define WITHIN_MASK(val, mask) (((val) | (mask)) == (mask))
 
 /*!
@@ -320,9 +320,10 @@ enum PAL_OPTION {
  * \param share_flags can be a combination of the #PAL_SHARE flags
  * \param create can be a combination of the #PAL_CREATE flags
  * \param options can be a combination of the #PAL_OPTION flags
+ * \param handle[out] if the resource is successfully opened or created, a PAL handle is returned
+ *                    in `*handle` for further access such as reading or writing.
  *
- * \return If the resource is successfully opened or created, a PAL handle will be returned for
- * further access such as reading or writing.
+ * \return 0 on success, negative error code on failure.
  *
  * Supported URI types:
  * * `%file:...`, `dir:...`: Files or directories on the host file system. If #PAL_CREATE_TRY is
@@ -336,39 +337,55 @@ enum PAL_OPTION {
  * * `udp.srv:<ADDR>:<PORT>`, `udp:<ADDR>:<PORT>`: Open a UDP socket to listen or connect to
  *   a remote UDP socket.
  */
-PAL_HANDLE DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share_flags, PAL_FLG create,
-                        PAL_FLG options);
+int DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share_flags, PAL_FLG create, PAL_FLG options,
+                 PAL_HANDLE* handle);
 
 /*!
  * \brief Blocks until a new connection is accepted and returns the PAL handle for the connection.
  *
+ * \param handle handle to accept a new connection on.
+ * \param[out] client on success holds handle for the new connection.
+ *
  * This API is only available for handles that are opened with `pipe.srv:...`, `tcp.srv:...`, and
  * `udp.srv:...`.
  */
-PAL_HANDLE DkStreamWaitForClient(PAL_HANDLE handle);
+int DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client);
 
 /*!
  * \brief Read data from an open stream.
  *
- * If the handle is a file, `offset` must be specified at each call of DkStreamRead. `source` and
- * `size` can be used to return the remote socket address if the handle is a UDP socket. If the
- * handle is a directory, DkStreamRead fills the buffer with the names (NULL-ended) of the files or
- * subdirectories inside of this directory.
+ * \param handle handle to the stream.
+ * \param offset offset to read at. If \p handle is a file, \p offset must be specified at each
+ *               call.
+ * \param[in,out] count on function call should contain the size of \p buffer. On successful return
+ *                contains the number of bytes read.
+ * \param buffer pointer to the buffer to read into.
+ * \param[out] source if \p handle is a UDP socket, \p size is not zero and \p source is not NULL,
+ *             the remote socket address is returned in it.
+ * \param size size of the \p source buffer.
+ *
+ * \return 0 on success, negative error code on failure.
+ *
+ * If \p handle is a directory, DkStreamRead fills the buffer with the null-terminated names of the
+ * directory entries.
  */
-PAL_NUM DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer,
-                     PAL_PTR source, PAL_NUM size);
+int DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buffer, PAL_PTR source,
+                 PAL_NUM size);
 
 /*!
  * \brief Write data to an open stream.
  *
- * If the handle is a file, `offset` must be specified at each call of DkStreamWrite. `dest` can be
- * used to specify the remote socket address if the handle is a UDP socket.
+ * \param handle handle to the stream.
+ * \param offset offset to write to. If \p handle is a file, \p offset must be specified at each
+ *               call.
+ * \param[in,out] count on function call should contain the size of \p buffer. On successful return
+ *                contains the number of bytes written.
+ * \param buffer pointer to the buffer to write from.
+ * \param dest if the handle is a UDP socket, specifies the remote socket address.
  *
- * \return number of bytes written if succeeded, PAL_STREAM_ERROR on failure (in which case
- *  PAL_ERRNO() is set)
+ * \return 0 on success, negative error code on failure.
  */
-PAL_NUM DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer,
-                      PAL_STR dest);
+int DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buffer, PAL_STR dest);
 
 enum PAL_DELETE {
     PAL_DELETE_RD = 1, /*!< shut down the read side only */
@@ -380,36 +397,43 @@ enum PAL_DELETE {
  *
  * \param access which side to shut down (#PAL_DELETE), or both if 0 is given.
  */
-void DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
+int DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
 
 /*!
  * \brief Map a file to a virtual memory address in the current process.
  *
- * \param address can be NULL or a valid address that is aligned at the allocation alignment.
- * \param prot see #DkVirtualMemoryAlloc()
+ * \param handle handle to the stream to be mapped.
+ * \param[in,out] addr see #DkVirtualMemoryAlloc
+ * \param prot see #DkVirtualMemoryAlloc
+ * \param offset offset in the stream to be mapped. Must be properly aligned.
+ * \param size size of the requested mapping. Must be non-zero and properly aligned.
  *
- * `offset` and `size` have to be non-zero and aligned at the allocation alignment
+ * \return 0 on success, negative error code on failure.
  */
-PAL_PTR DkStreamMap(PAL_HANDLE handle, PAL_PTR address, PAL_FLG prot, PAL_NUM offset, PAL_NUM size);
+int DkStreamMap(PAL_HANDLE handle, PAL_PTR* addr, PAL_FLG prot, PAL_NUM offset, PAL_NUM size);
 
 /*!
  * \brief Unmap virtual memory that is backed by a file stream.
  *
  * `addr` and `size` must be aligned at the allocation alignment
+ *
+ * \return 0 on success, negative error code on failure.
  */
-void DkStreamUnmap(PAL_PTR addr, PAL_NUM size);
+int DkStreamUnmap(PAL_PTR addr, PAL_NUM size);
 
 /*!
  * \brief Set the length of the file referenced by handle to `length`.
  *
- * \return Returns the 0 on success, a _positive_ errno on failure.
+ * \return 0 on success, negative error code on failure.
  */
-PAL_NUM DkStreamSetLength(PAL_HANDLE handle, PAL_NUM length);
+int DkStreamSetLength(PAL_HANDLE handle, PAL_NUM length);
 
 /*!
  * \brief Flush the buffer of a file stream.
+ *
+ * \return 0 on success, negative error code on failure.
  */
-PAL_BOL DkStreamFlush(PAL_HANDLE handle);
+int DkStreamFlush(PAL_HANDLE handle);
 
 /*!
  * \brief Send a PAL handle over another handle.
@@ -417,13 +441,19 @@ PAL_BOL DkStreamFlush(PAL_HANDLE handle);
  * Currently, the handle that is used to send cargo must be a process handle.
  *
  * \param cargo the handle being sent
+ *
+ * \return 0 on success, negative error code on failure.
  */
-PAL_BOL DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo);
+int DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo);
 
 /*!
  * \brief This API receives a handle over another handle.
+ *
+ * TODO: document usage and parameters.
+ *
+ * \return 0 on success, negative error code on failure.
  */
-PAL_HANDLE DkReceiveHandle(PAL_HANDLE handle);
+int DkReceiveHandle(PAL_HANDLE handle, PAL_HANDLE* cargo);
 
 /* stream attribute structure */
 typedef struct _PAL_STREAM_ATTR {
@@ -452,29 +482,29 @@ typedef struct _PAL_STREAM_ATTR {
  *
  * This API only applies for URIs such as `%file:...`, `dir:...`, and `dev:...`.
  */
-PAL_BOL DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr);
+int DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr);
 
 /*!
  * \brief Query the attributes of an open stream.
  *
  * This API applies to any stream handle.
  */
-PAL_BOL DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
+int DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
 /*!
  * \brief Set the attributes of an open stream.
  */
-PAL_BOL DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
+int DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
 /*!
- * \brief Query the name of an open stream.
+ * \brief Query the name of an open stream. On success `buffer` contains a null-terminated string.
  */
-PAL_NUM DkStreamGetName(PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size);
+int DkStreamGetName(PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size);
 
 /*!
  * \brief This API changes the name of an open stream.
  */
-PAL_BOL DkStreamChangeName(PAL_HANDLE handle, PAL_STR uri);
+int DkStreamChangeName(PAL_HANDLE handle, PAL_STR uri);
 
 /*
  * Thread creation
@@ -487,8 +517,9 @@ PAL_BOL DkStreamChangeName(PAL_HANDLE handle, PAL_STR uri);
  *
  * \param addr is the address of an entry point of execution for the new thread
  * \param param is the pointer argument that is passed to the new thread
+ * \param[out] handle on success contains the thread handle
  */
-PAL_HANDLE DkThreadCreate(PAL_PTR addr, PAL_PTR param);
+int DkThreadCreate(PAL_PTR addr, PAL_PTR param, PAL_HANDLE* handle);
 
 /*!
  * \brief Suspend the current thread for a certain duration
@@ -514,7 +545,7 @@ noreturn void DkThreadExit(PAL_PTR clear_child_tid);
 /*!
  * \brief Resume a thread.
  */
-PAL_BOL DkThreadResume(PAL_HANDLE thread);
+int DkThreadResume(PAL_HANDLE thread);
 
 /*!
  * \brief Sets the CPU affinity of a thread.
@@ -526,9 +557,9 @@ PAL_BOL DkThreadResume(PAL_HANDLE thread);
  * \param cpumask_size size in bytes of the bitmask pointed by \a cpu_mask.
  * \param cpu_mask pointer to the new CPU mask.
  *
- * \return Returns 1 on success, 0 on failure. Use PAL_ERRNO() to get the actual error code.
+ * \return Returns 0 on success, negative error code on failure.
  */
-PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+int DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
 /*!
  * \brief Gets the CPU affinity of a thread.
@@ -541,9 +572,9 @@ PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR 
  * \param cpumask_size size in bytes of the bitmask pointed by \a cpu_mask.
  * \param cpu_mask pointer to hold the current CPU mask.
  *
- * \return Returns 1 on success, 0 on failure. Use PAL_ERRNO() to get the actual error code.
+ * \return Returns 0 on success, negative error code on failure.
  */
-PAL_BOL DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+int DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
 /*
  * Exception Handling
@@ -560,8 +591,6 @@ enum PAL_EVENT {
     PAL_EVENT_QUIT,
     /*! interrupted (usually internally to handle aync event) */
     PAL_EVENT_INTERRUPTED,
-    /*! failure within PAL calls */
-    PAL_EVENT_FAILURE,
 
     PAL_EVENT_NUM_BOUND,
 };
@@ -580,7 +609,7 @@ typedef void (*PAL_EVENT_HANDLER)(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* con
  *
  * \param event can be one of #PAL_EVENT values
  */
-PAL_BOL DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
+void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
 
 /*
  * Synchronization
@@ -592,8 +621,9 @@ PAL_BOL DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
  * Destroy a mutex using DkObjectClose.
  *
  * \param initialCount 0 is unlocked, 1 is locked
+ * \param[out] handle on success contains the mutex handle
  */
-PAL_HANDLE DkMutexCreate(PAL_NUM initialCount);
+int DkMutexCreate(PAL_NUM initialCount, PAL_HANDLE* handle);
 
 /*!
  * \brief Unlock the given mutex.
@@ -603,31 +633,37 @@ void DkMutexRelease(PAL_HANDLE mutexHandle);
 /*!
  * \brief Creates a notification event with the given `initialState`.
  *
+ * \param initialState initial state of the event
+ * \param[out] handle on success `*handle` contains pointer to the event handle
+ *
  * The definition of notification events is the same as the WIN32 API. When
  * a notification event is set to the signaled state it remains in that state
  * until it is explicitly cleared.
  */
-PAL_HANDLE DkNotificationEventCreate(PAL_BOL initialState);
+int DkNotificationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle);
 
 /*!
  * \brief Creates a synchronization event with the given `initialState`.
+ *
+ * \param initialState initial state of the event
+ * \param[out] handle on success `*handle` contains pointer to the event handle
  *
  * The definition of synchronization events is the same as the WIN32 API. When
  * a synchronization event is set to the signaled state, a single thread of
  * execution that was waiting for the event is released, and the event is
  * automatically reset to the not-signaled state.
  */
-PAL_HANDLE DkSynchronizationEventCreate(PAL_BOL initialState);
+int DkSynchronizationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle);
 
 /*!
  * \brief Set (signal) a notification event or a synchronization event.
  */
-void DkEventSet(PAL_HANDLE eventHandle);
+int DkEventSet(PAL_HANDLE eventHandle);
 
 /*!
  * \brief Clear a notification event or a synchronization event.
  */
-void DkEventClear(PAL_HANDLE eventHandle);
+int DkEventClear(PAL_HANDLE eventHandle);
 
 /*! block until the handle's event is triggered */
 #define NO_TIMEOUT ((PAL_NUM)-1)
@@ -638,9 +674,9 @@ void DkEventClear(PAL_HANDLE eventHandle);
  * \param timeout_us is the maximum time that the API should wait (in
  *  microseconds), or #NO_TIMEOUT to indicate it is to be blocked until the
  *  handle's event is triggered.
- * \return true if this handle's event was triggered, false otherwise
+ * \return 0 if this handle's event was triggered, negative error code otherwise
  */
-PAL_BOL DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us);
+int DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us);
 
 enum PAL_WAIT {
     PAL_WAIT_SIGNAL = 1, /*!< ignored in events */
@@ -659,10 +695,10 @@ enum PAL_WAIT {
  * \param timeout_us is the maximum time that the API should wait (in
  *  microseconds), or `NO_TIMEOUT` to indicate it is to be blocked until at
  *  least one handle is ready.
- * \return true if there was an event on at least one handle, false otherwise
+ * \return 0 if there was an event on at least one handle, negative error code otherwise
  */
-PAL_BOL DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
-                            PAL_FLG* ret_events, PAL_NUM timeout_us);
+int DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
+                        PAL_FLG* ret_events, PAL_NUM timeout_us);
 
 /*!
  * \brief Close (deallocate) a PAL handle.
@@ -676,16 +712,20 @@ void DkObjectClose(PAL_HANDLE objectHandle);
 /*!
  * \brief Output a message to the debug stream.
  *
- * \return number of bytes written if succeeded, PAL_STREAM_ERROR on failure (in which case
- *  PAL_ERRNO() is set)
+ * \param buffer message to write.
+ * \param[in,out] on entry `*size` should hold \p buffer size. On successful return it contains
+ *                the number of bytes written.
+ *
+ * \return 0 on success, negative error code on failure.
  */
-PAL_NUM DkDebugLog(PAL_PTR buffer, PAL_NUM size);
+int DkDebugLog(PAL_PTR buffer, PAL_NUM* size);
 
 /*!
  * \brief Get the current time
- * \return the current time in microseconds
+ *
+ * \param[out] time on success holds the current time in microseconds
  */
-PAL_NUM DkSystemTimeQuery(void);
+int DkSystemTimeQuery(PAL_NUM* time);
 
 /*!
  * \brief Cryptographically secure random.
@@ -694,7 +734,7 @@ PAL_NUM DkSystemTimeQuery(void);
  * \param[in] size buffer size
  * \return 0 on success, negative on failure
  */
-PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size);
+int DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size);
 
 enum PAL_SEGMENT {
     PAL_SEGMENT_FS = 1,
@@ -707,9 +747,9 @@ enum PAL_SEGMENT {
  * \param reg the register to get (#PAL_SEGMENT)
  * \param addr the address where result will be stored
  *
- * \return true on success, false on error
+ * \return 0 on success, negative error value on failure
  */
-PAL_BOL DkSegmentRegisterGet(PAL_FLG reg, PAL_PTR* addr);
+int DkSegmentRegisterGet(PAL_FLG reg, PAL_PTR* addr);
 
 /*!
  * \brief Set segment register
@@ -717,9 +757,9 @@ PAL_BOL DkSegmentRegisterGet(PAL_FLG reg, PAL_PTR* addr);
  * \param reg the register to be set (#PAL_SEGMENT)
  * \param addr the address to be set
  *
- * \return true on success, false on error
+ * \return 0 on success, negative error value on failure
  */
-PAL_BOL DkSegmentRegisterSet(PAL_FLG reg, PAL_PTR addr);
+int DkSegmentRegisterSet(PAL_FLG reg, PAL_PTR addr);
 
 /*!
  * \brief Return the amount of currently available memory for LibOS/application
@@ -757,9 +797,9 @@ PAL_NUM DkMemoryAvailableQuota(void);
  * \param[in,out] report_size            Caller specifies size of `report`; on return, contains
  *                                       PAL-enforced size of `report` (432B in case of SGX PAL).
  */
-PAL_BOL DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
-                            PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
-                            PAL_NUM* report_size);
+int DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
+                        PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
+                        PAL_NUM* report_size);
 
 /*!
  * \brief Obtain the attestation quote with `user_report_data` embedded into it.
@@ -776,8 +816,8 @@ PAL_BOL DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_
  * \param[in,out] quote_size             Caller specifies maximum size allocated for `quote`; on
  *                                       return, contains actual size of obtained quote.
  */
-PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size, PAL_PTR quote,
-                           PAL_NUM* quote_size);
+int DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size, PAL_PTR quote,
+                       PAL_NUM* quote_size);
 
 /*!
  * \brief Set wrap key (master key) for protected files.
@@ -788,7 +828,7 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
  * \param[in]     pf_key_hex       Wrap key for protected files. Must be a 32-char null-terminated
  *                                 hex string in case of SGX PAL (AES-GCM encryption key).
  */
-PAL_BOL DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
+int DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
 
 #ifdef __GNUC__
 #define symbol_version_default(real, name, version) \
@@ -803,7 +843,7 @@ PAL_BOL DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
  *
  * \param[out] values the array of the results
  */
-PAL_BOL DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
+int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
 #endif
 
 #endif /* PAL_H */

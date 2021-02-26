@@ -19,7 +19,7 @@ long shim_do_arch_prctl(int code, void* addr) {
             return 0;
 
         case ARCH_GET_FS:
-            return DkSegmentRegisterGet(PAL_SEGMENT_FS, addr) ? 0 : -PAL_ERRNO();
+            return pal_to_unix_errno(DkSegmentRegisterGet(PAL_SEGMENT_FS, addr));
 
         default:
             log_warning("Not supported flag (0x%x) passed to arch_prctl\n", code);

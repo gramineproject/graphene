@@ -29,28 +29,36 @@ int main(int argc, char** argv, char** envp) {
     volatile int c;
     DkSetExceptionHandler(handler, PAL_EVENT_MEMFAULT);
 
-    void* mem1 = (void*)DkVirtualMemoryAlloc(NULL, UNIT * 4, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    void* mem1 = NULL;
+    int ret = DkVirtualMemoryAlloc(&mem1, UNIT * 4, 0, PAL_PROT_READ | PAL_PROT_WRITE);
 
-    if (mem1)
+    if (!ret && mem1)
         pal_printf("Memory Allocation OK\n");
 
-    void* mem2 = (void*)DkVirtualMemoryAlloc(NULL, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    void* mem2 = NULL;
+    ret = DkVirtualMemoryAlloc(&mem2, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
 
-    if (mem2) {
+    if (!ret && mem2) {
         c                    = count;
         *(volatile int*)mem2 = 0;
         pal_printf("(int *) %p = %d\n", mem2, *(volatile int*)mem2);
         if (c == count)
             pal_printf("Memory Allocation Protection (RW) OK\n");
 
-        DkVirtualMemoryProtect(mem2, UNIT, PAL_PROT_READ);
+        if (DkVirtualMemoryProtect(mem2, UNIT, PAL_PROT_READ) < 0) {
+            pal_printf("DkVirtualMemoryProtect on `mem2` failed\n");
+            return 1;
+        }
         c                    = count;
         *(volatile int*)mem2 = 0;
         __asm__ volatile("nop");
         if (c == count - 1)
             pal_printf("Memory Protection (R) OK\n");
 
-        DkVirtualMemoryFree(mem2, UNIT);
+        if (DkVirtualMemoryFree(mem2, UNIT) < 0) {
+            pal_printf("DkVirtualMemoryFree on `mem2` failed\n");
+            return 1;
+        }
         c                    = count;
         *(volatile int*)mem2 = 0;
         __asm__ volatile("nop");
@@ -61,10 +69,10 @@ int main(int argc, char** argv, char** envp) {
     void* mem3 = (void*)pal_control.user_address.start;
     void* mem4 = (void*)pal_control.user_address.end - UNIT;
 
-    mem3 = (void*)DkVirtualMemoryAlloc(mem3, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
-    mem4 = (void*)DkVirtualMemoryAlloc(mem4, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    int ret2 = DkVirtualMemoryAlloc(&mem3, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    ret = DkVirtualMemoryAlloc(&mem4, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
 
-    if (mem3 && mem4)
+    if (!ret && !ret2 && mem3 && mem4)
         pal_printf("Memory Allocation with Address OK\n");
 
     /* Testing total memory */

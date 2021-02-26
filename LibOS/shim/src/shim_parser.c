@@ -576,41 +576,41 @@ struct parser_table {
     [__NR_io_uring_register] = {.slow = false, .name = "io_uring_register", .parser = {NULL}},
 };
 
-#define S(sig) #sig
-
 const char* const siglist[SIGRTMIN] = {
-    [0]         = "BAD SIGNAL",
-    [SIGHUP]    = S(SIGHUP),
-    [SIGINT]    = S(SIGINT),
-    [SIGQUIT]   = S(SIGQUIT),
-    [SIGILL]    = S(SIGILL),
-    [SIGTRAP]   = S(SIGTRAP),
-    [SIGABRT]   = S(SIGABRT),
-    [SIGBUS]    = S(SIGBUS),
-    [SIGFPE]    = S(SIGFPE),
-    [SIGKILL]   = S(SIGKILL),
-    [SIGUSR1]   = S(SIGUSR1),
-    [SIGSEGV]   = S(SIGSEGV),
-    [SIGUSR2]   = S(SIGUSR2),
-    [SIGPIPE]   = S(SIGPIPE),
-    [SIGALRM]   = S(SIGALRM),
-    [SIGTERM]   = S(SIGTERM),
-    [SIGSTKFLT] = S(SIGSTKFLT),
-    [SIGCHLD]   = S(SIGCHLD),
-    [SIGCONT]   = S(SIGCONT),
-    [SIGSTOP]   = S(SIGSTOP),
-    [SIGTSTP]   = S(SIGTSTP),
-    [SIGTTIN]   = S(SIGTTIN),
-    [SIGTTOU]   = S(SIGTTOU),
-    [SIGURG]    = S(SIGURG),
-    [SIGXCPU]   = S(SIGXCPU),
-    [SIGXFSZ]   = S(SIGXFSZ),
-    [SIGVTALRM] = S(SIGVTALRM),
-    [SIGPROF]   = S(SIGPROF),
-    [SIGWINCH]  = S(SIGWINCH),
-    [SIGIO]     = S(SIGIO),
-    [SIGPWR]    = S(SIGPWR),
-    [SIGSYS]    = S(SIGSYS),
+    [0] = "BAD SIGNAL",
+#define S(sig) [sig] = #sig
+    S(SIGHUP),
+    S(SIGINT),
+    S(SIGQUIT),
+    S(SIGILL),
+    S(SIGTRAP),
+    S(SIGABRT),
+    S(SIGBUS),
+    S(SIGFPE),
+    S(SIGKILL),
+    S(SIGUSR1),
+    S(SIGSEGV),
+    S(SIGUSR2),
+    S(SIGPIPE),
+    S(SIGALRM),
+    S(SIGTERM),
+    S(SIGSTKFLT),
+    S(SIGCHLD),
+    S(SIGCONT),
+    S(SIGSTOP),
+    S(SIGTSTP),
+    S(SIGTTIN),
+    S(SIGTTOU),
+    S(SIGURG),
+    S(SIGXCPU),
+    S(SIGXFSZ),
+    S(SIGVTALRM),
+    S(SIGPROF),
+    S(SIGWINCH),
+    S(SIGIO),
+    S(SIGPWR),
+    S(SIGSYS),
+#undef S
 };
 
 static const char* signal_name(int sig, char str[6]) {
@@ -627,17 +627,17 @@ static const char* signal_name(int sig, char str[6]) {
     return str;
 }
 
-#define PRINTF(fmt, ...)                \
-    do {                                \
-        debug_printf(fmt, __VA_ARGS__); \
+#define PRINTF(fmt, ...)             \
+    do {                             \
+        log_trace(fmt, __VA_ARGS__); \
     } while (0)
-#define PUTS(str)        \
-    do {                 \
-        debug_puts(str); \
+#define PUTS(str)             \
+    do {                      \
+        log_trace("%s", str); \
     } while (0)
-#define PUTCH(ch)        \
-    do {                 \
-        debug_putch(ch); \
+#define PUTCH(ch)            \
+    do {                     \
+        log_trace("%c", ch); \
     } while (0)
 
 struct flag_table {
@@ -1537,17 +1537,24 @@ static void parse_pointer_ret(va_list* ap) {
     }
 }
 
-static void print_syscall_name(const char* name, int sysno) {
+static void print_syscall_name(const char* name, unsigned long sysno) {
     PUTS("shim_");
     if (name) {
         PRINTF("%s", name);
     } else {
-        PRINTF("syscall%d", sysno);
+        PRINTF("syscall%lu", sysno);
     }
 }
 
-void debug_print_syscall_before(int sysno, ...) {
-    if (g_log_level < PAL_LOG_DEBUG)
+void warn_unsupported_syscall(unsigned long sysno) {
+    if (sysno < ARRAY_SIZE(syscall_parser_table) && syscall_parser_table[sysno].name)
+        log_warning("Unsupported system call %s\n", syscall_parser_table[sysno].name);
+    else
+        log_warning("Unsupported system call %lu\n", sysno);
+}
+
+void debug_print_syscall_before(unsigned long sysno, ...) {
+    if (g_log_level < PAL_LOG_TRACE)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
@@ -1578,8 +1585,8 @@ void debug_print_syscall_before(int sysno, ...) {
     va_end(ap);
 }
 
-void debug_print_syscall_after(int sysno, ...) {
-    if (g_log_level < PAL_LOG_DEBUG)
+void debug_print_syscall_after(unsigned long sysno, ...) {
+    if (g_log_level < PAL_LOG_TRACE)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];

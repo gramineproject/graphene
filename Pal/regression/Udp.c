@@ -9,61 +9,110 @@ char buffer[20];
 
 int main(int argc, char** argv) {
     int i;
+    int ret;
 
     if (argc == 1) {
-        unsigned long start = DkSystemTimeQuery();
+        unsigned long start = 0;
+        if (DkSystemTimeQuery(&start) < 0) {
+            pal_printf("DkSystemTimeQuery failed\n");
+            return 1;
+        }
 
         const char* newargs[3] = {"Udp", "child", NULL};
 
-        PAL_HANDLE srv = DkStreamOpen("udp.srv:127.0.0.1:8000", 0, 0, 0, 0);
+        PAL_HANDLE srv = NULL;
+        ret = DkStreamOpen("udp.srv:127.0.0.1:8000", 0, 0, 0, 0, &srv);
 
-        if (!srv) {
+        if (ret < 0) {
             pal_printf("not able to create server\n");
-            return -1;
+            return 1;
         }
 
-        DkStreamGetName(srv, addr, 40);
+        ret = DkStreamGetName(srv, addr, sizeof(addr));
+        if (ret < 0) {
+            pal_printf("DkStreamGetName failed\n");
+            return 1;
+        }
         pal_printf("server bound on %s\n", addr);
 
-        PAL_HANDLE proc = DkProcessCreate("file:Udp", newargs);
+        PAL_HANDLE proc = NULL;
+        if (DkProcessCreate("file:Udp", newargs, &proc) < 0) {
+            pal_printf("Udp: DkProcessCreate failed\n");
+            return 1;
+        }
 
         for (i = 0; i < NTRIES; i++) {
-            int bytes = DkStreamRead(srv, 0, 20, buffer, addr, 40);
+            size_t bytes = sizeof(buffer);
+            ret = DkStreamRead(srv, 0, &bytes, buffer, addr, sizeof(addr));
 
-            if (!bytes) {
+            if (ret < 0 || bytes == 0) {
                 pal_printf("not able to receive from client\n");
-                return -1;
+                return 1;
             }
 
             pal_printf("read on server (from %s): %s\n", addr, buffer);
         }
 
-        unsigned long end = DkSystemTimeQuery();
+        unsigned long end = 0;
+        if (DkSystemTimeQuery(&end) < 0) {
+            pal_printf("DkSystemTimeQuery failed\n");
+            return 1;
+        }
         pal_printf("wall time = %ld\n", end - start);
 
         int retval;
-        DkStreamRead(proc, 0, sizeof(int), &retval, NULL, 0);
-        DkStreamDelete(srv, 0);
+        size_t retval_size = sizeof(retval);
+        ret = DkStreamRead(proc, 0, &retval_size, &retval, NULL, 0);
+        if (ret < 0) {
+            pal_printf("DkStreamRead failed\n");
+            return 1;
+        }
+        if (retval_size != sizeof(retval)) {
+            pal_printf("DkStreamRead - short read\n");
+            return 1;
+        }
+
+        ret = DkStreamDelete(srv, 0);
+        if (ret < 0) {
+            pal_printf("DkStreamDelete failed\n");
+            return 1;
+        }
         DkObjectClose(srv);
     } else {
-        PAL_HANDLE cli = DkStreamOpen("udp:127.0.0.1:8000", 0, 0, 0, 0);
+        PAL_HANDLE cli = NULL;
+        ret = DkStreamOpen("udp:127.0.0.1:8000", 0, 0, 0, 0, &cli);
+        if (ret < 0) {
+            pal_printf("DkStreamOpen failed\n");
+            return 1;
+        }
 
-        DkStreamGetName(cli, addr, 40);
+        ret = DkStreamGetName(cli, addr, sizeof(addr));
+        if (ret < 0) {
+            pal_printf("DkStreamGetName failed\n");
+            return 1;
+        }
         pal_printf("client connected on %s\n", addr);
 
         for (i = 0; i < NTRIES; i++) {
-            int bytes = DkStreamWrite(cli, 0, 12, "Hello World", NULL);
+            char buf[12] = "Hello World";
+            size_t buf_size = sizeof(buf);
+            ret = DkStreamWrite(cli, 0, &buf_size, buf, NULL);
 
-            if (!bytes) {
+            if (ret < 0 || buf_size != sizeof(buf)) {
                 pal_printf("not able to send to server\n");
-                return -1;
+                return 1;
             }
         }
 
         DkObjectClose(cli);
 
         int retval = 0;
-        DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &retval, NULL);
+        size_t retval_size = sizeof(retval);
+        ret = DkStreamWrite(pal_control.parent_process, 0, &retval_size, &retval, NULL);
+        if (ret < 0 || retval_size != sizeof(retval)) {
+            pal_printf("DkStreamWrite failed\n");
+            return 1;
+        }
     }
 
     return 0;

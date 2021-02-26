@@ -184,7 +184,7 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
                 goto out;
             }
 
-            debug("add fd %d (handle %p) to epoll handle %p\n", fd, hdl, epoll);
+            log_debug("add fd %d (handle %p) to epoll handle %p\n", fd, hdl, epoll);
             epoll_item->fd        = fd;
             epoll_item->events    = event->events;
             epoll_item->data      = event->data;
@@ -216,7 +216,7 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
                     epoll_item->events = event->events;
                     epoll_item->data   = event->data;
 
-                    debug("modified fd %d at epoll handle %p\n", fd, epoll);
+                    log_debug("modified fd %d at epoll handle %p\n", fd, epoll);
                     notify_epoll_waiters(epoll);
                     goto out;
                 }
@@ -230,7 +230,7 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
             LISTP_FOR_EACH_ENTRY(epoll_item, &epoll->fds, list) {
                 if (epoll_item->fd == fd) {
                     struct shim_handle* hdl = epoll_item->handle;
-                    debug("delete fd %d (handle %p) from epoll handle %p\n", fd, hdl, epoll);
+                    log_debug("delete fd %d (handle %p) from epoll handle %p\n", fd, hdl, epoll);
 
                     /* unregister hdl (corresponding to FD) in epoll (corresponding to EPFD):
                      * - unbind hdl from epoll-item via the `back` list
@@ -336,9 +336,10 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
         unlock(&epoll_hdl->lock);
 
         /* TODO: Timeout must be updated in case of retries; otherwise, we may wait for too long */
-        PAL_BOL polled = DkStreamsWaitEvents(pal_cnt + 1, pal_handles, pal_events, ret_events,
-                                             timeout_ms * 1000);
-        long error = polled ? 0 : -PAL_ERRNO();
+        long error = DkStreamsWaitEvents(pal_cnt + 1, pal_handles, pal_events, ret_events,
+                                         timeout_ms * 1000);
+        bool polled = error == 0;
+        error = pal_to_unix_errno(error);
 
         lock(&epoll_hdl->lock);
         __atomic_sub_fetch(&epoll->waiter_cnt, 1, __ATOMIC_RELAXED);
@@ -464,7 +465,7 @@ BEGIN_CP_FUNC(epoll_item) {
     LISTP_TYPE(shim_epoll_item)* new_list = (LISTP_TYPE(shim_epoll_item)*)objp;
     struct shim_epoll_item* epoll_item;
 
-    debug("checkpoint epoll: %p -> %p (base = 0x%08lx)\n", old_list, new_list, base);
+    log_debug("checkpoint epoll: %p -> %p (base = 0x%08lx)\n", old_list, new_list, base);
 
     INIT_LISTP(new_list);
 

@@ -34,7 +34,6 @@ struct shim_tcb {
     /* Scratch space to temporarily store a register. On some architectures (e.g. x86_64 inside
      * an SGX enclave) we lack a way to restore all (or at least some) registers atomically. */
     void*               syscall_scratch_pc;
-    int                 pal_errno;
     struct debug_buf*   debug_buf;
     void*               vma_cache;
 

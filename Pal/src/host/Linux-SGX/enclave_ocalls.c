@@ -1348,15 +1348,13 @@ int ocall_sleep(uint64_t* microsec) {
     /* NOTE: no reason to use exitless for sleep() */
     retval = sgx_ocall(OCALL_SLEEP, ms);
     if (microsec) {
-        if (!retval) {
-            *microsec = 0;
-        } else if (retval == -EINTR) {
-            uint64_t untrusted_microsec = READ_ONCE(ms->ms_microsec);
-            if (*microsec < untrusted_microsec) {
+        if (retval) {
+            uint64_t untrusted_microsec_remaining = READ_ONCE(ms->ms_microsec);
+            if (*microsec < untrusted_microsec_remaining) {
                 retval = -EPERM;
                 goto out;
             }
-            *microsec = untrusted_microsec;
+            *microsec -= untrusted_microsec_remaining;
         }
     }
 

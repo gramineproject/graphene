@@ -43,7 +43,7 @@ long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
     if (act && !(act->sa_flags & SA_RESTORER)) {
         /* XXX: This might not be true for all architectures (but is for x86_64)...
          * Check `shim_signal.c` if you update this! */
-        debug("SA_RESTORER flag is required!\n");
+        log_warning("rt_sigaction: SA_RESTORER flag is required!\n");
         return -EINVAL;
     }
 
@@ -197,7 +197,7 @@ long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr, size_t setsize) {
     set_sig_mask(current, &mask);
     unlock(&current->lock);
 
-    DkEventClear(current->scheduler_event);
+    DkEventClear(current->scheduler_event); // TODO: handle errors
     while (!have_pending_signals()) {
         int ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/false);
         if (ret < 0 && ret != -EINTR && ret != -EAGAIN) {
@@ -262,8 +262,12 @@ static int _wakeup_one_thread(struct shim_thread* thread, void* arg) {
 
     if (!__sigismember(&thread->signal_mask, sig)) {
         thread_wakeup(thread);
-        DkThreadResume(thread->pal_handle);
-        ret = 1;
+        ret = DkThreadResume(thread->pal_handle);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
+        } else {
+            ret = 1;
+        }
     }
 
     unlock(&thread->lock);
@@ -397,11 +401,11 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
         }
         if (thread != get_cur_thread()) {
             thread_wakeup(thread);
-            DkThreadResume(thread->pal_handle);
+            ret = pal_to_unix_errno(DkThreadResume(thread->pal_handle));
         }
 
         put_thread(thread);
-        return 0;
+        return ret;
     }
 
 maybe_try_ipc:

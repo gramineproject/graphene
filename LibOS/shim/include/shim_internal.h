@@ -19,8 +19,6 @@ void* shim_init(int argc, void* args);
 
 /* important macros and static inline functions */
 
-#define PAL_NATIVE_ERRNO() SHIM_TCB_GET(pal_errno)
-
 #define INTERNAL_TID_BASE ((IDTYPE)1 << (sizeof(IDTYPE) * 8 - 1))
 
 static inline bool is_internal_tid(unsigned int tid) {
@@ -46,11 +44,9 @@ void debug_puts(const char* str);
 void debug_putch(int ch);
 void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-#define _log(level, fmt...)                          \
-    do {                                             \
-        if ((level) <= g_log_level)                  \
-            debug_printf(fmt);                       \
-    } while (0)
+// TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
+// pasting it here and making `inline`, but our current linker scripts prevent both.
+void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
 #define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
@@ -66,16 +62,16 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
 #define DEBUG_BREAK_ON_FAILURE() do {} while (0)
 #endif
 
-#define BUG()                                       \
-    do {                                            \
-        warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
-        DEBUG_BREAK_ON_FAILURE();                   \
-        die_or_inf_loop();                          \
+#define BUG()                                           \
+    do {                                                \
+        log_error("BUG() " __FILE__ ":%d\n", __LINE__); \
+        DEBUG_BREAK_ON_FAILURE();                       \
+        die_or_inf_loop();                              \
     } while (0)
 
-#define DEBUG_HERE()                                         \
-    do {                                                     \
-        debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
+#define DEBUG_HERE()                                             \
+    do {                                                         \
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
     } while (0)
 
 /*!
@@ -179,12 +175,16 @@ bool maybe_emulate_syscall(PAL_CONTEXT* context);
  */
 bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr);
 
-long convert_pal_errno(long err);
+/*!
+ * \brief Translate PAL error code into UNIX error code.
+ *
+ * The sign of the error code is preserved.
+ */
+long pal_to_unix_errno(long err);
 
-#define PAL_ERRNO() convert_pal_errno(PAL_NATIVE_ERRNO())
-
-void debug_print_syscall_before(int sysno, ...);
-void debug_print_syscall_after(int sysno, ...);
+void warn_unsupported_syscall(unsigned long sysno);
+void debug_print_syscall_before(unsigned long sysno, ...);
+void debug_print_syscall_after(unsigned long sysno, ...);
 
 #define PAL_CB(member) (pal_control.member)
 
@@ -196,11 +196,7 @@ void debug_print_syscall_after(int sysno, ...);
  * Note that using `clear_event` probably requires external locking to avoid races.
  */
 static inline int create_event(AEVENTTYPE* e) {
-    e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, 0);
-    if (!e->event) {
-        return -PAL_ERRNO();
-    }
-    return 0;
+     return pal_to_unix_errno(DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, 0, &e->event));
 }
 
 static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
@@ -209,7 +205,7 @@ static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
 
 static inline void destroy_event(AEVENTTYPE* e) {
     if (e->event) {
-        DkObjectClose(e->event);
+        DkObjectClose(e->event); // TODO: handle errors
         e->event = NULL;
     }
 }
@@ -224,15 +220,19 @@ static inline int set_event(AEVENTTYPE* e, size_t n) {
     char bytes[n];
     memset(bytes, '\0', n);
     while (n > 0) {
-        PAL_NUM ret = DkStreamWrite(e->event, 0, n, bytes, NULL);
-        if (ret == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+        size_t size = n;
+        int ret = DkStreamWrite(e->event, 0, &size, bytes, NULL);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         }
-        n -= ret;
+        if (size == 0) {
+            /* This should never happen. */
+            return -EINVAL;
+        }
+        n -= size;
     }
 
     return 0;
@@ -245,14 +245,20 @@ static inline int wait_event(AEVENTTYPE* e) {
         return -EINVAL;
     }
 
-    int err = 0;
+    int ret = 0;
     do {
         char byte;
-        PAL_NUM ret = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
-        err = ret == PAL_STREAM_ERROR ? PAL_ERRNO() : 0;
-    } while (err == EINTR || err == EAGAIN || err == EWOULDBLOCK);
+        size_t size = 1;
+        ret = DkStreamRead(e->event, 0, &size, &byte, NULL, 0);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
+        } else if (size == 0) {
+            ret = -ENODATA;
+        }
+    /* XXX(borysp): I think we should actually return both of these. */
+    } while (ret == -EINTR || ret == -EAGAIN);
 
-    return -err;
+    return ret;
 }
 
 static inline int clear_event(AEVENTTYPE* e) {
@@ -267,16 +273,14 @@ static inline int clear_event(AEVENTTYPE* e) {
         PAL_FLG ievent = PAL_WAIT_READ;
         PAL_FLG revent = 0;
 
-        shim_get_tcb()->pal_errno = PAL_ERROR_SUCCESS;
-        PAL_BOL ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
-        if (!ret) {
-            int err = PAL_ERRNO();
-            if (err == EINTR) {
+        int ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED) {
                 continue;
-            } else if (!err || err == EAGAIN || err == EWOULDBLOCK) {
+            } else if (ret == -PAL_ERROR_TRYAGAIN) {
                 break;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
         }
 
         /* Even if `revent` has `PAL_WAIT_ERROR` marked, let `DkSitreamRead()` report the error
@@ -284,16 +288,19 @@ static inline int clear_event(AEVENTTYPE* e) {
         assert(revent);
 
         char bytes[100];
-        PAL_NUM n = DkStreamRead(e->event, 0, sizeof(bytes), bytes, NULL, 0);
-        if (n == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR) {
+        size_t n = sizeof(bytes);
+        ret = DkStreamRead(e->event, 0, &n, bytes, NULL, 0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED) {
                 continue;
-            } else if (err == EAGAIN || err == EWOULDBLOCK) {
-                /* This should not happen, since we polled above  ... */
+            } else if (ret == -PAL_ERROR_TRYAGAIN) {
+                /* This should not happen, since we polled above... */
                 break;
             }
-            return -err;
+            return pal_to_unix_errno(ret);
+        } else if (n == 0) {
+            /* This should not happen, something closed the handle? */
+            return -ENODATA;
         }
     }
 
@@ -321,7 +328,7 @@ static inline int __ref_dec(REFTYPE* ref) {
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         if (!_c) {
-            debug("Fail: Trying to drop reference count below 0\n");
+            log_error("Fail: Trying to drop reference count below 0\n");
             BUG();
             return 0;
         }

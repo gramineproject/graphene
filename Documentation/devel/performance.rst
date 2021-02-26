@@ -332,13 +332,13 @@ Modern Icelake machines remove many of the hardware bottlenecks of Intel SGX. If
 you must use an older machine (Skylake, Caby Lake, Mehlow), you should be aware
 that they have severe SGX-hardware limitations. In particular:
 
-#. EPC size. You can think of EPC as a physical cache (just like L3 cache) for
-   enclave pages. On all currently available machines, EPC is only 128-256MB in
-   size. This means that if the application has a working set size of more than
-   100-200MB, enclave pages will be evicted from EPC into RAM.  Eviction of
-   enclave pages (also called EPC swapping or paging) is a very expensive
-   hardware operation. Some applications have a working set size of MBs/GBs of
-   data, so performance will be significantly impaired.
+#. :term:`EPC` size. You can think of EPC as a physical cache (just like L3
+   cache) for enclave pages. On all currently available machines, EPC is only
+   128-256MB in size. This means that if the application has a working set size
+   of more than 100-200MB, enclave pages will be evicted from EPC into RAM.
+   Eviction of enclave pages (also called EPC swapping or paging) is a very
+   expensive hardware operation. Some applications have a working set size of
+   MBs/GBs of data, so performance will be significantly impaired.
 
 #. RDTSC/RDTSCP instructions. These instructions are forbidden to execute in an
    SGX enclave on older machines. Unfortunately, many applications and runtimes
@@ -362,6 +362,13 @@ that they have severe SGX-hardware limitations. In particular:
    version that performs function calls inside Graphene instead of raw SYSCALL
    instructions and thus avoids this overhead).
 
+#. CPU topology. The CPU topology may negatively affect performance of Graphene.
+   For example, if the machine has several NUMA domains, it is important to
+   restrict Graphene runs to only one NUMA domain, e.g., via the command
+   ``numactl --cpunodebind=0 --membind=0``. Otherwise Graphene may spread
+   enclave threads and enclave memory across several NUMA domains, which will
+   lead to higher memory access latencies and overall worse performance.
+
 Other considerations
 --------------------
 
@@ -371,6 +378,17 @@ defaults to non-debug configuration). Also build the application itself in
 non-debug configuration (again, typically simple ``make SGX=1`` is sufficient).
 Finally, disable the debug log of Graphene by specifying the manifest option
 ``loader.log_level = "none"``.
+
+There are several manifest options that may improve performance of some
+workloads. The manifest options include:
+
+- ``libos.check_invalid_pointers = 0`` -- disable checks of invalid pointers on
+  system call invocations. Most real-world applications never provide invalid
+  arguments to system calls, so there is no need in additional checks.
+- ``sgx.preheat_enclave = 1`` -- pre-fault all enclave pages during enclave
+  initialization. This shifts the overhead of page faults on non-present enclave
+  pages from runtime to enclave startup time. Using this option makes sense only
+  if the whole enclave memory fits into :term:`EPC`.
 
 If your application periodically fails and complains about seemingly irrelevant
 things, it may be due to insufficient enclave memory. Please try to increase
@@ -510,8 +528,8 @@ Further reading
 SGX profiling
 -------------
 
-There is some experimental support for profiling the code inside the SGX
-enclave. Here is how to use it:
+There is support for profiling the code inside the SGX enclave. Here is how to
+use it:
 
 #. Compile Graphene with ``SGX=1 DEBUG=1``.
 
@@ -527,11 +545,39 @@ enclave. Here is how to use it:
 
 #. Run ``perf report -i <data file>`` (see :ref:`perf` above).
 
-*Note*: The accuracy of this tool is unclear. The SGX profiling works by
-measuring the value of instruction pointer on each asynchronous enclave exit
-(AEX), which happen on Linux scheduler interrupts, as well as other events such
-as page faults. While we attempt to measure time (and not only count
-occurences), the results might be inaccurate.
+*Note*: The accuracy of this tool is unclear (though we had positive experiences
+using the tool so far). The SGX profiling works by measuring the value of
+instruction pointer on each asynchronous enclave exit (AEX), which happen on
+Linux scheduler interrupts, as well as other events such as page faults. While
+we attempt to measure time (and not only count occurences), the results might be
+inaccurate.
+
+.. _sgx-profile-ocall:
+
+OCALL profiling
+"""""""""""""""
+
+It's also possible to discover what OCALLs are being executed, which should help
+attribute the EEXIT numbers given by ``sgx.enable_stats``. There are two ways to
+do that:
+
+* Use ``sgx.profile.mode = "ocall_inner"`` and ``sgx.profile.with_stack =
+  1``. This will give you a report on what enclave code is causing the OCALLs
+  (best viewed with ``perf report --no-children``).
+
+  The ``with_stack`` option is important: without it, the report will only show
+  the last function before enclave exit, which is usually the same regardless of
+  which OCALL we're executing.
+
+* Use ``sgx.profile.mode = "ocall_outer"``. This will give you a report on what
+  outer PAL code is handling the OCALLs (``sgx_ocall_open``, ``sgx_ocall_write``
+  etc.)
+
+**Warning**: The report for OCALL modes should be interpreted in term of *number
+of OCALLs*, not time spent in them. The profiler records a sample every time an
+OCALL is executed, and ``perf report`` displays percentages based on the number
+of samples.
+
 
 Other useful tools for profiling
 --------------------------------

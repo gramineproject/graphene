@@ -222,7 +222,6 @@ int _DkVirtualMemoryFree(void* addr, uint64_t size);
 int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot);
 
 /* DkObject calls */
-int _DkObjectReference(PAL_HANDLE objectHandle);
 int _DkObjectClose(PAL_HANDLE objectHandle);
 int _DkSynchronizationObjectWait(PAL_HANDLE handle, int64_t timeout_us);
 int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events,
@@ -230,7 +229,6 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 
 /* DkException calls & structures */
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event_num);
-void _DkRaiseFailure(int error);
 
 /* other DK calls */
 void _DkInternalLock(PAL_LOCK* mut);
@@ -304,22 +302,13 @@ ssize_t _DkDebugLog(const void* buf, size_t size);
 void _DkPrintConsole(const void* buf, int size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
-int log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-int log_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-/* err - positive value of error code */
-static inline void print_error(const char* msg, int err) {
-    printf("%s (%s)\n", msg, pal_strerror(err));
-}
+// TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
+// pasting it here and making `inline`, but our current linker scripts prevent both.
+void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #define PAL_LOG_DEFAULT_LEVEL  PAL_LOG_ERROR
 #define PAL_LOG_DEFAULT_FD     2
-
-#define _log(level, fmt...)                          \
-    do {                                             \
-        if ((level) <= g_pal_control.log_level)      \
-            log_printf(fmt);                         \
-    }  while(0)
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
 #define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)

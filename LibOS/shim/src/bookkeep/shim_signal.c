@@ -61,7 +61,7 @@ void thread_sigaction_reset_on_execve(void) {
 }
 
 static noreturn void sighandler_kill(int sig) {
-    debug("killed by signal %d\n", sig & ~__WCOREDUMP_BIT);
+    log_debug("killed by signal %d\n", sig & ~__WCOREDUMP_BIT);
     process_exit(0, sig);
 }
 
@@ -311,12 +311,12 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
     PAL_NUM ip = pal_context_get_ip(context);
 
     if (context_is_libos(context))
-        warn("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr, addr,
-             (void*)ip - (void*)&__load_address, g_process_ipc_info.vmid,
-             is_internal_tid(tid) ? 0 : tid);
+        log_error("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr, addr,
+                  (void*)ip - (void*)&__load_address, g_process_ipc_info.vmid,
+                  is_internal_tid(tid) ? 0 : tid);
     else
-        warn("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr, addr,
-             context ? ip : 0, g_process_ipc_info.vmid, is_internal_tid(tid) ? 0 : tid);
+        log_error("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr, addr,
+                  context ? ip : 0, g_process_ipc_info.vmid, is_internal_tid(tid) ? 0 : tid);
 
     DEBUG_BREAK_ON_FAILURE();
     DkProcessExit(1);
@@ -330,7 +330,7 @@ static void arithmetic_error_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* c
     if (is_internal_tid(get_cur_tid()) || context_is_libos(context)) {
         internal_fault("Internal arithmetic fault", addr, context);
     } else {
-        debug("arithmetic fault at 0x%08lx\n", pal_context_get_ip(context));
+        log_debug("arithmetic fault at 0x%08lx\n", pal_context_get_ip(context));
         siginfo_t info = {
             .si_signo = SIGFPE,
             .si_code = FPE_INTDIV,
@@ -361,7 +361,7 @@ static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) 
         internal_fault("Internal memory fault", addr, context);
     }
 
-    debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", addr, pal_context_get_ip(context));
+    log_debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", addr, pal_context_get_ip(context));
 
     siginfo_t info = {
         .si_addr = (void*)addr,
@@ -590,7 +590,7 @@ static void illegal_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
     /* Emulate syscall instruction, which is prohibited in Linux-SGX PAL and raises a SIGILL. */
     if (!maybe_emulate_syscall(context)) {
         void* rip = (void*)pal_context_get_ip(context);
-        debug("Illegal instruction during app execution at %p; delivering to app\n", rip);
+        log_debug("Illegal instruction during app execution at %p; delivering to app\n", rip);
         siginfo_t info = {
             .si_signo = SIGILL,
             .si_code = ILL_ILLOPC,
@@ -641,7 +641,7 @@ int init_signal_handling(void) {
     int ret = toml_int_in(g_manifest_root, "sys.enable_sigterm_injection", /*defaultval=*/0,
                           &allow_injection);
     if (ret < 0 || (allow_injection != 0 && allow_injection != 1)) {
-        debug("Cannot parse 'sys.enable_sigterm_injection' (the value must be 0 or 1)\n");
+        log_error("Cannot parse 'sys.enable_sigterm_injection' (the value must be 0 or 1)\n");
         return -EINVAL;
     }
     g_inject_host_signal_enabled = !!allow_injection;
@@ -650,7 +650,7 @@ int init_signal_handling(void) {
     ret = toml_int_in(g_manifest_root, "libos.check_invalid_pointers",
                       /*defaultval=*/1, &check_invalid_ptrs_int);
     if (ret < 0 || (check_invalid_ptrs_int != 0 && check_invalid_ptrs_int != 1)) {
-        debug("Cannot parse 'libos.check_invalid_pointers' (the value must be 0 or 1)\n");
+        log_error("Cannot parse 'libos.check_invalid_pointers' (the value must be 0 or 1)\n");
         return -EINVAL;
     }
     g_check_invalid_ptrs = !!check_invalid_ptrs_int;
@@ -902,13 +902,13 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
         }
     }
 
-    debug("Signal %d queue of ", info->si_signo);
+    log_debug("Signal %d queue of ", info->si_signo);
     if (thread) {
-        debug("thread %u", thread->tid);
+        log_debug("thread %u", thread->tid);
     } else {
-        debug("process");
+        log_debug("process");
     }
-    debug(" is full, dropping the incoming signal\n");
+    log_debug(" is full, dropping the incoming signal\n");
     /* This is counter-intuitive, but we report success here: after all signal was successfully
      * delivered, just the queue was full. */
 out:

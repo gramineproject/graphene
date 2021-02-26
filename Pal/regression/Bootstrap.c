@@ -23,7 +23,12 @@ int main(int argc, char** argv, char** envp) {
 
     /* test debug stream */
     char* msg = "Written to Debug Stream\n";
-    DkDebugLog(msg, strlen(msg));
+    size_t msg_size = strlen(msg);
+    int ret = DkDebugLog(msg, &msg_size);
+    if (ret < 0 || msg_size != strlen(msg)) {
+        pal_printf("Failed to write the debug message.\n");
+        return 1;
+    }
 
     /* Allocation Alignment */
     pal_printf("Allocation Alignment: %ld\n", pal_control.alloc_align);

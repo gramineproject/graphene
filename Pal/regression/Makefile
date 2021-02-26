@@ -30,7 +30,6 @@ executables = \
 	Event \
 	Event2 \
 	Exit \
-	Failure \
 	File \
 	File2 \
 	HelloWorld \

@@ -270,15 +270,6 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
     restore_pal_context(uc, &ctx);
 }
 
-/* TODO: remove this function. It's not an exception handling, it's just returning an error from
- * PAL... */
-void _DkRaiseFailure(int error) {
-    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
-    if (upcall) {
-        (*upcall)(/*is_in_pal=*/false, error, /*context=*/NULL);
-    }
-}
-
 /* TODO: shouldn't this function ignore sync events???
  * actually what is the point of this function?
  * Tracked: https://github.com/oscarlab/graphene/issues/2140 */
@@ -286,10 +277,6 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
                                      PAL_XREGS_STATE* xregs_state) {
     assert(event > 0 && event < PAL_EVENT_NUM_BOUND);
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
-
-    /* we only end up in _DkHandleExternalEvent() if interrupted during host syscall; inform LibOS
-     * layer that PAL was interrupted (by setting PAL_ERRNO) */
-    _DkRaiseFailure(PAL_ERROR_INTERRUPTED);
 
     PAL_CONTEXT ctx;
     save_pal_context(&ctx, uc, xregs_state);

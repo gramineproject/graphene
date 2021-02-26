@@ -49,12 +49,6 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('failure in the handler: 0x', stderr)
         self.assertNotIn('Leave Main Thread', stderr)
 
-    def test_Failure(self):
-        _, stderr = self.run_binary(['Failure'])
-        self.assertIn('Enter Main Thread', stderr)
-        self.assertIn('Failure notified: Function not supported', stderr)
-        self.assertIn('Leave Main Thread', stderr)
-
     def test_File2(self):
         _, stderr = self.run_binary(['File2'])
         self.assertIn('Enter Main Thread', stderr)

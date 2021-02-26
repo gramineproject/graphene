@@ -198,7 +198,7 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
 
     if (is_pal_internal && size > g_pal_internal_mem_size - g_pal_internal_mem_used) {
         /* requested PAL-internal allocation would exceed the limit, fail */
-        return NULL;
+        goto out;
     }
 
     if (addr) {

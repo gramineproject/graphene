@@ -31,55 +31,33 @@ static inline void clear_lock(struct shim_lock* l) {
 
 static inline bool create_lock(struct shim_lock* l) {
     l->owner = 0;
-    l->lock  = DkMutexCreate(0);
-    return l->lock != NULL;
+    return DkMutexCreate(0, &l->lock) == 0;
 }
 
 static inline void destroy_lock(struct shim_lock* l) {
-    DkObjectClose(l->lock);
+    DkObjectClose(l->lock); // TODO: handle errors
     clear_lock(l);
 }
 
-#ifdef DEBUG
-#define lock(l) __lock(l, __FILE__, __LINE__)
-static void __lock(struct shim_lock* l, const char* file, int line) {
-#else
 static void lock(struct shim_lock* l) {
-#endif
     if (!lock_enabled) {
         return;
     }
-    /* TODO: This whole if should be just an assert. Change it once we are sure that it does not
-     * trigger (previous code allowed for this case). Same in unlock below. */
-    if (!l->lock) {
-#ifdef DEBUG
-        debug("Trying to lock an uninitialized lock at %s:%d!\n", file, line);
-#endif // DEBUG
-        __abort();
-    }
 
-    while (!DkSynchronizationObjectWait(l->lock, NO_TIMEOUT))
+    assert(l->lock);
+
+    while (DkSynchronizationObjectWait(l->lock, NO_TIMEOUT) < 0)
         /* nop */;
 
     l->owner = get_cur_tid();
 }
 
-#ifdef DEBUG
-#define unlock(l) __unlock(l, __FILE__, __LINE__)
-static inline void __unlock(struct shim_lock* l, const char* file, int line) {
-#else
 static inline void unlock(struct shim_lock* l) {
-#endif
     if (!lock_enabled) {
         return;
     }
-    if (!l->lock) {
-#ifdef DEBUG
-        debug("Trying to unlock an uninitialized lock at %s:%d!\n", file, line);
-#endif // DEBUG
-        __abort();
-    }
 
+    assert(l->lock);
     l->owner = 0;
     DkMutexRelease(l->lock);
 }
@@ -102,11 +80,11 @@ extern struct shim_lock __master_lock;
 #define MASTER_LOCK()                                          \
     do {                                                       \
         lock(&__master_lock);                                  \
-        pal_printf("master lock " __FILE__ ":%d\n", __LINE__); \
+        log_debug("master lock " __FILE__ ":%d\n", __LINE__);  \
     } while (0)
 #define MASTER_UNLOCK()                                          \
     do {                                                         \
-        pal_printf("master unlock " __FILE__ ":%d\n", __LINE__); \
+        log_debug("master unlock " __FILE__ ":%d\n", __LINE__);  \
         unlock(&__master_lock);                                  \
     } while (0)
 #else

@@ -81,7 +81,7 @@ static void remove_qnode_from_wait_queue(struct shim_thread_queue* qnode) {
     unlock(&g_process.children_lock);
 
     while (!seen) {
-        DkEventClear(get_cur_thread()->scheduler_event);
+        DkEventClear(get_cur_thread()->scheduler_event); // TODO: handle errors
         /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
         COMPILER_BARRIER();
         /* Check if `qnode` is no longer used. */
@@ -99,17 +99,17 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
     }
 
     if (options & WSTOPPED) {
-        debug("Ignoring unsupported WSTOPPED flag to wait4\n");
+        log_warning("Ignoring unsupported WSTOPPED flag to wait4\n");
         options &= ~WSTOPPED;
     }
     if (options & WCONTINUED) {
-        debug("Ignoring unsupported WCONTINUED flag to wait4\n");
+        log_warning("Ignoring unsupported WCONTINUED flag to wait4\n");
         options &= ~WCONTINUED;
     }
     assert(options & WEXITED);
 
     if (options & __WNOTHREAD) {
-        debug("Ignoring unsupported __WNOTHREAD flag to wait4\n");
+        log_warning("Ignoring unsupported __WNOTHREAD flag to wait4\n");
         options &= ~__WNOTHREAD;
     }
 
@@ -178,7 +178,7 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
 
         unlock(&g_process.children_lock);
 
-        DkEventClear(self->scheduler_event);
+        DkEventClear(self->scheduler_event); // TODO: handle errors
         /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
         COMPILER_BARRIER();
         /* Check that we are still supposed to sleep. */
@@ -187,7 +187,7 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
         }
         ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/false);
         if (ret < 0 && ret != -EINTR && ret != -EAGAIN) {
-            debug("thread_sleep failed in waitid\n");
+            log_warning("thread_sleep failed in waitid\n");
             remove_qnode_from_wait_queue(&qnode);
             /* `ret` is already set. */
             goto out;

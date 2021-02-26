@@ -44,7 +44,7 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     } else if (!strcmp(filename, "physical_line_partition")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].physical_line_partition;
     } else {
-        debug("Unrecognized file %s\n", name);
+        log_debug("Unrecognized file %s\n", name);
         return -ENOENT;
     }
 

@@ -8,41 +8,58 @@ char str[12] = "Hello World";
 int main(int argc, char** argv, char** envp) {
     pal_printf("Enter Main Thread\n");
 
-    PAL_HANDLE out = DkStreamOpen(FILE_URI, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
-                                  PAL_CREATE_TRY, 0);
+    PAL_HANDLE out = NULL;
+    int ret = DkStreamOpen(FILE_URI, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
+                           PAL_CREATE_TRY, 0, &out);
 
-    if (out == NULL) {
+    if (ret < 0) {
         pal_printf("DkStreamOpen failed\n");
-        return -1;
+        return 1;
     }
 
-    int bytes = DkStreamWrite(out, 0, sizeof(str) - 1, str, NULL);
-
-    if (!bytes) {
+    size_t bytes = sizeof(str) - 1;
+    ret = DkStreamWrite(out, 0, &bytes, str, NULL);
+    if (ret < 0 || bytes != sizeof(str) - 1) {
         pal_printf("DkStreamWrite failed\n");
-        return -1;
+        return 1;
     }
 
     DkObjectClose(out);
 
-    PAL_HANDLE in = DkStreamOpen(FILE_URI, PAL_ACCESS_RDONLY, 0, 0, 0);
-
-    bytes = DkStreamRead(in, 0, sizeof(str), str, NULL, 0);
-
-    if (!bytes) {
-        pal_printf("DkStreamRead failed\n");
-        return -1;
+    PAL_HANDLE in = NULL;
+    ret = DkStreamOpen(FILE_URI, PAL_ACCESS_RDONLY, 0, 0, 0, &in);
+    if (ret < 0) {
+        pal_printf("DkStreamOpen failed\n");
+        return 1;
     }
+
+    bytes = sizeof(str);
+    memset(str, 0, bytes);
+    ret = DkStreamRead(in, 0, &bytes, str, NULL, 0);
+    if (ret < 0) {
+        pal_printf("DkStreamRead failed\n");
+        return 1;
+    }
+    if (bytes > sizeof(str) - 1) {
+        pal_printf("DkStreamRead read more than expected\n");
+        return 1;
+    }
+    str[bytes] = '\0';
 
     pal_printf("%s\n", str);
 
-    DkStreamDelete(in, 0);
-
-    PAL_HANDLE del = DkStreamOpen(FILE_URI, PAL_ACCESS_RDWR, 0, 0, 0);
-
-    if (del) {
+    ret = DkStreamDelete(in, 0);
+    if (ret < 0) {
         pal_printf("DkStreamDelete failed\n");
-        return -1;
+        return 1;
+    }
+
+    PAL_HANDLE del = NULL;
+    ret = DkStreamOpen(FILE_URI, PAL_ACCESS_RDWR, 0, 0, 0, &del);
+
+    if (ret >= 0) {
+        pal_printf("DkStreamDelete did not actually delete\n");
+        return 1;
     }
 
     pal_printf("Leave Main Thread\n");

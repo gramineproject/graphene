@@ -85,7 +85,7 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
     struct shim_str_data* data = strhdl->data;
 
     if (!data->str) {
-        debug("str_data has no str\n");
+        log_error("str_data has no str\n");
         ret = -EACCES;
         goto out;
     }

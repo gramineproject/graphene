@@ -724,9 +724,10 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
         if (cmd != FUTEX_WAIT) {
             /* For FUTEX_WAIT, timeout is interpreted as a relative value, which differs from other
              * futex operations, where timeout is interpreted as an absolute value. */
-            uint64_t current_time = DkSystemTimeQuery();
-            if (!current_time) {
-                return -EINVAL;
+            uint64_t current_time = 0;
+            int ret = DkSystemTimeQuery(&current_time);
+            if (ret < 0) {
+                return pal_to_unix_errno(ret);
             }
             if (timeout < current_time) {
                 /* We timeouted even before reaching this point. */
@@ -746,11 +747,12 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
             return -ENOSYS;
         }
         /* Graphene has only one clock for now. */
-        debug("Ignoring FUTEX_CLOCK_REALTIME flag\n");
+        log_warning("Ignoring FUTEX_CLOCK_REALTIME flag\n");
     }
 
     if (!(op & FUTEX_PRIVATE_FLAG)) {
-        debug("Non-private futexes are not supported, assuming implicit FUTEX_PRIVATE_FLAG\n");
+        log_warning("Non-private futexes are not supported, assuming implicit "
+                    "FUTEX_PRIVATE_FLAG\n");
     }
 
     int ret = 0;
@@ -795,10 +797,10 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
         case FUTEX_UNLOCK_PI:
         case FUTEX_CMP_REQUEUE_PI:
         case FUTEX_WAIT_REQUEUE_PI:
-            debug("PI futexes are not yet supported!\n");
+            log_warning("PI futexes are not yet supported!\n");
             return -ENOSYS;
         default:
-            debug("Invalid futex op: %d\n", cmd);
+            log_warning("Invalid futex op: %d\n", cmd);
             return -ENOSYS;
     }
 }

@@ -164,9 +164,9 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     }
 
     ret = DkThreadSetCpuAffinity(thread->pal_handle, cpumask_size, user_mask_ptr);
-    if (!ret) {
+    if (ret < 0) {
         put_thread(thread);
-        return -PAL_ERRNO();
+        return pal_to_unix_errno(ret);
     }
 
     put_thread(thread);
@@ -185,8 +185,8 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
      * to sizeof(long) */
     size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
     if (cpumask_size < bitmask_size_in_bytes) {
-        debug("size of cpumask must be at least %lu but supplied cpumask is %u\n",
-               bitmask_size_in_bytes, cpumask_size);
+        log_warning("size of cpumask must be at least %lu but supplied cpumask is %u\n",
+                    bitmask_size_in_bytes, cpumask_size);
         return -EINVAL;
     }
 
@@ -212,9 +212,9 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
 
     memset(user_mask_ptr, 0, cpumask_size);
     ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, user_mask_ptr);
-    if (!ret) {
+    if (ret < 0) {
         put_thread(thread);
-        return -PAL_ERRNO();
+        return pal_to_unix_errno(ret);
     }
 
     put_thread(thread);

@@ -309,14 +309,23 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                                      l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend, PROT_NONE,
                                      /*is_internal=*/false);
                 if (ret < 0) {
-                    errstring = "failed to change permissions";
+                    errstring = "failed to bookkeep permissions change";
                     goto call_lose;
                 }
             }
-            if (type == OBJECT_LOAD)
-                DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
-                                       l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
-                                       PAL_PROT_NONE);
+            if (type == OBJECT_LOAD) {
+                ret = DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
+                                             l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
+                                             PAL_PROT_NONE);
+                if (ret < 0) {
+                    /* XXX: this often fails, because the above address might not be allocated.
+                     * We need to rewrite this function soon.
+                    errstring = "failed to change permissions";
+                    goto call_lose;
+                    */
+                    ret = 0;
+                }
+            }
         }
 
         goto do_remap;
@@ -387,15 +396,15 @@ do_remap:
                 /* Zero the final part of the last page of the segment.  */
                 if ((c->prot & PROT_WRITE) == 0) {
                     /* Dag nab it.  */
-                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)
-                                                    | PAL_PROT_WRITE)) {
+                    if (DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)
+                                                   | PAL_PROT_WRITE) < 0) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
                     memset((void*)zero, '\0', zeropage - zero);
-                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0))) {
+                    if (DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)) < 0) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
@@ -418,10 +427,10 @@ do_remap:
 
                 if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL &&
                     type != OBJECT_VDSO) {
-                    PAL_PTR mapat =
-                        DkVirtualMemoryAlloc((void*)zeropage, zeroend - zeropage, /*alloc_type=*/0,
-                                             LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0));
-                    if (!mapat) {
+                    void* mapat = (void*)zeropage;
+                    ret = DkVirtualMemoryAlloc(&mapat, zeroend - zeropage, /*alloc_type=*/0,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0));
+                    if (ret < 0) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
                     }
@@ -455,7 +464,7 @@ do_remap:
 
 call_lose:
     free(new_phdr);
-    debug("loading %s: %s\n", l->l_name, errstring);
+    log_debug("loading %s: %s\n", l->l_name, errstring);
     free(l);
     return NULL;
 }
@@ -505,7 +514,7 @@ static int __remove_elf_object(struct link_map* l) {
 }
 
 static int __free_elf_object(struct link_map* l) {
-    debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name, l->l_map_start);
+    log_debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name, l->l_map_start);
 
     struct loadcmd* c = l->loadcmds;
 
@@ -575,7 +584,7 @@ static int __check_elf_header(void* fbp, size_t len) {
     }
 
     /* Now we check if the host match the elf machine profile */
-    if (ehdr->e_machine != EM_X86_64) {
+    if (ehdr->e_machine != SHIM_ELF_HOST_MACHINE) {
         errstring = "ELF file does not match with the host";
         goto verify_failed;
     }
@@ -595,7 +604,7 @@ static int __check_elf_header(void* fbp, size_t len) {
     return 0;
 
 verify_failed:
-    debug("load runtime object: %s\n", errstring);
+    log_debug("load runtime object: %s\n", errstring);
     return -EINVAL;
 }
 
@@ -649,7 +658,7 @@ int load_elf_object(struct shim_handle* file) {
     if (!file)
         return -EINVAL;
 
-    debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
+    log_debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
 
     return __load_elf_object(file, NULL, OBJECT_LOAD);
 }
@@ -759,7 +768,7 @@ static int __load_interp_object(struct link_map* exec_map) {
         interp_path[plen] = '/';
         memcpy(interp_path + plen + 1, filename, len + 1);
 
-        debug("search interpreter: %s\n", interp_path);
+        log_debug("searching for interpreter: %s\n", interp_path);
 
         struct shim_dentry* dent = NULL;
         int ret = 0;
@@ -857,19 +866,21 @@ static int vdso_map_init(void) {
         return ret;
     }
 
-    void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size),
-                                                 /*alloc_type=*/0, PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!ret_addr)
-        return -PAL_ERRNO();
-    assert(addr == ret_addr);
+    ret = DkVirtualMemoryAlloc(&addr, ALLOC_ALIGN_UP(vdso_so_size), /*alloc_type=*/0,
+                               PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     memcpy(addr, &vdso_so, vdso_so_size);
     memset(addr + vdso_so_size, 0, ALLOC_ALIGN_UP(vdso_so_size) - vdso_so_size);
     __load_elf_object(NULL, addr, OBJECT_VDSO);
     vdso_map->l_name = "vDSO";
 
-    if (!DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
-        return -PAL_ERRNO();
+    ret = DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     vdso_addr = addr;
     return 0;
@@ -899,10 +910,10 @@ int init_loader(void) {
         ret = load_elf_object(exec);
         if (ret < 0) {
             // TODO: Actually verify that the non-PIE-ness was the real cause of loading failure.
-            warn("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, in "
-                 "which case Graphene requires a specially-crafted memory layout. You can enable "
-                 "it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
-                 qstrgetstr(&exec->path));
+            log_error("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, "
+                      "in which case Graphene requires a specially-crafted memory layout. You can "
+                      "enable it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
+                      qstrgetstr(&exec->path));
             goto out;
         }
 
@@ -939,7 +950,7 @@ int init_brk_from_executable(struct shim_handle* exec) {
 }
 
 int register_library(const char* name, unsigned long load_address) {
-    debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
+    log_debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
 
     struct shim_handle* hdl = get_new_handle();
 
@@ -960,7 +971,7 @@ int register_library(const char* name, unsigned long load_address) {
 noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
-        warn("Could not initialize vDSO (error code = %d)", ret);
+        log_error("Could not initialize vDSO (error code = %d)", ret);
         process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
     }
 
@@ -1016,8 +1027,8 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
     ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
-        debug("execute_elf_object: DkRandomBitsRead failed.\n");
-        DkThreadExit(/*clear_child_tid=*/NULL);
+        log_error("execute_elf_object: DkRandomBitsRead failed: %d\n", ret);
+        DkProcessExit(1);
         /* UNREACHABLE */
     }
     auxp[5].a_un.a_val = random;

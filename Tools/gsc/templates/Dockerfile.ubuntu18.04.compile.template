@@ -20,14 +20,18 @@ RUN cd /graphene \
     && git fetch origin {{Graphene.Branch}} \
     && git checkout {{Graphene.Branch}}
 
+{% if SGXDriver.Repository %}
 RUN cd /graphene/Pal/src/host/Linux-SGX \
     && git clone {{SGXDriver.Repository}} linux-sgx-driver \
     && cd linux-sgx-driver \
     && git checkout {{SGXDriver.Branch}}
+ENV ISGX_DRIVER_PATH "/graphene/Pal/src/host/Linux-SGX/linux-sgx-driver"
+{% else %}
+ENV ISGX_DRIVER_PATH ""
+{% endif %}
 
 RUN cd /graphene \
-    && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/linux-sgx-driver \
-    make -s -j WERROR=1 SGX=1 {% if debug %} DEBUG=1 {% endif %}
+    && make -s -j WERROR=1 SGX=1 {% if debug %} DEBUG=1 {% endif %}
 
 {% if linux %}
 RUN cd /graphene \
