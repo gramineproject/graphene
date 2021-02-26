@@ -93,13 +93,6 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     return 0;
 }
 
-int _DkInstructionCacheFlush(const void* addr, int size) {
-    __UNUSED(addr);
-    __UNUSED(size);
-
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 #define CPUID_CACHE_SIZE 64 /* cache only 64 distinct CPUID entries; sufficient for most apps */
 static struct pal_cpuid {
     unsigned int leaf, subleaf;
@@ -262,12 +255,12 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
             case PKRU:
                 if (extension_enabled(xfrm, subleaf)) {
                     if (values[EAX] != extension_sizes_bytes[subleaf]) {
-                        SGX_DBG(DBG_E, "Unexpected value in host CPUID. Exiting...\n");
+                        log_error("Unexpected value in host CPUID. Exiting...\n");
                         _DkProcessExit(1);
                     }
                 } else {
                     if (values[EAX] != 0) {
-                        SGX_DBG(DBG_E, "Unexpected value in host CPUID. Exiting...\n");
+                        log_error("Unexpected value in host CPUID. Exiting...\n");
                         _DkProcessExit(1);
                     }
                 }
@@ -325,6 +318,18 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
 };
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
+    /* leaves 0x40000000 to 0x4FFFFFFF are used by virtualization software (KVM, Hyper-V, etc.),
+     * they return all zeros on bare metal; runtimes like JVM query these leaves to learn about
+     * the underlying virtualization software */
+    if (leaf >= 0x40000000 && leaf <= 0x4FFFFFFF) {
+        /* let Graphene report that there is no virtualization software */
+        values[0] = 0;
+        values[1] = 0;
+        values[2] = 0;
+        values[3] = 0;
+        return 0;
+    }
+
     const struct cpuid_leaf* known_leaf = NULL;
     for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
         if (leaf == cpuid_known_leaves[i].leaf) {
@@ -360,8 +365,8 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     return 0;
 fail:
-    SGX_DBG(DBG_E, "Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...\n", leaf,
-            subleaf);
+    log_error("Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...\n", leaf,
+              subleaf);
     _DkProcessExit(1);
 }
 
@@ -436,8 +441,8 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     char* ra_client_spid_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.ra_client_spid", &ra_client_spid_str);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot parse \'sgx.ra_client_spid\' "
-                       "(the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sgx.ra_client_spid\' "
+                  "(the value must be put in double quotes!)\n");
         return -PAL_ERROR_INVAL;
     }
 
@@ -452,8 +457,8 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         is_epid = true;
 
         if (strlen(ra_client_spid_str) != sizeof(sgx_spid_t) * 2) {
-            SGX_DBG(DBG_E, "Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
-                    ra_client_spid_str);
+            log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
+                      ra_client_spid_str);
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
         }
@@ -461,8 +466,8 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         for (size_t i = 0; i < strlen(ra_client_spid_str); i++) {
             int8_t val = hex2dec(ra_client_spid_str[i]);
             if (val < 0) {
-                SGX_DBG(DBG_E, "Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
-                        ra_client_spid_str);
+                log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
+                          ra_client_spid_str);
                 free(ra_client_spid_str);
                 return -PAL_ERROR_INVAL;
             }
@@ -474,7 +479,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         ret = toml_int_in(g_pal_state.manifest_root, "sgx.ra_client_linkable",
                           /*defaultval=*/0, &linkable_int64);
         if (ret < 0 || (linkable_int64 != 0 && linkable_int64 != 1)) {
-            SGX_DBG(DBG_E, "Cannot parse \'sgx.ra_client_linkable\' (the value must be 0 or 1)\n");
+            log_error("Cannot parse \'sgx.ra_client_linkable\' (the value must be 0 or 1)\n");
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
         }

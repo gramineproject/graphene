@@ -11,10 +11,10 @@
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 libos.entrypoint = "file:redis-server"
 
-# Verbosity of Graphene debug log (none/error/info/debug/trace/all). Note that
-# GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the building
-# process: the default is "error" for non-debug builds, and "debug" for debug
-# builds.
+# Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
+# that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the
+# building process: the default is "error" for non-debug builds, and "debug"
+# for debug builds.
 loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 ################################# ARGUMENTS ###################################
@@ -32,6 +32,11 @@ loader.insecure__use_cmdline_argv = 1
 # - /lib is searched for Glibc libraries (ld, libc, libpthread)
 # - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
 loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
+
+################################## SIGNALS ####################################
+
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = 1
 
 ################################# MOUNT FS  ###################################
 
@@ -130,9 +135,11 @@ sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
 # Additional dependant libraries for redis version 6+
 sgx.trusted_files.libsystemd = "file:$(ARCH_LIBDIR)/libsystemd.so.0"
 sgx.trusted_files.liblzma = "file:$(ARCH_LIBDIR)/liblzma.so.5"
-sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
 sgx.trusted_files.libgpgerror = "file:$(ARCH_LIBDIR)/libgpg-error.so.0"
 sgx.trusted_files.liblz4 = "file:/usr/$(ARCH_LIBDIR)/liblz4.so.1"
+# Ubuntu16.04 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
+# Ubuntu18.04 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
+# Ubuntu20.04 sgx.trusted_files.libgcrypt = "file:/usr/$(ARCH_LIBDIR)/libgcrypt.so.20"
 
 # Trusted no-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure

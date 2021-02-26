@@ -117,15 +117,15 @@ static ssize_t dev_write(struct shim_handle* hdl, const void* buf, size_t count)
     return hdl->info.dev.dev_ops.write(hdl, buf, count);
 }
 
-static off_t dev_seek(struct shim_handle* hdl, off_t offset, int wence) {
+static off_t dev_seek(struct shim_handle* hdl, off_t offset, int whence) {
     if (hdl->type == TYPE_STR) {
-        return str_seek(hdl, offset, wence);
+        return str_seek(hdl, offset, whence);
     }
 
     assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.seek)
         return -EACCES;
-    return hdl->info.dev.dev_ops.seek(hdl, offset, wence);
+    return hdl->info.dev.dev_ops.seek(hdl, offset, whence);
 }
 
 static int dev_truncate(struct shim_handle* hdl, off_t len) {

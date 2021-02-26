@@ -51,7 +51,7 @@ long shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kerne
         return -EINVAL;
 
     if (flags) {
-        debug("Graphene's clock_nanosleep does not support non-zero flags (%d)\n", flags);
+        log_warning("Graphene's clock_nanosleep does not support non-zero flags (0x%x)\n", flags);
         return -EINVAL;
     }
 

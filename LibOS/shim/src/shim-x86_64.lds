@@ -43,7 +43,6 @@ SECTIONS
   .text :
   {
     /* the rest of text segments */
-    __code_address = .;
     *(.text .stub .text.*);
     . = ALIGN(8);
     __cp_name = .;
@@ -52,7 +51,6 @@ SECTIONS
     *(SORT(.cp_func.*));
     __rs_func = .;
     *(SORT(.rs_func.*));
-    __code_address_end = .;
   }
   .fini          : { *(.fini) }
   .rodata :

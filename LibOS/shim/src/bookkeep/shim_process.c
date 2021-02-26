@@ -48,7 +48,7 @@ int init_process(void) {
     struct shim_dentry* dent = NULL;
     int ret = path_lookupat(NULL, "/", 0, &dent, NULL);
     if (ret < 0) {
-        debug("Could not set up dentry for \"/\", something is seriously broken.\n");
+        log_error("Could not set up dentry for \"/\", something is seriously broken.\n");
         return ret;
     }
     g_process.root = dent;
@@ -147,7 +147,7 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE c
         fill_siginfo_code_and_status(&info, signal, exit_code);
         int x = kill_current_proc(&info);
         if (x < 0) {
-            debug("Sending child death signal failed: %d!\n", x);
+            log_error("Sending child death signal failed: %d!\n", x);
         }
     }
 

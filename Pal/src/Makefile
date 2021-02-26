@@ -114,6 +114,14 @@ ifneq ($(pal_lib),)
 $(pal_lib): $(addprefix $(OBJ_DIR)/,$(objs)) \
 	    $(host_lib) $(graphene_lib) $(pal_lib_deps)
 	$(call cmd,ld_so_o)
+ifeq ($(PAL_HOST),Linux)
+	@if readelf -a $@ | grep -q NEEDED; then              \
+		echo Error: $@ should not be dynamically linked ; \
+		mv $@ $@.dynamic;                                 \
+		exit 1;                                           \
+	fi
+endif
+
 
 $(runtime_lib): $(pal_lib)
 	$(call cmd,ln_sfr)

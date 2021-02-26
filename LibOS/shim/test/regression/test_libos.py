@@ -224,8 +224,8 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('FE_TOWARDZERO parent: 42.5 = 42.0, -42.5 = -42.0', stdout)
 
     def test_700_debug_log_inline(self):
-        stdout, _ = self.run_binary(['debug_log_inline'])
-        self._verify_debug_log(stdout)
+        _, stderr = self.run_binary(['debug_log_inline'])
+        self._verify_debug_log(stderr)
 
     def test_701_debug_log_file(self):
         log_path = 'tmp/debug_log_file.log'
@@ -580,6 +580,7 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('/dev/stdout', stdout)
         self.assertIn('/dev/stderr', stdout)
         self.assertIn('Four bytes from /dev/urandom', stdout)
+        self.assertIn('TEST OK', stdout)
 
     def test_002_device(self):
         stdout, _ = self.run_binary(['device'])
@@ -602,6 +603,10 @@ class TC_40_FileSystem(RegressionTestCase):
     def test_040_str_close_leak(self):
         stdout, _ = self.run_binary(['str_close_leak'], timeout=60)
         self.assertIn("Success", stdout)
+
+    def test_050_sysfs(self):
+        stdout, _ = self.run_binary(['sysfs_common'])
+        self.assertIn('TEST OK', stdout)
 
 
 class TC_50_GDB(RegressionTestCase):
@@ -761,6 +766,7 @@ class TC_80_Socket(RegressionTestCase):
     def test_300_socket_tcp_msg_peek(self):
         stdout, _ = self.run_binary(['tcp_msg_peek'], timeout=50)
         self.assertIn('[client] receiving with MSG_PEEK: Hello from server!', stdout)
+        self.assertIn('[client] receiving with MSG_PEEK again: Hello from server!', stdout)
         self.assertIn('[client] receiving without MSG_PEEK: Hello from server!', stdout)
         self.assertIn('[client] checking how many bytes are left unread: 0', stdout)
         self.assertIn('[client] done', stdout)

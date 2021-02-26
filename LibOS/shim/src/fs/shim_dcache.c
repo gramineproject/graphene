@@ -92,8 +92,8 @@ void get_dentry(struct shim_dentry* dent) {
 #ifdef DEBUG_REF
     int count = REF_INC(dent->ref_count);
 
-    debug("get dentry %p(%s/%s) (ref_count = %d)\n", dent,
-          dent->fs ? qstrgetstr(&dent->fs->path) : "", qstrgetstr(&dent->rel_path), count);
+    log_debug("get dentry %p(%s/%s) (ref_count = %d)\n", dent,
+              dent->fs ? qstrgetstr(&dent->fs->path) : "", qstrgetstr(&dent->rel_path), count);
 #else
     REF_INC(dent->ref_count);
 #endif

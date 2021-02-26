@@ -4,6 +4,11 @@ loader.argv0_override = "openmp"
 
 loader.env.LD_LIBRARY_PATH = "/lib:/usrlib"
 
+# the manifest options below are added only for testing, they have no significance for OpenMP
+libos.check_invalid_pointers = 0
+sys.enable_sigterm_injection = 1
+sgx.preheat_enclave = 1
+
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:../../../../Runtime"

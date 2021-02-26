@@ -84,9 +84,9 @@ async_exit_pointer:
 	.cfi_def_cfa_register %rbp
 	andq $~0xF, %rsp
 
-	# Call sgx_profile_sample with %rdi = TCS
+	# Call sgx_profile_sample_aex with %rdi = TCS
 	movq %rbx, %rdi
-	call sgx_profile_sample
+	call sgx_profile_sample_aex
 
 	# Restore stack
 	movq %rbp, %rsp
@@ -139,7 +139,26 @@ sgx_raise:
 	movq %rsp, %rbp
 	.cfi_offset %rbp, -16
 	.cfi_def_cfa_register %rbp
+
+#if DEBUG
+    # Adjust stack and save RDI
+	subq $8, %rsp
 	andq $~0xF, %rsp  # Required by System V AMD64 ABI.
+	movq %rdi, -8(%rbp)
+
+	# Call sgx_profile_sample_ocall_outer with RBX (ocall handler)
+	movq %rbx, %rdi
+	call sgx_profile_sample_ocall_outer
+
+	# Call sgx_profile_sample_ocall_inner with RDX (pointer to in-enclave context)
+	movq %rdx, %rdi
+	call sgx_profile_sample_ocall_inner
+
+	# Restore RDI
+	movq -8(%rbp), %rdi
+#else
+	andq $~0xF, %rsp  # Required by System V AMD64 ABI.
+#endif
 
 	callq *%rbx
 

@@ -11,7 +11,6 @@
 #include "pal.h"
 
 int pal_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-int pal_fdprintf(int fd, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 void warn(const char* format, ...);
 
 void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr);

@@ -26,10 +26,10 @@ loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 # Binary to run.
 libos.entrypoint = "file:memcached"
 
-# Verbosity of Graphene debug log (none/error/info/debug/trace/all). Note that
-# GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the building
-# process: the default is "error" for non-debug builds, and "debug" for debug
-# builds.
+# Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
+# that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the
+# building process: the default is "error" for non-debug builds, and "debug"
+# for debug builds.
 loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 
 ################################# ARGUMENTS ###################################
@@ -52,6 +52,11 @@ loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
 
 # All other environment variables are unset. This is the default Graphene
 # behavior. Memcached doesn't require any environment variables to be set.
+
+################################## SIGNALS ####################################
+
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = 1
 
 ################################# MOUNT FS  ###################################
 

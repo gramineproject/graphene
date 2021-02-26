@@ -34,7 +34,6 @@ DkProcessCreate
 DkProcessExit
 DkSystemTimeQuery
 DkRandomBitsRead
-DkInstructionCacheFlush
 DkCpuIdRetrieve
 DkObjectClose
 DkSetExceptionHandler

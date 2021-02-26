@@ -113,6 +113,12 @@ The fields of the Graphene control block are defined as follows:
    :project: pal
    :members:
 
+.. doxygentypedef:: PAL_TOPO_INFO
+   :project: pal
+.. doxygenstruct:: PAL_TOPO_INFO_
+   :project: pal
+   :members:
+
 .. doxygentypedef:: PAL_MEM_INFO
    :project: pal
 .. doxygenstruct:: PAL_MEM_INFO_
@@ -242,9 +248,6 @@ applications.
    :project: pal
 
 
-.. doxygendefine:: PAL_STREAM_ERROR
-   :project: pal
-
 Flags used for stream manipulation
 """"""""""""""""""""""""""""""""""
 
@@ -295,7 +298,7 @@ Exception handling
 
 .. doxygentypedef:: PAL_CONTEXT
    :project: pal
-.. doxygenstruct:: PAL_CONTEXT_
+.. doxygenstruct:: PAL_CONTEXT
    :project: pal
    :members:
 

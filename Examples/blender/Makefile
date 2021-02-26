@@ -59,7 +59,12 @@ blender.manifest: blender.manifest.template trusted-libs | $(RUN_DIR)
 	     $<; \
     cat trusted-libs) > $@
 
-blender.sig blender.manifest.sgx &: $(BLENDER_DIR)/blender blender.manifest \
+# Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
+# we need to hack around.
+blender.sig blender.manifest.sgx: sgx_outputs
+
+.INTERMEDIATE: sgx_outputs
+sgx_outputs: $(BLENDER_DIR)/blender blender.manifest \
         $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so | $(RUN_DIR)
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-output blender.manifest.sgx \

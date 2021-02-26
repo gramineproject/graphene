@@ -23,8 +23,8 @@ int _DkMutexAcquireTimeout(PAL_HANDLE handle, int64_t timeout_us) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkMutexUnlock(struct mutex_handle* m) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+void _DkMutexUnlock(struct mutex_handle* m) {
+    /* Not implemented yet */
 }
 
 void _DkMutexRelease(PAL_HANDLE handle) {

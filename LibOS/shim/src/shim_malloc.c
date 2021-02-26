@@ -35,8 +35,7 @@ static SLAB_MGR slab_mgr = NULL;
 /* Returns NULL on failure */
 void* __system_malloc(size_t size) {
     size_t alloc_size = ALLOC_ALIGN_UP(size);
-    void* addr;
-    void* ret_addr;
+    void* addr = NULL;
 
     int ret = bkeep_mmap_any(alloc_size, PROT_READ | PROT_WRITE,
                              MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL, NULL, 0, "slab", &addr);
@@ -44,27 +43,17 @@ void* __system_malloc(size_t size) {
         return NULL;
     }
 
-    do {
-        ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0, PAL_PROT_WRITE | PAL_PROT_READ);
-
-        if (!ret_addr) {
-            /* If the allocation is interrupted by signal, try to handle the
-             * signal and then retry the allocation. */
-            if (PAL_NATIVE_ERRNO() == PAL_ERROR_INTERRUPTED) {
-                handle_signals();
-                continue;
-            }
-
-            debug("failed to allocate memory (%ld)\n", -PAL_ERRNO());
-            void* tmp_vma = NULL;
-            if (bkeep_munmap(addr, alloc_size, /*is_internal=*/true, &tmp_vma) < 0) {
-                BUG();
-            }
-            bkeep_remove_tmp_vma(tmp_vma);
-            return NULL;
+    ret = DkVirtualMemoryAlloc(&addr, alloc_size, 0, PAL_PROT_WRITE | PAL_PROT_READ);
+    if (ret < 0) {
+        log_error("failed to allocate memory (%ld)\n", pal_to_unix_errno(ret));
+        void* tmp_vma = NULL;
+        if (bkeep_munmap(addr, alloc_size, /*is_internal=*/true, &tmp_vma) < 0) {
+            BUG();
         }
-    } while (!ret_addr);
-    assert(addr == ret_addr);
+        bkeep_remove_tmp_vma(tmp_vma);
+        return NULL;
+    }
+
     return addr;
 }
 
@@ -73,7 +62,9 @@ void __system_free(void* addr, size_t size) {
     if (bkeep_munmap(addr, ALLOC_ALIGN_UP(size), /*is_internal=*/true, &tmp_vma) < 0) {
         BUG();
     }
-    DkVirtualMemoryFree(addr, ALLOC_ALIGN_UP(size));
+    if (DkVirtualMemoryFree(addr, ALLOC_ALIGN_UP(size)) < 0) {
+        BUG();
+    }
     bkeep_remove_tmp_vma(tmp_vma);
 }
 
@@ -97,7 +88,7 @@ void* malloc(size_t size) {
          * If malloc() failed internally, we cannot handle the
          * condition and must terminate the current process.
          */
-        warn("******** Out-of-memory in library OS ********\n");
+        log_error("Out-of-memory in library OS\n");
         __abort();
     }
 

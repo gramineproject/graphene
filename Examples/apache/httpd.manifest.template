@@ -14,6 +14,9 @@ loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 # Environment variables
 loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)"
 
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = 1
+
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
 

@@ -11,64 +11,28 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-PAL_HANDLE DkNotificationEventCreate(PAL_BOL initialState) {
-    ENTER_PAL_CALL(DkNotificationEventCreate);
-
-    PAL_HANDLE handle = NULL;
-    int ret = _DkEventCreate(&handle, initialState, true);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        handle = NULL;
-    }
-
-    LEAVE_PAL_CALL_RETURN(handle);
+int DkNotificationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle) {
+    *handle = NULL;
+    return _DkEventCreate(handle, initialState, true);
 }
 
-PAL_HANDLE DkSynchronizationEventCreate(PAL_BOL initialState) {
-    ENTER_PAL_CALL(DkSynchronizationEventCreate);
-
-    PAL_HANDLE handle = NULL;
-    int ret = _DkEventCreate(&handle, initialState, false);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        handle = NULL;
-    }
-
-    LEAVE_PAL_CALL_RETURN(handle);
+int DkSynchronizationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle) {
+    *handle = NULL;
+    return _DkEventCreate(handle, initialState, false);
 }
 
-/* DkEventDestroy deprecated, replaced by DkObjectClose */
-
-void DkEventSet(PAL_HANDLE handle) {
-    ENTER_PAL_CALL(DkEventSet);
-
+int DkEventSet(PAL_HANDLE handle) {
     if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL();
+        return -PAL_ERROR_INVAL;
     }
 
-    int ret = _DkEventSet(handle, -1);
-
-    if (ret < 0)
-        _DkRaiseFailure(-ret);
-
-    LEAVE_PAL_CALL();
+    return _DkEventSet(handle, -1);
 }
 
-void DkEventClear(PAL_HANDLE handle) {
-    ENTER_PAL_CALL(DkEventClear);
-
+int DkEventClear(PAL_HANDLE handle) {
     if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL();
+        return -PAL_ERROR_INVAL;
     }
 
-    int ret = _DkEventClear(handle);
-
-    if (ret < 0)
-        _DkRaiseFailure(-ret);
-
-    LEAVE_PAL_CALL();
+    return _DkEventClear(handle);
 }

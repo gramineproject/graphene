@@ -24,6 +24,13 @@ static ssize_t dev_null_write(struct shim_handle* hdl, const void* buf, size_t c
     return count;
 }
 
+static off_t dev_null_seek(struct shim_handle* hdl, off_t offset, int whence) {
+    __UNUSED(hdl);
+    __UNUSED(offset);
+    __UNUSED(whence);
+    return 0;
+}
+
 static int dev_null_truncate(struct shim_handle* hdl, uint64_t size) {
     __UNUSED(hdl);
     __UNUSED(size);
@@ -61,6 +68,7 @@ static int dev_null_open(struct shim_handle* hdl, const char* name, int flags) {
 
     struct shim_dev_ops ops = {.read     = &dev_null_read,
                                .write    = &dev_null_write,
+                               .seek     = &dev_null_seek,
                                .truncate = &dev_null_truncate,
                                .mode     = &dev_null_mode,
                                .stat     = &dev_null_stat,

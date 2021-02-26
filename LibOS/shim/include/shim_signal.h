@@ -1,14 +1,15 @@
 #ifndef _SHIM_SIGNAL_H_
 #define _SHIM_SIGNAL_H_
 
+#include <stdbool.h>
+
 #include "shim_defs.h"
 #include "shim_types.h"
-#include "ucontext.h"
 
 #define __WCOREDUMP_BIT 0x80
 
 void sigaction_make_defaults(struct __kernel_sigaction* sig_action);
-void thread_sigaction_reset_on_execve(struct shim_thread* thread);
+void thread_sigaction_reset_on_execve(void);
 
 #define BITS_PER_WORD (8 * sizeof(unsigned long))
 /* The standard def of this macro is dumb */
@@ -102,24 +103,38 @@ __SIGSETFN(shim_sigdelset, ((__set->__val[__word] &= ~__mask), 0), )
 
 void clear_illegal_signals(__sigset_t* set);
 
-/* NB: Check shim_signal.c if this changes.  Some memset(0) elision*/
 struct shim_signal {
-    siginfo_t    info;
-    bool         context_stored;
-    ucontext_t   context;
-    PAL_CONTEXT* pal_context;
+    siginfo_t siginfo;
 };
 
-void get_pending_signals(struct shim_thread* thread, __sigset_t* set);
+void get_all_pending_signals(__sigset_t* set);
+bool have_pending_signals(void);
+
+/*!
+ * \brief Return stack pointer to use in a signal handler.
+ *
+ * \param sp Current stack pointer value.
+ * \param use_altstack True if alternative stack should be used.
+ *
+ * Returns value to be used as a new stack pointer in the signal handler, depending on the current
+ * thread's settings.
+ */
+uintptr_t get_stack_for_sighandler(uintptr_t sp, bool use_altstack);
+/*!
+ * \brief Check whether address is on alternative stack.
+ *
+ * \param sp Stack pointer value.
+ * \param alt_stack Pointer to the alternative stack.
+ *
+ * Returns `true` if \p sp is on \p alt_stack.
+ */
+bool is_on_altstack(uintptr_t sp, stack_t* alt_stack);
 
 struct shim_thread;
 
-int init_signal(void);
-
-void __store_context(shim_tcb_t* tcb, PAL_CONTEXT* pal_context, struct shim_signal* signal);
+int init_signal_handling(void);
 
 int append_signal(struct shim_thread* thread, siginfo_t* info);
-void deliver_signal(siginfo_t* info, PAL_CONTEXT* context);
 
 void get_sig_mask(struct shim_thread* thread, __sigset_t* mask);
 void set_sig_mask(struct shim_thread* thread, const __sigset_t* new_set);

@@ -19,74 +19,66 @@
 #error "pal_internal.h can only be included in PAL"
 #endif
 
-/* handle_ops is the operators provided for each handler type. They are
-   mostly used by Stream-related PAL calls, but can also be used by
-   some others in special ways. */
+/* handle_ops is the operators provided for each handler type. They are mostly used by
+ * stream-related PAL calls, but can also be used by some others in special ways. */
 struct handle_ops {
     /* 'getrealpath' return the real path that represent the handle */
     const char* (*getrealpath)(PAL_HANDLE handle);
 
-    /* 'getname' is used by DkStreamGetName. It's different from
-       'getrealpath' */
+    /* 'getname' is used by DkStreamGetName. It's different from 'getrealpath' */
     int (*getname)(PAL_HANDLE handle, char* buffer, size_t count);
 
-    /* 'open' is used by DkStreamOpen. 'handle' is a preallocated handle,
-       'type' will be a normalized prefix, 'uri' is the remaining string
-       of uri.
-       access, share, create, and options follow the same flags defined
-       for DkStreamOpen in pal.h.
-    */
+    /* 'open' is used by DkStreamOpen. 'handle' is a preallocated handle, 'type' will be a
+     * normalized prefix, 'uri' is the remaining string of uri. access, share, create, and options
+     * follow the same flags defined for DkStreamOpen in pal.h. */
     int (*open)(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                 int create, int options);
 
-    /* 'read' and 'write' is used by DkStreamRead and DkStreamWrite, so
-       they have exactly same prototype as them.  */
+    /* 'read' and 'write' is used by DkStreamRead and DkStreamWrite, so they have exactly same
+     * prototype as them. */
     int64_t (*read)(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer);
     int64_t (*write)(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer);
 
-    /* 'readbyaddr' and 'writebyaddr' are the same as read and write,
-       but with extra field to specify address */
+    /* 'readbyaddr' and 'writebyaddr' are the same as read and write, but with extra field to
+     * specify address */
     int64_t (*readbyaddr)(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer,
                           char* addr, size_t addrlen);
     int64_t (*writebyaddr)(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer,
                            const char* addr, size_t addrlen);
 
-    /* 'close' and 'delete' is used by DkObjectClose and DkStreamDelete,
-       'close' will close the stream, while 'delete' actually destroy
-       the stream, such as deleting a file or shutting down a socket */
+    /* 'close' and 'delete' is used by DkObjectClose and DkStreamDelete, 'close' will close the
+     * stream, while 'delete' actually destroy the stream, such as deleting a file or shutting
+     * down a socket */
     int (*close)(PAL_HANDLE handle);
     int (*delete)(PAL_HANDLE handle, int access);
 
-    /* 'map' and 'unmap' will map or unmap the handle into memory space,
-     * it's not necessary mapped by mmap, so unmap also needs 'handle'
-     * to deal with special cases.
+    /*
+     * 'map' and 'unmap' will map or unmap the handle into memory space, it's not necessary mapped
+     * by mmap, so unmap also needs 'handle' to deal with special cases.
      *
-     * Common PAL code will ensure that *address, offset, and size are
-     * page-aligned. 'address' should not be NULL.
+     * Common PAL code will ensure that *address, offset, and size are page-aligned. 'address'
+     * should not be NULL.
      */
     int (*map)(PAL_HANDLE handle, void** address, int prot, uint64_t offset, uint64_t size);
 
-    /* 'setlength' is used by DkStreamFlush. It truncate the stream
-       to certain size. */
+    /* 'setlength' is used by DkStreamFlush. It truncate the stream to certain size. */
     int64_t (*setlength)(PAL_HANDLE handle, uint64_t length);
 
     /* 'flush' is used by DkStreamFlush. It syncs the stream to the device */
     int (*flush)(PAL_HANDLE handle);
 
-    /* 'waitforclient' is used by DkStreamWaitforClient. It accepts an
-       connection */
+    /* 'waitforclient' is used by DkStreamWaitforClient. It accepts an connection */
     int (*waitforclient)(PAL_HANDLE server, PAL_HANDLE* client);
 
-    /* 'attrquery' is used by DkStreamAttributesQuery. It queries the
-        attributes of a stream */
+    /* 'attrquery' is used by DkStreamAttributesQuery. It queries the attributes of a stream */
     int (*attrquery)(const char* type, const char* uri, PAL_STREAM_ATTR* attr);
 
-    /* 'attrquerybyhdl' is used by DkStreamAttributesQueryByHandle. It queries
-       the attributes of a stream handle */
+    /* 'attrquerybyhdl' is used by DkStreamAttributesQueryByHandle. It queries the attributes of
+     * a stream handle */
     int (*attrquerybyhdl)(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
-    /* 'attrsetbyhdl' is used by DkStreamAttributesSetByHandle. It queries
-       the attributes of a stream handle */
+    /* 'attrsetbyhdl' is used by DkStreamAttributesSetByHandle. It queries the attributes of
+     * a stream handle */
     int (*attrsetbyhdl)(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
     /* 'wait' is used for synchronous wait.
@@ -97,8 +89,7 @@ struct handle_ops {
      */
     int (*wait)(PAL_HANDLE handle, int64_t timeout_us);
 
-    /* 'rename' is used to change name of a stream, or reset its share
-       option */
+    /* 'rename' is used to change name of a stream, or reset its share option */
     int (*rename)(PAL_HANDLE handle, const char* type, const char* uri);
 };
 
@@ -111,8 +102,8 @@ static inline const struct handle_ops* HANDLE_OPS(PAL_HANDLE handle) {
     return g_pal_handle_ops[_type];
 }
 
-/* We allow dynamic size handle allocation. Here is some macro to help
-   deciding the actual size of the handle */
+/* We allow dynamic size handle allocation. Here is some macro to help deciding the actual size of
+ * the handle */
 extern PAL_HANDLE _h;
 #define HANDLE_SIZE(type) (sizeof(*_h))
 
@@ -120,27 +111,12 @@ static inline int handle_size(PAL_HANDLE handle) {
     return sizeof(*handle);
 }
 
-#ifndef ENTER_PAL_CALL
-#define ENTER_PAL_CALL(name)
-#endif
-
-#ifndef LEAVE_PAL_CALL
-#define LEAVE_PAL_CALL()
-#endif
-
-#ifndef LEAVE_PAL_CALL_RETURN
-#define LEAVE_PAL_CALL_RETURN(retval) \
-    do {                              \
-        return (retval);              \
-    } while (0)
-#endif
-
-/* failure notify. The rountine is called whenever a PAL call return
-   error code. As the current design of PAL does not return error
-   code directly, we rely on DkAsynchronousEventUpcall to handle
-   PAL call error. If the user does not set up a upcall, the error
-   code will be ignored. Ignoring PAL error code can be a possible
-   optimization for SHIM. */
+/*
+ * failure notify. The rountine is called whenever a PAL call return error code. As the current
+ * design of PAL does not return error code directly, we rely on DkAsynchronousEventUpcall to handle
+ * PAL call error. If the user does not set up a upcall, the error code will be ignored. Ignoring
+ * PAL error code can be a possible optimization for SHIM.
+ */
 void notify_failure(unsigned long error);
 
 /* all pal config value */
@@ -194,6 +170,7 @@ unsigned long _DkMemoryQuota(void);
 unsigned long _DkMemoryAvailableQuota(void);
 // Returns 0 on success, negative PAL code on failure
 int _DkGetCPUInfo(PAL_CPU_INFO* info);
+int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info);
 
 /* Internal DK calls, in case any of the internal routines needs to use them */
 /* DkStream calls */
@@ -245,7 +222,6 @@ int _DkVirtualMemoryFree(void* addr, uint64_t size);
 int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot);
 
 /* DkObject calls */
-int _DkObjectReference(PAL_HANDLE objectHandle);
 int _DkObjectClose(PAL_HANDLE objectHandle);
 int _DkSynchronizationObjectWait(PAL_HANDLE handle, int64_t timeout_us);
 int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events,
@@ -253,7 +229,6 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 
 /* DkException calls & structures */
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event_num);
-void _DkRaiseFailure(int error);
 
 /* other DK calls */
 void _DkInternalLock(PAL_LOCK* mut);
@@ -268,7 +243,6 @@ int _DkSystemTimeQuery(uint64_t* out_usec);
 size_t _DkRandomBitsRead(void* buffer, size_t size);
 int _DkSegmentRegisterGet(int reg, void** addr);
 int _DkSegmentRegisterSet(int reg, void* addr);
-int _DkInstructionCacheFlush(const void* addr, int size);
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
                          PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
@@ -328,25 +302,16 @@ ssize_t _DkDebugLog(const void* buf, size_t size);
 void _DkPrintConsole(const void* buf, int size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
-int log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-int log_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-/* err - positive value of error code */
-static inline void print_error(const char* msg, int err) {
-    printf("%s (%s)\n", msg, pal_strerror(err));
-}
+// TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
+// pasting it here and making `inline`, but our current linker scripts prevent both.
+void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #define PAL_LOG_DEFAULT_LEVEL  PAL_LOG_ERROR
-#define PAL_LOG_DEFAULT_FD     1
-
-#define _log(level, fmt...)                          \
-    do {                                             \
-        if ((level) <= g_pal_control.log_level)      \
-            log_printf(fmt);                         \
-    }  while(0)
+#define PAL_LOG_DEFAULT_FD     2
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
-#define log_info(fmt...)     _log(PAL_LOG_INFO, fmt)
+#define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
 #define log_debug(fmt...)    _log(PAL_LOG_DEBUG, fmt)
 #define log_trace(fmt...)    _log(PAL_LOG_TRACE, fmt)
 

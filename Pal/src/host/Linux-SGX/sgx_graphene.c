@@ -6,8 +6,10 @@
 
 #include "atomic.h"
 #include "pal.h"
+#include "pal_debug.h"
 #include "pal_error.h"
 #include "sgx_internal.h"
+#include "sgx_log.h"
 
 #define PRINTBUF_SIZE 256
 
@@ -40,17 +42,6 @@ static int vfdprintf(int fd, const char* fmt, va_list ap) {
     return b.cnt;
 }
 
-int pal_fdprintf(int fd, const char* fmt, ...) {
-    va_list ap;
-    int cnt;
-
-    va_start(ap, fmt);
-    cnt = vfdprintf(fd, fmt, ap);
-    va_end(ap);
-
-    return cnt;
-}
-
 int pal_printf(const char* fmt, ...) {
     va_list ap;
     int cnt;
@@ -60,4 +51,13 @@ int pal_printf(const char* fmt, ...) {
     va_end(ap);
 
     return cnt;
+}
+
+void _urts_log(int level, const char* fmt, ...) {
+    if (level <= g_urts_log_level) {
+        va_list ap;
+        va_start(ap, fmt);
+        vfdprintf(g_urts_log_fd, fmt, ap);
+        va_end(ap);
+    }
 }

@@ -22,8 +22,6 @@ except ImportError:
 
 ARCHITECTURE = 'amd64'
 
-SSAFRAMESIZE = offs.PAGESIZE
-
 DEFAULT_ENCLAVE_SIZE = '"256M"'
 DEFAULT_THREAD_NUM = 4
 
@@ -65,7 +63,7 @@ def parse_size(value):
 def read_manifest(filename):
     manifest = dict()
     manifest_layout = []
-    with open(filename, 'r') as file:
+    with open(filename, 'r', encoding='UTF-8') as file:
         for line in file:
             if line == '':
                 manifest_layout.append((None, None))
@@ -107,7 +105,7 @@ def exec_sig_manifest(args):
 
 
 def output_manifest(filename, manifest, manifest_layout):
-    with open(filename, 'w') as file:
+    with open(filename, 'w', encoding='UTF-8') as file:
         written = []
 
         file.write('# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n')
@@ -335,7 +333,7 @@ def get_memory_areas(attr, args):
     areas = []
     areas.append(
         MemoryArea('ssa',
-                   size=attr['thread_num'] * SSAFRAMESIZE * offs.SSAFRAMENUM,
+                   size=attr['thread_num'] * offs.SSA_FRAME_SIZE * offs.SSA_FRAME_NUM,
                    flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
     areas.append(MemoryArea('tcs', size=attr['thread_num'] * offs.TCS_SIZE,
                             flags=PAGEINFO_TCS))
@@ -414,10 +412,10 @@ def gen_area_content(attr, areas, enclave_base, enclave_heap_min):
             raise ValueError('Unexpected memory area is in heap range')
 
     for t in range(0, attr['thread_num']):
-        ssa = ssa_area.addr + SSAFRAMESIZE * offs.SSAFRAMENUM * t
+        ssa = ssa_area.addr + offs.SSA_FRAME_SIZE * offs.SSA_FRAME_NUM * t
         ssa_offset = ssa - enclave_base
         set_tcs_field(t, offs.TCS_OSSA, '<Q', ssa_offset)
-        set_tcs_field(t, offs.TCS_NSSA, '<L', offs.SSAFRAMENUM)
+        set_tcs_field(t, offs.TCS_NSSA, '<L', offs.SSA_FRAME_NUM)
         set_tcs_field(t, offs.TCS_OENTRY, '<Q',
                       pal_area.addr + entry_point(pal_area.elf_filename) - enclave_base)
         set_tcs_field(t, offs.TCS_OGS_BASE, '<Q', tls_area.addr - enclave_base + offs.PAGESIZE * t)
@@ -433,7 +431,7 @@ def gen_area_content(attr, areas, enclave_base, enclave_heap_min):
         set_tls_field(t, offs.SGX_SIG_STACK_LOW, sig_stacks[t].addr)
         set_tls_field(t, offs.SGX_SIG_STACK_HIGH, sig_stacks[t].addr + sig_stacks[t].size)
         set_tls_field(t, offs.SGX_SSA, ssa)
-        set_tls_field(t, offs.SGX_GPR, ssa + SSAFRAMESIZE - offs.SGX_GPR_SIZE)
+        set_tls_field(t, offs.SGX_GPR, ssa + offs.SSA_FRAME_SIZE - offs.SGX_GPR_SIZE)
         set_tls_field(t, offs.SGX_MANIFEST_SIZE, len(manifest_area.content))
         set_tls_field(t, offs.SGX_HEAP_MIN, enclave_heap_min)
         set_tls_field(t, offs.SGX_HEAP_MAX, enclave_heap_max)
@@ -479,7 +477,7 @@ def generate_measurement(enclave_base, attr, areas):
     # pylint: disable=too-many-statements,too-many-branches,too-many-locals
 
     def do_ecreate(digest, size):
-        data = struct.pack('<8sLQ44s', b'ECREATE', SSAFRAMESIZE // offs.PAGESIZE,
+        data = struct.pack('<8sLQ44s', b'ECREATE', offs.SSA_FRAME_SIZE // offs.PAGESIZE,
                            size, b'')
         digest.update(data)
 
@@ -831,7 +829,7 @@ def make_depend(args):
     dependencies.add(args['libpal'])
     dependencies.add(args['key'])
 
-    with open(output, 'w') as file:
+    with open(output, 'w', encoding='UTF-8') as file:
         manifest_sgx = output
         if manifest_sgx.endswith('.d'):
             manifest_sgx = manifest_sgx[:-len('.d')]

@@ -40,7 +40,7 @@ static noreturn void libos_clean_and_exit(int exit_code) {
     store_all_msg_persist();
     del_all_ipc_ports();
 
-    debug("process %u exited with status %d\n", g_process_ipc_info.vmid, exit_code);
+    log_debug("process %u exited with status %d\n", g_process_ipc_info.vmid, exit_code);
 
     /* TODO: We exit whole libos, but there are some objects that might need cleanup, e.g. we should
      * release this (last) thread pid. We should do a proper cleanup of everything. */
@@ -48,9 +48,6 @@ static noreturn void libos_clean_and_exit(int exit_code) {
 }
 
 noreturn void thread_exit(int error_code, int term_signal) {
-    /* Disable preemption as soon we won't be able to process signals. */
-    disable_preempt(NULL);
-
     /* Remove current thread from the threads list. */
     if (!check_last_thread(/*mark_self_dead=*/true)) {
         struct shim_thread* cur_thread = get_cur_thread();
@@ -69,8 +66,8 @@ noreturn void thread_exit(int error_code, int term_signal) {
         put_thread(cur_thread);
 
         if (ret < 0) {
-            debug("failed to set up async cleanup_thread (exiting without clear child tid),"
-                  " return code: %ld\n", ret);
+            log_error("failed to set up async cleanup_thread (exiting without clear child tid),"
+                      " return code: %ld\n", ret);
             /* `cleanup_thread` did not get this reference, clean it. We have to be careful, as
              * this is most likely the last reference and will free this `cur_thread`. */
             put_thread(cur_thread);
@@ -85,7 +82,7 @@ noreturn void thread_exit(int error_code, int term_signal) {
     /* This is the last thread of the process. Let parent know we exited. */
     int ret = ipc_cld_exit_send(error_code, term_signal);
     if (ret < 0) {
-        debug("Sending IPC process-exit notification failed: %d\n", ret);
+        log_error("Sending IPC process-exit notification failed: %d\n", ret);
     }
 
     /* At this point other threads might be still in the middle of an exit routine, but we don't
@@ -98,20 +95,13 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
         return 0;
     }
 
-    bool need_wakeup = false;
+    bool need_wakeup = !__atomic_exchange_n(&thread->time_to_die, true, __ATOMIC_ACQ_REL);
 
-    lock(&thread->lock);
-    if (!thread->time_to_die) {
-        need_wakeup = true;
-    }
-    thread->time_to_die = true;
-    unlock(&thread->lock);
-
-    /* Now let's kick `thread`, so that it notices (in `__handle_signals`) the flag `time_to_die`
+    /* Now let's kick `thread`, so that it notices (in `handle_signal`) the flag `time_to_die`
      * set above (but only if we really set that flag). */
     if (need_wakeup) {
         thread_wakeup(thread);
-        DkThreadResume(thread->pal_handle);
+        (void)DkThreadResume(thread->pal_handle); // There is nothing we can do on errors.
     }
     return 1;
 }
@@ -155,22 +145,22 @@ noreturn void process_exit(int error_code, int term_signal) {
     thread_exit(error_code, term_signal);
 }
 
-noreturn long shim_do_exit_group(int error_code) {
+long shim_do_exit_group(int error_code) {
     assert(!is_internal(get_cur_thread()));
 
     error_code &= 0xFF;
 
-    debug("---- shim_exit_group (returning %d)\n", error_code);
+    log_debug("---- shim_exit_group (returning %d)\n", error_code);
 
     process_exit(error_code, 0);
 }
 
-noreturn long shim_do_exit(int error_code) {
+long shim_do_exit(int error_code) {
     assert(!is_internal(get_cur_thread()));
 
     error_code &= 0xFF;
 
-    debug("---- shim_exit (returning %d)\n", error_code);
+    log_debug("---- shim_exit (returning %d)\n", error_code);
 
     thread_exit(error_code, 0);
 }

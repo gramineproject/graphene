@@ -8,6 +8,8 @@
 #include <asm/stat.h>
 #include <linux/mman.h>
 #include <sigset.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -103,6 +105,9 @@ int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void
 /* PAL main function */
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);
 
+uintptr_t get_vdso_start(void);
+bool is_in_vdso(uintptr_t addr);
+
 struct link_map;
 void setup_pal_map(struct link_map* map);
 void setup_vdso_map(ElfW(Addr) addr);
@@ -123,9 +128,6 @@ bool stataccess(struct stat* stats, int acc);
 void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, char** exec_uri_out,
                         char** manifest_out);
 
-int get_hw_resource(const char* filename, bool count);
-ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size);
-
 void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]);
 int block_async_signals(bool block);
 void signal_setup(void);
@@ -136,17 +138,13 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START ((void*)(&__text_start))
 #define DATA_END   ((void*)(&__text_end))
 
-#define ADDR_IN_PAL(addr) \
-        ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
-
-#define MAX_SIGNAL_LOG 32
+#define ADDR_IN_PAL_OR_VDSO(addr) \
+        (((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END) || is_in_vdso(addr))
 
 typedef struct pal_tcb_linux {
     PAL_TCB common;
     struct {
         /* private to Linux PAL */
-        int        pending_events[MAX_SIGNAL_LOG];
-        int        pending_events_num;
         PAL_HANDLE handle;
         void*      alt_stack;
         int        (*callback)(void*);
@@ -174,5 +172,24 @@ static inline void pal_tcb_set_stack_canary(PAL_TCB* tcb, uint64_t canary) {
     ((char*)&canary)[0] = 0; /* prevent C-string-based stack leaks from exposing the cookie */
     pal_tcb_arch_set_stack_canary(tcb, canary);
 }
+struct linux_dirent64 {
+    unsigned long  d_ino;
+    unsigned long  d_off;
+    unsigned short d_reclen;
+    unsigned char  d_type;
+    char           d_name[];
+};
+
+#define DT_UNKNOWN 0
+#define DT_FIFO    1
+#define DT_CHR     2
+#define DT_DIR     4
+#define DT_BLK     6
+#define DT_REG     8
+#define DT_LNK     10
+#define DT_SOCK    12
+#define DT_WHT     14
+
+#define DIRBUF_SIZE 1024
 
 #endif /* PAL_LINUX_H */

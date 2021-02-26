@@ -28,36 +28,35 @@ static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
-    PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
+    int ret = DkStreamRead(hdl->pal_handle, 0, &count, buf, NULL, 0);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
-    if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO();
-
-    return (ssize_t)bytes;
+    return (ssize_t)count;
 }
 
 static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count) {
     if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
-    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
-
-    if (bytes == PAL_STREAM_ERROR) {
-        int err = PAL_ERRNO();
-        if (err == EPIPE) {
+    int ret = DkStreamWrite(hdl->pal_handle, 0, &count, (void*)buf, NULL);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
+        if (ret == -EPIPE) {
             siginfo_t info = {
                 .si_signo = SIGPIPE,
                 .si_pid = g_process.pid,
                 .si_code = SI_USER,
             };
             if (kill_current_proc(&info) < 0) {
-                debug("pipe_write: failed to deliver a signal\n");
+                log_error("pipe_write: failed to deliver a signal\n");
             }
         }
-        return -err;
+        return ret;
     }
 
-    return (ssize_t)bytes;
+    return (ssize_t)count;
 }
 
 static int pipe_hstat(struct shim_handle* hdl, struct stat* stat) {
@@ -107,8 +106,9 @@ static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     }
 
     PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-        ret = -PAL_ERRNO();
+    int query_ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+    if (query_ret < 0) {
+        ret = pal_to_unix_errno(query_ret);
         goto out;
     }
 
@@ -136,8 +136,10 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
 
     PAL_STREAM_ATTR attr;
 
-    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO();
+    int ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     if (attr.nonblocking) {
         if (flags & O_NONBLOCK)
@@ -151,8 +153,10 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
         attr.nonblocking = PAL_TRUE;
     }
 
-    if (!DkStreamAttributesSetByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO();
+    ret = DkStreamAttributesSetByHandle(hdl->pal_handle, &attr);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     return 0;
 }
@@ -171,8 +175,8 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
         /* POSIX disallows FIFOs opened for read-write, but Linux allows it. We must choose only
          * one end (read or write) in our emulation, so we treat such FIFOs as read-only. This
          * covers most apps seen in the wild (in particular, LTP apps). */
-        debug("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
-              "Treating it as read-only.", qstrgetstr(&dent->fs->path));
+        log_warning("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
+                    "Treating it as read-only.", qstrgetstr(&dent->fs->path));
         flags = O_RDONLY;
     }
 

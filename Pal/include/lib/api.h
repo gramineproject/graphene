@@ -130,6 +130,8 @@ typedef ptrdiff_t ssize_t;
     } while (0)
 #define static_strlen(str) (ARRAY_SIZE(FORCE_LITERAL_CSTR(str)) - 1)
 
+#define IS_IN_RANGE_INCL(value, start, end) (((value) < (start) || (value) > (end)) ? false : true)
+
 /* LibC functions */
 
 /* LibC string functions */
@@ -140,6 +142,12 @@ int strcmp(const char* lhs, const char* rhs);
 
 long strtol(const char* s, char** endptr, int base);
 long long strtoll(const char* s, char** endptr, int base);
+/* Converts a string to an unsigned long value. "+" and "-" signs are not allowed in the string.
+ * Return value indicates whether int overflow happened. If out_value is not NULL, then it contains
+ * the result of conversion (or ULONG_MAX if int overflow happened). If out_endptr is not NULL, then
+ * it contains the address of the first invalid char in str (or the original value of str if there
+ * were no digits at all). */
+bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr);
 int atoi(const char* nptr);
 long int atol(const char* nptr);
 

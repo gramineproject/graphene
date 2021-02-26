@@ -72,7 +72,11 @@ static int __add_sem_handle(unsigned long key, IDTYPE semid, int nsems, bool own
     tmp->semkey = key;
     tmp->semid  = semid;
     tmp->owned  = owned;
-    tmp->event  = DkNotificationEventCreate(PAL_FALSE);
+    ret = DkNotificationEventCreate(PAL_FALSE, &tmp->event);
+    if (ret < 0) {
+        ret = pal_to_unix_errno(ret);
+        goto failed;
+    }
 
     if (owned && nsems) {
         tmp->nsems = nsems;
@@ -441,26 +445,26 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
         again:
             if (op->sem_op > 0) {
                 sobj->val += op->sem_op;
-                debug("sem %u: add %u => %u\n", sobj->num, op->sem_op, sobj->val);
+                log_debug("sem %u: add %u => %u\n", sobj->num, op->sem_op, sobj->val);
             } else if (op->sem_op < 0) {
                 if (sobj->val < -op->sem_op) {
                     if (op->sem_flg & IPC_NOWAIT) {
-                        debug("sem %u: wait for %u failed\n", sobj->num, -op->sem_op);
+                        log_error("sem %u: wait for %u failed\n", sobj->num, -op->sem_op);
                         goto failed;
                     }
                     continue;
                 }
                 sobj->val -= -op->sem_op;
-                debug("sem %u: wait for %u => %u\n", sobj->num, -op->sem_op, sobj->val);
+                log_debug("sem %u: wait for %u => %u\n", sobj->num, -op->sem_op, sobj->val);
             } else {
                 if (sobj->val) {
                     if (op->sem_flg & IPC_NOWAIT) {
-                        debug("sem %u: wait for 0 failed\n", sobj->num);
+                        log_error("sem %u: wait for 0 failed\n", sobj->num);
                         goto failed;
                     }
                     continue;
                 }
-                debug("sem %u: wait for 0\n", sobj->num);
+                log_debug("sem %u: wait for 0\n", sobj->num);
             }
 
             progressed = true;
@@ -509,7 +513,7 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
     }
 
     if (setevent)
-        DkEventSet(sem->event);
+        DkEventSet(sem->event); // TODO: handle errors
 
     return progressed;
 }
@@ -526,30 +530,30 @@ again:
         if (op->sem_op > 0) {
             progressed = true;
             sobj->val += op->sem_op;
-            debug("sem %u: add %u => %u\n", sobj->num, op->sem_op, sobj->val);
+            log_debug("sem %u: add %u => %u\n", sobj->num, op->sem_op, sobj->val);
         } else if (op->sem_op < 0) {
             if (sobj->val < -op->sem_op) {
                 if (op->sem_flg & IPC_NOWAIT) {
                     stat->failed = true;
-                    debug("sem %u: wait for %u failed\n", sobj->num, -op->sem_op);
+                    log_error("sem %u: wait for %u failed\n", sobj->num, -op->sem_op);
                     return;
                 }
                 goto failed;
             }
             progressed = true;
             sobj->val -= -op->sem_op;
-            debug("sem %u: wait for %u => %u\n", sobj->num, -op->sem_op, sobj->val);
+            log_debug("sem %u: wait for %u => %u\n", sobj->num, -op->sem_op, sobj->val);
         } else {
             if (sobj->val) {
                 if (op->sem_flg & IPC_NOWAIT) {
                     stat->failed = true;
-                    debug("sem %u: wait for 0 failed\n", sobj->num);
+                    log_error("sem %u: wait for 0 failed\n", sobj->num);
                     return;
                 }
                 goto failed;
             }
             progressed = true;
-            debug("sem %u: wait for 0\n", sobj->num);
+            log_debug("sem %u: wait for 0\n", sobj->num);
         }
 
         stat->current++;

@@ -14,8 +14,8 @@
 
 #include "elf.h"
 #include "elf/ldsodefs.h"
-#include "glibc-version.h"
 #include "shim_checkpoint.h"
+#include "shim_entry.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
@@ -38,9 +38,7 @@ enum object_type {
     OBJECT_INTERNAL = 0,
     OBJECT_LOAD     = 1,
     OBJECT_MAPPED   = 2,
-    OBJECT_REMAP    = 3,
-    OBJECT_USER     = 4,
-    OBJECT_VDSO     = 5,
+    OBJECT_VDSO     = 3,
 };
 
 /* Structure describing a loaded shared object.  The `l_next' and `l_prev'
@@ -59,47 +57,19 @@ struct link_map {
 
     ElfW(Addr) l_addr;       /* Base address shared object is loaded at. */
     const char* l_name;      /* Absolute file name object was found in.  */
-    ElfW(Dyn)* l_real_ld;    /* Dynamic section of the shared object.    */
     struct link_map* l_next; /* Chain of loaded objects.  */
     struct link_map* l_prev;
 
-    /* All following members are internal to the dynamic linker.
-       They may change without notice.  */
-    ElfW(Dyn)* l_ld;
-    char* l_soname;
-
-    ElfW(Dyn)*
-        l_info[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM + DT_ADDRNUM];
     const ElfW(Phdr)* l_phdr;  /* Pointer to program header table in core.  */
     ElfW(Addr) l_entry;        /* Entry point location.  */
     ElfW(Half) l_phnum;        /* Number of program header entries.  */
-    ElfW(Half) l_ldnum;        /* Number of dynamic segment entries.  */
 
     /* Start and finish of memory map for this object.  l_map_start
        need not be the same as l_addr.  */
     ElfW(Addr) l_map_start, l_map_end;
 
-    bool l_resolved;
-    ElfW(Addr) l_resolved_map;
     const char* l_interp_libname;
     ElfW(Addr) l_main_entry;
-
-    /* Information used to change permission after the relocations are
-       done.   */
-    ElfW(Addr) l_relro_addr;
-    size_t l_relro_size;
-
-    /* For DT_HASH */
-    Elf_Symndx l_nbuckets;
-    const Elf_Symndx* l_buckets;
-    const Elf_Symndx* l_chain;
-
-    /* For DT_GNU_HASH */
-    Elf32_Word l_gnu_bitmask_idxbits;
-    Elf32_Word l_gnu_shift;
-    const ElfW(Addr)* l_gnu_bitmask;
-    const Elf32_Word* l_gnu_buckets;
-    const Elf32_Word* l_gnu_chain_zero;
 
     /* pointer to related file */
     struct shim_handle* l_file;
@@ -114,135 +84,14 @@ struct link_map {
         struct shim_vma* vma;
     } loadcmds[MAX_LOADCMDS];
     int nloadcmds;
-
-    struct textrel {
-        ElfW(Addr) start, end;
-        int prot;
-        struct textrel* next;
-    } * textrels;
-
-#define MAX_LINKSYMS 32
-    struct linksym {
-        void* rel;
-        ElfW(Sym)* sym;
-        void* reloc;
-    } linksyms[MAX_LINKSYMS];
-    int nlinksyms;
 };
 
-struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym)** ref);
+#define RELOCATE(l, addr)  ((ElfW(Addr))(addr) + (ElfW(Addr))((l)->l_addr))
 
 static struct link_map* loaded_libraries = NULL;
 static struct link_map* internal_map = NULL;
 static struct link_map* interp_map = NULL;
 static struct link_map* vdso_map = NULL;
-
-/* This macro is used as a callback from the ELF_DYNAMIC_RELOCATE code.  */
-static ElfW(Addr) resolve_map(const char** strtab, ElfW(Sym)** ref) {
-    if (ELFW(ST_BIND)((*ref)->st_info) != STB_LOCAL) {
-        struct link_map* l = lookup_symbol((*strtab) + (*ref)->st_name, ref);
-        if (l) {
-            *strtab = (const void*)D_PTR(l->l_info[DT_STRTAB]);
-            return l->l_addr;
-        }
-    }
-    return 0;
-}
-
-static int protect_page(struct link_map* l, void* addr, size_t size) {
-    struct loadcmd* c = l->loadcmds;
-    int prot          = 0;
-
-    for (; c < &l->loadcmds[l->nloadcmds]; c++)
-        if ((void*)l->l_addr + c->mapstart <= addr && addr + size <= (void*)l->l_addr + c->mapend)
-            break;
-
-    if (c < &l->loadcmds[l->nloadcmds])
-        prot = c->prot;
-
-    struct textrel* t    = l->textrels;
-    struct textrel** loc = &l->textrels;
-
-    for (; t; t = t->next) {
-        if ((void*)t->start <= addr && addr + size <= (void*)t->end)
-            return 0;
-
-        loc = &t->next;
-    }
-
-    if ((prot & (PROT_READ | PROT_WRITE)) == (PROT_READ | PROT_WRITE)) {
-        struct shim_vma_info vma_info;
-
-        /* the actual protection of the vma might be changed */
-        if (lookup_vma(addr, &vma_info) < 0)
-            return 0;
-
-        prot = vma_info.prot;
-        if (vma_info.file) {
-            put_handle(vma_info.file);
-        }
-
-        if ((prot & (PROT_READ | PROT_WRITE)) == (PROT_READ | PROT_WRITE))
-            return 0;
-    }
-
-    void* start = ALLOC_ALIGN_DOWN_PTR(addr);
-    void* end   = ALLOC_ALIGN_UP_PTR(addr + size);
-
-    if (!DkVirtualMemoryProtect(start, end - start,
-            PAL_PROT_READ | PAL_PROT_WRITE | LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))
-        return -PAL_ERRNO();
-
-    if (!c)
-        return 0;
-
-    t = malloc(sizeof(struct textrel));
-    if (!t)
-        return -ENOMEM;
-
-    t->start = (ElfW(Addr))start;
-    t->end   = (ElfW(Addr))end;
-    t->prot  = prot;
-    t->next  = NULL;
-    *loc     = t;
-
-    return 0;
-}
-
-static int reprotect_map(struct link_map* l) {
-    struct textrel* t = l->textrels;
-    struct textrel* next;
-    int ret = 0;
-
-    while (t) {
-        struct loadcmd* c = l->loadcmds;
-
-        for (; c < &l->loadcmds[l->nloadcmds]; c++)
-            if (l->l_addr + c->mapstart <= t->start && t->end <= l->l_addr + c->mapend)
-                break;
-
-        ElfW(Addr) start = t->start, end = t->end;
-        int prot = t->prot;
-        next     = t->next;
-        free(t);
-        t           = next;
-        l->textrels = t;
-
-        if (c && !DkVirtualMemoryProtect((void*)start, end - start,
-                                         LINUX_PROT_TO_PAL(prot, /*map_flags=*/0))) {
-            ret = -PAL_ERRNO();
-            break;
-        }
-    }
-
-    return ret;
-}
-
-#define RESOLVE_MAP(strtab, ref)      resolve_map(strtab, ref)
-#define PROTECT_PAGE(map, addr, size) protect_page(map, addr, size)
-#define USE__THREAD                   0 /* disable TLS support */
-
-#include "rel.h"
 
 static struct link_map* new_elf_object(const char* realname, int type) {
     struct link_map* new;
@@ -273,60 +122,6 @@ static struct link_map* new_elf_object(const char* realname, int type) {
 #else
 #define FILEBUF_SIZE 832
 #endif
-
-/* Cache the location of MAP's hash table.  */
-static void setup_elf_hash(struct link_map* map) {
-    Elf_Symndx* hash;
-
-    if (map->l_info[DT_ADDRTAGIDX(DT_GNU_HASH) + DT_NUM + DT_THISPROCNUM +
-                                  DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM
-                   ] != NULL) {
-        Elf32_Word* hash32 =
-            (void*)D_PTR(map->l_info[DT_ADDRTAGIDX(DT_GNU_HASH) + DT_NUM + DT_THISPROCNUM +
-                                     DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM]);
-
-        map->l_nbuckets = *hash32++;
-
-        Elf32_Word symbias        = *hash32++;
-        Elf32_Word bitmask_nwords = *hash32++;
-
-        assert(IS_POWER_OF_2(bitmask_nwords));
-        map->l_gnu_bitmask_idxbits = bitmask_nwords - 1;
-        map->l_gnu_shift           = *hash32++;
-
-        map->l_gnu_bitmask = (ElfW(Addr)*)hash32;
-        hash32 += __ELF_NATIVE_CLASS / 32 * bitmask_nwords;
-
-        map->l_gnu_buckets = hash32;
-        hash32 += map->l_nbuckets;
-        map->l_gnu_chain_zero = hash32 - symbias;
-
-        return;
-    }
-
-    if (!map->l_info[DT_HASH])
-        return;
-
-    hash = (void*)D_PTR(map->l_info[DT_HASH]);
-
-    /* Structure of DT_HASH:
-         The bucket array forms the hast table itself. The entries in the
-         chain array parallel the symbol table.
-         [        nbucket        ]
-         [        nchain         ]
-         [       bucket[0]       ]
-         [          ...          ]
-         [   bucket[nbucket-1]   ]
-         [       chain[0]        ]
-         [          ...          ]
-         [    chain[nchain-1]    ] */
-
-    map->l_nbuckets = *hash++;
-    hash++;
-    map->l_buckets = hash;
-    hash += map->l_nbuckets;
-    map->l_chain = hash;
-}
 
 /* TODO: This function needs a cleanup and to be split into smaller parts. It is impossible to do
  * a proper cleanup on any failure right now. */
@@ -379,9 +174,6 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
     size_t maplength       = header->e_phnum * sizeof(ElfW(Phdr));
     const ElfW(Phdr)* phdr = (fbp + header->e_phoff);
 
-    if (type == OBJECT_REMAP)
-        goto do_remap;
-
     if (type == OBJECT_LOAD && header->e_phoff + maplength <= (size_t)fbp_len) {
         new_phdr = (ElfW(Phdr)*)malloc(maplength);
         if (!new_phdr) {
@@ -401,15 +193,10 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
 
     const ElfW(Phdr)* ph;
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph) {
+        /* These entries tell us where to find things once the file's
+           segments are mapped in.  We record the addresses it says
+           verbatim, and later correct for the run-time load address.  */
         switch (ph->p_type) {
-            /* These entries tell us where to find things once the file's
-               segments are mapped in.  We record the addresses it says
-               verbatim, and later correct for the run-time load address.  */
-            case PT_DYNAMIC:
-                l->l_ld    = (void*)ph->p_vaddr;
-                l->l_ldnum = ph->p_memsz / sizeof(ElfW(Dyn));
-                break;
-
             case PT_INTERP:
                 l->l_interp_libname = (const char*)ph->p_vaddr;
                 break;
@@ -461,11 +248,6 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                     c->prot |= PROT_EXEC;
 #endif
                 c->flags = MAP_PRIVATE | MAP_FILE;
-                break;
-
-            case PT_GNU_RELRO:
-                l->l_relro_addr = ph->p_vaddr;
-                l->l_relro_size = ph->p_memsz;
                 break;
         }
     }
@@ -527,14 +309,23 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                                      l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend, PROT_NONE,
                                      /*is_internal=*/false);
                 if (ret < 0) {
-                    errstring = "failed to change permissions";
+                    errstring = "failed to bookkeep permissions change";
                     goto call_lose;
                 }
             }
-            if (type == OBJECT_LOAD)
-                DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
-                                       l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
-                                       PAL_PROT_NONE);
+            if (type == OBJECT_LOAD) {
+                ret = DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
+                                             l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
+                                             PAL_PROT_NONE);
+                if (ret < 0) {
+                    /* XXX: this often fails, because the above address might not be allocated.
+                     * We need to rewrite this function soon.
+                    errstring = "failed to change permissions";
+                    goto call_lose;
+                    */
+                    ret = 0;
+                }
+            }
         }
 
         goto do_remap;
@@ -560,7 +351,7 @@ do_remap:
                 type = OBJECT_MAPPED;
             }
 
-            if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
+            if (type != OBJECT_INTERNAL && type != OBJECT_VDSO) {
                 ret = bkeep_mmap_fixed(mapaddr, c->mapend - c->mapstart, c->prot,
                                        c->flags | MAP_FIXED | MAP_PRIVATE
                                            | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
@@ -571,7 +362,7 @@ do_remap:
                 }
             }
 
-            if (type == OBJECT_LOAD || type == OBJECT_REMAP) {
+            if (type == OBJECT_LOAD) {
                 if ((*mmap)(file, &mapaddr, c->mapend - c->mapstart, c->prot,
                             c->flags | MAP_FIXED | MAP_PRIVATE, c->mapoff) < 0) {
                     errstring = "failed to map segment from shared object";
@@ -600,20 +391,20 @@ do_remap:
                    We can just zero it.  */
                 zeropage = zeroend;
 
-            if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL && type != OBJECT_USER &&
+            if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL &&
                 type != OBJECT_VDSO && zeropage > zero) {
                 /* Zero the final part of the last page of the segment.  */
                 if ((c->prot & PROT_WRITE) == 0) {
                     /* Dag nab it.  */
-                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)
-                                                    | PAL_PROT_WRITE)) {
+                    if (DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)
+                                                   | PAL_PROT_WRITE) < 0) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
                     memset((void*)zero, '\0', zeropage - zero);
-                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0))) {
+                    if (DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)) < 0) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
@@ -623,7 +414,7 @@ do_remap:
             }
 
             if (zeroend > zeropage) {
-                if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
+                if (type != OBJECT_INTERNAL && type != OBJECT_VDSO) {
                     ret = bkeep_mmap_fixed((void*)zeropage, zeroend - zeropage, c->prot,
                                            MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED
                                                | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
@@ -634,12 +425,12 @@ do_remap:
                     }
                 }
 
-                if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL && type != OBJECT_USER &&
+                if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL &&
                     type != OBJECT_VDSO) {
-                    PAL_PTR mapat =
-                        DkVirtualMemoryAlloc((void*)zeropage, zeroend - zeropage, /*alloc_type=*/0,
-                                             LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0));
-                    if (!mapat) {
+                    void* mapat = (void*)zeropage;
+                    ret = DkVirtualMemoryAlloc(&mapat, zeroend - zeropage, /*alloc_type=*/0,
+                                               LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0));
+                    if (ret < 0) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
                     }
@@ -648,29 +439,6 @@ do_remap:
         }
 
         ++c;
-    }
-
-    if (type == OBJECT_REMAP)
-        goto success;
-
-    if (l->l_ld == 0) {
-        if (e_type == ET_DYN) {
-            errstring = "object file has no dynamic section";
-            goto call_lose;
-        }
-    } else {
-        l->l_real_ld = (ElfW(Dyn)*)RELOCATE(l, l->l_ld);
-        l->l_ld      = malloc_copy(l->l_real_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
-    }
-
-    elf_get_dynamic_info(l);
-
-    /* When we profile the SONAME might be needed for something else but
-       loading.  Add it right away.  */
-    if (l->l_info[DT_STRTAB] && l->l_info[DT_SONAME]) {
-        /* DEP 3/12/18: This string is not stable; copy it. */
-        char* tmp   = (char*)(D_PTR(l->l_info[DT_STRTAB]) + D_PTR(l->l_info[DT_SONAME]));
-        l->l_soname = malloc_copy(tmp, strlen(tmp) + 1);
     }
 
     if (l->l_phdr == NULL) {
@@ -691,16 +459,12 @@ do_remap:
 
     l->l_entry = RELOCATE(l, l->l_entry);
 
-    /* Set up the symbol hash table.  */
-    setup_elf_hash(l);
-
-success:
     free(new_phdr);
     return l;
 
 call_lose:
     free(new_phdr);
-    debug("loading %s: %s\n", l->l_name, errstring);
+    log_debug("loading %s: %s\n", l->l_name, errstring);
     free(l);
     return NULL;
 }
@@ -750,7 +514,7 @@ static int __remove_elf_object(struct link_map* l) {
 }
 
 static int __free_elf_object(struct link_map* l) {
-    debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name, l->l_map_start);
+    log_debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name, l->l_map_start);
 
     struct loadcmd* c = l->loadcmds;
 
@@ -820,7 +584,7 @@ static int __check_elf_header(void* fbp, size_t len) {
     }
 
     /* Now we check if the host match the elf machine profile */
-    if (!elf_machine_matches_host(ehdr)) {
+    if (ehdr->e_machine != SHIM_ELF_HOST_MACHINE) {
         errstring = "ELF file does not match with the host";
         goto verify_failed;
     }
@@ -840,7 +604,7 @@ static int __check_elf_header(void* fbp, size_t len) {
     return 0;
 
 verify_failed:
-    debug("load runtime object: %s\n", errstring);
+    log_debug("load runtime object: %s\n", errstring);
     return -EINVAL;
 }
 
@@ -894,7 +658,7 @@ int load_elf_object(struct shim_handle* file) {
     if (!file)
         return -EINVAL;
 
-    debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
+    log_debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
 
     return __load_elf_object(file, NULL, OBJECT_LOAD);
 }
@@ -928,13 +692,11 @@ static void replace_link_map(struct link_map* new, struct link_map* old) {
         loaded_libraries = new;
 }
 
-static int do_relocate_object(struct link_map* l);
-
 static int __load_elf_object(struct shim_handle* file, void* addr, int type) {
     char* hdr = addr;
     int len = 0, ret = 0;
 
-    if (type == OBJECT_LOAD || type == OBJECT_REMAP) {
+    if (type == OBJECT_LOAD) {
         hdr = __alloca(FILEBUF_SIZE);
         if ((ret = __load_elf_header(file, hdr, &len)) < 0)
             goto out;
@@ -947,35 +709,20 @@ static int __load_elf_object(struct shim_handle* file, void* addr, int type) {
         goto out;
     }
 
-    if (type != OBJECT_INTERNAL && type != OBJECT_VDSO)
-        do_relocate_object(map);
-
-    if (internal_map) {
-        map->l_resolved     = true;
-        map->l_resolved_map = internal_map->l_addr;
-    }
-
     if (type == OBJECT_INTERNAL)
         internal_map = map;
     if (type == OBJECT_VDSO)
         vdso_map = map;
 
-    if (type != OBJECT_REMAP) {
-        if (file) {
-            get_handle(file);
-            map->l_file = file;
-        }
-
-        add_link_map(map);
+    if (file) {
+        get_handle(file);
+        map->l_file = file;
     }
 
-    if ((type == OBJECT_LOAD || type == OBJECT_REMAP || type == OBJECT_USER) && map->l_file &&
-        !qstrempty(&map->l_file->uri)) {
-        if (type == OBJECT_REMAP)
-            remove_r_debug((void*)map->l_addr);
+    add_link_map(map);
 
-        append_r_debug(qstrgetstr(&map->l_file->uri), (void*)map->l_addr,
-                       (void*)map->l_real_ld);
+    if (type == OBJECT_LOAD && map->l_file && !qstrempty(&map->l_file->uri)) {
+        append_r_debug(qstrgetstr(&map->l_file->uri), (void*)map->l_addr);
     }
 
 out:
@@ -987,242 +734,8 @@ struct sym_val {
     struct link_map* m;
 };
 
-static uint_fast32_t elf_fast_hash(const char* s) {
-    uint_fast32_t h = 5381;
-    for (unsigned char c = *s; c != '\0'; c = *++s) {
-        h = h * 33 + c;
-    }
-    return h & 0xffffffff;
-}
-
-/* This is the hashing function specified by the ELF ABI.  In the
-   first five operations no overflow is possible so we optimized it a
-   bit.  */
-static unsigned long int elf_hash(const char* name_arg) {
-    const unsigned char* name = (const unsigned char*)name_arg;
-    unsigned long int hash    = 0;
-
-    if (*name == '\0')
-        return hash;
-
-    hash = *name++;
-    if (*name == '\0')
-        return hash;
-
-    hash = (hash << 4) + *name++;
-    if (*name == '\0')
-        return hash;
-
-    hash = (hash << 4) + *name++;
-    if (*name == '\0')
-        return hash;
-
-    hash = (hash << 4) + *name++;
-    if (*name == '\0')
-        return hash;
-
-    hash = (hash << 4) + *name++;
-    while (*name != '\0') {
-        unsigned long int hi;
-        hash = (hash << 4) + *name++;
-        hi   = hash & 0xf0000000;
-
-        /* The algorithm specified in the ELF ABI is as follows:
-               if (hi != 0)
-                   hash ^= hi >> 24;
-
-               hash &= ~hi;
-           But the following is equivalent and a lot faster, especially on
-           modern processors.  */
-
-        hash ^= hi;
-        hash ^= hi >> 24;
-    }
-    return hash;
-}
-
-/* Check whether the symbol matches.  */
-static ElfW(Sym)* check_match(ElfW(Sym)* sym, ElfW(Sym)* ref, const char* strtab,
-                              const char* undef_name, int len) {
-    unsigned int stt = ELFW(ST_TYPE)(sym->st_info);
-
-    if ((sym->st_value == 0 /* No value */ && stt != STT_TLS) || sym->st_shndx == SHN_UNDEF)
-        return NULL;
-
-    /* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
-       STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
-       code/data definitions.  */
-    #define ALLOWED_STT                                                                \
-        ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
-         (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
-
-    if (((1 << stt) & ALLOWED_STT) == 0)
-        return NULL;
-
-    if (sym != ref && memcmp(strtab + sym->st_name, undef_name, len + 1))
-        /* Not the symbol we are looking for.  */
-        return NULL;
-
-    /* There cannot be another entry for this symbol so stop here.  */
-    return sym;
-}
-
-
-static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const uint_fast32_t hash,
-                                unsigned long int elf_hash, const struct link_map* map) {
-    /* These variables are used in the nested function.  */
-    Elf_Symndx symidx;
-    ElfW(Sym)* sym;
-    /* The tables for this map.  */
-    ElfW(Sym)* symtab  = (void*)D_PTR(map->l_info[DT_SYMTAB]);
-    const char* strtab = (const void*)D_PTR(map->l_info[DT_STRTAB]);
-    int len            = strlen(undef_name);
-
-    const ElfW(Addr)* bitmask = map->l_gnu_bitmask;
-
-    if (bitmask != NULL) {
-        ElfW(Addr) bitmask_word = bitmask[(hash / __ELF_NATIVE_CLASS) & map->l_gnu_bitmask_idxbits];
-
-        unsigned int hashbit1 = hash & (__ELF_NATIVE_CLASS - 1);
-        unsigned int hashbit2 = (hash >> map->l_gnu_shift) & (__ELF_NATIVE_CLASS - 1);
-
-        if ((bitmask_word >> hashbit1) & (bitmask_word >> hashbit2) & 1) {
-            Elf32_Word bucket = map->l_gnu_buckets[hash % map->l_nbuckets];
-
-            if (bucket != 0) {
-                const Elf32_Word* hasharr = &map->l_gnu_chain_zero[bucket];
-
-                do {
-                    if (((*hasharr ^ hash) >> 1) == 0) {
-                        symidx = hasharr - map->l_gnu_chain_zero;
-                        sym    = check_match(&symtab[symidx], ref, strtab, undef_name, len);
-                        if (sym != NULL)
-                            return sym;
-                    }
-                } while ((*hasharr++ & 1u) == 0);
-            }
-        }
-
-        /* No symbol found.  */
-        symidx = SHN_UNDEF;
-    } else {
-        /* Use the old SysV-style hash table.  Search the appropriate
-           hash bucket in this object's symbol table for a definition
-           for the same symbol name.  */
-        for (symidx = map->l_buckets[elf_hash % map->l_nbuckets]; symidx != STN_UNDEF;
-             symidx = map->l_chain[symidx]) {
-            sym = check_match(&symtab[symidx], ref, strtab, undef_name, len);
-            if (sym != NULL)
-                return sym;
-        }
-    }
-
-    return NULL;
-}
-
-/* Inner part of the lookup functions.  We return a value > 0 if we
-   found the symbol, the value 0 if nothing is found and < 0 if
-   something bad happened.  */
-static ElfW(Sym)* __do_lookup(const char* undef_name, ElfW(Sym)* ref, struct link_map* map) {
-    const uint_fast32_t fast_hash = elf_fast_hash(undef_name);
-    const long int hash           = elf_hash(undef_name);
-    return do_lookup_map(ref, undef_name, fast_hash, hash, map);
-}
-
-static int do_lookup(const char* undef_name, ElfW(Sym)* ref, struct sym_val* result) {
-    ElfW(Sym)* sym = NULL;
-
-    sym = __do_lookup(undef_name, ref, internal_map);
-
-    if (!sym)
-        return 0;
-
-    switch (ELFW(ST_BIND)(sym->st_info)) {
-        case STB_WEAK:
-            /* Weak definition.  Use this value if we don't find another. */
-            if (!result->s) {
-                result->s = sym;
-                result->m = (struct link_map*)internal_map;
-            }
-            break;
-
-            /* FALLTHROUGH */
-        case STB_GLOBAL:
-        case STB_GNU_UNIQUE:
-            /* success: */
-            /* Global definition.  Just what we need.  */
-            result->s = sym;
-            result->m = (struct link_map*)internal_map;
-            return 1;
-
-        default:
-            /* Local symbols are ignored.  */
-            break;
-    }
-
-    /* We have not found anything until now.  */
-    return 0;
-}
-
-/* Search loaded objects' symbol tables for a definition of the symbol
-   UNDEF_NAME, perhaps with a requested version for the symbol.
-
-   We must never have calls to the audit functions inside this function
-   or in any function which gets called.  If this would happen the audit
-   code might create a thread which can throw off all the scope locking.  */
-struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym)** ref) {
-    struct sym_val current_value = {NULL, NULL};
-
-    do_lookup(undef_name, *ref, &current_value);
-
-    if (current_value.s == NULL) {
-        *ref = NULL;
-        return NULL;
-    }
-
-    *ref = current_value.s;
-    return current_value.m;
-}
-
-static int do_relocate_object(struct link_map* l) {
-    int ret = 0;
-
-    if (l->l_resolved)
-        ELF_REDO_DYNAMIC_RELOCATE(l);
-    else
-        ELF_DYNAMIC_RELOCATE(l);
-
-    if ((ret = reprotect_map(l)) < 0)
-        return ret;
-
-    return 0;
-}
-
 static bool __need_interp(struct link_map* exec_map) {
-    if (!exec_map->l_interp_libname)
-        return false;
-
-    const char* strtab = (const void*)D_PTR(exec_map->l_info[DT_STRTAB]);
-    const ElfW(Dyn)* d;
-
-    for (d = exec_map->l_ld; d->d_tag != DT_NULL; d++)
-        if (d->d_tag == DT_NEEDED) {
-            const char* name     = strtab + d->d_un.d_val;
-            int len              = strlen(name);
-            const char* filename = name + len - 1;
-            while (filename > name && *filename != '/') {
-                filename--;
-            }
-            if (*filename == '/')
-                filename++;
-
-            /* if we find a dependency besides libsysdb.so, the
-               interpreter is necessary */
-            if (memcmp(filename, "libsysdb", 8))
-                return true;
-        }
-
-    return false;
+    return exec_map->l_interp_libname != NULL;
 }
 
 extern const char** library_paths;
@@ -1255,7 +768,7 @@ static int __load_interp_object(struct link_map* exec_map) {
         interp_path[plen] = '/';
         memcpy(interp_path + plen + 1, filename, len + 1);
 
-        debug("search interpreter: %s\n", interp_path);
+        log_debug("searching for interpreter: %s\n", interp_path);
 
         struct shim_dentry* dent = NULL;
         int ret = 0;
@@ -1334,36 +847,8 @@ int remove_loaded_libraries(void) {
  * parent. Just treat vdso page as user-program data and adjust function pointers for vdso
  * functions after migration.
  */
-static void* vdso_addr __attribute_migratable                       = NULL;
-static ElfW(Addr)* __vdso_shim_clock_gettime __attribute_migratable = NULL;
-static ElfW(Addr)* __vdso_shim_gettimeofday __attribute_migratable  = NULL;
-static ElfW(Addr)* __vdso_shim_time __attribute_migratable          = NULL;
-static ElfW(Addr)* __vdso_shim_getcpu __attribute_migratable        = NULL;
 
-static const struct {
-    const char* name;
-    ElfW(Addr) value;
-    ElfW(Addr)** func;
-} vsyms[] = {{
-                 .name  = "__vdso_shim_clock_gettime",
-                 .value = (ElfW(Addr))&__shim_clock_gettime,
-                 .func  = &__vdso_shim_clock_gettime,
-             },
-             {
-                 .name  = "__vdso_shim_gettimeofday",
-                 .value = (ElfW(Addr))&__shim_gettimeofday,
-                 .func  = &__vdso_shim_gettimeofday,
-             },
-             {
-                 .name  = "__vdso_shim_time",
-                 .value = (ElfW(Addr))&__shim_time,
-                 .func  = &__vdso_shim_time,
-             },
-             {
-                 .name  = "__vdso_shim_getcpu",
-                 .value = (ElfW(Addr))&__shim_getcpu,
-                 .func  = &__vdso_shim_getcpu,
-             }};
+static void* vdso_addr __attribute_migratable = NULL;
 
 static int vdso_map_init(void) {
     /*
@@ -1381,50 +866,23 @@ static int vdso_map_init(void) {
         return ret;
     }
 
-    void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size),
-                                                 /*alloc_type=*/0, PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!ret_addr)
-        return -PAL_ERRNO();
-    assert(addr == ret_addr);
+    ret = DkVirtualMemoryAlloc(&addr, ALLOC_ALIGN_UP(vdso_so_size), /*alloc_type=*/0,
+                               PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
+    }
 
     memcpy(addr, &vdso_so, vdso_so_size);
     memset(addr + vdso_so_size, 0, ALLOC_ALIGN_UP(vdso_so_size) - vdso_so_size);
     __load_elf_object(NULL, addr, OBJECT_VDSO);
     vdso_map->l_name = "vDSO";
 
-    for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
-        ElfW(Sym)* sym = __do_lookup(vsyms[i].name, NULL, vdso_map);
-        if (sym == NULL) {
-            debug("vDSO: symbol value for %s not found\n", vsyms[i].name);
-            continue;
-        }
-        *vsyms[i].func  = (ElfW(Addr)*)(vdso_map->l_addr + sym->st_value);
-        **vsyms[i].func = vsyms[i].value;
+    ret = DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
     }
-
-    if (!DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
-        return -PAL_ERRNO();
 
     vdso_addr = addr;
-    return 0;
-}
-
-int vdso_map_migrate(void) {
-    if (!vdso_addr)
-        return 0;
-
-    if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
-                                PAL_PROT_READ | PAL_PROT_WRITE))
-        return -PAL_ERRNO();
-
-    /* adjust funcs to loaded address for newly loaded libsysdb */
-    for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
-        **vsyms[i].func = vsyms[i].value;
-    }
-
-    if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
-                                PAL_PROT_READ | PAL_PROT_EXEC))
-        return -PAL_ERRNO();
     return 0;
 }
 
@@ -1452,10 +910,10 @@ int init_loader(void) {
         ret = load_elf_object(exec);
         if (ret < 0) {
             // TODO: Actually verify that the non-PIE-ness was the real cause of loading failure.
-            warn("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, in "
-                 "which case Graphene requires a specially-crafted memory layout. You can enable "
-                 "it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
-                 qstrgetstr(&exec->path));
+            log_error("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, "
+                      "in which case Graphene requires a specially-crafted memory layout. You can "
+                      "enable it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
+                      qstrgetstr(&exec->path));
             goto out;
         }
 
@@ -1492,7 +950,7 @@ int init_brk_from_executable(struct shim_handle* exec) {
 }
 
 int register_library(const char* name, unsigned long load_address) {
-    debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
+    log_debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
 
     struct shim_handle* hdl = get_new_handle();
 
@@ -1505,7 +963,7 @@ int register_library(const char* name, unsigned long load_address) {
         return err;
     }
 
-    __load_elf_object(hdl, (void*)load_address, OBJECT_USER);
+    append_r_debug(qstrgetstr(&hdl->uri), (void*)load_address);
     put_handle(hdl);
     return 0;
 }
@@ -1513,7 +971,7 @@ int register_library(const char* name, unsigned long load_address) {
 noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
-        warn("Could not initialize vDSO (error code = %d)", ret);
+        log_error("Could not initialize vDSO (error code = %d)", ret);
         process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
     }
 
@@ -1569,8 +1027,8 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
     ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
-        debug("execute_elf_object: DkRandomBitsRead failed.\n");
-        DkThreadExit(/*clear_child_tid=*/NULL);
+        log_error("execute_elf_object: DkRandomBitsRead failed: %d\n", ret);
+        DkProcessExit(1);
         /* UNREACHABLE */
     }
     auxp[5].a_un.a_val = random;
@@ -1579,10 +1037,6 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
 
     /* We are done with using this handle. */
     put_handle(exec);
-
-    /* Ready to start execution, re-enable preemption. */
-    shim_tcb_t* tcb = shim_get_tcb();
-    __enable_preempt(tcb);
 
     CALL_ELF_ENTRY(entry, argp);
 
@@ -1607,37 +1061,15 @@ BEGIN_CP_FUNC(library) {
 
         new_map->l_prev   = NULL;
         new_map->l_next   = NULL;
-        new_map->textrels = NULL;
 
         if (map->l_file)
             DO_CP_MEMBER(handle, map, new_map, l_file);
-
-        if (map->l_ld) {
-            size_t size   = sizeof(ElfW(Dyn)) * map->l_ldnum;
-            ElfW(Dyn)* ld = (void*)(base + ADD_CP_OFFSET(size));
-            memcpy(ld, map->l_ld, size);
-            new_map->l_ld = ld;
-
-            ElfW(Dyn)** start = new_map->l_info;
-            ElfW(Dyn)** end   = (void*)start + sizeof(new_map->l_info);
-            ElfW(Dyn)** dyn;
-            for (dyn = start; dyn < end; dyn++)
-                if (*dyn)
-                    *dyn = (void*)*dyn + ((void*)ld - (void*)map->l_ld);
-        }
 
         if (map->l_name) {
             size_t namelen = strlen(map->l_name);
             char* name     = (char*)(base + ADD_CP_OFFSET(namelen + 1));
             memcpy(name, map->l_name, namelen + 1);
             new_map->l_name = name;
-        }
-
-        if (map->l_soname) {
-            size_t sonamelen = strlen(map->l_soname);
-            char* soname     = (char*)(base + ADD_CP_OFFSET(sonamelen + 1));
-            memcpy(soname, map->l_soname, sonamelen + 1);
-            new_map->l_soname = soname;
         }
 
         ADD_CP_FUNC_ENTRY(off);
@@ -1655,22 +1087,12 @@ BEGIN_RS_FUNC(library) {
     struct link_map* map = (void*)(base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(map->l_name);
-    CP_REBASE(map->l_soname);
     CP_REBASE(map->l_file);
-
-    if (map->l_ld && map->l_ld != map->l_real_ld) {
-        CP_REBASE(map->l_ld);
-        CP_REBASE(map->l_info);
-    }
 
     struct link_map* old_map = __search_map_by_name(map->l_name);
 
     if (old_map)
         remove_r_debug((void*)old_map->l_addr);
-
-    if (internal_map && (!map->l_resolved || map->l_resolved_map != internal_map->l_addr)) {
-        do_relocate_object(map);
-    }
 
     if (old_map)
         replace_link_map(map, old_map);

@@ -8,7 +8,7 @@
         _sym;                                                               \
     })
 
-#define PRINT_SYMBOL(sym) pal_printf(#sym " = %p\n", SYMBOL_ADDR(sym))
+#define PRINT_SYMBOL(sym) pal_printf("symbol: %s = %p\n", #sym, SYMBOL_ADDR(sym))
 
 int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkVirtualMemoryAlloc);
@@ -56,7 +56,6 @@ int main(int argc, char** argv, char** envp) {
 
     PRINT_SYMBOL(DkSystemTimeQuery);
     PRINT_SYMBOL(DkRandomBitsRead);
-    PRINT_SYMBOL(DkInstructionCacheFlush);
 #if defined(__x86_64__)
     PRINT_SYMBOL(DkSegmentRegisterGet);
     PRINT_SYMBOL(DkSegmentRegisterSet);

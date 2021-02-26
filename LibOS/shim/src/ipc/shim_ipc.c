@@ -252,25 +252,32 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     assert(msg->size >= IPC_MSG_MINIMAL_SIZE);
 
     msg->src = g_process_ipc_info.vmid;
-    debug("Sending ipc message to port %p (handle %p)\n", port, port->pal_handle);
+    log_debug("Sending ipc message to port %p (handle %p)\n", port, port->pal_handle);
 
     size_t total_bytes = msg->size;
     size_t bytes       = 0;
 
     do {
-        PAL_NUM ret =
-            DkStreamWrite(port->pal_handle, 0, total_bytes - bytes, (void*)msg + bytes, NULL);
+        size_t size = total_bytes - bytes;
+        int ret = DkStreamWrite(port->pal_handle, 0, &size, (void*)msg + bytes, NULL);
 
-        if (ret == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
+        if (ret < 0 || size == 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                 continue;
+            }
+            if (ret == 0) {
+                assert(size == 0);
+                ret = -EINVAL;
+            } else {
+                ret = pal_to_unix_errno(ret);
+            }
 
-            debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
+            log_debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
             del_ipc_port_fini(port);
-            return -PAL_ERRNO();
+            return ret;
         }
 
-        bytes += ret;
+        bytes += size;
     } while (bytes < total_bytes);
 
     return 0;
@@ -321,17 +328,17 @@ int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc
     if (seq)
         *seq = msg->msg.seq;
 
-    debug("Waiting for response (seq = %lu)\n", msg->msg.seq);
+    log_debug("Waiting for response (seq = %lu)\n", msg->msg.seq);
 
     /* force thread which will send the message to wait for response;
      * ignore unrelated interrupts but fail on actual errors */
     do {
-        ret = thread_sleep(NO_TIMEOUT);
+        ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/true);
         if (ret < 0 && ret != -EINTR && ret != -EAGAIN)
             goto out;
     } while (ret != 0);
 
-    debug("Finished waiting for response (seq = %lu, ret = %d)\n", msg->msg.seq, msg->retval);
+    log_debug("Finished waiting for response (seq = %lu, ret = %d)\n", msg->msg.seq, msg->retval);
     ret = msg->retval;
 out:
     lock(&port->msgs_lock);

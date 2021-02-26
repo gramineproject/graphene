@@ -71,7 +71,7 @@ long shim_do_chdir(const char* filename) {
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
         char buffer[dentry_get_path_size(dent)];
-        debug("%s is not a directory\n", dentry_get_path(dent, buffer));
+        log_debug("%s is not a directory\n", dentry_get_path(dent, buffer));
         put_dentry(dent);
         return -ENOTDIR;
     }
@@ -93,7 +93,7 @@ long shim_do_fchdir(int fd) {
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
         char buffer[dentry_get_path_size(dent)];
-        debug("%s is not a directory\n", dentry_get_path(dent, buffer));
+        log_debug("%s is not a directory\n", dentry_get_path(dent, buffer));
         put_handle(hdl);
         return -ENOTDIR;
     }

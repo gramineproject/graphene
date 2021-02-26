@@ -17,6 +17,7 @@
 #include "pal_rtld.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
+#include "sgx_log.h"
 #include "sgx_tls.h"
 
 extern char* g_pal_loader_path;
@@ -55,7 +56,7 @@ static int __attribute_noinline vfork_exec(int parent_stream, const char** argv)
     ret = INLINE_SYSCALL(execve, 3, g_pal_loader_path, argv, environ);
 
     /* shouldn't get to here */
-    SGX_DBG(DBG_E, "unexpected failure of execve\n");
+    urts_log_error("unexpected failure of execve\n");
     __asm__ volatile("hlt");
     return 0;
 }

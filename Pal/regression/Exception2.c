@@ -1,10 +1,14 @@
+#include <stdbool.h>
+
 #include "pal.h"
 #include "pal_debug.h"
 
 int count = 0;
 int i     = 0;
 
-static void handler(PAL_NUM arg, PAL_CONTEXT* context) {
+static void handler(bool is_in_pal, PAL_NUM arg, PAL_CONTEXT* context) {
+    __UNUSED(is_in_pal);
+
     pal_printf("failure in the handler: 0x%08lx\n", arg);
     count++;
 

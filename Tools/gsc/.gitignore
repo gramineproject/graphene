@@ -1,2 +1,4 @@
-gsc-*/
+/build
 config.yaml
+config.aks.*.yaml
+*.pem

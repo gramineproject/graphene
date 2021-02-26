@@ -49,12 +49,6 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('failure in the handler: 0x', stderr)
         self.assertNotIn('Leave Main Thread', stderr)
 
-    def test_Failure(self):
-        _, stderr = self.run_binary(['Failure'])
-        self.assertIn('Enter Main Thread', stderr)
-        self.assertIn('Failure notified: Function not supported', stderr)
-        self.assertIn('Leave Main Thread', stderr)
-
     def test_File2(self):
         _, stderr = self.run_binary(['File2'])
         self.assertIn('Enter Main Thread', stderr)
@@ -133,7 +127,7 @@ class TC_00_BasicSet2(RegressionTestCase):
 
 class TC_01_Bootstrap(RegressionTestCase):
     def test_100_basic_boostrapping(self):
-        stdout, stderr = self.run_binary(['Bootstrap'])
+        _, stderr = self.run_binary(['Bootstrap'])
 
         # Basic Bootstrapping
         self.assertIn('User Program Started', stderr)
@@ -146,7 +140,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('argv[0] = Bootstrap', stderr)
 
         # Control Block: Debug Stream (Inline)
-        self.assertIn('Written to Debug Stream', stdout)
+        self.assertIn('Written to Debug Stream', stderr)
 
         # Control Block: Allocation Alignment
         self.assertIn('Allocation Alignment: {}'.format(mmap.ALLOCATIONGRANULARITY), stderr)
@@ -250,7 +244,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkObjectClose',
         'DkSystemTimeQuery',
         'DkRandomBitsRead',
-        'DkInstructionCacheFlush',
         'DkMemoryAvailableQuota',
     ]
     if ON_X86:
@@ -259,8 +252,9 @@ class TC_02_Symbols(RegressionTestCase):
 
     def test_000_symbols(self):
         _, stderr = self.run_binary(['Symbols'])
-        found_symbols = dict(line.split(' = ')
-            for line in stderr.strip().split('\n') if line.startswith('Dk'))
+        prefix = 'symbol: '
+        found_symbols = dict(line[len(prefix):].split(' = ')
+            for line in stderr.strip().split('\n') if line.startswith(prefix))
         self.assertCountEqual(found_symbols, self.ALL_SYMBOLS)
         for k, value in found_symbols.items():
             value = ast.literal_eval(value)
@@ -359,12 +353,6 @@ class TC_20_SingleProcess(RegressionTestCase):
             stderr)
         self.assertIn(
             'Map Test 2 (200th - 240th): {}'.format(file_exist[200:240].hex()),
-            stderr)
-        self.assertIn(
-            'Map Test 3 (4096th - 4136th): {}'.format(file_exist[4096:4136].hex()),
-            stderr)
-        self.assertIn(
-            'Map Test 4 (4296th - 4336th): {}'.format(file_exist[4296:4336].hex()),
             stderr)
 
         # Set File Length

@@ -221,10 +221,12 @@ enum {
     MSG_OOB      = 0x01,   /* Process out-of-band data. */
     MSG_PEEK     = 0x02,   /* Peek at incoming messages. */
     MSG_DONTWAIT = 0x40,   /* Nonblocking IO. */
+    MSG_WAITALL  = 0x100,  /* Wait for full request or error */
     MSG_NOSIGNAL = 0x4000, /* Do not generate SIGPIPE. */
 #define MSG_OOB      MSG_OOB
 #define MSG_PEEK     MSG_PEEK
 #define MSG_DONTWAIT MSG_DONTWAIT
+#define MSG_WAITALL  MSG_WAITALL
 #define MSG_NOSIGNAL MSG_NOSIGNAL
 };
 

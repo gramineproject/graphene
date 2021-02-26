@@ -143,7 +143,7 @@ int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
             /* Newly created dentry's relative path will be a concatenation of parent
              * + name strings (see get_new_dentry), make sure it fits into qstr */
             if (parent->rel_path.len + 1 + namelen >= STR_SIZE) { /* +1 for '/' */
-                debug("Relative path exceeds the limit %d\n", STR_SIZE);
+                log_error("Relative path exceeds the limit %d\n", STR_SIZE);
                 err = -ENAMETOOLONG;
                 goto out;
             }

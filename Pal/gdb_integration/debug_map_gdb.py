@@ -3,6 +3,9 @@
 # Copyright (C) 2020 Intel Corporation
 #                    Paweł Marczewski <pawel@invisiblethingslab.com>
 
+# Debug map handling, so that GDB sees all ELF binaries loaded by Graphene. Connects with
+# debug_map.c (in PAL) using a breakpoint on debug_map_update_debugger() function.
+
 import os
 import shlex
 
@@ -128,7 +131,14 @@ class UpdateDebugMaps(gdb.Command):
                 cmd += ' '.join('-s {} 0x{:x}'.format(shlex.quote(name), addr)
                                 for name, addr in sections
                                 if name != '.text')
-                gdb.execute(cmd)
+                try:
+                    # Temporarily disable pagination, because 'add-symbol-file` produces a lot of
+                    # noise.
+                    gdb.execute('push-pagination off')
+
+                    gdb.execute(cmd)
+                finally:
+                    gdb.execute('pop-pagination')
 
         progspace.debug_maps = new
 

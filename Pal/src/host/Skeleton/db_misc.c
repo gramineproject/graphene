@@ -40,10 +40,6 @@ int _DkSegmentRegisterSet(int reg, void* addr) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkInstructionCacheFlush(const void* addr, int size) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

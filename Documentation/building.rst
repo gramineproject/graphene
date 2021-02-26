@@ -35,9 +35,9 @@ Run the following command on Ubuntu to install dependencies::
 
     sudo apt-get install -y build-essential autoconf gawk bison
 
-To run tests locally, you also need the python3-pytest package::
+You also need Python packages for GDB support and to run tests locally::
 
-    sudo apt-get install -y python3-pytest
+    sudo apt-get install -y python3-pyelftools python3-pytest
 
 To build Graphene, in the root directory of Graphene repo, run the following
 command::
@@ -186,7 +186,13 @@ Building
 To build Graphene with Intel SGX support, in the root directory of Graphene
 repo, run the following command::
 
-   make SGX=1
+   ISGX_DRIVER_PATH=<path-to-sgx-driver-sources> make SGX=1
+
+The path to the SGX driver sources must point to the absolute path where the SGX
+driver was downloaded or installed in the previous step. For example, for the
+DCAP version 33 of the SGX driver, you must specify
+``ISGX_DRIVER_PATH="/usr/src/sgx-1.33/"``. You can define
+``ISGX_DRIVER_PATH=""`` to use the default in-kernel driver's C header.
 
 Running :command:`make SGX=1 sgx-tokens` in the test or regression directory
 will automatically generate the required manifest signatures (``.sig`` files)
@@ -206,12 +212,3 @@ Additional build options
 
 - Each part of Graphene can be built separately in the subdirectories. For
   example, to build only the Pal component, use :command:`make -c Pal`.
-
-Deprecated features
--------------------
-
-Building with kernel-level sandboxing (optional)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This feature is marked as EXPERIMENTAL and no longer exists on the master
-branch.

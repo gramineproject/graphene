@@ -262,7 +262,7 @@ static int proc_ipc_thread_dir_stat(const char* name, struct stat* buf) {
     return -ENOENT;
 }
 
-static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int len) {
+static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, size_t size) {
     // Only one valid name
     __UNUSED(name);
     struct pid_status_cache* status = NULL;
@@ -317,7 +317,7 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int 
         goto success;
 
     struct shim_dirent* ptr = (*buf);
-    void* buf_end           = (void*)ptr + len;
+    void* buf_end           = (void*)ptr + size;
 
     for (size_t i = 0; i < status->nstatus; i++) {
         if (status->status[i].pid != status->status[i].tgid)

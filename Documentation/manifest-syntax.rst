@@ -28,16 +28,29 @@ Log level
 
 ::
 
-    loader.log_level = "[none|error|info|debug|trace|all]"
+    loader.log_level = "[none|error|warning|debug|trace|all]"
     (Default: "error")
 
     loader.log_file = "[PATH]"
 
 This configures Graphene's debug log. The ``log_level`` option specifies what
 messages to enable (e.g. ``loader.log_level = "debug"`` will enable all messages
-of type ``error``, ``info`` and ``debug``). By default, the messages are printed
-to the standard output. If ``log_file`` is specified, the messages will be
+of type ``error``, ``warning`` and ``debug``). By default, the messages are printed
+to the standard error. If ``log_file`` is specified, the messages will be
 appended to that file.
+
+Graphene outputs log messages of the following types:
+
+* ``error``: A serious error preventing Graphene from operating properly (for
+  example, error initializing one of the components).
+
+* ``warning``: A non-fatal issue. Might mean that application is requesting
+  something unsupported or poorly emulated.
+
+* ``debug``: Detailed information about Graphene's operation and internals.
+
+* ``trace``: More detailed information, such as all system calls requested by
+  the application. Might contain a lot of noise.
 
 Preloaded libraries
 ^^^^^^^^^^^^^^^^^^^
@@ -143,6 +156,22 @@ This specifies whether to disable Address Space Layout Randomization (ASLR).
 Since disabling ASLR worsens security of the application, ASLR is enabled by
 default.
 
+Check invalid pointers
+^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    libos.check_invalid_pointers = [1|0]
+    (Default: 1)
+
+This specifies whether to enable checks of invalid pointers on syscall
+invocations. In particular, when this manifest option is set to ``1``,
+Graphene's LibOS will return an EFAULT error code if a user-supplied buffer
+points to an invalid memory region. Setting this manifest option to ``0`` may
+improve performance for certain workloads but may also generate
+``SIGSEGV/SIGBUS`` exceptions for some applications that specifically use
+invalid pointers (though this is not expected for most real-world applications).
+
 Graphene internal metadata size
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -201,6 +230,20 @@ Allowing eventfd
 This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
 eventfd emulation currently relies on the host, these system calls are
 disallowed by default due to security concerns.
+
+External SIGTERM injection
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sys.enable_sigterm_injection = [1|0]
+    (Default: 0)
+
+This specifies whether to allow for a one-time injection of `SIGTERM` signal
+into Graphene. Could be useful to handle graceful shutdown.
+Be careful! In SGX environment, the untrusted host could inject that signal in
+an arbitrary moment. Examine what your application's `SIGTERM` handler does and
+whether it poses any security threat.
 
 Root FS mount point
 ^^^^^^^^^^^^^^^^^^^
@@ -444,6 +487,24 @@ For DCAP/ECDSA based attestation, ``ra_client_spid`` must be an empty string
 (this is a hint to Graphene to use DCAP instead of EPID) and
 ``ra_client_linkable`` is ignored.
 
+Pre-heating enclave
+^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.preheat_enclave = [1|0]
+    (Default: 0)
+
+When enabled, this option instructs Graphene to pre-fault all heap pages during
+initialization. This has a negative impact on the total run time, but shifts the
+:term:`EPC` page faults cost to the initialization phase, which can be useful in
+a scenario where a server starts and receives connections / work packages only
+after some time. It also makes the later run time and latency much more
+predictable.
+
+Please note that using this option makes sense only when the :term:`EPC` is
+large enough to hold the whole heap area.
+
 Enabling per-thread and process-wide SGX stats
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -490,11 +551,30 @@ collect samples and save them to ``sgx-perf-<PID>.data``.
 The saved files can be viewed with the ``perf`` tool, e.g. ``perf report -i
 sgx-perf.data``.
 
-See :doc:`devel/performance` for more information.
+See :ref:`sgx-profile` for more information.
 
 *Note:* this option is insecure and cannot be used with production enclaves
 (``sgx.debug = 0``). If the production enclave is started with this option set,
 Graphene will fail initialization of the enclave.
+
+::
+
+    sgx.profile.mode = ["aex"|"ocall_inner"|"ocall_outer"]
+    (Default: "aex")
+
+Specifies what events to record:
+
+* ``aex``: Records enclave state during asynchronous enclave exit (AEX). Use
+  this to check where the CPU time is spent in the enclave.
+
+* ``ocall_inner``: Records enclave state during OCALL.
+
+* ``ocall_outer``: Records the outer OCALL function, i.e. what OCALL handlers
+  are going to be executed. Does not include stack information (cannot be used
+  with ``sgx.profile.with_stack = 1``).
+
+See also :ref:`sgx-profile-ocall` for more detailed advice regarding the OCALL
+modes.
 
 ::
 
@@ -516,3 +596,6 @@ lower overhead.
 
 Note that the accuracy is limited by how often the process is interrupted by
 Linux scheduler: the effective maximum is 250 samples per second.
+
+**Note**: This option applies only to ``aex`` mode. In the ``ocall_*`` modes,
+currently all samples are taken.

@@ -42,10 +42,10 @@ static int init_attestation_struct_sizes(void) {
         return 0;
     }
 
-    bool ok = DkAttestationReport(/*user_report_data=*/NULL, &g_user_report_data_size,
+    int ret = DkAttestationReport(/*user_report_data=*/NULL, &g_user_report_data_size,
                                   /*target_info=*/NULL, &g_target_info_size,
                                   /*report=*/NULL, &g_report_size);
-    if (!ok)
+    if (ret < 0)
         return -EACCES;
 
     assert(g_user_report_data_size && g_user_report_data_size <= sizeof(g_user_report_data));
@@ -236,9 +236,9 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
 
     /* below invocation returns this enclave's target info because we zeroed out (via calloc)
      * target_info: it's a hint to function to update target_info with this enclave's info */
-    bool ok = DkAttestationReport(user_report_data, &user_report_data_size, target_info,
-                                  &target_info_size, /*report=*/NULL, &report_size);
-    if (!ok) {
+    ret = DkAttestationReport(user_report_data, &user_report_data_size, target_info,
+                              &target_info_size, /*report=*/NULL, &report_size);
+    if (ret < 0) {
         ret = -EACCES;
         goto out;
     }
@@ -309,9 +309,9 @@ static int dev_attestation_report_open(struct shim_handle* hdl, const char* name
         goto out;
     }
 
-    bool ok = DkAttestationReport(&g_user_report_data, &g_user_report_data_size, &g_target_info,
-                                  &g_target_info_size, report, &g_report_size);
-    if (!ok) {
+    ret = DkAttestationReport(&g_user_report_data, &g_user_report_data_size, &g_target_info,
+                              &g_target_info_size, report, &g_report_size);
+    if (ret < 0) {
         ret = -EACCES;
         goto out;
     }
@@ -389,8 +389,8 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
         goto out;
     }
 
-    bool ok = DkAttestationQuote(&g_user_report_data, g_user_report_data_size, quote, &quote_size);
-    if (!ok) {
+    ret = DkAttestationQuote(&g_user_report_data, g_user_report_data_size, quote, &quote_size);
+    if (ret < 0) {
         ret = -EACCES;
         goto out;
     }
@@ -434,8 +434,11 @@ static int pfkey_modify(struct shim_handle* hdl) {
     memcpy(&g_pf_key_hex, hdl->info.str.data->str, sizeof(g_pf_key_hex));
     g_pf_key_hex[sizeof(g_pf_key_hex) - 1] = '\0';
 
-    bool ok = DkSetProtectedFilesKey(&g_pf_key_hex);
-    return ok ? 0 : -EACCES;
+    int ret = DkSetProtectedFilesKey(&g_pf_key_hex);
+    if (ret < 0) {
+        ret = -EACCES;
+    }
+    return ret;
 }
 
 /*!
