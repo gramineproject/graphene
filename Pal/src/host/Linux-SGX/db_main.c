@@ -709,7 +709,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     if (preheat_enclave == 1) {
         for (uint8_t* i = g_pal_sec.heap_min; i < (uint8_t*)g_pal_sec.heap_max; i += g_page_size)
-            WRITE_ONCE(*i, 0);
+            WRITE_ONCE(*(size_t*)i, 0);
     }
 
     ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",
