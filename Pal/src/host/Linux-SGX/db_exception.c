@@ -190,6 +190,10 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
         }
     } else {
         switch (ei.info.vector) {
+            case SGX_EXCEPTION_VECTOR_BR:
+                log_error("Handling #BR exceptions is currently unsupported by Graphene\n");
+                _DkProcessExit(1);
+                break;
             case SGX_EXCEPTION_VECTOR_UD:
                 if (handle_ud(uc)) {
                     restore_sgx_context(uc, xregs_state);
@@ -205,7 +209,6 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
             case SGX_EXCEPTION_VECTOR_AC:
                 event_num = PAL_EVENT_MEMFAULT;
                 break;
-            case SGX_EXCEPTION_VECTOR_BR:
             case SGX_EXCEPTION_VECTOR_DB:
             case SGX_EXCEPTION_VECTOR_BP:
             default:
