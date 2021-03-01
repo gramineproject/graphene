@@ -596,8 +596,8 @@ You can set your special ``CN`` value::
 Then we will get the new ``server2-sha256.crt`` and use it to replace the one
 under ``ra-tls-secret-prov/certs/``.
 
-At last, we also need to add this new domain name to DNS records list so that
-the remote communication can be established::
+At last, we also need to add this new domain name to DNS records list of untrusted
+machine B, so that the remote communication can be established::
 
    echo "${machineA_ip_addr} attestation.service.com" >> /etc/hosts
 
