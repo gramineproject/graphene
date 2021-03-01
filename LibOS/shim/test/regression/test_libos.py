@@ -574,7 +574,7 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('/proc/cpuinfo, type: {0}'.format(DT_REG), stdout)
         self.assertIn('symlink /proc/self/exec resolves to /proc_common', stdout)
         self.assertIn('/proc/2/cwd/proc_common.c', stdout)
-        self.assertIn('/lib/libpthread.so', stdout)
+        self.assertIn(' 00:00 0 /proc_common', stdout) # from /proc/<pid>/maps
         self.assertIn('stack', stdout)
         self.assertIn('vendor_id', stdout)
 

@@ -898,7 +898,7 @@ int init_brk_from_executable(struct shim_handle* exec) {
 }
 
 int register_library(const char* name, unsigned long load_address) {
-    log_debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
+    log_debug("libc register library %s loaded at 0x%08lx\n", name, load_address);
 
     struct shim_handle* hdl = get_new_handle();
 
