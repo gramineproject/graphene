@@ -5,6 +5,7 @@
 
 /*
  * This file contains code for implementation of 'tmpfs' filesystem.
+ * The tmpfs files are *not* cloned during fork/clone and cannot be synchronized between processes.
  */
 
 #include <asm/mman.h>
