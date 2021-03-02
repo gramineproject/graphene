@@ -50,7 +50,12 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
             ret = 0;
             break;
         case FIONBIO:
-            ret = set_handle_nonblocking(hdl);
+            if (test_user_memory((void*)arg, sizeof(int), /*write=*/false)) {
+                ret = -EFAULT;
+                break;
+            }
+            int nonblocking_on = *(int*)arg;
+            ret = set_handle_nonblocking(hdl, !!nonblocking_on);
             break;
         case FIONCLEX:
             hdl->flags &= ~FD_CLOEXEC;

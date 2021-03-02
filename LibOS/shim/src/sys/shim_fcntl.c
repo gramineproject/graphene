@@ -31,9 +31,9 @@ static int _set_handle_flags(struct shim_handle* hdl, unsigned long arg) {
     return 0;
 }
 
-int set_handle_nonblocking(struct shim_handle* hdl) {
+int set_handle_nonblocking(struct shim_handle* hdl, bool on) {
     lock(&hdl->lock);
-    int ret = _set_handle_flags(hdl, hdl->flags | O_NONBLOCK);
+    int ret = _set_handle_flags(hdl, on ? hdl->flags | O_NONBLOCK : hdl->flags & ~O_NONBLOCK);
     unlock(&hdl->lock);
     return ret;
 }
