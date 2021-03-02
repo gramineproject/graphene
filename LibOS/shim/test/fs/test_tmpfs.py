@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 
-import filecmp
 import os
-import shutil
 import unittest
-
-from regression import (
-    HAS_SGX,
-    expectedFailureIf,
-)
 
 from test_fs import TC_00_FileSystem
 
