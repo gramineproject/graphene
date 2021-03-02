@@ -133,19 +133,19 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
         dent->type = S_IFDIR;
         tmpfs_update_ino(dent);
     }
+    if (data->type == FILE_UNKNOWN) {
+        if (!(flags & O_CREAT)) {
+            ret = -ENOENT;
+            goto out;
+        }
+        data->type = FILE_REGULAR;
+        data->mode = PERM_rwxrwxrwx;
+        dent->type = S_IFREG;
+        tmpfs_update_ino(dent);
+        /* always keep data for tmpfs until unlink */
+        REF_INC(data->str_data.ref_count);
+    }
     switch (data->type) {
-        case FILE_UNKNOWN:
-            if (!(flags & O_CREAT)) {
-                ret = -ENOENT;
-                goto out;
-            }
-            data->type = FILE_REGULAR;
-            data->mode = PERM_rwxrwxrwx;
-            dent->type = S_IFREG;
-            tmpfs_update_ino(dent);
-            /* always keep data for tmpfs until unlink */
-            REF_INC(data->str_data.ref_count);
-            /* fallthrough to FILE_REGULAR */
         case FILE_REGULAR:
             ret = str_open(hdl, dent, flags);
             if (ret < 0)
