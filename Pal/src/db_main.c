@@ -19,7 +19,10 @@
 #include "sysdeps/generic/ldsodefs.h"
 #include "toml.h"
 
-PAL_CONTROL g_pal_control;
+PAL_CONTROL g_pal_control = {
+    /* Enable log to catch early initialization errors; it will be overwritten in pal_main(). */
+    .log_level = PAL_LOG_DEFAULT_LEVEL,
+};
 
 PAL_CONTROL* pal_control_addr(void) {
     return &g_pal_control;
