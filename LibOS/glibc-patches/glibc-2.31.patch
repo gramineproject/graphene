@@ -11,6 +11,28 @@ index 1e9c18f0d866731910d29327b975e359dbb3ea33..3fa0d4a52489b6d05111e76ade0a68cc
  
  # This makes all the object files in the parent library archive.
  
+diff --git a/elf/Makefile b/elf/Makefile
+index 632a4d8b0f6a30e5be7e9d675a81b6e3fd0fdcad..66f178ae675e794c9cff4f6e4870598be77bd6b0 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -503,7 +503,7 @@ $(objpfx)librtld.map: $(objpfx)dl-allobjs.os $(common-objpfx)libc_pic.a
+ 
+ $(objpfx)librtld.mk: $(objpfx)librtld.map Makefile
+ 	LC_ALL=C \
+-	sed -n 's@^$(common-objpfx)\([^(]*\)(\([^)]*\.os\)) *.*$$@\1 \2@p' \
++	sed -n 's@^$(subst @,\@,$(common-objpfx))\([^(]*\)(\([^)]*\.os\)) *.*$$@\1 \2@p' \
+ 	    $< | \
+ 	while read lib file; do \
+ 	  case $$lib in \
+@@ -511,7 +511,7 @@ $(objpfx)librtld.mk: $(objpfx)librtld.map Makefile
+ 	    LC_ALL=C fgrep -l /$$file \
+ 		  $(common-objpfx)stamp.os $(common-objpfx)*/stamp.os | \
+ 	    LC_ALL=C \
+-	    sed 's@^$(common-objpfx)\([^/]*\)/stamp\.os$$@rtld-\1'" +=$$file@"\
++	    sed 's@^$(subst @,\@,$(common-objpfx))\([^/]*\)/stamp\.os$$@rtld-\1'" +=$$file@"\
+ 	    ;; \
+ 	  */*.a) \
+ 	    echo rtld-$${lib%%/*} += $$file ;; \
 diff --git a/elf/dl-load.c b/elf/dl-load.c
 index a6b80f93957199e1ef2bcbbcc12302830caae978..b5936e7f1c688001d48c27360f0c838c21bba682 100644
 --- a/elf/dl-load.c
