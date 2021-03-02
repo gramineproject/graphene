@@ -42,8 +42,8 @@ rules, including the URI path, backing service name, and other information.
 The Ingress controller then automatically configures a frontend load balancer to
 implement the Ingress rules.
 
-.. image:: ./NGINX-Ingress-Controller.jpg
-   :target: ./NGINX-Ingress-Controller.jpg
+.. image:: ./NGINX-Ingress-Controller.svg
+   :target: ./NGINX-Ingress-Controller.svg
    :scale: 50 %
    :alt: Figure: Nginx ingress controller
 
@@ -74,9 +74,8 @@ initialized and running on legitimate hardware with the latest patches.We also
 use Graphene to simplify the task of porting TensorFlow Serving to SGX, without
 any changes.
 
-.. image:: ./Graphene_TF_Serving_Flow.jpg
-   :target: ./Graphene_TF_Serving_Flow.jpg
-   :scale: 50
+.. image:: ./Graphene_TF_Serving_Flow.svg
+   :target: ./Graphene_TF_Serving_Flow.svg
    :alt: Figure: TensorFlow Serving Flow
 
 In this tutorial, we use three machines: `Machine A` is the trusted machine,
@@ -596,8 +595,8 @@ You can set your special ``CN`` value::
 Then we will get the new ``server2-sha256.crt`` and use it to replace the one
 under ``ra-tls-secret-prov/certs/``.
 
-At last, we also need to add this new domain name to DNS records list of untrusted
-machine B, so that the remote communication can be established::
+At last, we also need to add this new domain name to DNS records list so that
+the remote communication can be established::
 
    echo "${machineA_ip_addr} attestation.service.com" >> /etc/hosts
 
