@@ -528,6 +528,9 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* Our arguments are coming directly from the urts. We are responsible to check them. */
     int ret;
 
+    /* Enable log to catch early initialization errors; it will be overwritten in pal_main(). */
+    g_pal_control.log_level = PAL_LOG_DEFAULT_LEVEL;
+
     uint64_t start_time;
     ret = _DkSystemTimeQuery(&start_time);
     if (ret < 0) {
