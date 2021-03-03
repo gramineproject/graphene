@@ -1,2 +1,15 @@
 sgx.enclave_size = "4G"
 sgx.thread_num = 8
+
+# the below three lines are for testing internal GSC logic (they must be skipped); note that
+# the dummy3 line is skipped by GSC because it contains an illegal "=" inside filename
+
+# sgx.allowed_files.dummy1 = "file:commented-out-with-space"
+#sgx.allowed_files.dummy2 = "file:commented-out"
+sgx.allowed_files.dummy3 = "file:weird=file"
+
+# the below files may differ from Docker container to Docker container, so they are marked as
+# allowed (this may be insecure if untrusted host maliciously modified these files!)
+sgx.allowed_files.etchostname = "file:/etc/hostname"
+sgx.allowed_files.etchosts    = "file:/etc/hosts"
+sgx.allowed_files.etcresolv   = "file:/etc/resolv.conf"
