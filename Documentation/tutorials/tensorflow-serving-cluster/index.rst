@@ -145,7 +145,7 @@ Prerequisites
   is a flexible, high-performance serving system for machine learning models,
   designed for production environments. Install::
 
-     pip3 install -r ./tensorFlow-serving/client/requirements.txt
+     pip3 install -r ./tensorflow-serving/client/requirements.txt
 
 - Kubernetes. `Kubernetes <https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/>`__
   is an open-source system for automating deployment,
@@ -179,7 +179,7 @@ Under the untrusted machine B, clone the GitHub repository with our provided
 scripts and go to the directory::
 
    git clone https://github.com/oscarlab/graphene-contrib.git
-   cd ./graphene-contrib/tensorFlow-serving-cluster/tensorflow-serving
+   cd ./graphene-contrib/tensorflow-serving-cluster/tensorflow-serving
 
 Preparing the Docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -256,9 +256,9 @@ To run the client, under the untrusted machine C, clone the GitHub repository
 with our provided scripts and go to the directory::
 
    git clone https://github.com/oscarlab/graphene-contrib.git
-   cd ./graphene-contrib/tensorFlow-serving-cluster/tensorflow-serving
+   cd ./graphene-contrib/tensorflow-serving-cluster/tensorflow-serving
 
-Please copy the ``ssl_configure/server.crt`` generated under ``tensorFlow-serving``
+Please copy the ``ssl_configure/server.crt`` generated under ``tensorflow-serving``
 in machine B to machine C.
 
 Then, add the mapping of the machine B's IP address to Tensorflow Serving domain
@@ -401,7 +401,7 @@ The newly created image will be shown similar to the below::
 
 Start TensorFlow Serving in untrusted machine B::
 
-   cd <graphene-contrib repository>/tensorFlow-serving-cluster/tensorflow-serving
+   cd <graphene-contrib repository>/tensorflow-serving-cluster/tensorflow-serving
    ./run_graphene_tf_serving.sh -a ${image_id} -b 8500-8501 -c resnet50-v15-fp32 -d ssl.cfg
 
 Now, we can use the same request from the client to do the inference.
@@ -542,7 +542,7 @@ utilities such as `pf_crypt` to encrypt input files.
 
 Recall that we have the already converted model file under::
 
-   <graphene-contrib repository>/tensorflow-serving-cluster/tensorFlow-serving/models/resnet50-v15-fp32/1/saved_model.pb
+   <graphene-contrib repository>/tensorflow-serving-cluster/tensorflow-serving/models/resnet50-v15-fp32/1/saved_model.pb
 
 We first move the model file to ``plaintext/`` directory and then encrypt it with
 the wrap key::
@@ -558,7 +558,7 @@ We now get the encrypted model file under::
 
 Move this encrypted model file to replace the plaintext file under::
 
-   <graphene-contrib repository>/tensorflow-serving-cluster/tensorFlow-serving/models/resnet50-v15-fp32/1/saved_model.pb
+   <graphene-contrib repository>/tensorflow-serving-cluster/tensorflow-serving/models/resnet50-v15-fp32/1/saved_model.pb
 
 Preparing Secret Provisioning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -624,7 +624,7 @@ Preparing Manifest File
 
 Go to the directory::
 
-   <graphene-contrib repository>/tensorflow-serving-cluster/tensorFlow-serving/docker
+   <graphene-contrib repository>/tensorflow-serving-cluster/tensorflow-serving/docker
 
 First let's look at the ``tensorflow_model_server.manifest.attestation.template``.
 
