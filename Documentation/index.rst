@@ -57,6 +57,7 @@ Table of Contents
    :maxdepth: 2
 
    tutorials/pytorch/index.rst
+   tutorials/tensorflow-serving-cluster/index.rst
 
 .. toctree::
    :caption: Manual pages

@@ -80,7 +80,7 @@ any changes.
    :alt: Figure: TensorFlow Serving Flow
 
 In this tutorial, we use three machines: `Machine A` is the trusted machine,
-it can be a non-SGX platform or SGX platform; `Machine B` is SGX-enabled,
+it can be a non-SGX platform or an SGX platform; `Machine B` is SGX-enabled,
 treated as untrusted machine; `Machine C` is the client.
 Here we will show the complete workflow for using Kubernetes to manage the
 TensorFlow Serving running inside an SGX enclave with Graphene and its
@@ -161,8 +161,8 @@ Prerequisites
   to build Graphene. In this tutorial, we will need to build Graphene in the
   host to get the tool `pf_crypt`, which will be used to encrypt the model file.
 
-- TensorFlow Serving cluster scripts package. You can download the scrips package
-  `tensorflow-serving-cluster` `here <https://github.com/oscarlab/graphene-contrib.git>`.
+- TensorFlow Serving cluster scripts package. You can download the scripts package
+  `tensorflow-serving-cluster` `here <https://github.com/oscarlab/graphene-contrib.git>`__.
 
 Executing TF Serving in Docker
 ------------------------------
@@ -175,7 +175,8 @@ a basis and will improve it to protect the files and involve Kubernetes.
 Executing TF Serving without Graphene in Docker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Under the untrusted machine B, go to the directory::
+Under the untrusted machine B, clone the GitHub repository with our provided
+scripts and go to the directory::
 
    git clone https://github.com/oscarlab/graphene-contrib.git
    cd ./graphene-contrib/tensorFlow-serving-cluster/tensorflow-serving
@@ -202,7 +203,7 @@ The converted model file will be under::
 
    models/resnet50-v15-fp32/1/saved_model.pb
 
-Next step, we will pull the Docker image of TensorFlow Serving.
+Next, we will pull the Docker image of TensorFlow Serving.
 
 For example::
 
@@ -225,7 +226,7 @@ Preparing the TLS certificate
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We choose gRPC TLS and create the one-way TLS Keys and certificates by setting
-TensorFlow Serving domain name to keep the communication link between client
+TensorFlow Serving domain name to establish a communication link between client
 and TensorFlow Serving.
 This domain name will be also used in machine A (the client).
 
@@ -251,7 +252,8 @@ if you need.
 Now, the TensorFlow Serving service in the Docker is running and waiting for
 requests from the client.
 
-To run the client, under the untrusted machine C, go to the directory::
+To run the client, under the untrusted machine C, clone the GitHub repository
+with our provided scripts and go to the directory::
 
    git clone https://github.com/oscarlab/graphene-contrib.git
    cd ./graphene-contrib/tensorFlow-serving-cluster/tensorflow-serving
@@ -270,7 +272,7 @@ For example::
 
 *Note*: Please make sure that the connection between machines A and B is good.
 ``machineB_ip_addr`` is the IP address of machine B; ``service_domain_name``
-is a domain name of TensorFlow Serving set under machine B.
+is a domain name of TensorFlow Serving installed on machine B.
 
 Start the client request with dummy image::
 
@@ -421,7 +423,7 @@ Install Kubernetes::
 
 Initialize and enable taint for master node. Kubernetes allows users to taint
 the node so that no pods can be scheduled to it, unless a pod explicitly tolerates
-the taint.::
+the taint::
 
    unset http_proxy && unset https_proxy
    swapoff -a && free -m
@@ -556,7 +558,7 @@ We now get the encrypted model file under::
 
 Move this encrypted model file to replace the plaintext file under::
 
-   <graphene-contrib repository>/tensorflow-serving-cluste/tensorFlow-serving/models/resnet50-v15-fp32/1/saved_model.pb
+   <graphene-contrib repository>/tensorflow-serving-cluster/tensorFlow-serving/models/resnet50-v15-fp32/1/saved_model.pb
 
 Preparing Secret Provisioning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -575,11 +577,19 @@ protected input and output files) to the TensorFlow Serving enclave.
 See `Secret Provisioning Minimal Examples <https://github.com/oscarlab/graphene/tree/master/Examples/ra-tls-secret-prov>`__
 for more information.
 
-Also, in order for the in-Graphene secret provisioning library to verify secret
-provisioning library that can verify the provisioning server (via classical X.509
-PKI) remotely, we need to regenerate the ``server2-sha256.crt`` under the
-current directory ``./certs``.
-The original `server2-sha256.crt` is for local (single-machine) test::
+We also need to copy the server-identifying certificates so that in-Graphene
+secret provisioning library can verify the provisioning server (via classical
+X.509 PKI). This step is done in `graphene_tf_serving.dockerfile` as below::
+
+   cp -R ${GRAPHENEDIR}/Examples/ra-tls-secret-prov/certs .
+
+The `server2-sha256.crt` under the directory `certs` is loaded in
+provisioning server (verifier), and will be sent to the client during TLS
+handshake, but it was designed for local (single-machine) test.
+We need to regenerate the ``server2-sha256.crt to support remote (two different
+machines) test. For `server2.key` and `test-ca-sha256.crt`, we keep the same.
+
+Generate new `server2-sha256.crt`::
 
    cd ./mbedtls/tests/data_files
    vim Makefile
@@ -614,7 +624,7 @@ Preparing Manifest File
 
 Go to the directory::
 
-   <graphene-contrib repository>/tensorflow-serving-cluste/tensorFlow-serving/Docker
+   <graphene-contrib repository>/tensorflow-serving-cluster/tensorFlow-serving/docker
 
 First let's look at the ``tensorflow_model_server.manifest.attestation.template``.
 
@@ -633,7 +643,7 @@ protected files to be transparently decrypted by the provisioned key.
 Recall that we launched the secret provisioning server remotely on the machine A,
 so we re-use the same ``certs/`` directory and specify ``attestation.service.com``.
 For more info on the used environment variables and other manifest options, see
-`here < https://graphene.readthedocs.io/en/latest/attestation.html#high-level-secret-provisioning-interface>`__::
+`here <https://graphene.readthedocs.io/en/latest/attestation.html#high-level-secret-provisioning-interface>`__::
 
     sgx.remote_attestation = 1
 
@@ -668,7 +678,6 @@ A config file will pop up, and we need to add the below configuration into it::
     }
 
 ``${machineA_ip_address}`` is the IP address of remote machine A;
-
 ``${attestation_host_name}`` is ``attestation.service.com``.
 
 Building and Executing TensorFlow Serving Cluster
