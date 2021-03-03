@@ -421,6 +421,15 @@ This example assumes that all prerequisites are installed and configured.
          -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket \
          gsc-python -c 'print("HelloWorld!")'
 
+#. You can also start a Bash interactive session in the graphenized Docker
+   image (useful for debugging):
+
+   .. code-block:: sh
+
+      docker run --device=/dev/gsgx --device=/dev/isgx \
+         -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket \
+         -it --entrypoint /bin/bash gsc-python
+
 Limitations
 ===========
 
