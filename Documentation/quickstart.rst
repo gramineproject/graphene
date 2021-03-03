@@ -64,7 +64,7 @@ second command should list the process status of :command:`aesm_service`.
 
       sudo apt-get install -y \
          build-essential autoconf gawk bison wget python3 libcurl4-openssl-dev \
-         python3-protobuf libprotobuf-c-dev protobuf-c-compiler
+         python3-protobuf python3-toml libprotobuf-c-dev protobuf-c-compiler
       make
       ISGX_DRIVER_PATH=<path-to-sgx-driver-sources> make SGX=1
 

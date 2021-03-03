@@ -48,6 +48,7 @@ RUN apt-get update \
        python3-pip \
        python3-pytest \
        python3-scipy \
+       python3-toml \
        r-base-core \
        shellcheck \
        texinfo \

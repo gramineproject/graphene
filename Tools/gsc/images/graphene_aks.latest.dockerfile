@@ -12,6 +12,7 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
         libprotobuf-c-dev \
         protobuf-c-compiler \
         python3-protobuf \
+        python3-toml \
         wget
 
 RUN git clone https://github.com/oscarlab/graphene.git /graphene
