@@ -54,7 +54,7 @@ RUN apt-get update \
        wget \
        zlib1g \
        zlib1g-dev \
-    && /usr/bin/pip3 install protobuf meson==0.45.1 \
+    && /usr/bin/pip3 install protobuf meson==0.45.1 toml>=0.10 \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \

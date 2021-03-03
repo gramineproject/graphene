@@ -266,16 +266,59 @@ static int __mount_others(void) {
     if (mounts_cnt <= 0)
         return 0;
 
+    /* *** Warning: A _very_ ugly hack below (hopefully only temporary) ***
+     *
+     * Currently we don't use proper TOML syntax for declaring mountpoints, instead, we use a syntax
+     * which resembles the pre-TOML one used in Graphene. As a result, the entries are not ordered,
+     * but Graphene actually relies on the specific mounting order (e.g. you can't mount /lib/asdf
+     * first and then /lib, but the other way around works). The problem is, that TOML structure is
+     * just a dictionary, so the order of keys is not preserved.
+     *
+     * The correct solution is to change the manifest syntax for mounts, but this will be a huge,
+     * breaking change. For now, just to fix the issue, we use an ugly heuristic - we apply mounts
+     * sorted by the path length, which in most cases should result in a proper mount order.
+     *
+     * We do this in O(n^2) because we don't have a sort function, but that shouldn't be an issue -
+     * usually there are around 5 mountpoints with ~30 chars in paths, so it should still be quite
+     * fast.
+     *
+     * Corresponding issue: https://github.com/oscarlab/graphene/issues/2214.
+     */
+    const char** keys = malloc(mounts_cnt * sizeof(*keys));
+    size_t* lengths = malloc(mounts_cnt * sizeof(*lengths));
+    size_t longest = 0;
     for (ssize_t i = 0; i < mounts_cnt; i++) {
-        const char* mount_key = toml_key_in(manifest_fs_mounts, i);
-        assert(mount_key);
+        keys[i] = toml_key_in(manifest_fs_mounts, i);
+        assert(keys[i]);
 
-        toml_table_t* mount = toml_table_in(manifest_fs_mounts, mount_key);
-        ret = __mount_one_other(mount);
-        if (ret < 0)
-            return ret;
+        toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[i]);
+        assert(mount);
+        char* mount_path;
+        ret = toml_string_in(mount, "path", &mount_path);
+        if (ret < 0 || !mount_path) {
+            if (!ret)
+                ret = -ENOENT;
+            goto out;
+        }
+        lengths[i] = strlen(mount_path);
+        longest = MAX(longest, lengths[i]);
+        free(mount_path);
     }
-    return 0;
+
+    for (size_t i = 0; i <= longest; i++) {
+        for (ssize_t j = 0; j < mounts_cnt; j++) {
+            if (lengths[j] != i)
+                continue;
+            toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[j]);
+            ret = __mount_one_other(mount);
+            if (ret < 0)
+                goto out;
+        }
+    }
+out:
+    free(keys);
+    free(lengths);
+    return ret;
 }
 
 int init_mount_root(void) {
