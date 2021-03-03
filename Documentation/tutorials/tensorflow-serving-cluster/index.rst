@@ -386,9 +386,10 @@ needs. Then, run the above command again.
 Now, we can build the Docker image with Graphene, and you can set the special tag
 for your Docker image::
 
-    cp tensorflow_model_server.manifest.noattestation.template tensorflow_model_server.manifest.template
+    cd <graphene-contrib repository>/tensorflow-serving-cluster/tensorflow-serving/docker
+    cp tensorflow_model_server.manifest.nonattestation.template tensorflow_model_server.manifest.template
     tag=latest
-    ./build_graphene_tf_serving.sh ${tag}
+    ./build_graphene_tf_serving_image.sh ${tag}
 
 You can check the created Docker image with below command::
 
