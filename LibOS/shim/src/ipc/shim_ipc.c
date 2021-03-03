@@ -167,24 +167,6 @@ void put_ipc_info_in_list(struct shim_ipc_info* info) {
     unlock(&ipc_info_lock);
 }
 
-struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid) {
-    assert(vmid);
-    lock(&ipc_info_lock);
-
-    struct shim_ipc_info* info;
-    LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
-    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
-        if (info->vmid == vmid && !qstrempty(&info->uri)) {
-            __get_ipc_info(info);
-            unlock(&ipc_info_lock);
-            return info;
-        }
-    }
-
-    unlock(&ipc_info_lock);
-    return NULL;
-}
-
 struct shim_process_ipc_info* create_process_ipc_info(void) {
     struct shim_process_ipc_info* new_process_ipc_info = calloc(1, sizeof(*new_process_ipc_info));
     if (!new_process_ipc_info)
