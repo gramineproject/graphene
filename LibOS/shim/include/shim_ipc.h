@@ -80,7 +80,6 @@ DEFINE_LIST(shim_ipc_info);
 struct shim_ipc_info {
     IDTYPE vmid;
     struct shim_ipc_port* port;
-    PAL_HANDLE pal_handle;
     struct shim_qstr uri;
     LIST_TYPE(shim_ipc_info) hlist;
     REFTYPE ref_count;

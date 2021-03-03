@@ -97,10 +97,7 @@ static int init_parent_ipc_port(void) {
     lock(&g_process_ipc_info.lock);
     assert(g_process_ipc_info.parent && g_process_ipc_info.parent->vmid);
 
-    assert(!g_process_ipc_info.parent->pal_handle);
-    g_process_ipc_info.parent->pal_handle = PAL_CB(parent_process);
-
-    add_ipc_port_by_id(g_process_ipc_info.parent->vmid, g_process_ipc_info.parent->pal_handle,
+    add_ipc_port_by_id(g_process_ipc_info.parent->vmid, PAL_CB(parent_process),
                        IPC_PORT_CONNECTION | IPC_PORT_DIRECTPARENT, /*fini=*/NULL,
                        &g_process_ipc_info.parent->port);
 
@@ -114,7 +111,11 @@ static int init_ns_ipc_port(void) {
         return 0;
     }
 
-    if (!g_process_ipc_info.ns->pal_handle && qstrempty(&g_process_ipc_info.ns->uri)) {
+    if (g_process_ipc_info.ns->port) {
+        return 0;
+    }
+
+    if (qstrempty(&g_process_ipc_info.ns->uri)) {
         /* there is no connection to NS leader via PAL handle and there is no URI to find NS leader:
          * do not create NS IPC port now, it will be created on-demand during NS leader lookup */
         return 0;
@@ -122,18 +123,16 @@ static int init_ns_ipc_port(void) {
 
     lock(&g_process_ipc_info.lock);
 
-    if (!g_process_ipc_info.ns->pal_handle) {
-        log_debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
-        int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0,
-                               &g_process_ipc_info.ns->pal_handle);
-        if (ret < 0) {
-            unlock(&g_process_ipc_info.lock);
-            return pal_to_unix_errno(ret);
-        }
+    log_debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
+    PAL_HANDLE handle = NULL;
+    int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0, &handle);
+    if (ret < 0) {
+        unlock(&g_process_ipc_info.lock);
+        return pal_to_unix_errno(ret);
     }
 
-    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, g_process_ipc_info.ns->pal_handle,
-                       IPC_PORT_CONNECTION, /*fini=*/NULL, &g_process_ipc_info.ns->port);
+    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, handle, IPC_PORT_CONNECTION, /*fini=*/NULL,
+                       &g_process_ipc_info.ns->port);
 
     unlock(&g_process_ipc_info.lock);
     return 0;
