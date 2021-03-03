@@ -63,10 +63,13 @@ tmpfs-test: $(target)
 	$(RM) tmpfs-test.xml
 	$(MAKE) tmpfs-test.xml
 
-.PHONY: test
-test: $(target)
+.PHONY: pf-test
+pf-test: $(target)
 	$(RM) pf-test.xml
 	$(MAKE) pf-test.xml
+
+.PHONY: test
+test: tmpfs-test pf-test
 
 fs-test.xml: test_fs.py $(call expand_target_to_token,$(target))
 	$(SCRIPTS_DIR)/run-pytest --junit-xml $@ -v $<

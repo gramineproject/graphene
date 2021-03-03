@@ -48,7 +48,6 @@ stage('test') {
                 make ${MAKEOPTS} sgx-tokens
             fi
             make test
-            make tmpfs-test
         '''
     }
 }
