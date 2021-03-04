@@ -32,7 +32,7 @@ an operating system (Ubuntu18.04 in this tutorial) and interacts
 with pods of containers running on the nodes. By default, applications running
 in Kubernetes `pods <https://kubernetes.io/docs/concepts/workloads/pods/pod/>`__
 are not accessible from the external network, but only from other pods within
-the Kubernetes cluster. 
+the Kubernetes cluster.
 
 Kubernetes has a built in configuration object for HTTP load balancing, called
 `Nginx Ingress <https://kubernetes.io/docs/concepts/services-networking/ingress/>`__
@@ -79,9 +79,9 @@ any changes.
    :target: ./img/Graphene_TF_Serving_Flow.svg
    :alt: Figure: TensorFlow Serving Flow
 
-In this tutorial, we use three machines: `Machine A` is the trusted machine,
-it can be a non-SGX platform or an SGX platform; `Machine B` is SGX-enabled,
-treated as untrusted machine; `Machine C` is the client.
+In this tutorial, we use three machines: ``Machine A`` is the trusted machine,
+it can be a non-SGX platform or an SGX platform; ``Machine B`` is SGX-enabled,
+treated as untrusted machine; ``Machine C`` is the client.
 Here we will show the complete workflow for using Kubernetes to manage the
 TensorFlow Serving running inside an SGX enclave with Graphene and its
 features of Secret Provisioning and Protected Files.
@@ -159,10 +159,10 @@ Prerequisites
 
 - Graphene. Follow `Quick Start <https://graphene.readthedocs.io/en/latest/quickstart.html>`__
   to build Graphene. In this tutorial, we will need to build Graphene in the
-  host to get the tool `pf_crypt`, which will be used to encrypt the model file.
+  host to get the tool ``pf_crypt``, which will be used to encrypt the model file.
 
 - TensorFlow Serving cluster scripts package. You can download the scripts package
-  `tensorflow-serving-cluster` `here <https://github.com/oscarlab/graphene-contrib.git>`__.
+  ``tensorflow-serving-cluster`` `here <https://github.com/oscarlab/graphene-contrib.git>`__.
 
 Executing TF Serving in Docker
 ------------------------------
@@ -380,7 +380,7 @@ enclave::
       --rest_api_port=8501 \
       ......
 
-*`Note`*: Please modify `proxy_server` in the script first according to your
+*``Note``*: Please modify ``proxy_server`` in the script first according to your
 needs. Then, run the above command again.
 
 Now, we can build the Docker image with Graphene, and you can set the special tag
@@ -539,7 +539,7 @@ directory. In particular, we re-use the confidential wrap key::
 The second line in the above snippet creates Graphene-specific DCAP libraries for
 preparation and verification of SGX quotes (needed for SGX remote attestation).
 The last line builds the required DCAP binaries and copies relevant Graphene
-utilities such as `pf_crypt` to encrypt input files.
+utilities such as ``pf_crypt`` to encrypt input files.
 
 Recall that we have the already converted model file under::
 
@@ -580,15 +580,15 @@ for more information.
 
 We also need to copy the server-identifying certificates so that in-Graphene
 secret provisioning library can verify the provisioning server (via classical
-X.509 PKI). This step is done in `graphene_tf_serving.dockerfile` as below::
+X.509 PKI). This step is done in ``graphene_tf_serving.dockerfile`` as below::
 
    cp -R ${GRAPHENEDIR}/Examples/ra-tls-secret-prov/certs .
 
-The `server2-sha256.crt` under the directory `certs` is loaded in
+The ``server2-sha256.crt`` under the directory ``certs`` is loaded in
 provisioning server (verifier), and will be sent to the client during TLS
 handshake, but it was designed for local (single-machine) test.
 We need to regenerate the ``server2-sha256.crt to support remote (two different
-machines) test. For `server2.key` and `test-ca-sha256.crt`, we keep the same.
+machines) test. For ``server2.key`` and ``test-ca-sha256.crt``, we keep them as-is.
 
 Generate new `server2-sha256.crt`::
 
