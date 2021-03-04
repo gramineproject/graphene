@@ -25,7 +25,7 @@
 
 #define TSC_REFINE_INIT_TIMEOUT_USECS 10000000
 
-static uint64_t g_tsc_hz = 0;
+uint64_t g_tsc_hz = 0; /* TSC frequency for fast and accurate time ("invariant TSC" HW feature) */
 static uint64_t g_start_tsc = 0;
 static uint64_t g_start_usec = 0;
 static PAL_LOCK g_tsc_lock = LOCK_INIT;

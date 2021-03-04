@@ -31,6 +31,7 @@
 
 #define CPUID_LEAF_INVARIANT_TSC 0x80000007
 #define CPUID_LEAF_TSC_FREQ 0x15
+#define CPUID_LEAF_PROC_FREQ 0x16
 
 static const char* const g_cpu_flags[] = {
     "fpu",    // "x87 FPU on chip"
@@ -95,24 +96,40 @@ static double get_bogomips(void) {
 
 bool is_tsc_usable(void) {
     uint32_t words[PAL_CPUID_WORD_NUM];
-
     _DkCpuIdRetrieve(CPUID_LEAF_INVARIANT_TSC, 0, words);
     return words[PAL_CPUID_WORD_EDX] & 1 << 8;
 }
 
+/* return TSC frequency or 0 if invariant TSC is not supported */
 uint64_t get_tsc_hz(void) {
     uint32_t words[PAL_CPUID_WORD_NUM];
-    uint64_t crys_hz;
 
     _DkCpuIdRetrieve(CPUID_LEAF_TSC_FREQ, 0, words);
-    if (words[PAL_CPUID_WORD_EBX] > 0 && words[PAL_CPUID_WORD_EAX] > 0) {
-        /* nominal frequency of the core crystal clock in kHz */
-        crys_hz = words[PAL_CPUID_WORD_ECX];
-        if (crys_hz > 0) {
-            return crys_hz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
-        }
+    if (!words[PAL_CPUID_WORD_EAX] || !words[PAL_CPUID_WORD_EBX]) {
+        /* TSC/core crystal clock ratio is not enumerated, can't use RDTSC for accurate time */
+        return 0;
     }
-    return 0;
+
+    if (words[PAL_CPUID_WORD_ECX] > 0) {
+        /* calculate TSC frequency as core crystal clock frequency (EAX) * EBX / EAX; cast to 64-bit
+         * first to prevent integer overflow */
+        uint64_t ecx_hz = words[PAL_CPUID_WORD_ECX];
+        return ecx_hz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
+    }
+
+    /* some Intel CPUs do not report nominal frequency of crystal clock, let's calculate it
+     * based on Processor Frequency Information Leaf (CPUID 16H); this leaf always exists if
+     * TSC Frequency Leaf exists; logic is taken from Linux 5.11's arch/x86/kernel/tsc.c */
+    _DkCpuIdRetrieve(CPUID_LEAF_PROC_FREQ, 0, words);
+    if (!words[PAL_CPUID_WORD_EAX]) {
+        /* processor base frequency (in MHz) is not enumerated, can't calculate frequency */
+        return 0;
+    }
+
+    /* processor base frequency is in MHz but we need to return TSC frequency in Hz; cast to 64-bit
+     * first to prevent integer overflow */
+    uint64_t base_frequency_mhz = words[PAL_CPUID_WORD_EAX];
+    return base_frequency_mhz * 1000000;
 }
 
 int _DkGetCPUInfo(PAL_CPU_INFO* ci) {

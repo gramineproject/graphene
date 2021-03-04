@@ -114,6 +114,9 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
 static void emulate_rdtsc_and_print_warning(sgx_cpu_context_t* uc) {
     static int first = 0;
     if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) == 0) {
+        /* if we end up emulating RDTSC/RDTSCP instruction, we cannot use invariant TSC */
+        extern uint64_t g_tsc_hz;
+        g_tsc_hz = 0;
         log_warning("Warning: all RDTSC/RDTSCP instructions are emulated (imprecisely) via "
                     "gettime() syscall.\n");
     }
