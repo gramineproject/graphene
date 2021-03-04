@@ -298,37 +298,46 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
 
     struct trusted_file* tf = NULL;
     struct trusted_file* tmp;
-    char uri[URI_MAX];
-    char normpath[URI_MAX];
     int ret, fd = file->file.fd;
+    char* uri = malloc(URI_MAX);
+    const size_t normpath_size = URI_MAX;
+    char* normpath = malloc(normpath_size);
+    if (!uri || !normpath) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out_free;
+    }
 
-    if (!(HANDLE_HDR(file)->flags & RFD(0)))
-        return -PAL_ERROR_DENIED;
+    if (!(HANDLE_HDR(file)->flags & RFD(0))) {
+        ret = -PAL_ERROR_DENIED;
+        goto out_free;
+    }
 
     ret = _DkStreamGetName(file, uri, URI_MAX);
     if (ret < 0) {
-        return ret;
+        goto out_free;
     }
 
     /* always allow creating files */
     if (create) {
         register_trusted_file(uri, NULL, /*check_duplicates=*/true);
-        return 0;
+        ret = 0;
+        goto out_free;
     }
 
     /* Normalize the uri */
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
         log_error("Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
-        return -PAL_ERROR_INVAL;
+        ret = -PAL_ERROR_INVAL;
+        goto out_free;
     }
-    static_assert(sizeof(normpath) > URI_PREFIX_FILE_LEN, "`normpath` is too small");
+    assert(normpath_size > URI_PREFIX_FILE_LEN);
     memcpy(normpath, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
-    size_t len = sizeof(normpath) - URI_PREFIX_FILE_LEN;
+    size_t len = normpath_size - URI_PREFIX_FILE_LEN;
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
         log_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
                   pal_strerror(ret));
-        return ret;
+        goto out_free;
     }
     len += URI_PREFIX_FILE_LEN;
 
@@ -354,8 +363,10 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
 
     if (!tf || tf->allowed) {
         if (!tf) {
-            if (get_file_check_policy() != FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG)
-                return -PAL_ERROR_DENIED;
+            if (get_file_check_policy() != FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG) {
+                ret = -PAL_ERROR_DENIED;
+                goto out_free;
+            }
 
             pal_printf("Allowing access to an unknown file due to "
                        "file_check_policy settings: %s\n", uri);
@@ -369,8 +380,15 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
         else
             *sizeptr = 0;
 
-        return 0;
+        ret = 0;
+        goto out_free;
     }
+
+    free(uri);
+    free(normpath);
+    /* Not needed, just for sanity. */
+    uri = NULL;
+    normpath = NULL;
 
     /* trusted file must be a regular file (seekable) */
     if (!file->file.seekable)
@@ -491,6 +509,11 @@ failed:
     }
     free(stubs);
 
+    return ret;
+
+out_free:
+    free(uri);
+    free(normpath);
     return ret;
 }
 
@@ -721,6 +744,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 
 static int init_trusted_file(const char* key, const char* uri) {
     int ret;
+    char* normpath = NULL;
 
     /* read sgx.trusted_checksum.<key> entry from manifest */
     char* fullkey = alloc_concat("sgx.trusted_checksum.", -1, key, -1);
@@ -736,13 +760,20 @@ static int init_trusted_file(const char* key, const char* uri) {
     }
 
     /* Normalize the uri */
-    char normpath[URI_MAX] = URI_PREFIX_FILE;
+    const size_t normpath_size = URI_MAX;
+    normpath = malloc(normpath_size);
+    if (!normpath) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+    (void)strcpy_static(normpath, URI_PREFIX_FILE, normpath_size);
+
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
         log_error("Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
-    size_t len = sizeof(normpath) - strlen(normpath);
+    size_t len = normpath_size - strlen(normpath);
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
         log_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
@@ -752,6 +783,7 @@ static int init_trusted_file(const char* key, const char* uri) {
 
     ret = register_trusted_file(normpath, trusted_checksum, /*check_duplicates=*/false);
 out:
+    free(normpath);
     free(trusted_checksum);
     free(fullkey);
     return ret;
@@ -832,6 +864,9 @@ int init_trusted_files(void) {
     }
 
 no_trusted:
+    ret = 0;
+    char* norm_path = NULL;
+
     /* read sgx.allowed_files entries from manifest and register them */
     if (!manifest_sgx)
         goto no_allowed;
@@ -843,6 +878,13 @@ no_trusted:
     ssize_t toml_allowed_files_cnt = toml_table_nkval(toml_allowed_files);
     if (toml_allowed_files_cnt <= 0)
         goto no_allowed;
+
+    const size_t norm_path_size = URI_MAX;
+    norm_path = malloc(norm_path_size);
+    if (!norm_path) {
+        ret = -PAL_ERROR_NOMEM;
+        goto no_allowed;
+    }
 
     for (ssize_t i = 0; i < toml_allowed_files_cnt; i++) {
         const char* toml_allowed_file_key = toml_key_in(toml_allowed_files, i);
@@ -857,18 +899,17 @@ no_trusted:
             continue;
         }
 
-        char norm_path[URI_MAX];
-
         if (!strstartswith(toml_allowed_file_str, URI_PREFIX_FILE)) {
             log_error("Invalid URI [%s]: Allowed files must start with 'file:'\n",
                       toml_allowed_file_str);
             free(toml_allowed_file_str);
-            return -PAL_ERROR_INVAL;
+            ret = -PAL_ERROR_INVAL;
+            goto no_allowed;
         }
-        static_assert(sizeof(norm_path) > URI_PREFIX_FILE_LEN, "`normpath` is too small");
+        assert(norm_path_size > URI_PREFIX_FILE_LEN);
         memcpy(norm_path, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
 
-        size_t norm_path_len = sizeof(norm_path) - URI_PREFIX_FILE_LEN;
+        size_t norm_path_len = norm_path_size - URI_PREFIX_FILE_LEN;
 
         ret = get_norm_path(toml_allowed_file_str + URI_PREFIX_FILE_LEN,
                             norm_path + URI_PREFIX_FILE_LEN, &norm_path_len);
@@ -877,14 +918,17 @@ no_trusted:
         if (ret < 0) {
             log_error("Path (%s) normalization failed: %s\n",
                       toml_allowed_file_str + URI_PREFIX_FILE_LEN, pal_strerror(ret));
-            return ret;
+            goto no_allowed;
         }
 
         register_trusted_file(norm_path, NULL, /*check_duplicates=*/false);
     }
 
+    ret = 0;
+
 no_allowed:
-    return 0;
+    free(norm_path);
+    return ret;
 }
 
 int init_file_check_policy(void) {

@@ -23,8 +23,6 @@
 #include "shim_vma.h"
 #include "stat.h"
 
-#define URI_MAX_SIZE STR_SIZE
-
 #define FILE_BUFMAP_SIZE (PAL_CB(alloc_align) * 4)
 #define FILE_BUF_SIZE    (PAL_CB(alloc_align))
 
@@ -77,44 +75,51 @@ static int chroot_unmount(void* mount_data) {
     return 0;
 }
 
-static inline ssize_t concat_uri(char* buffer, size_t size, int type, const char* root,
-                                 size_t root_len, const char* trim, size_t trim_len) {
-    char* tmp = NULL;
+static int alloc_concat_uri(int type, const char* root, size_t root_len, const char* path,
+                              size_t path_len, char** out, size_t* out_len) {
+    const char* prefix = NULL;
 
     switch (type) {
         case FILE_UNKNOWN:
         case FILE_REGULAR:
-            tmp = strcpy_static(buffer, URI_PREFIX_FILE, size);
+            prefix = URI_PREFIX_FILE;
             break;
 
         case FILE_DIR:
-            tmp = strcpy_static(buffer, URI_PREFIX_DIR, size);
+            prefix = URI_PREFIX_DIR;
             break;
 
         case FILE_DEV:
         case FILE_TTY:
-            tmp = strcpy_static(buffer, URI_PREFIX_DEV, size);
+            prefix = URI_PREFIX_DEV;
             break;
 
         default:
             return -EINVAL;
     }
 
-    if (!tmp || tmp + root_len + trim_len + 2 > buffer + size)
-        return -ENAMETOOLONG;
-
-    if (root_len) {
-        memcpy(tmp, root, root_len + 1);
-        tmp += root_len;
+    size_t prefix_len = strlen(prefix);
+    size_t alloc_len = prefix_len + root_len + 1 + path_len + 1; // one for '/', one for '\0'
+    char* buf = malloc(alloc_len);
+    if (!buf) {
+        return -ENOMEM;
     }
 
-    if (trim_len) {
-        *(tmp++) = '/';
-        memcpy(tmp, trim, trim_len + 1);
-        tmp += trim_len;
-    }
+    *out = buf;
+    *out_len = alloc_len - 1; // return length does not include trailing '\0'
 
-    return tmp - buffer;
+    memcpy(buf, prefix, prefix_len);
+    buf += prefix_len;
+    memcpy(buf, root, root_len);
+    buf += root_len;
+    if (path_len) {
+        *buf++ = '/';
+        memcpy(buf, path, path_len);
+        buf += path_len;
+    }
+    *buf = '\0';
+
+    return 0;
 }
 
 /* simply just create data, sometimes it is individually called when the
@@ -137,18 +142,22 @@ static void __destroy_data(struct shim_file_data* data) {
     free(data);
 }
 
-static ssize_t make_uri(struct shim_dentry* dent) {
+static int make_uri(struct shim_dentry* dent) {
     struct mount_data* mdata = DENTRY_MOUNT_DATA(dent);
     assert(mdata);
 
     struct shim_file_data* data = FILE_DENTRY_DATA(dent);
-    char uri[URI_MAX_SIZE];
-    ssize_t len = concat_uri(uri, URI_MAX_SIZE, data->type, mdata->root_uri, mdata->root_uri_len,
-                             qstrgetstr(&dent->rel_path), dent->rel_path.len);
-    if (len >= 0)
-        qstrsetstr(&data->host_uri, uri, len);
+    char* uri = NULL;
+    size_t uri_len = 0;
+    int ret = alloc_concat_uri(data->type, mdata->root_uri, mdata->root_uri_len,
+                               qstrgetstr(&dent->rel_path), dent->rel_path.len, &uri, &uri_len);
+    if (ret < 0) {
+        return ret;
+    }
 
-    return len;
+    qstrsetstr(&data->host_uri, uri, uri_len);
+    free(uri);
+    return 0;
 }
 
 /* create a data in the dentry and compose it's uri. dent->lock needs to
