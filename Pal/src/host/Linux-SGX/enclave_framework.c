@@ -730,7 +730,12 @@ static int init_trusted_file(const char* key, const char* uri) {
     char* trusted_checksum = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, fullkey, &trusted_checksum);
     if (ret < 0) {
-        log_error("Cannot parse \'%s\' (the value must be put in double quotes!)\n", fullkey);
+        log_error("Cannot parse \'%s\'\n", fullkey);
+        ret = -PAL_ERROR_INVAL;
+        goto out;
+    }
+    if (!trusted_checksum) {
+        log_error("Missing \'%s\' entry\n", fullkey);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
