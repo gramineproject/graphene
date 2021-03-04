@@ -636,6 +636,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
 
+    char* path = NULL;
     struct stat stat_buf;
     int ret = ocall_fstat(fd, &stat_buf);
 
@@ -647,8 +648,8 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     file_attrcopy(attr, &stat_buf);
 
-    char path[URI_MAX];
     size_t len = URI_MAX;
+    path = malloc(len);
     ret = get_norm_path(uri, path, &len);
     if (ret < 0) {
         log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
@@ -678,6 +679,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     }
 
 out:
+    free(path);
     ocall_close(fd);
     return ret;
 }

@@ -142,12 +142,16 @@ static ssize_t make_uri(struct shim_dentry* dent) {
     assert(mdata);
 
     struct shim_file_data* data = FILE_DENTRY_DATA(dent);
-    char uri[URI_MAX_SIZE];
+    char* uri = malloc(URI_MAX_SIZE);
+    if (!uri) {
+        return -ENOMEM;
+    }
     ssize_t len = concat_uri(uri, URI_MAX_SIZE, data->type, mdata->root_uri, mdata->root_uri_len,
                              qstrgetstr(&dent->rel_path), dent->rel_path.len);
     if (len >= 0)
         qstrsetstr(&data->host_uri, uri, len);
 
+    free(uri);
     return len;
 }
 

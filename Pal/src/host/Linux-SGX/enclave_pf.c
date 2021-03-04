@@ -187,17 +187,26 @@ static struct protected_file* find_protected_dir(const char* path) {
 
 /* Find PF by handle */
 struct protected_file* find_protected_file_handle(PAL_HANDLE handle) {
-    char uri[URI_MAX];
-    int uri_len;
+    char* uri = malloc(URI_MAX);
+    if (!uri) {
+        return NULL;
+    }
+
+    struct protected_file* ret = NULL;
 
     /* TODO: this logic is inefficient, add a PF reference to PAL_HANDLE instead */
-    uri_len = _DkStreamGetName(handle, uri, URI_MAX);
-    if (uri_len < 0)
-        return NULL;
+    int uri_len = _DkStreamGetName(handle, uri, URI_MAX);
+    if (uri_len < 0) {
+        goto out;
+    }
 
     /* uri is prefixed by "file:", we need path */
     assert(strstartswith(uri, URI_PREFIX_FILE));
-    return find_protected_file(uri + URI_PREFIX_FILE_LEN);
+    ret = find_protected_file(uri + URI_PREFIX_FILE_LEN);
+
+out:
+    free(uri);
+    return ret;
 }
 
 static int register_protected_path(const char* path, struct protected_file** new_pf);
