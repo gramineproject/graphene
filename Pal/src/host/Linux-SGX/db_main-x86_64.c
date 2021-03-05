@@ -106,13 +106,15 @@ uint64_t get_tsc_hz(void) {
 
     _DkCpuIdRetrieve(CPUID_LEAF_TSC_FREQ, 0, words);
     if (!words[PAL_CPUID_WORD_EAX] || !words[PAL_CPUID_WORD_EBX]) {
-        /* no TSC/core crystal clock ratio is not enumerated, can't use RDTSC for accurate time */
+        /* TSC/core crystal clock ratio is not enumerated, can't use RDTSC for accurate time */
         return 0;
     }
 
     if (words[PAL_CPUID_WORD_ECX] > 0) {
-        /* calculate TSC frequency as core crystal clock frequency (EAX) * EBX / EAX */
-        return words[PAL_CPUID_WORD_ECX] * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
+        /* calculate TSC frequency as core crystal clock frequency (EAX) * EBX / EAX; cast to 64-bit
+         * first to prevent integer overflow */
+        uint64_t ecx_hz = words[PAL_CPUID_WORD_ECX];
+        return ecx_hz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
     }
 
     /* some Intel CPUs do not report nominal frequency of crystal clock, let's calculate it
@@ -124,8 +126,10 @@ uint64_t get_tsc_hz(void) {
         return 0;
     }
 
-    /* processor base frequency is in MHz but we need to return TSC frequency in Hz */
-    return words[PAL_CPUID_WORD_EAX] * 1000000;
+    /* processor base frequency is in MHz but we need to return TSC frequency in Hz; cast to 64-bit
+     * first to prevent integer overflow */
+    uint64_t base_frequency_mhz = words[PAL_CPUID_WORD_EAX];
+    return base_frequency_mhz * 1000000;
 }
 
 int _DkGetCPUInfo(PAL_CPU_INFO* ci) {

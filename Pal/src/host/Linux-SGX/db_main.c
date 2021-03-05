@@ -659,18 +659,12 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
     /* initialize "Invariant TSC" HW feature for fast and accurate gettime and immediately probe
-     * RDTSC instruction inside SGX enclave (via dummy _DkSystemTimeQuery) -- it is possible that
+     * RDTSC instruction inside SGX enclave (via dummy get_tsc) -- it is possible that
      * the CPU supports invariant TSC but doesn't support executing RDTSC inside SGX enclave, in
-     * this case _DkSystemTimeQuery unsets invariant TSC and we end up falling back to the slower
-     * ocall_gettime() */
+     * this case the SIGILL exception is generated and leads to emulate_rdtsc_and_print_warning()
+     * which unsets invariant TSC, and we end up falling back to the slower ocall_gettime() */
     init_tsc();
-
-    uint64_t dummy_time;
-    ret = _DkSystemTimeQuery(&dummy_time);
-    if (ret < 0) {
-        log_error("Dummy _DkSystemTimeQuery() failed: %d\n", ret);
-        ocall_exit(1, /*is_exitgroup=*/true);
-    }
+    (void)get_tsc(); /* must be after `ready_for_exceptions=1` since it may generate SIGILL */
 
     /* Now that enclave memory is set up, parse and store host topology info into g_pal_sec struct */
     ret = parse_host_topo_info(&sec_info);
