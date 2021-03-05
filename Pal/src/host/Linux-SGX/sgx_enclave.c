@@ -683,19 +683,20 @@ static long sgx_ocall_get_quote(void* pms) {
                           &ms->ms_nonce, &ms->ms_quote, &ms->ms_quote_len);
 }
 
-extern int g_isgx_device;
-static long sgx_ocall_trim_epc_pages(void *pms) {
-    struct sgx_range *rg = (struct sgx_range *)pms;
-    ODEBUG(OCALL_EVENTFD, rg);
+static long sgx_ocall_trim_epc_pages(void* pms) {
+    ms_ocall_sgx_range_t* ms = (ms_ocall_sgx_range_t*)pms;
+    ODEBUG(OCALL_TRIM_EPC_PAGES, ms);
 
-    return INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_TRIM, rg);
+    extern int g_isgx_device;
+    return INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_TRIM, ms);
 }
 
-static long sgx_ocall_notify_accept(void *pms) {
-    struct sgx_range *rg = (struct sgx_range *)pms;
-    ODEBUG(OCALL_EVENTFD, rg);
+static long sgx_ocall_notify_accept(void* pms) {
+    ms_ocall_sgx_range_t* ms = (ms_ocall_sgx_range_t*)pms;
+    ODEBUG(OCALL_NOTIFY_ACCEPT, ms);
 
-    return INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_NOTIFY_ACCEPT, rg);
+    extern int g_isgx_device;
+    return INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_NOTIFY_ACCEPT, ms);
 }
 
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {
