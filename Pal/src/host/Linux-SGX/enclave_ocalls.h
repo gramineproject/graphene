@@ -11,8 +11,6 @@
 #include "pal_linux.h"
 #include "sgx_attest.h"
 
-#include "gsgx.h"
-
 noreturn void ocall_exit(int exitcode, int is_exitgroup);
 
 int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int fd, off_t offset);
@@ -118,6 +116,6 @@ int ocall_eventfd(unsigned int initval, int flags);
 int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
                     const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len);
 
-int ocall_trim_epc_pages(struct sgx_range* rg);
+int ocall_trim_epc_pages(void* addr, unsigned int nr_pages);
 
-int ocall_notify_accept(struct sgx_range* rg);
+int ocall_notify_accept(void* addr, unsigned int nr_pages);

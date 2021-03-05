@@ -457,13 +457,26 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
         /* skip adding free (heap) pages to the enclave */
         if (enclave->pal_sec.edmm_enable_heap && !strcmp(areas[i].desc, "free")) {
-            goto skip_add;
+            char p[4] = "---";
+            if (areas[i].type == SGX_PAGE_REG) {
+                if (areas[i].prot & PROT_READ)
+                    p[0] = 'R';
+                if (areas[i].prot & PROT_WRITE)
+                    p[1] = 'W';
+                if (areas[i].prot & PROT_EXEC)
+                    p[2] = 'X';
+            }
+            urts_log_debug("SKIP adding pages to enclave: %p-%p [%s:%s] (%s)%s\n",
+                            (void *)areas[i].addr,
+                            (void *)areas[i].addr + areas[i].size,
+                            (areas[i].type == SGX_PAGE_TCS) ? "TCS" : "REG",
+                            p, areas[i].desc,  areas[i].skip_eextend ? "" : " measured");
+        } else {
+            ret = add_pages_to_enclave(&enclave_secs, (void*)areas[i].addr, data, areas[i].size,
+                                       areas[i].type, areas[i].prot, areas[i].skip_eextend,
+                                       areas[i].desc);
         }
 
-        ret = add_pages_to_enclave(&enclave_secs, (void*)areas[i].addr, data, areas[i].size,
-                                   areas[i].type, areas[i].prot, areas[i].skip_eextend,
-                                   areas[i].desc);
-skip_add:
         if (data)
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
 

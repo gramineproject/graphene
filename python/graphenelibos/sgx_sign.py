@@ -591,7 +591,8 @@ def generate_measurement(enclave_base, attr, areas):
                     load_file(mrenclave, file, offset, baseaddr_ + addr, filesize, memsize,
                               desc, flags)
         else:
-            if edmm_enable_heap == 1 and (area.desc == "free"):
+            # Skip EADDing of heap("free") pages when EDMM is enabled.
+            if edmm_enable_heap == 1 and area.desc == "free":
                 continue
             for addr in range(area.addr, area.addr + area.size, offs.PAGESIZE):
                 data = ZERO_PAGE
@@ -755,15 +756,15 @@ def main_sign(args):
     attr['day'] = today.day
 
     print('Attributes:')
-    print('    size:        0x%x' % attr['enclave_size'])
-    print('    thread_num:  %d' % attr['thread_num'])
-    print('    isv_prod_id: %d' % attr['isv_prod_id'])
-    print('    isv_svn:     %d' % attr['isv_svn'])
-    print('    attr.flags:  %016x' % int.from_bytes(attr['flags'], byteorder='big'))
-    print('    attr.xfrm:   %016x' % int.from_bytes(attr['xfrms'], byteorder='big'))
-    print('    misc_select: %08x' % int.from_bytes(attr['misc_select'], byteorder='big'))
-    print('    date:        %d-%02d-%02d' % (attr['year'], attr['month'], attr['day']))
-    print("    edmm_heap:   %d" % (attr['edmm_enable_heap']))
+    print('    size:             0x%x' % attr['enclave_size'])
+    print('    thread_num:       %d' % attr['thread_num'])
+    print('    isv_prod_id:      %d' % attr['isv_prod_id'])
+    print('    isv_svn:          %d' % attr['isv_svn'])
+    print('    attr.flags:       %016x' % int.from_bytes(attr['flags'], byteorder='big'))
+    print('    attr.xfrm:        %016x' % int.from_bytes(attr['xfrms'], byteorder='big'))
+    print('    misc_select:      %08x' % int.from_bytes(attr['misc_select'], byteorder='big'))
+    print('    date:             %d-%02d-%02d' % (attr['year'], attr['month'], attr['day']))
+    print("    edmm_enable_heap: %d" % (attr['edmm_enable_heap']))
 
     if manifest.get('sgx.remote_attestation', '0') == '1':
         spid = manifest.get('sgx.ra_client_spid', '')

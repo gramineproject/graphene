@@ -710,7 +710,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         log_error("Cannot parse \'sgx.preheat_enclave\' (the value must be 0 or 1)\n");
         ocall_exit(1, true);
     }
-    if (preheat_enclave == 1) {
+    if (!g_pal_sec.edmm_enable_heap && preheat_enclave == 1) {
         for (uint8_t* i = g_pal_sec.heap_min; i < (uint8_t*)g_pal_sec.heap_max; i += g_page_size)
             READ_ONCE(*i);
     }
