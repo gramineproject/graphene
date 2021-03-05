@@ -326,7 +326,7 @@ For SGX-specific lines in the manifest template::
 
 ``sgx.trusted_files.<name>`` specifies a file that will be verified and trusted
 by the SGX enclave. Note that the key string ``<name>`` may be an arbitrary legal
-string (but without `-` and other special symbols) and does not have to be the
+string (but without ``-`` and other special symbols) and does not have to be the
 same as the actual file name.
 
 The way these Trusted Files work is before Graphene runs TensorFlow Serving inside
@@ -380,7 +380,7 @@ enclave::
       --rest_api_port=8501 \
       ......
 
-*``Note``*: Please modify ``proxy_server`` in the script first according to your
+*Note*: Please modify ``proxy_server`` in the script first according to your
 needs. Then, run the above command again.
 
 Now, we can build the Docker image with Graphene, and you can set the special tag
