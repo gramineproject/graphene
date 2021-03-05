@@ -458,14 +458,6 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('mmap test 3 passed', stdout)
         self.assertIn('mmap test 4 passed', stdout)
 
-        # "test 5" and "test 8" are checked below, in test_051_mmap_sgx
-
-    @unittest.skipIf(HAS_SGX,
-        'On SGX, SIGBUS isn\'t always implemented correctly, for lack '
-        'of memory protection. For now, some of these cases won\'t work.')
-    def test_051_mmap_sgx(self):
-        stdout, _ = self.run_binary(['mmap_file'], timeout=60)
-
         # SIGBUS test
         self.assertIn('mmap test 5 passed', stdout)
         self.assertIn('mmap test 8 passed', stdout)
