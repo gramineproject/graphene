@@ -8,11 +8,9 @@ import argparse
 import datetime
 import hashlib
 import os
+from pathlib import Path
 import struct
 import subprocess
-import sys
-
-from pathlib import Path
 from sys import stderr
 
 import toml
@@ -71,7 +69,7 @@ def exec_sig_manifest(args):
     args['sigfile'] = sigfile + '.sig'
 
     if args.get('libpal', None) is None:
-        print('Option --libpal must be given', file=sys.stderr)
+        print('Option --libpal must be given', file=stderr)
         return 1
 
     return 0
