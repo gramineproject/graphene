@@ -386,7 +386,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
 
     free(uri);
     free(normpath);
-    /* Sanity checks */
+    /* Not needed, just for sanity. */
     uri = NULL;
     normpath = NULL;
 
