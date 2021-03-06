@@ -154,4 +154,8 @@ typedef struct pal_handle {
 
 #define HANDLE_TYPE(handle) ((handle)->hdr.type)
 
+int arch_do_rt_sigprocmask(int sig, int how);
+int arch_do_rt_sigaction(int sig, void* handler,
+                         const int* async_signals, size_t num_async_signals);
+
 #endif /* PAL_HOST_H */
