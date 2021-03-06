@@ -22,50 +22,19 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "sigset.h"
 #include "ucontext.h"
-
-#if defined(__x86_64__)
-/* in x86_64 kernels, sigaction is required to have a user-defined restorer */
-__asm__(
-".align 16\n"
-".LSTART_restore_rt:\n"
-".type __restore_rt,@function\n"
-"__restore_rt:\n"
-"movq $" XSTRINGIFY(__NR_rt_sigreturn) ", %rax\n"
-"syscall\n"
-);
-
-/* workaround for an old GAS (2.27) bug that incorrectly omits relocations when referencing this
- * symbol */
-__attribute__((visibility("hidden"))) void __restore_rt(void);
-#endif  /* defined(__x86_64__) */
 
 static const int ASYNC_SIGNALS[] = {SIGTERM, SIGCONT};
 
 static int block_signal(int sig, bool block) {
     int how = block ? SIG_BLOCK : SIG_UNBLOCK;
+    int ret = arch_do_rt_sigprocmask(sig, how);
 
-    __sigset_t mask;
-    __sigemptyset(&mask);
-    __sigaddset(&mask, sig);
-
-    int ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL, sizeof(__sigset_t));
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
 static int set_signal_handler(int sig, void* handler) {
-    struct sigaction action = {0};
-    action.sa_handler  = handler;
-    action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER;
-    action.sa_restorer = __restore_rt;
-
-    /* disallow nested asynchronous signals during exception handling */
-    __sigemptyset((__sigset_t*)&action.sa_mask);
-    for (size_t i = 0; i < ARRAY_SIZE(ASYNC_SIGNALS); i++)
-        __sigaddset((__sigset_t*)&action.sa_mask, ASYNC_SIGNALS[i]);
-
-    int ret = INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
+    int ret = arch_do_rt_sigaction(sig, handler, ASYNC_SIGNALS, ARRAY_SIZE(ASYNC_SIGNALS));
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 

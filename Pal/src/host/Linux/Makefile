@@ -47,6 +47,7 @@ objs = \
 	db_eventfd.o \
 	db_events.o \
 	db_exception.o \
+	db_exception-$(ARCH).o \
 	db_files.o \
 	db_main.o \
 	db_main-$(ARCH).o \
