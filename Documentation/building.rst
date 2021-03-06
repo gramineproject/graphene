@@ -63,7 +63,8 @@ Prerequisites
 Run the following commands on Ubuntu to install SGX-related dependencies::
 
     sudo apt-get install -y libprotobuf-c-dev protobuf-c-compiler \
-       libcurl4-openssl-dev python3-toml
+       libcurl4-openssl-dev
+    python3 -m pip install toml>=0.10
 
     # For Ubuntu 18.04
     sudo apt-get install -y python3-protobuf

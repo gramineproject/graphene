@@ -27,8 +27,8 @@ Update and install the required packages for Graphene::
 
    sudo apt update
    sudo apt install -y build-essential autoconf gawk bison python3-protobuf \
-                       python3-toml libprotobuf-c-dev protobuf-c-compiler \
-                       libcurl4 python3
+                       libprotobuf-c-dev protobuf-c-compiler libcurl4 python3
+   python3 -m pip install toml>=0.10
 
 Graphene requires the kernel to support FSGSBASE x86 instructions. Older Azure
 Confidential Compute VMs may not contain the required kernel patches and need to

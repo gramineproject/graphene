@@ -106,14 +106,14 @@ def get_enclave_attributes(manifest):
         'MISC_EXINFO': struct.pack('<L', offs.SGX_MISCSELECT_EXINFO),
     }
 
-    manifest_options = {
+    manifest_options = [
         ('debug', 'FLAG_DEBUG'),
         ('require_avx', 'XFRM_AVX'),
         ('require_avx512', 'XFRM_AVX512'),
         ('require_mpx', 'XFRM_MPX'),
         ('require_pkru', 'XFRM_PKRU'),
         ('support_exinfo', 'MISC_EXINFO'),
-    }
+    ]
 
     attributes = {'XFRM_LEGACY'}
     if ARCHITECTURE == 'amd64':
@@ -173,8 +173,8 @@ def get_trusted_files(manifest, check_exist=True, do_hash=True):
     if do_hash:
         for key, val in targets.items():
             uri, target = val
-            _hash = get_hash(target).hex()
-            targets[key] = uri, target, _hash
+            hash_ = get_hash(target).hex()
+            targets[key] = uri, target, hash_
 
     return targets
 
@@ -656,8 +656,7 @@ def read_manifest(path):
 
     # set defaults to simplify lookup code (otherwise we'd need to check keys existence each time)
 
-    manifest.setdefault('sgx', {})
-    sgx = manifest['sgx']
+    sgx = manifest.setdefault('sgx', {})
     sgx.setdefault('trusted_files', {})
     sgx.setdefault('trusted_checksum', {})
     sgx.setdefault('enclave_size', DEFAULT_ENCLAVE_SIZE)
@@ -674,8 +673,7 @@ def read_manifest(path):
     sgx.setdefault('nonpie_binary', 0)
     sgx.setdefault('enable_stats', 0)
 
-    manifest.setdefault('loader', {})
-    loader = manifest['loader']
+    loader = manifest.setdefault('loader', {})
     loader.setdefault('preload', '')
 
     return manifest
@@ -723,9 +721,9 @@ def main_sign(manifest, args):
     # Get trusted hashes and measurements
     print('Trusted files:')
     for key, val in get_trusted_files(manifest).items():
-        uri, _, _hash = val
-        print('    %s %s' % (_hash, uri))
-        manifest_sgx['trusted_checksum'][key] = _hash
+        uri, _, hash_ = val
+        print('    %s %s' % (hash_, uri))
+        manifest_sgx['trusted_checksum'][key] = hash_
 
     # Populate memory areas
     memory_areas = get_memory_areas(attr, args)
@@ -795,7 +793,8 @@ def main(args=None):
     try:
         manifest = read_manifest(manifest_path)
     except toml.TomlDecodeError as e:
-        print('Parsing %s as TOML failed: %s' % (manifest_path, e), file=stderr)
+        print('Parsing {} as TOML failed: {}'.format(manifest_path, e), file=stderr)
+        return 1
 
     if args.get('depend'):
         return make_depend(manifest, args)
