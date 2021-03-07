@@ -268,7 +268,7 @@ static int __mount_others(void) {
 
     /*** Warning: A _very_ ugly hack below, but only temporary. ***/
     /* TODO: explanation */
-    char** keys = malloc(mounts_cnt * sizeof(*keys));
+    const char** keys = malloc(mounts_cnt * sizeof(*keys));
     size_t* keys_len = malloc(mounts_cnt * sizeof(*keys_len));
     size_t longest = 0;
     for (ssize_t i = 0; i < mounts_cnt; i++) {
