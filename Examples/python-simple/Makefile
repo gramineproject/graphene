@@ -92,15 +92,14 @@ pal_loader:
 
 .PHONY: check
 check: all
-	./run-tests.sh > OUTPUT_TEST 2> /dev/null
-	@grep -q "Success 1/3" OUTPUT_TEST
-	@grep -q "Success 2/3" OUTPUT_TEST
-	@grep -q "Success 3/3" OUTPUT_TEST
-	@rm OUTPUT_TEST
+	./run-tests.sh > TEST_STDOUT 2> TEST_STDERR
+	@grep -q "Success 1/3" TEST_STDOUT
+	@grep -q "Success 2/3" TEST_STDOUT
+	@grep -q "Success 3/3" TEST_STDOUT
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT* *.PID
+	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT* *.PID TEST_STDOUT TEST_STDERR
 	$(RM) -r scripts/__pycache__
 
 .PHONY: distclean
