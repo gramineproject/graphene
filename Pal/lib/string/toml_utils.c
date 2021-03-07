@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2020 Intel Corporation
+/* Copyright (C) 2021 Intel Corporation
  *                    Dmitrii Kuvaiskii <dmitrii.kuvaiskii@intel.com>
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
  */
 
 #include <stdint.h>
