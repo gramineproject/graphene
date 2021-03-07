@@ -266,8 +266,21 @@ static int __mount_others(void) {
     if (mounts_cnt <= 0)
         return 0;
 
-    /*** Warning: A _very_ ugly hack below, but only temporary. ***/
-    /* TODO: explanation */
+    /*** Warning: A _very_ ugly hack below (hopefully only temporary) ***/
+    /* Currently we don't use proper TOML syntax for declaring mountpoints, instead, we use a syntax
+     * which resembles the pre-TOML one used in Graphene. As a result, the entries are not ordered,
+     * but Graphene actually relies on the specific mounting order (e.g. you can't mount /lib/asdf
+     * first and then /lib, but the other way around works). The problem is, that TOML structure is
+     * just a dictionary, so the order of keys is not preserved.
+     *
+     * The correct solution is to change the manifest syntax for mounts, but this will be a huge,
+     * breaking change. For now, just to fix the issue, we use an ugly heuristic - we apply mounts
+     * sorted by the path length, which in most cases should result in a proper mount order.
+     *
+     * We do this in O(n^2) because we don't have a sort function, but that shouldn't be an issue -
+     * usually there are around 5 mountpoints with ~30 chars in paths, so it should still be quite
+     * fast.
+     */
     const char** keys = malloc(mounts_cnt * sizeof(*keys));
     size_t* path_len = malloc(mounts_cnt * sizeof(*path_len));
     size_t longest = 0;
@@ -275,7 +288,7 @@ static int __mount_others(void) {
         keys[i] = toml_key_in(manifest_fs_mounts, i);
         assert(keys[i]);
 
-        toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[j]);
+        toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[i]);
         assert(mount);
         char* mount_path;
         ret = toml_string_in(mount, "path", &mount_path);
@@ -284,7 +297,7 @@ static int __mount_others(void) {
                 ret = -ENOENT;
             goto out;
         }
-        path_len[i] = strlen(mount_path[i]);
+        path_len[i] = strlen(mount_path);
         longest = MAX(longest, path_len[i]);
         free(mount_path);
     }
