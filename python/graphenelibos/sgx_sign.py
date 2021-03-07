@@ -164,7 +164,8 @@ def get_trusted_files(manifest, check_exist=True, do_hash=True):
     targets = {}
 
     preload_str = manifest['loader']['preload']
-    for i, uri in enumerate(preload_str.split(',')):
+    # `filter` below is needed for the case where preload_str == '' (`split` returns [''] then)
+    for i, uri in enumerate(filter(None, preload_str.split(','))):
         targets['preload' + str(i)] = uri, resolve_uri(uri, check_exist)
 
     for key, val in manifest['sgx']['trusted_files'].items():
