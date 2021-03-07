@@ -269,18 +269,29 @@ static int __mount_others(void) {
     /*** Warning: A _very_ ugly hack below, but only temporary. ***/
     /* TODO: explanation */
     const char** keys = malloc(mounts_cnt * sizeof(*keys));
-    size_t* keys_len = malloc(mounts_cnt * sizeof(*keys_len));
+    size_t* path_len = malloc(mounts_cnt * sizeof(*path_len));
     size_t longest = 0;
     for (ssize_t i = 0; i < mounts_cnt; i++) {
         keys[i] = toml_key_in(manifest_fs_mounts, i);
         assert(keys[i]);
-        keys_len[i] = strlen(keys[i]);
-        longest = MAX(longest, keys_len[i]);
+
+        toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[j]);
+        assert(mount);
+        char* mount_path;
+        ret = toml_string_in(mount, "path", &mount_path);
+        if (ret < 0 || !mount_path) {
+            if (!ret)
+                ret = -ENOENT;
+            goto out;
+        }
+        path_len[i] = strlen(mount_path[i]);
+        longest = MAX(longest, path_len[i]);
+        free(mount_path);
     }
 
     for (size_t i = 0; i <= longest; i++) {
         for (ssize_t j = 0; j < mounts_cnt; j++) {
-            if (keys_len[j] != i)
+            if (path_len[j] != i)
                 continue;
             toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[j]);
             ret = __mount_one_other(mount);
@@ -290,7 +301,7 @@ static int __mount_others(void) {
     }
 out:
     free(keys);
-    free(keys_len);
+    free(path_len);
     return ret;
 }
 
