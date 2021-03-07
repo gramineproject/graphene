@@ -5,7 +5,6 @@
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 
 import argparse
-from collections import OrderedDict
 import datetime
 import hashlib
 import os
@@ -79,8 +78,7 @@ def exec_sig_manifest(args):
 def output_manifest(filename, manifest):
     with open(filename, 'w', encoding='UTF-8') as f:
         f.write('# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n')
-        # we use OrderedDict here to make the output deterministic
-        toml.dump(OrderedDict(manifest), f)
+        toml.dump(manifest, f)
 
 
 # Loading Enclave Attributes

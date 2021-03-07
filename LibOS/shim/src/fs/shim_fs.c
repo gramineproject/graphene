@@ -266,16 +266,32 @@ static int __mount_others(void) {
     if (mounts_cnt <= 0)
         return 0;
 
+    /*** Warning: A _very_ ugly hack below, but only temporary. ***/
+    /* TODO: explanation */
+    char** keys = malloc(mounts_cnt * sizeof(*keys));
+    size_t* keys_len = malloc(mounts_cnt * sizeof(*keys_len));
+    size_t longest = 0;
     for (ssize_t i = 0; i < mounts_cnt; i++) {
-        const char* mount_key = toml_key_in(manifest_fs_mounts, i);
-        assert(mount_key);
-
-        toml_table_t* mount = toml_table_in(manifest_fs_mounts, mount_key);
-        ret = __mount_one_other(mount);
-        if (ret < 0)
-            return ret;
+        keys[i] = toml_key_in(manifest_fs_mounts, i);
+        assert(keys[i]);
+        keys_len[i] = strlen(keys[i]);
+        longest = MAX(longest, keys_len[i]);
     }
-    return 0;
+
+    for (size_t i = 0; i <= longest; i++) {
+        for (ssize_t j = 0; j < mounts_cnt; j++) {
+            if (keys_len[j] != i)
+                continue;
+            toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[j]);
+            ret = __mount_one_other(mount);
+            if (ret < 0)
+                goto out;
+        }
+    }
+out:
+    free(keys);
+    free(keys_len);
+    return ret;
 }
 
 int init_mount_root(void) {
