@@ -2,6 +2,7 @@
 TensorFlow Serving Cluster PPML Tutorial
 ========================================
 
+.. highlight:: sh
 
 This tutorial presents a framework for developing a PPML (Privacy-Preserving
 Machine Learning) solution - `TensorFlow Serving <https://www.tensorflow.org/tfx/guide/serving>`__
