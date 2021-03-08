@@ -34,7 +34,8 @@ int arch_do_rt_sigprocmask(int sig, int how) {
     return INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL, sizeof(__sigset_t));
 }
 
-int arch_do_rt_sigaction(int sig, void* handler, const int* async_signals, size_t num_async_signals) {
+int arch_do_rt_sigaction(int sig, void* handler,
+                         const int* async_signals, size_t num_async_signals) {
     struct sigaction action = {0};
     action.sa_handler  = handler;
     action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER;
