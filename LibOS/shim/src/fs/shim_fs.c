@@ -266,8 +266,9 @@ static int __mount_others(void) {
     if (mounts_cnt <= 0)
         return 0;
 
-    /*** Warning: A _very_ ugly hack below (hopefully only temporary) ***/
-    /* Currently we don't use proper TOML syntax for declaring mountpoints, instead, we use a syntax
+    /* *** Warning: A _very_ ugly hack below (hopefully only temporary) ***
+     *
+     * Currently we don't use proper TOML syntax for declaring mountpoints, instead, we use a syntax
      * which resembles the pre-TOML one used in Graphene. As a result, the entries are not ordered,
      * but Graphene actually relies on the specific mounting order (e.g. you can't mount /lib/asdf
      * first and then /lib, but the other way around works). The problem is, that TOML structure is
@@ -280,6 +281,8 @@ static int __mount_others(void) {
      * We do this in O(n^2) because we don't have a sort function, but that shouldn't be an issue -
      * usually there are around 5 mountpoints with ~30 chars in paths, so it should still be quite
      * fast.
+     *
+     * Corresponding issue: https://github.com/oscarlab/graphene/issues/2214.
      */
     const char** keys = malloc(mounts_cnt * sizeof(*keys));
     size_t* path_len = malloc(mounts_cnt * sizeof(*path_len));
