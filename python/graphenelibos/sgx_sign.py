@@ -115,7 +115,7 @@ def get_enclave_attributes(manifest):
         ('support_exinfo', 'MISC_EXINFO'),
     ]
 
-    attributes = {'XFRM_LEGACY'}
+    attributes = {'XFRM_LEGACY'} # this one always needs to be set in SGX (it means "SSE supported")
     if ARCHITECTURE == 'amd64':
         attributes.add('FLAG_MODE64BIT')
 
