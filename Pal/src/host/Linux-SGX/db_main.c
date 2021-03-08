@@ -333,14 +333,14 @@ static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int64_
     return 0;
 }
 
-/* TODO: Cross verify against numa_topology[idx].cpumap to ensure that one core cannot be present
- * in 2 sockets */
-static int sanitize_socket_info(int* cpu_socket, int64_t num_nodes, int64_t num_cores) {
-    if (num_nodes == 0 || num_cores == 0)
+static int sanitize_socket_info(int* cpu_socket, int64_t num_cores) {
+    if (num_cores == 0)
         return -ENOENT;
 
     for (int64_t idx = 0; idx < num_cores; idx++) {
-        if (!IS_IN_RANGE_INCL(cpu_socket[idx], 0, num_nodes - 1))
+        /* Virtual environements such as QEMU can have each core in separate socket/package and just
+         * have one numa node. For such cases check against number of online logical processors */
+        if (!IS_IN_RANGE_INCL(cpu_socket[idx], 0, num_cores - 1))
             return -EINVAL;
     }
     return 0;
@@ -429,7 +429,7 @@ static int parse_host_topo_info(struct pal_sec* sec_info) {
     g_pal_sec.topo_info.num_cache_index = num_cache_index;
 
     /* Sanitize logical core -> socket mappings */
-    int ret = sanitize_socket_info(sec_info->cpu_socket, num_cache_index, online_logical_cores);
+    int ret = sanitize_socket_info(sec_info->cpu_socket, online_logical_cores);
     if (ret < 0) {
         log_error("Sanitization of logical core -> socket mappings failed\n");
         return -1;
