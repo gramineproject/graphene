@@ -192,6 +192,7 @@ libsysdb.a: $(objs)
 
 arch/$(ARCH)/asm-offsets.h: asm-offsets.h
 	ln -fs ../../$^ arch/$(ARCH)/asm-offsets.h
+CLEAN_FILES += arch/$(ARCH)/asm-offsets.h
 
 arch/$(ARCH)/syscallas.S arch/$(ARCH)/shim_context.c: arch/$(ARCH)/asm-offsets.h
 
