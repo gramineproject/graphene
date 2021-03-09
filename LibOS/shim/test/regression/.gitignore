@@ -61,6 +61,7 @@
 /getdents
 /getsockname
 /getsockopt
+/gettimeofday
 /groups
 /helloworld
 /host_root_fs
