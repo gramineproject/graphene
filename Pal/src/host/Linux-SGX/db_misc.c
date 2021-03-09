@@ -43,58 +43,60 @@ void init_tsc(void) {
 /* TODO: result comes from the untrusted host, introduce some schielding */
 int _DkSystemTimeQuery(uint64_t* out_usec) {
     int ret;
-    uint64_t usec = 0;
 
     if (!g_tsc_hz) {
         /* RDTSC is not allowed or no Invariant TSC feature -- fallback to the slow ocall */
-        ret = ocall_gettime(&usec);
-        if (ret < 0)
-            return -PAL_ERROR_DENIED;
-
-        *out_usec = usec;
-        return 0;
+        return ocall_gettime(out_usec);
     }
 
+    uint64_t usec = 0;
     uint32_t seq;
     do {
         seq = read_seqbegin(&g_tsc_lock);
         if (g_start_tsc > 0 && g_start_usec > 0) {
             /* baseline TSC/usec pair was initialized, can calculate time via RDTSC (but should be
              * careful with integer overflow during calculations) */
-            uint64_t tsc_diff = get_tsc() - g_start_tsc;
-            if (tsc_diff < INT64_MAX / 1000000) {
-                uint64_t tsc_usec = g_start_usec + tsc_diff * 1000000 / g_tsc_hz;
-                if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
+            uint64_t diff_tsc = get_tsc() - g_start_tsc;
+            if (diff_tsc < UINT64_MAX / 1000000) {
+                uint64_t diff_usec = diff_tsc * 1000000 / g_tsc_hz;
+                if (diff_usec < TSC_REFINE_INIT_TIMEOUT_USECS) {
                     /* less than TSC_REFINE_INIT_TIMEOUT_USECS passed from the previous update of
-                     * TSC/usec pair (time drift is contained), simply return the calculated time */
-                    usec = tsc_usec;
+                     * TSC/usec pair (time drift is contained), use the RDTSC-calculated time */
+                    usec = g_start_usec + diff_usec;
+                    if (usec < g_start_usec)
+                        return -PAL_ERROR_OVERFLOW;
                 }
             }
         }
     } while (read_seqretry(&g_tsc_lock, seq));
 
-    if (!usec) {
-        /* either the baseline TSC/usec pair was not yet initialized or too much time passed since
-         * the previous TSC/usec update, so let's refresh them to contain the time drift */
-        uint64_t tsc_cyc1 = get_tsc();
-        ret = ocall_gettime(&usec);
-        if (ret < 0)
-            return -PAL_ERROR_DENIED;
-        uint64_t tsc_cyc2 = get_tsc();
-
-        /* we need to match the OCALL-obtained timestamp (`usec`) with the RDTSC-obtained number of
-         * cycles (`tsc_cyc`); since OCALL is a time-consuming operation, we estimate `tsc_cyc` as a
-         * mid-point between the RDTSC values obtained right-before and right-after the OCALL. */
-        uint64_t tsc_cyc = tsc_cyc1 + (tsc_cyc2 - tsc_cyc1) / 2;
-
-        write_seqlock(&g_tsc_lock);
-        /* refresh the baseline data if no other thread updated g_start_tsc */
-        if (g_start_tsc < tsc_cyc) {
-            g_start_usec = usec;
-            g_start_tsc = tsc_cyc;
-        }
-        write_sequnlock(&g_tsc_lock);
+    if (usec) {
+        *out_usec = usec;
+        return 0;
     }
+
+    /* if we are here, either the baseline TSC/usec pair was not yet initialized or too much time
+     * passed since the previous TSC/usec update, so let's refresh them to contain the time drift */
+    uint64_t tsc_cyc1 = get_tsc();
+    ret = ocall_gettime(&usec);
+    if (ret < 0)
+        return -PAL_ERROR_DENIED;
+    uint64_t tsc_cyc2 = get_tsc();
+
+    /* we need to match the OCALL-obtained timestamp (`usec`) with the RDTSC-obtained number of
+     * cycles (`tsc_cyc`); since OCALL is a time-consuming operation, we estimate `tsc_cyc` as a
+     * mid-point between the RDTSC values obtained right-before and right-after the OCALL. */
+    uint64_t tsc_cyc = tsc_cyc1 + (tsc_cyc2 - tsc_cyc1) / 2;
+    if (tsc_cyc < tsc_cyc1)
+        return -PAL_ERROR_OVERFLOW;
+
+    write_seqbegin(&g_tsc_lock);
+    /* refresh the baseline data if no other thread updated g_start_tsc */
+    if (g_start_tsc < tsc_cyc) {
+        g_start_usec = usec;
+        g_start_tsc = tsc_cyc;
+    }
+    write_seqend(&g_tsc_lock);
 
     *out_usec = usec;
     return 0;

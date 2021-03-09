@@ -71,7 +71,7 @@ static inline bool read_seqretry(seqlock_t* sl, uint32_t start) {
 /*!
  * \brief Start a writer-side critical section (acquires spinlock).
  */
-static inline void write_seqlock(seqlock_t* sl) {
+static inline void write_seqbegin(seqlock_t* sl) {
     spinlock_lock(&sl->lock);
     __atomic_add_fetch(&sl->sequence, 1, __ATOMIC_RELAXED);
     WMB();
@@ -80,7 +80,7 @@ static inline void write_seqlock(seqlock_t* sl) {
 /*!
  * \brief End a writer-side critical section (releases spinlock).
  */
-static inline void write_sequnlock(seqlock_t* sl) {
+static inline void write_seqend(seqlock_t* sl) {
     WMB();
     __atomic_add_fetch(&sl->sequence, 1, __ATOMIC_RELAXED);
     spinlock_unlock(&sl->lock);
