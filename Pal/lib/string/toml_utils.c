@@ -36,7 +36,7 @@ static toml_raw_t toml_raw_in_dottedkey(const toml_table_t* root, const char* _k
             // quoted subkey
             subkey++;
             subkey_end = find_next_char(subkey, '"');
-            if (*subkey_end != '"'  || (*(subkey_end+1) != '.' && *(subkey_end+1) != '\0'))
+            if (*subkey_end != '"'  || (*(subkey_end + 1) != '.' && *(subkey_end + 1) != '\0'))
                 goto out; // incorrectly terminated '"'
             *subkey_end = '\0';
             subkey_end++; // points to '.' or '\0' now
