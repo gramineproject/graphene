@@ -285,7 +285,7 @@ static int __mount_others(void) {
      * Corresponding issue: https://github.com/oscarlab/graphene/issues/2214.
      */
     const char** keys = malloc(mounts_cnt * sizeof(*keys));
-    size_t* path_len = malloc(mounts_cnt * sizeof(*path_len));
+    size_t* lengths = malloc(mounts_cnt * sizeof(*lengths));
     size_t longest = 0;
     for (ssize_t i = 0; i < mounts_cnt; i++) {
         keys[i] = toml_key_in(manifest_fs_mounts, i);
@@ -300,14 +300,14 @@ static int __mount_others(void) {
                 ret = -ENOENT;
             goto out;
         }
-        path_len[i] = strlen(mount_path);
-        longest = MAX(longest, path_len[i]);
+        lengths[i] = strlen(mount_path);
+        longest = MAX(longest, lengths[i]);
         free(mount_path);
     }
 
     for (size_t i = 0; i <= longest; i++) {
         for (ssize_t j = 0; j < mounts_cnt; j++) {
-            if (path_len[j] != i)
+            if (lengths[j] != i)
                 continue;
             toml_table_t* mount = toml_table_in(manifest_fs_mounts, keys[j]);
             ret = __mount_one_other(mount);
@@ -317,7 +317,7 @@ static int __mount_others(void) {
     }
 out:
     free(keys);
-    free(path_len);
+    free(lengths);
     return ret;
 }
 

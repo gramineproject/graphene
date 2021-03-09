@@ -81,11 +81,11 @@ def output_manifest(filename, manifest):
         toml.dump(manifest, f)
 
 
-# Loading Enclave Attributes
-
-
 def or_bytes(bytes_a, bytes_b):
     return bytes([a | b for a, b in zip(bytes_a, bytes_b)])
+
+
+# Loading Enclave Attributes
 
 
 def get_enclave_attributes(manifest):
@@ -145,7 +145,7 @@ def resolve_uri(uri, check_exist=True):
         raise RuntimeError('Unsupported URI type: ' + uri)
     path = Path(uri[len('file:'):])
     if check_exist and not path.exists():
-        raise Exception('Cannot resolve ' + uri + ' or the file does not exist.')
+        raise FileNotFoundError('Cannot resolve ' + uri + ' or the file does not exist.')
     return str(path)
 
 
