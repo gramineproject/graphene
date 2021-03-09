@@ -263,16 +263,21 @@ FS mount points
 
 ::
 
-    fs.mount.[identifier].type = "[chroot|...]"
+    fs.mount.[identifier].type = "[chroot|tmpfs|...]"
     fs.mount.[identifier].path = "[PATH]"
     fs.mount.[identifier].uri  = "[URI]"
 
 This syntax specifies how file systems are mounted inside the library OS. For
-dynamically linked binaries, usually at least one mount point is required in the
-manifest (the mount point of the Glibc library).
+dynamically linked binaries, usually at least one `chroot` mount point is
+required in the manifest (the mount point of the Glibc library).
 
-Start (current working) directory
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+When`tmpfs` mount point used, files in "[PATH]" are stored in to memory instead
+of in to "[URI]". "[PATH]" is always empty when Graphene instance starts no
+matter what string "[URI]" is. On Graphene instance exit, files and directories
+in "[PATH]" will be lost. Note that `mmap` a tmpfs file is not implemented.
+
+**Note**: The tmpfs files are *not* cloned during fork/clone and cannot be
+synchronized between processes.
 
 ::
 
