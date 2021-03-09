@@ -1,6 +1,7 @@
 #include <err.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -50,8 +51,10 @@ int main(int argc, char** argv) {
     if (ret < 0)
         err(1, "base gettimeofday");
 
+    uint64_t usec_diff = end_tv.tv_usec > base_tv.tv_usec ? end_tv.tv_usec - base_tv.tv_usec
+                                                          : base_tv.tv_usec - end_tv.tv_usec;
     printf("Finish time: %lu sec, %lu usec (passed: %lu sec, %lu usec)\n", end_tv.tv_sec,
-           end_tv.tv_usec, end_tv.tv_sec - base_tv.tv_sec, end_tv.tv_usec - base_tv.tv_usec);
+           end_tv.tv_usec, end_tv.tv_sec - base_tv.tv_sec, usec_diff);
     puts("TEST OK");
     return 0;
 }
