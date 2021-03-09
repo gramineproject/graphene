@@ -338,8 +338,9 @@ static int sanitize_socket_info(int* cpu_socket, int64_t num_cores) {
         return -ENOENT;
 
     for (int64_t idx = 0; idx < num_cores; idx++) {
-        /* Virtual environements such as QEMU can have each core in separate socket/package and just
-         * have one numa node. For such cases check against number of online logical processors */
+        /* Virtual environments such as QEMU may assign each core to a separate socket/package with
+         * one or more numa node. To support such unusual topologies, we check against the number
+         * of online logical cores */
         if (!IS_IN_RANGE_INCL(cpu_socket[idx], 0, num_cores - 1))
             return -EINVAL;
     }
