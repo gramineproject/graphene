@@ -223,9 +223,10 @@ Management Team
 
 The current members of the management team are:
 
-* Michał Kowalczyk (Invisible Things Lab/Golem)
+* Michał Kowalczyk (Invisible Things Lab/Intel)
 * Dmitrii Kuvaiskii (Intel)
-* Borys Popławski (Invisible Things Lab/Golem)
+* Paweł Marczewski (Invisible Things Lab/Intel)
+* Borys Popławski (Invisible Things Lab/Intel)
 * Don Porter (UNC)
 * Chia-Che Tsai (Texas A&M University)
 * Rafał Wojdyła (Invisible Things Lab/Golem)
