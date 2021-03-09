@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "gsgx.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -18,7 +19,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "gsgx.h"
+#include "seqlock.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
 #include "toml.h"
@@ -28,7 +29,7 @@
 uint64_t g_tsc_hz = 0; /* TSC frequency for fast and accurate time ("invariant TSC" HW feature) */
 static uint64_t g_start_tsc = 0;
 static uint64_t g_start_usec = 0;
-static PAL_LOCK g_tsc_lock = LOCK_INIT;
+static seqlock_t g_tsc_lock = INIT_SEQLOCK_UNLOCKED;
 
 /**
  * Initialize the data structures used for date/time emulation using TSC
@@ -41,54 +42,60 @@ void init_tsc(void) {
 
 /* TODO: result comes from the untrusted host, introduce some schielding */
 int _DkSystemTimeQuery(uint64_t* out_usec) {
-    uint64_t usec = 0;
-    uint64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_diff;
     int ret;
+    uint64_t usec = 0;
 
-    if (g_tsc_hz > 0) {
-        _DkInternalLock(&g_tsc_lock);
+    if (!g_tsc_hz) {
+        /* RDTSC is not allowed or no Invariant TSC feature -- fallback to the slow ocall */
+        ret = ocall_gettime(&usec);
+        if (ret < 0)
+            return -PAL_ERROR_DENIED;
+
+        *out_usec = usec;
+        return 0;
+    }
+
+    uint32_t seq;
+    do {
+        seq = read_seqbegin(&g_tsc_lock);
         if (g_start_tsc > 0 && g_start_usec > 0) {
-            /* calculate the TSC-based time */
-            tsc_diff = get_tsc() - g_start_tsc;
+            /* baseline TSC/usec pair was initialized, can calculate time via RDTSC (but should be
+             * careful with integer overflow during calculations) */
+            uint64_t tsc_diff = get_tsc() - g_start_tsc;
             if (tsc_diff < INT64_MAX / 1000000) {
-                tsc_usec = g_start_usec + (tsc_diff * 1000000 / g_tsc_hz);
+                uint64_t tsc_usec = g_start_usec + tsc_diff * 1000000 / g_tsc_hz;
                 if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
-                    /* no need to refine yet */
+                    /* less than TSC_REFINE_INIT_TIMEOUT_USECS passed from the previous update of
+                     * TSC/usec pair (time drift is contained), simply return the calculated time */
                     usec = tsc_usec;
                 }
             }
         }
-        _DkInternalUnlock(&g_tsc_lock);
+    } while (read_seqretry(&g_tsc_lock, seq));
 
-        if (!usec) {
-            /* refresh the baseline usec and TSC to contain the drift */
-            tsc_cyc1 = get_tsc();
-            ret = ocall_gettime(&usec);
-            tsc_cyc2 = get_tsc();
-            if (!ret) {
-                /* the ocall_gettime() is a time consuming operation.   *
-                 * it includes EENTER and EEXIT instructions, our best  *
-                 * estimation is the timestamp obtained in the middle   *
-                 * time point, therefore, the tsc_cyc as baseline will  *
-                 * be calibrated precisely in this way.                 */
-                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) / 2) + tsc_cyc1;
-                _DkInternalLock(&g_tsc_lock);
-                /* refresh the baseline data if no other thread updated g_start_tsc */
-                if (g_start_tsc < tsc_cyc) {
-                    g_start_usec = usec;
-                    g_start_tsc = tsc_cyc;
-                }
-                _DkInternalUnlock(&g_tsc_lock);
-            } else {
-                return -PAL_ERROR_DENIED;
-            }
-        }
-    } else {
-        /* fallback to the slow ocall */
+    if (!usec) {
+        /* either the baseline TSC/usec pair was not yet initialized or too much time passed since
+         * the previous TSC/usec update, so let's refresh them to contain the time drift */
+        uint64_t tsc_cyc1 = get_tsc();
         ret = ocall_gettime(&usec);
         if (ret < 0)
             return -PAL_ERROR_DENIED;
+        uint64_t tsc_cyc2 = get_tsc();
+
+        /* we need to match the OCALL-obtained timestamp (`usec`) with the RDTSC-obtained number of
+         * cycles (`tsc_cyc`); since OCALL is a time-consuming operation, we estimate `tsc_cyc` as a
+         * mid-point between the RDTSC values obtained right-before and right-after the OCALL. */
+        uint64_t tsc_cyc = tsc_cyc1 + (tsc_cyc2 - tsc_cyc1) / 2;
+
+        write_seqlock(&g_tsc_lock);
+        /* refresh the baseline data if no other thread updated g_start_tsc */
+        if (g_start_tsc < tsc_cyc) {
+            g_start_usec = usec;
+            g_start_tsc = tsc_cyc;
+        }
+        write_sequnlock(&g_tsc_lock);
     }
+
     *out_usec = usec;
     return 0;
 }
