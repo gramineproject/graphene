@@ -56,6 +56,7 @@ static inline uint32_t read_seqbegin(seqlock_t* sl) {
         }
         CPU_RELAX();
     }
+    RMB();
     return start;
 }
 
