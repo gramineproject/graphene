@@ -53,7 +53,8 @@ struct link_map {
     struct link_map* l_next; /* Chain of loaded objects.  */
     struct link_map* l_prev;
 
-    const ElfW(Phdr)* l_phdr;  /* Pointer to program header table in core.  */
+    ElfW(Phdr)* l_phdr;      /* Pointer to program header table.  */
+    bool l_phdr_allocated;
     ElfW(Addr) l_entry;        /* Entry point location.  */
     ElfW(Half) l_phnum;        /* Number of program header entries.  */
 
@@ -82,6 +83,8 @@ struct link_map {
 static struct link_map* loaded_libraries = NULL;
 static struct link_map* interp_map = NULL;
 
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t offset, size_t size);
+
 static struct link_map* new_elf_object(const char* realname) {
     struct link_map* new;
 
@@ -105,18 +108,13 @@ static struct link_map* new_elf_object(const char* realname) {
 #define byteorder ELFDATANONE
 #endif
 
-#if __WORDSIZE == 32
-#define FILEBUF_SIZE 512
-#else
-#define FILEBUF_SIZE 832
-#endif
-
 /* TODO: This function needs a cleanup and to be split into smaller parts. It is impossible to do
  * a proper cleanup on any failure right now. */
 /* Map in the shared object NAME, actually located in REALNAME, and already
    opened on FD */
-static struct link_map* __map_elf_object(struct shim_handle* file, const void* fbp, size_t fbp_len) {
-    ElfW(Phdr)* new_phdr = NULL;
+static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
+    ElfW(Phdr)* phdr = NULL;
+
     if (!(file && file->fs && file->fs->fs_ops))
         return NULL;
 
@@ -134,32 +132,25 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
 
     /* Scan the program header table, collecting its load commands.  */
     struct loadcmd* c = l->loadcmds;
-    /* This is the ELF header.  We read it in `open_verify'.  */
-    const ElfW(Ehdr)* header = fbp;
 
     /* Extract the remaining details we need from the ELF header
        and then read in the program header table.  */
     l->l_addr  = 0;
-    l->l_entry = header->e_entry;
-    int e_type = header->e_type;
-    l->l_phnum = header->e_phnum;
+    l->l_entry = ehdr->e_entry;
+    int e_type = ehdr->e_type;
+    l->l_phnum = ehdr->e_phnum;
 
-    size_t maplength       = header->e_phnum * sizeof(ElfW(Phdr));
-    const ElfW(Phdr)* phdr = (fbp + header->e_phoff);
-
-    if (header->e_phoff + maplength <= (size_t)fbp_len) {
-        new_phdr = (ElfW(Phdr)*)malloc(maplength);
-        if (!new_phdr) {
-            errstring = "new_phdr malloc failure";
-            goto call_lose;
-        }
-        if ((ret = file->fs->fs_ops->seek(file, header->e_phoff, SEEK_SET)) < 0 ||
-            (ret = file->fs->fs_ops->read(file, new_phdr, maplength)) < 0) {
-            errstring = "cannot read file data";
-            goto call_lose;
-        }
-        phdr = new_phdr;
+    size_t phdr_size = ehdr->e_phnum * sizeof(ElfW(Phdr));
+    phdr = (ElfW(Phdr)*)malloc(phdr_size);
+    if (!phdr) {
+        errstring = "phdr malloc failure";
+        goto call_lose;
     }
+    if ((ret = read_file_fragment(file, phdr, ehdr->e_phoff, phdr_size)) < 0) {
+        errstring = "cannot read phdr";
+        goto call_lose;
+    }
+    l->l_phdr = phdr;
 
     l->nloadcmds   = 0;
     bool has_holes = false;
@@ -235,7 +226,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
 
     c = &l->loadcmds[0];
     /* Length of the sections to be loaded.  */
-    maplength = l->loadcmds[l->nloadcmds - 1].allocend - c->mapstart;
+    size_t maplength = l->loadcmds[l->nloadcmds - 1].allocend - c->mapstart;
 
     if (e_type == ET_DYN) {
         /* This is a position-independent shared object.  We can let the
@@ -322,11 +313,11 @@ do_remap:
             }
         }
 
-        if (l->l_phdr == 0 && (ElfW(Off))c->mapoff <= header->e_phoff &&
-            ((size_t)(c->mapend - c->mapstart + c->mapoff) >=
-             header->e_phoff + header->e_phnum * sizeof(ElfW(Phdr))))
+        if (l->l_phdr == 0 && (ElfW(Off))c->mapoff <= ehdr->e_phoff
+                && ((size_t)(c->mapend - c->mapstart + c->mapoff) >= phdr_size)) {
             /* Found the program header in this segment.  */
-            l->l_phdr = (void*)(c->mapstart + header->e_phoff - c->mapoff);
+            l->l_phdr = (void*)(c->mapstart + ehdr->e_phoff - c->mapoff);
+        }
 
         if (c->allocend > c->dataend) {
             /* Extra zero pages should appear at the end of this segment,
@@ -386,29 +377,28 @@ do_remap:
     }
 
     if (l->l_phdr == NULL) {
-        /* The program header is not contained in any of the segments.
-           We have to allocate memory ourself and copy it over from out
-           temporary place.  */
-        ElfW(Phdr)* newp = (ElfW(Phdr)*)malloc(header->e_phnum * sizeof(ElfW(Phdr)));
+        /* The program header is not contained in any of the segments. We have to allocate memory
+         * ourselves. */
+        ElfW(Phdr)* newp = malloc(phdr_size);
         if (newp == NULL) {
             errstring = "cannot allocate memory for program header";
             goto call_lose;
         }
 
-        l->l_phdr = memcpy(newp, phdr, (header->e_phnum * sizeof(ElfW(Phdr))));
+        l->l_phdr = memcpy(newp, phdr, phdr_size);
+        l->l_phdr_allocated = true;
     } else {
         /* Adjust the PT_PHDR value by the runtime load address.  */
         l->l_phdr = (ElfW(Phdr)*)RELOCATE(l, l->l_phdr);
     }
-
     l->l_entry = RELOCATE(l, l->l_entry);
 
-    free(new_phdr);
+    free(phdr);
     return l;
 
 call_lose:
-    free(new_phdr);
     log_debug("loading %s: %s\n", l->l_name, errstring);
+    free(phdr);
     free(l);
     return NULL;
 }
@@ -452,6 +442,9 @@ static int __remove_elf_object(struct link_map* l) {
     if (interp_map == l)
         interp_map = NULL;
 
+    if (l->l_phdr_allocated)
+        free(l->l_phdr);
+
     free(l);
 
     return 0;
@@ -493,17 +486,8 @@ static int __free_elf_object(struct link_map* l) {
     return 0;
 }
 
-static int __check_elf_header(void* fbp, size_t len) {
+static int __check_elf_header(ElfW(Ehdr)* ehdr) {
     const char* errstring __attribute__((unused));
-
-    /* Now we will start verify the file as a ELF header. This part of code
-       is borrow from open_verify() */
-    ElfW(Ehdr)* ehdr = (ElfW(Ehdr)*)fbp;
-
-    if (len < sizeof(ElfW(Ehdr))) {
-        errstring = "ELF file with a strange size";
-        goto verify_failed;
-    }
 
 #define ELF32_CLASS ELFCLASS32
 #define ELF64_CLASS ELFCLASS64
@@ -552,7 +536,7 @@ verify_failed:
     return -EINVAL;
 }
 
-static int __read_elf_header(struct shim_handle* file, void* fbp) {
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t offset, size_t size) {
     if (!file)
         return -EINVAL;
 
@@ -565,35 +549,36 @@ static int __read_elf_header(struct shim_handle* file, void* fbp) {
     if (!read || !seek)
         return -EACCES;
 
-    (*seek)(file, 0, SEEK_SET);
-    int ret = (*read)(file, fbp, FILEBUF_SIZE);
-    (*seek)(file, 0, SEEK_SET);
-    return ret;
+    ssize_t ret;
+    if ((ret = (*seek)(file, offset, SEEK_SET)) < 0)
+        return ret;
+    if ((ret = (*read)(file, buf, size)) < 0)
+        return ret;
+    if ((size_t)ret < size)
+        return -EINVAL;
+    return 0;
 }
 
-static int __load_elf_header(struct shim_handle* file, void* fbp, int* plen) {
-    int len = __read_elf_header(file, fbp);
-    if (len < 0)
-        return len;
-
-    int ret = __check_elf_header(fbp, len);
+static int __load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
+    int ret = read_file_fragment(file, ehdr, /*offset=*/0, sizeof(*ehdr));
     if (ret < 0)
         return ret;
 
-    if (plen)
-        *plen = len;
+    ret = __check_elf_header(ehdr);
+    if (ret < 0)
+        return ret;
 
     return 0;
 }
 
 int check_elf_object(struct shim_handle* file) {
-    char fb[FILEBUF_SIZE];
+    ElfW(Ehdr) ehdr;
 
-    int l = __read_elf_header(file, &fb);
-    if (l < 0)
-        return l;
+    int ret = read_file_fragment(file, &ehdr, /*offset=*/0, sizeof(ehdr));
+    if (ret < 0)
+        return ret;
 
-    return __check_elf_header(&fb, l);
+    return __check_elf_header(&ehdr);
 }
 
 static int __load_elf_object(struct shim_handle* file);
@@ -637,18 +622,16 @@ static void replace_link_map(struct link_map* new, struct link_map* old) {
 }
 
 static int __load_elf_object(struct shim_handle* file) {
-    int len = 0, ret = 0;
+    int ret;
 
-    char* hdr = __alloca(FILEBUF_SIZE);
-    if ((ret = __load_elf_header(file, hdr, &len)) < 0)
-        goto out;
+    ElfW(Ehdr) ehdr;
+    if ((ret = __load_elf_header(file, &ehdr)) < 0)
+        return ret;
 
-    struct link_map* map = __map_elf_object(file, hdr, len);
+    struct link_map* map = __map_elf_object(file, &ehdr);
 
-    if (!map) {
-        ret = -EINVAL;
-        goto out;
-    }
+    if (!map)
+        return -EINVAL;
 
     if (file) {
         get_handle(file);
@@ -661,7 +644,6 @@ static int __load_elf_object(struct shim_handle* file) {
         append_r_debug(qstrgetstr(&map->l_file->uri), (void*)map->l_addr);
     }
 
-out:
     return ret;
 }
 
