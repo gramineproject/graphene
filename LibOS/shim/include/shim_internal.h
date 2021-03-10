@@ -374,7 +374,6 @@ struct shim_handle;
 int init_brk_from_executable(struct shim_handle* exec);
 int init_brk_region(void* brk_region, size_t data_segment_size);
 void reset_brk(void);
-int init_internal_map(void);
 int init_loader(void);
 int init_rlimit(void);
 
