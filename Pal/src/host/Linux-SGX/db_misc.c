@@ -54,8 +54,8 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     uint64_t start_usec;
     do {
         seq = read_seqbegin(&g_tsc_lock);
-        start_tsc  = READ_ONCE(g_start_tsc);
-        start_usec = READ_ONCE(g_start_usec);
+        start_tsc  = g_start_tsc;
+        start_usec = g_start_usec;
     } while (read_seqretry(&g_tsc_lock, seq));
 
     uint64_t usec = 0;
