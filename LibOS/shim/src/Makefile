@@ -63,13 +63,13 @@ objs = \
 	shim_malloc.o \
 	shim_object.o \
 	shim_parser.o \
+	shim_rtld.o \
 	shim_syscalls.o \
 	bookkeep/shim_handle.o \
 	bookkeep/shim_process.o \
 	bookkeep/shim_signal.o \
 	bookkeep/shim_thread.o \
 	bookkeep/shim_vma.o \
-	elf/shim_rtld.o \
 	fs/shim_dcache.o \
 	fs/shim_fs.o \
 	fs/shim_fs_hash.o \
