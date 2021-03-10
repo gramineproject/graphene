@@ -22,6 +22,11 @@ except ImportError:
     # so we can import as follows
     import generated_offsets as offs # pylint: disable=import-error
 
+
+class ManifestError(Exception):
+    pass
+
+
 # pylint: enable=invalid-name
 
 # Default / Architectural Options
@@ -142,10 +147,10 @@ def get_enclave_attributes(manifest):
 
 def resolve_uri(uri, check_exist=True):
     if not uri.startswith('file:'):
-        raise RuntimeError('Unsupported URI type: ' + uri)
+        raise ManifestError('Unsupported URI type: ' + uri)
     path = Path(uri[len('file:'):])
     if check_exist and not path.exists():
-        raise FileNotFoundError('Cannot resolve ' + uri + ' or the file does not exist.')
+        raise ManifestError('Cannot resolve ' + uri + ' or the file does not exist.')
     return str(path)
 
 
