@@ -450,42 +450,6 @@ static int __remove_elf_object(struct link_map* l) {
     return 0;
 }
 
-static int __free_elf_object(struct link_map* l) {
-    log_debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name, l->l_map_start);
-
-    struct loadcmd* c = l->loadcmds;
-
-    while (c < &l->loadcmds[l->nloadcmds]) {
-        if (c->mapend > c->mapstart)
-            /* Unmap the segment contents from the file.  */
-            shim_do_munmap((void*)l->l_addr + c->mapstart, c->mapend - c->mapstart);
-
-        if (c->allocend > c->dataend) {
-            /* Extra zero pages should appear at the end of this segment,
-               after the data mapped from the file.   */
-            ElfW(Addr) zero, zeroend, zeropage;
-
-            zero     = l->l_addr + c->dataend;
-            zeroend  = l->l_addr + c->allocend;
-            zeropage = ALLOC_ALIGN_UP(zero);
-
-            if (zeroend < zeropage)
-                /* All the extra data is in the last page of the segment.
-                   We can just zero it.  */
-                zeropage = zeroend;
-
-            if (zeroend > zeropage)
-                shim_do_munmap((void*)zeropage, zeroend - zeropage);
-        }
-
-        ++c;
-    }
-
-    __remove_elf_object(l);
-
-    return 0;
-}
-
 static int __check_elf_header(ElfW(Ehdr)* ehdr) {
     const char* errstring __attribute__((unused));
 
@@ -657,13 +621,6 @@ static bool __need_interp(struct link_map* exec_map) {
 }
 
 extern const char** library_paths;
-
-int free_elf_interp(void) {
-    if (interp_map)
-        __free_elf_object(interp_map);
-
-    return 0;
-}
 
 static int __load_interp_object(struct link_map* exec_map) {
     const char* interp_name = (const char*)exec_map->l_interp_libname + (long)exec_map->l_addr;
