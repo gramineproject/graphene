@@ -794,7 +794,7 @@ def main(args=None):
     try:
         manifest = read_manifest(manifest_path)
     except toml.TomlDecodeError as exc:
-        print('Parsing {} as TOML failed: {}'.format(manifest_path, e), file=stderr)
+        print('Parsing {} as TOML failed: {}'.format(manifest_path, exc), file=stderr)
         return 1
 
     if args.get('depend'):
