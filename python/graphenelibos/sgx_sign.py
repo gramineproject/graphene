@@ -76,9 +76,9 @@ def exec_sig_manifest(args):
 
 
 def output_manifest(filename, manifest):
-    with open(filename, 'w', encoding='UTF-8') as f:
-        f.write('# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n')
-        toml.dump(manifest, f)
+    with open(filename, 'w', encoding='UTF-8') as file:
+        file.write('# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n')
+        toml.dump(manifest, file)
 
 
 def or_bytes(bytes_a, bytes_b):
@@ -793,7 +793,7 @@ def main(args=None):
     manifest_path = args['manifest']
     try:
         manifest = read_manifest(manifest_path)
-    except toml.TomlDecodeError as e:
+    except toml.TomlDecodeError as exc:
         print('Parsing {} as TOML failed: {}'.format(manifest_path, e), file=stderr)
         return 1
 
