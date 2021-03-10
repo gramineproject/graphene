@@ -34,22 +34,13 @@ endif
 
 include ../../Scripts/Makefile.configs
 
-# Generate manifest rules for R dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-R_TARGETS = $(R_EXEC) $(R_HOME)/library/stats/libs/stats.so $(R_HOME)/modules/lapack.so
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
-	../common_tools/get_deps.sh $(R_TARGETS) > $@
-
-R.manifest: R.manifest.template trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	     -e 's|$$(R_HOME)|'"$(R_HOME)"'|g' \
-	     -e 's|$$(R_EXEC)|'"$(R_EXEC)"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     $<; \
-	cat trusted-libs) > $@
+R.manifest: R.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(R_HOME)|'"$(R_HOME)"'|g' \
+	    -e 's|$$(R_EXEC)|'"$(R_EXEC)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< >$@
 
 # R manifests for SGX:
 #   Generating the SGX-specific manifest (R.manifest.sgx), the enclave signature,

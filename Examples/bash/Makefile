@@ -25,21 +25,12 @@ endif
 
 include ../../Scripts/Makefile.configs
 
-# Generate manifest rules for Bash dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-PROGRAMS = bash ls cat rm cp date
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
-	../common_tools/get_deps.sh $(foreach exec,$(PROGRAMS),$(shell which $(exec))) > $@
-
-bash.manifest: manifest.template trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	     -e 's|$$(EXECDIR)|'"$(shell dirname $(shell which bash))"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     $<; \
-	cat trusted-libs) > $@
+bash.manifest: manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(EXECDIR)|'"$(shell dirname $(shell which bash))"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< >$@
 
 # Generating the SGX-specific manifest (*.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
@@ -86,7 +77,7 @@ regression: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig trusted-libs pal_loader OUTPUT scripts/testdir/*
+	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT scripts/testdir/*
 
 .PHONY: distclean
 distclean: clean

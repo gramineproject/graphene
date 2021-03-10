@@ -31,28 +31,14 @@ ifeq ($(SGX),1)
 all: gcc.manifest.sgx gcc.sig gcc.token
 endif
 
-# Generate manifest rules for Bash dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-PROGRAMS = /usr/bin/gcc \
-           $(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/cc1 \
-           $(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/collect2 \
-           /usr/bin/as \
-           /usr/bin/ld
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
-	../common_tools/get_deps.sh $(PROGRAMS) > $@
-
-%.manifest: %.manifest.template trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-		-e 's|$$(BINUTILS_VERSION)|'"$(BINUTILS_VERSION)"'|g' \
-		-e 's|$$(GCC_MAJOR_VERSION)|'"$(GCC_MAJOR_VERSION)"'|g' \
-		-e 's|$$(GCC_LIB_PATH)|'"$(GCC_LIB_PATH)"'|g' \
-		-e 's|$$(LD_TRUSTED_FILES)|'"`cat ld-gcc-$(GCC_MAJOR_VERSION)-trusted-files`"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$<; \
-	cat trusted-libs) > $@
+%.manifest: %.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(BINUTILS_VERSION)|'"$(BINUTILS_VERSION)"'|g' \
+	    -e 's|$$(GCC_MAJOR_VERSION)|'"$(GCC_MAJOR_VERSION)"'|g' \
+	    -e 's|$$(GCC_LIB_PATH)|'"$(GCC_LIB_PATH)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< >$@
 
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
@@ -112,7 +98,7 @@ check: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.sig *.token pal_loader trusted-libs
+	$(RM) *.manifest *.manifest.sgx *.sig *.token pal_loader
 	$(RM) test_files/gzip.copy test_files/bzip2.copy
 
 .PHONY: distclean

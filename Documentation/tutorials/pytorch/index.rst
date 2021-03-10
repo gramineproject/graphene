@@ -248,14 +248,14 @@ Below, we will highlight some of the SGX-specific manifest options in
 
 First, here are the following SGX-specific lines in the manifest template::
 
-   sgx.trusted_files.ld   = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
-   sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
+   sgx.trusted_files.python3 = "file:$(PYTHON3)"
+   sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
    ...
 
-``sgx.trusted_files.<name>`` specifies a file that will be verified and trusted
-by the SGX enclave.  Note that the key string ``<name>`` may be an arbitrary
-legal string (but without ``-`` and other special symbols) and does not have to
-be the same as the actual file name.
+``sgx.trusted_files.<name>`` specifies a file or a directory that will be
+verified and trusted by the SGX enclave.  Note that the key string ``<name>``
+may be an arbitrary legal string (but without ``-`` and other special symbols)
+and does not have to be the same as the actual file name.
 
 The way these Trusted Files work is before Graphene runs PyTorch inside the SGX
 enclave, Graphene generates the final SGX manifest file using ``pal-sgx-sign``

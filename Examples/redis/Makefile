@@ -30,10 +30,6 @@ else
 GRAPHENE_LOG_LEVEL = error
 endif
 
-DISTRIB_ID ?= $(shell lsb_release --short --id)
-DISTRIB_RELEASE ?= $(shell lsb_release --short --release)
-DISTRO = $(DISTRIB_ID)$(DISTRIB_RELEASE)
-
 .PHONY: all
 all: redis-server redis-server.manifest pal_loader
 ifeq ($(SGX),1)
@@ -76,7 +72,6 @@ redis-server.manifest: redis-server.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		-e 's|# '"$(DISTRO)"' ||g' \
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This procedure measures all

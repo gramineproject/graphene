@@ -68,40 +68,16 @@ sgx.thread_num = 32
 # SGX trusted files
 
 sgx.trusted_files.httpd = "file:$(INSTALL_DIR)/bin/httpd"
-
-# Glibc libraries
-sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
-sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
-sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
-sgx.trusted_files.libdl = "file:$(GRAPHENEDIR)/Runtime/libdl.so.2"
-sgx.trusted_files.librt = "file:$(GRAPHENEDIR)/Runtime/librt.so.1"
-sgx.trusted_files.libutil = "file:$(GRAPHENEDIR)/Runtime/libutil.so.1"
-sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
+sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
 
 # Other libraries required by Apache
-sgx.trusted_files.libgcc_s = "file:$(ARCH_LIBDIR)/libgcc_s.so.1"
-sgx.trusted_files.nss_files = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
-sgx.trusted_files.libnsscompat = "file:$(ARCH_LIBDIR)/libnss_compat.so.2"
-sgx.trusted_files.libnssnis  = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
-sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
+sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
 
-# Apache modules and dependencies
-$(HTTPD_TRUSTED_MODS)
-$(HTTPD_TRUSTED_LIBS)
-
-# Apache configuration (trusted)
-sgx.trusted_files.conf1 = "file:$(INSTALL_DIR)/conf/httpd-graphene.conf"
-sgx.trusted_files.conf2 = "file:$(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf"
-sgx.trusted_files.conf3 = "file:$(INSTALL_DIR)/conf/mime.types"
-
-# Apache SSL/TLS files (trusted)
-sgx.trusted_files.server_cert = "file:$(INSTALL_DIR)/conf/server.crt"
-sgx.trusted_files.server_key  = "file:$(INSTALL_DIR)/conf/server.key"
-
-# Apache HTTP documents (trusted)
-# We only specify those documents used in our tests/benchmarks.
-sgx.trusted_files.htdocs1 = "file:$(INSTALL_DIR)/htdocs/index.html"
-sgx.trusted_files.htdocs2 = "file:$(INSTALL_DIR)/htdocs/random/10K.1.html"
+# Apache data (trusted)
+sgx.trusted_files.conf = "file:$(INSTALL_DIR)/conf"
+sgx.trusted_files.htdocs = "file:$(INSTALL_DIR)/htdocs"
+sgx.trusted_files.modules = "file:$(INSTALL_DIR)/modules"
 
 # Apache logs directory (untrusted and allowed, since log files are not security-critical)
 sgx.allowed_files.logs = "file:$(INSTALL_DIR)/logs"

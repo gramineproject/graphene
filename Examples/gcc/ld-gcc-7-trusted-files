@@ -1,1 +1,0 @@
-sgx.trusted_files.crtbeginSo = \"file:/usr/lib/gcc/x86_64-linux-gnu/7/crtbeginS.o\"\nsgx.trusted_files.libgccsso = \"file:/usr/lib/gcc/x86_64-linux-gnu/7/libgcc_s.so.1\"\nsgx.trusted_files.crtendSo = \"file:/usr/lib/gcc/x86_64-linux-gnu/7/crtendS.o\"

@@ -1,5 +1,12 @@
 /*.tar.gz
 /OUTPUT
+/.common_libs_copied
+/.dcap_libs_copied
+/.epid_libs_copied
+/.mbedtls_built
+/.mbedtls_configured
+/.mbedtls_downloaded
+/.mbedtls_libs_copied
 /files/input.txt
 /mbedtls
 /pf_crypt

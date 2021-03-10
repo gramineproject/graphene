@@ -87,30 +87,9 @@ fs.mount.etc.uri = "file:/etc"
 # this happens on the client machine.
 
 sgx.trusted_files.busybox = "file:busybox"
-
-# Glibc libraries.
-sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
-sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
-sgx.trusted_files.libresolv = "file:$(GRAPHENEDIR)/Runtime/libresolv.so.2"
-sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
-
-# libcrypt is an explicit dependency of Busybox. We choose to install it on
-# host OS instead of downloading the sources, building, and linking Busybox
-# against the built library (which is possible but would require more effort).
-sgx.trusted_files.libcrypt = "file:$(ARCH_LIBDIR)/libcrypt.so.1"
-
-# Name Service Switch (NSS) libraries. Glibc calls these libraries as part of
-# name-service information gathering. libnss_{compat,files,nis} are the
-# most widely used libraries, at least on Ubuntu.
-# For more info, see 'man nsswitch.conf'.
-sgx.trusted_files.libnsscompat = "file:$(ARCH_LIBDIR)/libnss_compat.so.2"
-sgx.trusted_files.libnssfiles = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
-sgx.trusted_files.libnssnis = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
-
-# libNSL is a dependency of libnss_compat above. It is a good example of nested
-# library dependencies required by Graphene-SGX.
-sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
-
+sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
+sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
 
 # Trusted non-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure

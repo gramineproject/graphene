@@ -5,3 +5,9 @@
 /client-epid-trusted-libs
 /mbedtls
 /server
+/.mbedtls_downloaded
+/.mbedtls_configured
+/.mbedtls_built
+/.mbedtls_libs_copied
+/.epid_libs_copied
+/.dcap_libs_copied

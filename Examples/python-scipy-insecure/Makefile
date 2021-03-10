@@ -22,41 +22,23 @@ else
 GRAPHENE_LOG_LEVEL = error
 endif
 
-UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --release)
-
 .PHONY: all
 all: python.manifest pal_loader
 ifeq ($(SGX),1)
 all: python.manifest.sgx python.sig python.token
 endif
 
-# Python libraries which are dynamically loaded.
-PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
-          $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so
-
-# Generate manifest rules for Python dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
-	../common_tools/get_deps.sh $(PYTHONEXEC) $(PY_LIBS) > $@
-
-python.manifest: python.manifest.template trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	     -e 's|$$(PYTHONDISTHOME)|'"$(PYTHONDISTHOME)"'|g' \
-	     -e 's|$$(PYTHONHOME)|'"$(PYTHONHOME)"'|g' \
-	     -e 's|$$(PYTHONEXEC)|'"$(PYTHONEXEC)"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     -e 's|$$(PYTHONSHORTVERSION)|'"$(PYTHONSHORTVERSION)"'|g' \
-	     -e 's|$$(PYTHON_ARCH_LONG)|'"$(PYTHON_ARCH_LONG)"'|g' \
-	     -e 's|$$(SYS)|'"$(SYS)"'|g' \
-	     $<; \
-	cat trusted-libs) > $@
+python.manifest: python.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(PYTHONDISTHOME)|'"$(PYTHONDISTHOME)"'|g' \
+	    -e 's|$$(PYTHONHOME)|'"$(PYTHONHOME)"'|g' \
+	    -e 's|$$(PYTHONEXEC)|'"$(PYTHONEXEC)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    -e 's|$$(PYTHONSHORTVERSION)|'"$(PYTHONSHORTVERSION)"'|g' \
+	    -e 's|$$(PYTHON_ARCH_LONG)|'"$(PYTHON_ARCH_LONG)"'|g' \
+	    -e 's|$$(SYS)|'"$(SYS)"'|g' \
+	    $< >$@
 
 # Python manifests for SGX:
 #   Generating the SGX-specific manifest (python.manifest.sgx), the enclave signature,

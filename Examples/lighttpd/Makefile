@@ -49,25 +49,13 @@ $(LIGHTTPD_SRC)/configure: $(LIGHTTPD_SRC).tar.gz
 $(LIGHTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LIGHTTPD_HASH) $(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
 
-# Generate manifest rules for lighttpd dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-PROGRAMS = $(INSTALL_DIR)/sbin/lighttpd \
-           $(INSTALL_DIR)/lib/mod_indexfile.so \
-           $(INSTALL_DIR)/lib/mod_dirlisting.so \
-           $(INSTALL_DIR)/lib/mod_staticfile.so
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh $(INSTALL_DIR)/sbin/lighttpd
-	../common_tools/get_deps.sh $(PROGRAMS) > $@
-
-lighttpd.manifest: lighttpd.manifest.template trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	     -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
-	     -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     $<; \
-	cat trusted-libs) > $@
+lighttpd.manifest: lighttpd.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
+	    -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< >$@
 
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
 # for enclave initialization.
