@@ -410,7 +410,6 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_slab);
     RUN_INIT(read_environs, envp);
     RUN_INIT(init_str_mgr);
-    RUN_INIT(init_internal_map);
     RUN_INIT(init_rlimit);
     RUN_INIT(init_fs);
     RUN_INIT(init_dcache);
