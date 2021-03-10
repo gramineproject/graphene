@@ -32,6 +32,19 @@ installation.
 
 Run `make` to build the non-SGX version and `make SGX=1` to build the SGX version.
 
+## Building with a local Python installation
+
+By default, the `make` command creates the manifest for the Python binary from
+the system installation. If you have a local installation, you may create the
+manifest with the `PYTHONPATH` variable set accordingly. You can also specify
+a particular version of Python. For example:
+
+```
+make PYTHONPATH=<python install path> PYTHONVERSION=python3.6 SGX=1
+```
+
+By default, `PYTHONPATH=/usr` and `PYTHONVERSION=python3.5`.
+
 # Run
 
 Execute any one of the following commands to run the workload

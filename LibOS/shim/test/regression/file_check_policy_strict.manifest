@@ -11,8 +11,7 @@ fs.mount.lib.uri = "file:../../../../Runtime"
 
 sgx.file_check_policy = "strict"
 
-sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
-sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
+sgx.trusted_files.runtime = "file:../../../../Runtime/"
 sgx.trusted_files.file_check_policy = "file:file_check_policy"
 
 sgx.trusted_files.test = "file:trusted_testfile"

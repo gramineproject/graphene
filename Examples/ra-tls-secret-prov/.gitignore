@@ -1,6 +1,7 @@
 /*.tar.gz
 /OUTPUT
 /files/input.txt
+/libs/
 /mbedtls
 /pf_crypt
 /secret_prov_client

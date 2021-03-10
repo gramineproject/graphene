@@ -45,19 +45,14 @@ $(BLENDER_DIR)/blender:
 $(RUN_DIR):
 	mkdir -p $@
 
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh $(BLENDER_DIR)/blender
-	../common_tools/get_deps.sh $(BLENDER_DIR)/blender > $@
-
-blender.manifest: blender.manifest.template trusted-libs | $(RUN_DIR)
-	(sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	     -e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
-	     -e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
-	     -e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     $<; \
-    cat trusted-libs) > $@
+blender.manifest: blender.manifest.template | $(RUN_DIR)
+	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
+	    -e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
+	    -e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< >$@
 
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
@@ -89,7 +84,7 @@ check: all
 .PHONY: clean
 clean:
 	$(RM) -r $(RUN_DIR) $(DATA_DIR)/images blender.manifest blender.manifest.sgx blender.sig \
-	         blender.token trusted-libs
+	         blender.token
 
 .PHONY: distclean
 distclean: clean

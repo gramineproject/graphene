@@ -161,8 +161,20 @@ def sha256(data):
 
 
 def get_hash(filename):
-    with open(filename, 'rb') as file:
+    # TODO: Remove `str()` after dropping support for Ubuntu 16.04 and its ancient Python.
+    with open(str(filename), 'rb') as file:
         return sha256(file.read())
+
+
+# TODO: this function should be deleted after we start using TOML lists instead of key-values for
+# trusted files.
+def path_to_key(path):
+    # anything which is unique to the path should do the work
+    return sha256(path.encode()).hex()
+
+
+def walk_dir(path):
+    return sorted(filter(Path.is_file, path.rglob('*')))
 
 
 def get_trusted_files(manifest, check_exist=True, do_hash=True):
@@ -174,7 +186,14 @@ def get_trusted_files(manifest, check_exist=True, do_hash=True):
         targets['preload' + str(i)] = uri, resolve_uri(uri, check_exist)
 
     for key, val in manifest['sgx']['trusted_files'].items():
-        targets[key] = val, resolve_uri(val, check_exist)
+        path = Path(resolve_uri(val, check_exist))
+        if path.is_dir():
+            for sub_path in walk_dir(path):
+                sub_key = path_to_key(str(sub_path))
+                uri = 'file:' + str(sub_path)
+                targets[sub_key] = uri, sub_path
+        else:
+            targets[key] = val, path
 
     if do_hash:
         for key, val in targets.items():
@@ -725,10 +744,14 @@ def main_sign(manifest, args):
             print('    EPID (spid = %s, linkable = %s)' % (spid, linkable))
 
     # Get trusted hashes and measurements
-    print('Trusted files:')
-    for key, val in get_trusted_files(manifest).items():
+
+    # Use `list()` to ensure non-laziness (`manifest_sgx` is a part of `manifest`, and we'll be
+    # changing it while iterating).
+    expanded_trusted_files = list(get_trusted_files(manifest).items())
+    manifest_sgx['trusted_files'] = {} # generate the list from scratch, dropping directory entries
+    for key, val in expanded_trusted_files:
         uri, _, hash_ = val
-        print('    %s %s' % (hash_, uri))
+        manifest_sgx['trusted_files'][key] = uri
         manifest_sgx['trusted_checksum'][key] = hash_
 
     # Populate memory areas
@@ -773,8 +796,8 @@ def make_depend(manifest, args):
         return 1
 
     dependencies = set()
-    for filename in get_trusted_files(manifest, check_exist=False, do_hash=False).values():
-        dependencies.add(filename[1])
+    for _, filename in get_trusted_files(manifest, check_exist=False, do_hash=False).values():
+        dependencies.add(filename)
     dependencies.add(args['libpal'])
     dependencies.add(args['key'])
 

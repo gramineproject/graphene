@@ -12,7 +12,7 @@
 
 #define INPUT_FILENAME "files/input.txt"
 
-int print_pf_key_and_read_protected_file(char* who) {
+static int print_pf_key_and_read_protected_file(char* who) {
     char* secret = getenv("SECRET_PROVISION_SECRET_STRING");
     if (!secret) {
         fprintf(stderr, "did not receive protected files master key!\n");

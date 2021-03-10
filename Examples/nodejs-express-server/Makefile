@@ -28,20 +28,12 @@ endif
 
 include ../../Scripts/Makefile.configs
 
-# Generate manifest rules for Node.js dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-.INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
-	../common_tools/get_deps.sh $(NODEJS_DIR)/nodejs > $@
-
-nodejs.manifest: nodejs.manifest.template trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	     -e 's|$$(NODEJS_DIR)|'"$(NODEJS_DIR)"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     $<; \
-	cat trusted-libs) > $@
+nodejs.manifest: nodejs.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(NODEJS_DIR)|'"$(NODEJS_DIR)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< >$@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 nodejs.manifest.sgx: nodejs.manifest helloworld.js

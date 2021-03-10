@@ -8,7 +8,7 @@ stage('test-sgx') {
     }
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
-            cd Examples/python-scipy-insecure
+            cd Examples/python-scipy
             make ${MAKEOPTS}
             make ${MAKEOPTS} check
         '''

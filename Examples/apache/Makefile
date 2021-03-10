@@ -64,18 +64,6 @@ $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
 $(HTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) $(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)httpd/$(HTTPD_SRC).tar.gz)
 
-# Apache dependencies (generate from ldd):
-#
-# For SGX, the manifest needs to list all the libraries loaded during the
-# execution, so that the signer can include the file checksums.
-#
-# The dependencies are generated from the ldd results.
-
-# We need to replace Glibc dependencies with Graphene-specific Glibc. The Glibc
-# binaries are already listed in the manifest template, so we can skip them
-# from the ldd results
-GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libpthread
-
 $(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)/bin/httpd
 $(INSTALL_DIR)/conf/extra/httpd-ssl.conf: $(INSTALL_DIR)/bin/httpd
 
@@ -88,42 +76,11 @@ httpd-modules: $(INSTALL_DIR)/conf/httpd.conf
 	@echo $(INSTALL_DIR)/modules/mod_mpm_event.so  >> $@
 	@echo $(INSTALL_DIR)/modules/mod_ssl.so        >> $@
 
-# Listing all the Apache dependencies, besides Glibc libraries
-.INTERMEDIATE: httpd-ldd
-httpd-ldd: httpd-modules $(INSTALL_DIR)/bin/httpd
-	@for F in $(INSTALL_DIR)/bin/httpd `cat httpd-modules`; do \
-		ldd $$F >> $@ || exit 1; done
-
-.INTERMEDIATE: httpd-deps
-httpd-deps: httpd-ldd
-	@cat $< | awk '{if ($$2 =="=>") {split($$1,s,/\./); print s[1]}}' \
-		| sort | uniq | grep -v -x $(patsubst %,-e %,$(GLIBC_DEPS)) > $@
-
-# Generating manifest rules for Apache modules
-.INTERMEDIATE: httpd-trusted-mods
-httpd-trusted-mods: httpd-modules
-	@for F in `cat httpd-modules`; do \
-		N=`echo $$F | awk '{n=split($$1,s,/\/|\./); print s[n-1]}'`; \
-		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
-	done > $@
-
-# Generating manifest rules for Apache dependencies
-.INTERMEDIATE: httpd-trusted-libs
-httpd-trusted-libs: httpd-deps httpd-modules $(INSTALL_DIR)/bin/httpd
-	@HTTPD_LIBS="$(INSTALL_DIR)/bin/httpd `cat httpd-modules`" && \
-	for F in `cat httpd-deps`; do \
-		P=`ldd $$HTTPD_LIBS | grep $$F | awk '{print $$3; exit}'`; \
-		N=`echo $$F | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
-	done > $@
-
-httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
+httpd.manifest: httpd.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 	    -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
 	    -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
-	    -e 's|$$(HTTPD_TRUSTED_MODS)|'"`cat httpd-trusted-mods`"'|g' \
-	    -e 's|$$(HTTPD_TRUSTED_LIBS)|'"`cat httpd-trusted-libs`"'|g' \
 	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 	    $< > $@
 
