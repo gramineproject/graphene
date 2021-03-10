@@ -2,10 +2,19 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * This file contains code for dynamic loading of ELF binaries in library OS.
- * It's espeically used for loading interpreter (ld.so, in general) and
- * optimization of execve.
- * Most of the source code was imported from GNU C library.
+ * This file contains code for loading ELF binaries in library OS. The source was originally based
+ * on glibc (dl-load.c), but has been significantly modified since.
+ *
+ * Here is a short overview of the ELFs involved:
+ *
+ *  - PAL and LibOS binaries: not handled here (loaded before starting LibOS)
+ *  - vDSO: loaded here
+ *  - Program binary, and its interpreter (ld.so) if any: loaded here
+ *  - Additional libraries: loaded by ld.so; only reported to PAL here (register_library)
+ *
+ * Note that we don't perform any dynamic linking here, just execute load commands and transfer
+ * control to ld.so. In that regard, this file is more similar to Linux kernel (see binfmt_elf.c)
+ * than glibc.
  */
 
 #include <asm/mman.h>
@@ -34,38 +43,41 @@
 
 typedef ElfW(Word) Elf_Symndx;
 
-/* Structure describing a loaded shared object.  The `l_next' and `l_prev'
-   members form a chain of all the shared objects loaded at startup.
-
-   These data structures exist in space used by the run-time dynamic linker;
-   modifying them may have disastrous results.
-
-   This data structure might change in future, if necessary.  User-level
-   programs must avoid defining objects of this type.  */
-
-/* This is a simplified link_map structure */
+/*
+ * Structure describing a loaded shared object. The `l_next' and `l_prev' members form a chain of
+ * all the shared objects loaded at startup.
+ *
+ * Originally based on glibc link_map structure.
+ */
 struct link_map {
-    /* These first few members are part of the protocol with the debugger.
-       This is the same format used in SVR4.  */
+    /* Base address shared object is loaded at. */
+    ElfW(Addr) l_addr;
 
-    ElfW(Addr) l_addr;       /* Base address shared object is loaded at. */
-    const char* l_name;      /* Absolute file name object was found in.  */
-    struct link_map* l_next; /* Chain of loaded objects.  */
+    /* Object identifier: file path, or PAL URI if path is unavailable. */
+    const char* l_name;
+
+    /* Chain of loaded objects. */
+    struct link_map* l_next;
     struct link_map* l_prev;
 
-    ElfW(Phdr)* l_phdr;      /* Pointer to program header table.  */
+    /* Pointer to program header table, and whether it's allocated separately by us. */
+    ElfW(Phdr)* l_phdr;
     bool l_phdr_allocated;
-    ElfW(Addr) l_entry;        /* Entry point location.  */
-    ElfW(Half) l_phnum;        /* Number of program header entries.  */
 
-    /* Start and finish of memory map for this object.  l_map_start
-       need not be the same as l_addr.  */
+    /* Entry point location. */
+    ElfW(Addr) l_entry;
+
+    /* Number of program header entries.  */
+    ElfW(Half) l_phnum;
+
+    /* Start and finish of memory map for this object.  l_map_start need not be the same as
+     * l_addr. */
     ElfW(Addr) l_map_start, l_map_end;
 
     const char* l_interp_libname;
     ElfW(Addr) l_main_entry;
 
-    /* pointer to related file */
+    /* Pointer to related file. */
     struct shim_handle* l_file;
 
 #define MAX_LOADCMDS 4
@@ -110,8 +122,6 @@ static struct link_map* new_elf_object(const char* realname) {
 
 /* TODO: This function needs a cleanup and to be split into smaller parts. It is impossible to do
  * a proper cleanup on any failure right now. */
-/* Map in the shared object NAME, actually located in REALNAME, and already
-   opened on FD */
 static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
     ElfW(Phdr)* phdr = NULL;
 
