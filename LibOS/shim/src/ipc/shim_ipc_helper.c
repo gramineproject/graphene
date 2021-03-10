@@ -48,11 +48,8 @@ typedef int (*ipc_callback)(struct shim_ipc_msg* msg, struct shim_ipc_port* port
 static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_RESP]          = &ipc_resp_callback,
     [IPC_MSG_CHILDEXIT]     = &ipc_cld_exit_callback,
-    [IPC_MSG_FINDNS]        = &ipc_findns_callback,
-    [IPC_MSG_TELLNS]        = &ipc_tellns_callback,
     [IPC_MSG_LEASE]         = &ipc_lease_callback,
     [IPC_MSG_OFFER]         = &ipc_offer_callback,
-    [IPC_MSG_RENEW]         = &ipc_renew_callback,
     [IPC_MSG_SUBLEASE]      = &ipc_sublease_callback,
     [IPC_MSG_QUERY]         = &ipc_query_callback,
     [IPC_MSG_QUERYALL]      = &ipc_queryall_callback,
@@ -74,67 +71,63 @@ static ipc_callback ipc_callbacks[] = {
 };
 
 static int init_self_ipc_port(void) {
-    lock(&g_process_ipc_info.lock);
-
     assert(!g_process_ipc_info.self);
     /* very first process or clone/fork case: create IPC port from scratch */
     g_process_ipc_info.self = create_ipc_info_and_port(/*use_vmid_as_port_name=*/true);
     if (!g_process_ipc_info.self) {
-        unlock(&g_process_ipc_info.lock);
-        return -EACCES;
+        return -ENOMEM;
     }
 
-    unlock(&g_process_ipc_info.lock);
     return 0;
 }
 
 static int init_parent_ipc_port(void) {
-    if (!PAL_CB(parent_process) || !g_process_ipc_info.parent) {
+    if (!PAL_CB(parent_process)) {
         /* no parent process, no sense in creating parent IPC port */
         return 0;
     }
 
-    lock(&g_process_ipc_info.lock);
     assert(g_process_ipc_info.parent && g_process_ipc_info.parent->vmid);
 
     add_ipc_port_by_id(g_process_ipc_info.parent->vmid, PAL_CB(parent_process),
                        IPC_PORT_CONNECTION | IPC_PORT_DIRECTPARENT, /*fini=*/NULL,
                        &g_process_ipc_info.parent->port);
 
-    unlock(&g_process_ipc_info.lock);
     return 0;
+}
+
+static void ipc_leader_disconnect_callback(struct shim_ipc_port* port, IDTYPE vmid) {
+    __UNUSED(port);
+    __UNUSED(vmid);
+
+    log_error("IPC leader died\n");
+    DkProcessExit(1);
 }
 
 static int init_ns_ipc_port(void) {
     if (!g_process_ipc_info.ns) {
-        /* no NS info from parent process, no sense in creating NS IPC port */
+        assert(!g_process_ipc_info.parent);
+        assert(!PAL_CB(parent_process));
+
+        /* We are the very first Graphene process, hence also IPC leader. */
+        assert(g_process_ipc_info.self);
+        get_ipc_info(g_process_ipc_info.self);
+        g_process_ipc_info.ns = g_process_ipc_info.self;
         return 0;
     }
 
-    if (g_process_ipc_info.ns->port) {
-        return 0;
-    }
-
-    if (qstrempty(&g_process_ipc_info.ns->uri)) {
-        /* there is no connection to NS leader via PAL handle and there is no URI to find NS leader:
-         * do not create NS IPC port now, it will be created on-demand during NS leader lookup */
-        return 0;
-    }
-
-    lock(&g_process_ipc_info.lock);
+    assert(!g_process_ipc_info.ns->port);
+    assert(!qstrempty(&g_process_ipc_info.ns->uri));
 
     log_debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
     PAL_HANDLE handle = NULL;
     int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0, &handle);
     if (ret < 0) {
-        unlock(&g_process_ipc_info.lock);
         return pal_to_unix_errno(ret);
     }
 
-    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, handle, IPC_PORT_CONNECTION, /*fini=*/NULL,
-                       &g_process_ipc_info.ns->port);
-
-    unlock(&g_process_ipc_info.lock);
+    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, handle, IPC_PORT_CONNECTION,
+                       ipc_leader_disconnect_callback, &g_process_ipc_info.ns->port);
     return 0;
 }
 

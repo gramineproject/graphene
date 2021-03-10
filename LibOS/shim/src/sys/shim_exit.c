@@ -19,6 +19,12 @@
 #include "shim_utils.h"
 
 static noreturn void libos_clean_and_exit(int exit_code) {
+    /*
+     * TODO: if we are the IPC leader, we need to either:
+     * 1) kill all other Graphene processes
+     * 2) wait for them to exit here, before we terminate the IPC helper
+     */
+
     struct shim_thread* async_thread = terminate_async_helper();
     if (async_thread) {
         /* TODO: wait for the thread to exit in host.

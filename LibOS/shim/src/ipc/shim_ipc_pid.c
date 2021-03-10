@@ -23,16 +23,8 @@ int init_ns_pid(void) {
      * initialized), so we should have only one thread, whose tid is equal to the process pid. */
     assert(cur_thread->tid == g_process.pid);
 
-    struct shim_ipc_info* info = NULL;
-    int ret = get_ipc_info_cur_process(&info);
-    if (ret < 0) {
-        return ret;
-    }
-
-    ret = add_ipc_subrange(cur_thread->tid, info->vmid, qstrgetstr(&info->uri));
-
-    put_ipc_info(info);
-    return ret;
+    return add_ipc_subrange(cur_thread->tid, g_process_ipc_info.vmid,
+                            qstrgetstr(&g_process_ipc_info.self->uri));
 }
 
 // TODO: for KILL_THREAD we don't know which process has a thread with given id

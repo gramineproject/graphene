@@ -44,11 +44,8 @@ enum {
 enum {
     IPC_MSG_RESP = 0,
     IPC_MSG_CHILDEXIT,
-    IPC_MSG_FINDNS,
-    IPC_MSG_TELLNS,
     IPC_MSG_LEASE,
     IPC_MSG_OFFER,
-    IPC_MSG_RENEW,
     IPC_MSG_SUBLEASE,
     IPC_MSG_QUERY,
     IPC_MSG_QUERYALL,
@@ -87,7 +84,6 @@ struct shim_ipc_info {
 
 struct shim_process_ipc_info {
     IDTYPE vmid;
-    struct shim_lock lock;
     struct shim_ipc_info* self;
     struct shim_ipc_info* parent;
     struct shim_ipc_info* ns;
@@ -137,7 +133,6 @@ int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri);
 IDTYPE allocate_ipc_id(IDTYPE min, IDTYPE max);
 void release_ipc_id(IDTYPE idx);
 
-int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr);
 int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner);
 
 /* sysv namespace */
@@ -176,20 +171,6 @@ struct shim_ipc_cld_exit {
 int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* FINDNS: find namespace leader (its IPC port) */
-int ipc_findns_send(bool block);
-int ipc_findns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-
-/* TELLNS: tell namespace leader (its IPC port) */
-struct shim_ipc_tellns {
-    IDTYPE vmid;
-    char uri[1];
-} __attribute__((packed));
-
-int ipc_tellns_send(struct shim_ipc_port* port, IDTYPE dest, struct shim_ipc_info* leader,
-                    unsigned long seq);
-int ipc_tellns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-
 /* LEASE: lease a range of IDs */
 struct shim_ipc_lease {
     char uri[1];
@@ -207,15 +188,6 @@ struct shim_ipc_offer {
 int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE size,
                    unsigned long seq);
 int ipc_offer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-
-/* RENEW: renew lease of a range of IDs */
-struct shim_ipc_renew {
-    IDTYPE base;
-    IDTYPE size;
-} __attribute__((packed));
-
-int ipc_renew_send(IDTYPE base, IDTYPE size);
-int ipc_renew_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* SUBLEASE: lease a range of IDs */
 struct shim_ipc_sublease {
@@ -413,7 +385,6 @@ struct shim_process_ipc_info* create_process_ipc_info(void);
 void free_process_ipc_info(struct shim_process_ipc_info* process);
 
 struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name);
-int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 
 void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini,
                         struct shim_ipc_port** portptr);
@@ -456,8 +427,6 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
 void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid);
 
 struct shim_thread* terminate_ipc_helper(void);
-
-int prepare_ipc_leader(void);
 
 int init_ipc_ports(void);
 int init_ns_ranges(void);
