@@ -173,9 +173,8 @@ int main(int argc, char** argv) {
     } else if (!strcmp(argv[1], "dcap")) {
         if (in_sgx) {
             /*
-             * RA-TLS verification with DCAP inside SGX enclave uses dummies
-             * instead of real functions from libsgx_urts.so, thus we don't
-             * need to load this helper library.
+             * RA-TLS verification with DCAP inside SGX enclave uses dummies instead of real
+             * functions from libsgx_urts.so, thus we don't need to load this helper library.
              */
             ra_tls_verify_lib = dlopen("libra_tls_verify_dcap_graphene.so", RTLD_LAZY);
             if (!ra_tls_verify_lib) {

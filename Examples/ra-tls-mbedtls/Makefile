@@ -33,15 +33,13 @@ endif
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/CMakeLists.txt server.manifest.sgx server.sig server.token client pal_loader
+app: .mbedtls_built server.manifest.sgx server.sig server.token client pal_loader
 
 .PHONY: epid
-epid: libra_tls_attest.so libra_tls_verify_epid.so client_epid.manifest.sgx client_epid.sig \
-      client_epid.token
+epid: .epid_libs_copied client_epid.manifest.sgx client_epid.sig client_epid.token
 
 .PHONY: dcap
-dcap: libra_tls_attest.so libra_tls_verify_dcap.so client_dcap.manifest.sgx client_dcap.sig \
-      client_dcap.token
+dcap: .dcap_libs_copied client_dcap.manifest.sgx client_dcap.sig client_dcap.token
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
@@ -72,25 +70,36 @@ $(MBEDTLS_SRC):
 $(MBEDCRYPTO_SRC):
 	$(GRAPHENEDIR)/Scripts/download --output $@ $(foreach mirror,$(MBEDCRYPTO_URI),--url $(mirror)/$(MBEDCRYPTO_SRC)) --sha256 $(MBEDCRYPTO_CHECKSUM)
 
-mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
+.SECONDARY: .mbedtls_downloaded
+.mbedtls_downloaded: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 	tar --touch -xzf $(MBEDTLS_SRC)
 	tar --touch -xzf $(MBEDCRYPTO_SRC)
 	mv mbedtls-mbedtls-$(MBEDTLS_VERSION) mbedtls
 	$(RM) -r mbedtls/crypto
 	mv mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls
 	mv mbedtls/mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls/crypto
-	mkdir mbedtls/install
-	cd mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C && make SHARED=1 DESTDIR=install install .
+	touch $@
+
+.SECONDARY: .mbedtls_configured
+.mbedtls_configured: .mbedtls_downloaded
+	mkdir -p mbedtls/install
+	cd mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C MBEDTLS_ERROR_C
+	touch $@
+
+.SECONDARY: .mbedtls_built
+.mbedtls_built: .mbedtls_configured
+	$(MAKE) -C mbedtls SHARED=1 DESTDIR=install install .
+	touch $@
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
 CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include
-LFLAGS += -Wl,-rpath,. -L. -ldl -lmbedcrypto -lmbedtls -lmbedx509
+LFLAGS += -Wl,-rpath,. -L./libs/ -ldl -lmbedcrypto -lmbedtls -lmbedx509
 
-server: src/server.c libmbedcrypto.so libmbedtls.so libmbedx509.so
+server: src/server.c .mbedtls_libs_copied
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
-client: src/client.c libmbedcrypto.so libmbedtls.so libmbedx509.so
+client: src/client.c .mbedtls_libs_copied
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
 ########################### COPIES FOR CONVENIENCE ############################
@@ -98,43 +107,49 @@ client: src/client.c libmbedcrypto.so libmbedtls.so libmbedx509.so
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/$@ .
 
-libmbedcrypto.so: mbedtls/CMakeLists.txt
-	cp mbedtls/install/lib/$@.* .
-	ln -s $@.* $@
+.SECONDARY: .mbedtls_libs_copied
+.mbedtls_libs_copied: .mbedtls_built
+	mkdir -p libs
 
-libmbedtls.so: mbedtls/CMakeLists.txt
-	cp mbedtls/install/lib/$@.* .
-	ln -s $@.* $@
+	cd libs                                        && \
+	cp ../mbedtls/install/lib/libmbedcrypto.so.* . && \
+	ln -s libmbedcrypto.so.* libmbedcrypto.so      && \
+	cp ../mbedtls/install/lib/libmbedtls.so.* .    && \
+	ln -s libmbedtls.so.* libmbedtls.so            && \
+	cp ../mbedtls/install/lib/libmbedx509.so.* .   && \
+	ln -s libmbedx509.so.* libmbedx509.so
 
-libmbedx509.so: mbedtls/CMakeLists.txt
-	cp mbedtls/install/lib/$@.* .
-	ln -s $@.* $@
+	touch $@
 
-libsgx_util.so:
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/common/$@ .
+.SECONDARY: .epid_libs_copied
+.epid_libs_copied:
+	mkdir -p libs
+	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/common/libsgx_util.so libs/
+	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_attest.so libs/
+	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_verify_epid.so libs/
+	touch $@
 
-libra_tls_attest.so:
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/$@ .
+.SECONDARY: .dcap_libs_copied
+.dcap_libs_copied:
+	mkdir -p libs
+	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/common/libsgx_util.so libs/
+	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_attest.so libs/
+	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_verify_dcap.so libs/
+	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_verify_dcap_graphene.so libs/
+	touch $@
 
-libra_tls_verify_epid.so: libmbedcrypto.so libmbedx509.so libsgx_util.so
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/$@ .
-
-libra_tls_verify_dcap.so: libmbedcrypto.so libmbedx509.so libsgx_util.so
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/$@ .
-
-libra_tls_verify_dcap_graphene.so: libmbedcrypto.so libmbedx509.so libsgx_util.so
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/$@ .
 
 ############################### SERVER MANIFEST ###############################
 
 server.manifest: server.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		-e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
 		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 		$< > $@
 
-server.manifest.sgx: server.manifest server libra_tls_attest.so mbedtls/CMakeLists.txt
+server.manifest.sgx: server.manifest server .mbedtls_built .epid_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
@@ -147,22 +162,13 @@ server.token: server.sig
 
 ########################### CLIENT (DCAP) MANIFEST ############################
 
-# Generate manifest rules for client dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-CLIENT_DCAP_LIBS = client libra_tls_verify_dcap_graphene.so /usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so
-.INTERMEDIATE: client-trusted-libs
-client-dcap-trusted-libs: ../common_tools/get_deps.sh client libra_tls_verify_dcap_graphene.so
-	../common_tools/get_deps.sh $(CLIENT_DCAP_LIBS) > $@
-
-client_dcap.manifest: client.manifest.template client-dcap-trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+client_dcap.manifest: client.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $<; \
-	cat client-dcap-trusted-libs) > $@
+	    $< >$@
 
-client_dcap.manifest.sgx: client_dcap.manifest mbedtls/CMakeLists.txt
+client_dcap.manifest.sgx: client_dcap.manifest client .mbedtls_built .dcap_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
@@ -176,23 +182,13 @@ client_dcap.token: client_dcap.sig
 
 ########################### CLIENT (EPID) MANIFEST ############################
 
-# Generate manifest rules for client dependencies.
-# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
-# there's no harm in this.
-CLIENT_EPID_LIBS = client libra_tls_verify_epid.so
-.INTERMEDIATE: client-trusted-libs
-client-epid-trusted-libs: ../common_tools/get_deps.sh $(CLIENT_EPID_LIBS)
-	../common_tools/get_deps.sh $(CLIENT_EPID_LIBS) > $@
+client_epid.manifest: client.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< >$@
 
-client_epid.manifest: client.manifest.template client-epid-trusted-libs
-	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	     -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	     -e 's|$$(RA_TLS_VERIFY_LIB)|'"libra_tls_verify_epid.so"'|g' \
-	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	     $<; \
-	cat client-epid-trusted-libs) > $@
-
-client_epid.manifest.sgx: client_epid.manifest
+client_epid.manifest.sgx: client_epid.manifest client .epid_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
@@ -210,6 +206,7 @@ client_epid.token: client_epid.sig
 check_epid: app epid
 	SGX=1 ./pal_loader server epid >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid > OUTPUT; \
 	./client epid 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
@@ -223,6 +220,7 @@ check_epid: app epid
 check_epid_fail: app epid
 	SGX=1 ./pal_loader server epid dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
@@ -230,6 +228,7 @@ check_epid_fail: app epid
 check_dcap: app dcap
 	SGX=1 ./pal_loader server dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap > OUTPUT; \
 	./client dcap 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
@@ -243,6 +242,7 @@ check_dcap: app dcap
 check_dcap_fail: app dcap
 	SGX=1 ./pal_loader server dcap dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
@@ -250,9 +250,9 @@ check_dcap_fail: app dcap
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT \
-	      client-dcap-trusted-libs client-epid-trusted-libs
+	$(RM) -r *.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT \
+	         libs/ .mbedtls_libs_copied .epid_libs_copied .dcap_libs_copied
 
 .PHONY: distclean
 distclean: clean
-	$(RM) -r mbedtls *.tar.gz
+	$(RM) -r mbedtls *.tar.gz .mbedtls_downloaded .mbedtls_configured .mbedtls_built

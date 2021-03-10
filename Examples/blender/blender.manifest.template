@@ -56,17 +56,7 @@ sgx.thread_num = 64
 sgx.nonpie_binary = 1
 
 sgx.trusted_files.blender = "file:$(BLENDER_DIR)/blender"
-sgx.trusted_files.ld = "file:$(GRAPHENE_DIR)/Runtime/ld-linux-x86-64.so.2"
-sgx.trusted_files.libc = "file:$(GRAPHENE_DIR)/Runtime/libc.so.6"
-sgx.trusted_files.libdl = "file:$(GRAPHENE_DIR)/Runtime/libdl.so.2"
-sgx.trusted_files.libm = "file:$(GRAPHENE_DIR)/Runtime/libm.so.6"
-sgx.trusted_files.libpthread = "file:$(GRAPHENE_DIR)/Runtime/libpthread.so.0"
-sgx.trusted_files.libutil = "file:$(GRAPHENE_DIR)/Runtime/libutil.so.1"
-sgx.trusted_files.librt = "file:$(GRAPHENE_DIR)/Runtime/librt.so.1"
-
-# Loaded in runtime, ldd doesn't list them.
-sgx.trusted_files.libnuma = "file:/usr/$(ARCH_LIBDIR)/libnuma.so.1"
-sgx.trusted_files.libGL = "file:$(BLENDER_DIR)/lib/libGL.so.1"
-sgx.trusted_files.libglapi = "file:$(BLENDER_DIR)/lib/libglapi.so.0"
-sgx.trusted_files.libz = "file:$(ARCH_LIBDIR)/libz.so.1"
-sgx.trusted_files.libstdcpp = "file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6"
+sgx.trusted_files.libGL = "file:$(BLENDER_DIR)/lib/"
+sgx.trusted_files.runtime = "file:$(GRAPHENE_DIR)/Runtime/"
+sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"

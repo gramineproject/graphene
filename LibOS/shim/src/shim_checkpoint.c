@@ -516,6 +516,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     ret = DkProcessCreate(exec_uri, /*args=*/NULL, &pal_process);
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
+        DEBUG_HERE();
         goto out;
     }
 
@@ -523,6 +524,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     process_ipc_info = create_process_ipc_info();
     if (!process_ipc_info) {
         ret = -EACCES;
+        DEBUG_HERE();
         goto out;
     }
 
@@ -610,6 +612,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     IDTYPE child_vmid = 0;
     ret = read_exact(pal_process, &child_vmid, sizeof(child_vmid));
     if (ret < 0) {
+        DEBUG_HERE();
         goto out;
     }
 

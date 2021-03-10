@@ -2,6 +2,10 @@ loader.preload = "file:../../src/libsysdb.so"
 libos.entrypoint = "file:openmp"
 loader.argv0_override = "openmp"
 
+# Graphene optionally provides patched OpenMP runtime library that runs faster inside SGX enclaves
+# (execute `make -C LibOS gcc` to generate it). This library will replace the native one because
+# Graphene's Runtime path has priority in LD_LIBRARY_PATH.
+
 loader.env.LD_LIBRARY_PATH = "/lib:/usrlib"
 
 # the manifest options below are added only for testing, they have no significance for OpenMP
@@ -23,19 +27,9 @@ fs.mount.usrlib.uri = "file:/usr/$(ARCH_LIBDIR)"
 
 sgx.thread_num = 32
 
-sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
-sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
-sgx.trusted_files.libpthread = "file:../../../../Runtime/libpthread.so.0"
-sgx.trusted_files.libdl = "file:../../../../Runtime/libdl.so.2"
+sgx.trusted_files.runtime = "file:../../../../Runtime/"
 sgx.trusted_files.openmp = "file:openmp"
 
 sgx.trusted_files.libgomp_native = "file:/usr$(ARCH_LIBDIR)/libgomp.so.1"
-
-# Graphene optionally provides patched OpenMP runtime library that runs faster
-# inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment
-# the line below to use the patched library. This library will replace the
-# native one because Graphene's Runtime path has priority in LD_LIBRARY_PATH.
-
-#sgx.trusted_files.libgomp_graphene = "file:../../../../Runtime/libgomp.so.1"
 
 sgx.nonpie_binary = 1

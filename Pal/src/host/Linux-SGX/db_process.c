@@ -177,23 +177,31 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
     sgx_sign_data_t sign_data;
     ret = generate_sign_data(&child->process.session_key, g_pal_enclave_state.enclave_id,
                              &sign_data);
-    if (ret < 0)
+    if (ret < 0) {
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__);
         goto failed;
+    }
 
     ret = _DkStreamReportRequest(child, &sign_data, &is_child_mr_enclave_ok);
-    if (ret < 0)
+    if (ret < 0) {
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__);
         goto failed;
+    }
 
     ret = _DkStreamSecureInit(child, child->process.is_server, &child->process.session_key,
                               (LIB_SSL_CONTEXT**)&child->process.ssl_ctx, NULL, 0);
-    if (ret < 0)
+    if (ret < 0) {
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__);
         goto failed;
+    }
 
     /* securely send the master key to child in the newly established SSL session */
     ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&g_master_key,
                                sizeof(g_master_key));
-    if (ret != sizeof(g_master_key))
+    if (ret != sizeof(g_master_key)) {
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__);
         goto failed;
+    }
 
     /* securely send the wrap key for protected files to child (only if there is one) */
     char pf_wrap_key_set_char[1];
@@ -201,14 +209,18 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
 
     ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&pf_wrap_key_set_char,
                                sizeof(pf_wrap_key_set_char));
-    if (ret != sizeof(pf_wrap_key_set_char))
+    if (ret != sizeof(pf_wrap_key_set_char)) {
+        log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__);
         goto failed;
+    }
 
     if (g_pf_wrap_key_set) {
         ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&g_pf_wrap_key,
                                    sizeof(g_pf_wrap_key));
-        if (ret != sizeof(g_pf_wrap_key))
+        if (ret != sizeof(g_pf_wrap_key)) {
+            log_debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__);
             goto failed;
+        }
     }
 
     *handle = child;

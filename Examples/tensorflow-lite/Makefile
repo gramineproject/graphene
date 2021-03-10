@@ -10,6 +10,12 @@ BAZEL_BIN ?= $(HOME)/bin/bazel
 GIT_COMMIT ?= v1.9.0
 TAR_SHA256 ?= ffc3151b06823d57b4a408261ba8efe53601563dfe93af0866751d4f6ca5068c
 
+ifeq ($(DEBUG),1)
+GRAPHENE_LOG_LEVEL = debug
+else
+GRAPHENE_LOG_LEVEL = error
+endif
+
 .PHONY: all
 all: label_image.manifest
 ifeq ($(SGX),1)
@@ -51,9 +57,8 @@ $(GRAPHENEDIR)/Runtime/libgcc_s.so.1:
 $(GRAPHENEDIR)/Runtime/libstdc++.so.6:
 	cp /usr/$(ARCH_LIBDIR)/libstdc++.so.6 $@
 
-label_image.manifest: libtensorflow_framework.so label_image inception_v3.tflite labels.txt image.bmp
-label_image.manifest: $(GRAPHENEDIR)/Runtime/libgcc_s.so.1 $(GRAPHENEDIR)/Runtime/libstdc++.so.6
-label_image.manifest: label_image.manifest.template
+label_image.manifest: label_image.manifest.template libtensorflow_framework.so label_image \
+                      inception_v3.tflite labels.txt image.bmp
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
 		$< > $@

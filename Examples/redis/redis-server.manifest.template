@@ -111,35 +111,9 @@ sgx.thread_num = 8
 
 sgx.trusted_files.redis-server = "file:redis-server"
 
-# Glibc libraries. ld, libc, libm, libdl, librt provide common functionality;
-# pthread is needed because Redis spawns helper threads for bookkeeping.
-sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
-sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
-sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
-sgx.trusted_files.libdl = "file:$(GRAPHENEDIR)/Runtime/libdl.so.2"
-sgx.trusted_files.librt = "file:$(GRAPHENEDIR)/Runtime/librt.so.1"
-sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
-
-# Name Service Switch (NSS) libraries. Glibc calls these libraries as part of
-# name-service information gathering. libnss_{compat,files,nis} are the
-# most widely used libraries, at least on Ubuntu.
-# For more info, see 'man nsswitch.conf'.
-sgx.trusted_files.libnsscompat = "file:$(ARCH_LIBDIR)/libnss_compat.so.2"
-sgx.trusted_files.libnssfiles = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
-sgx.trusted_files.libnssnis = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
-
-# libNSL is a dependency of libnss_compat above. It is a good example of nested
-# library dependencies required by Graphene-SGX.
-sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
-
-# Additional dependant libraries for redis version 6+
-sgx.trusted_files.libsystemd = "file:$(ARCH_LIBDIR)/libsystemd.so.0"
-sgx.trusted_files.liblzma = "file:$(ARCH_LIBDIR)/liblzma.so.5"
-sgx.trusted_files.libgpgerror = "file:$(ARCH_LIBDIR)/libgpg-error.so.0"
-sgx.trusted_files.liblz4 = "file:/usr/$(ARCH_LIBDIR)/liblz4.so.1"
-# Ubuntu16.04 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
-# Ubuntu18.04 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
-# Ubuntu20.04 sgx.trusted_files.libgcrypt = "file:/usr/$(ARCH_LIBDIR)/libgcrypt.so.20"
+sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
+sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
 
 # Trusted no-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure
