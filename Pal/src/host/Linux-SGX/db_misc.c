@@ -49,26 +49,31 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
         return ocall_gettime(out_usec);
     }
 
-    uint64_t usec = 0;
     uint32_t seq;
+    uint64_t start_tsc;
+    uint64_t start_usec;
     do {
         seq = read_seqbegin(&g_tsc_lock);
-        if (g_start_tsc > 0 && g_start_usec > 0) {
-            /* baseline TSC/usec pair was initialized, can calculate time via RDTSC (but should be
-             * careful with integer overflow during calculations) */
-            uint64_t diff_tsc = get_tsc() - g_start_tsc;
-            if (diff_tsc < UINT64_MAX / 1000000) {
-                uint64_t diff_usec = diff_tsc * 1000000 / g_tsc_hz;
-                if (diff_usec < TSC_REFINE_INIT_TIMEOUT_USECS) {
-                    /* less than TSC_REFINE_INIT_TIMEOUT_USECS passed from the previous update of
-                     * TSC/usec pair (time drift is contained), use the RDTSC-calculated time */
-                    usec = g_start_usec + diff_usec;
-                    if (usec < g_start_usec)
-                        return -PAL_ERROR_OVERFLOW;
-                }
+        start_tsc  = READ_ONCE(g_start_tsc);
+        start_usec = READ_ONCE(g_start_usec);
+    } while (read_seqretry(&g_tsc_lock, seq));
+
+    uint64_t usec = 0;
+    if (start_tsc > 0 && start_usec > 0) {
+        /* baseline TSC/usec pair was initialized, can calculate time via RDTSC (but should be
+         * careful with integer overflow during calculations) */
+        uint64_t diff_tsc = get_tsc() - start_tsc;
+        if (diff_tsc < UINT64_MAX / 1000000) {
+            uint64_t diff_usec = diff_tsc * 1000000 / g_tsc_hz;
+            if (diff_usec < TSC_REFINE_INIT_TIMEOUT_USECS) {
+                /* less than TSC_REFINE_INIT_TIMEOUT_USECS passed from the previous update of
+                 * TSC/usec pair (time drift is contained), use the RDTSC-calculated time */
+                usec = start_usec + diff_usec;
+                if (usec < start_usec)
+                    return -PAL_ERROR_OVERFLOW;
             }
         }
-    } while (read_seqretry(&g_tsc_lock, seq));
+    }
 
     if (usec) {
         *out_usec = usec;
@@ -90,11 +95,11 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     if (tsc_cyc < tsc_cyc1)
         return -PAL_ERROR_OVERFLOW;
 
-    write_seqbegin(&g_tsc_lock);
     /* refresh the baseline data if no other thread updated g_start_tsc */
+    write_seqbegin(&g_tsc_lock);
     if (g_start_tsc < tsc_cyc) {
+        g_start_tsc  = tsc_cyc;
         g_start_usec = usec;
-        g_start_tsc = tsc_cyc;
     }
     write_seqend(&g_tsc_lock);
 
