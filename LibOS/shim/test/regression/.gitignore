@@ -32,6 +32,7 @@
 /debug_regs-x86_64
 /dev
 /device
+/double_fork
 /env_from_file
 /env_from_host
 /epoll_wait_timeout

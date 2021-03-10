@@ -449,6 +449,8 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_signal_handling);
     RUN_INIT(init_ipc_helper);
 
+    /* FIXME: `PAL_CB(parent_process)` was handed over to IPC code above so we should't be using it
+     * here. */
     if (PAL_CB(parent_process)) {
         /* Notify the parent process */
         IDTYPE child_vmid = g_process_ipc_info.vmid;

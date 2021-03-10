@@ -45,7 +45,6 @@ int init_ipc(void) {
     int ret = 0;
 
     if (!create_lock(&ipc_info_lock)
-        || !create_lock(&g_process_ipc_info.lock)
         || !create_lock(&ipc_info_mgr_lock)) {
         return -ENOMEM;
     }
@@ -168,8 +167,6 @@ struct shim_process_ipc_info* create_process_ipc_info(void) {
     if (!new_process_ipc_info)
         return NULL;
 
-    lock(&g_process_ipc_info.lock);
-
     /* current process must have been initialized with info on its own IPC info */
     assert(g_process_ipc_info.self);
 
@@ -182,20 +179,17 @@ struct shim_process_ipc_info* create_process_ipc_info(void) {
     if (!new_process_ipc_info->parent)
         goto fail;
 
-    /* new process inherits the same namespace leader */
-    if (g_process_ipc_info.ns) {
-        new_process_ipc_info->ns = create_ipc_info(g_process_ipc_info.ns->vmid,
-                                                   qstrgetstr(&g_process_ipc_info.ns->uri),
-                                                   g_process_ipc_info.ns->uri.len);
-        if (!new_process_ipc_info->ns)
-            goto fail;
-    }
+    assert(g_process_ipc_info.ns);
+    assert(!qstrempty(&g_process_ipc_info.ns->uri));
+    new_process_ipc_info->ns = create_ipc_info(g_process_ipc_info.ns->vmid,
+                                               qstrgetstr(&g_process_ipc_info.ns->uri),
+                                               g_process_ipc_info.ns->uri.len);
+    if (!new_process_ipc_info->ns)
+        goto fail;
 
-    unlock(&g_process_ipc_info.lock);
     return new_process_ipc_info;
 
 fail:
-    unlock(&g_process_ipc_info.lock);
     free_process_ipc_info(new_process_ipc_info);
     return NULL;
 }
@@ -334,8 +328,6 @@ out:
 }
 
 struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name) {
-    assert(locked(&g_process_ipc_info.lock));
-
     struct shim_ipc_info* info = create_ipc_info(g_process_ipc_info.vmid, NULL, 0);
     if (!info)
         return NULL;
@@ -356,24 +348,6 @@ struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name) {
     }
 
     return info;
-}
-
-int get_ipc_info_cur_process(struct shim_ipc_info** info) {
-    lock(&g_process_ipc_info.lock);
-
-    if (!g_process_ipc_info.self) {
-        g_process_ipc_info.self = create_ipc_info_and_port(/*use_vmid_as_port_name=*/true);
-        if (!g_process_ipc_info.self) {
-            unlock(&g_process_ipc_info.lock);
-            return -EACCES;
-        }
-    }
-
-    get_ipc_info(g_process_ipc_info.self);
-    *info = g_process_ipc_info.self;
-
-    unlock(&g_process_ipc_info.lock);
-    return 0;
 }
 
 BEGIN_CP_FUNC(ipc_info) {
@@ -465,8 +439,6 @@ BEGIN_RS_FUNC(process_ipc_info) {
         get_ipc_info(process_ipc_info->ns);
 
     g_process_ipc_info = *process_ipc_info;
-    // this lock will be created in init_ipc
-    clear_lock(&g_process_ipc_info.lock);
 
     DEBUG_RS("vmid=%u,uri=%s,parent=%u(%s)", process_ipc_info->vmid,
              process_ipc_info->self ? qstrgetstr(&process_ipc_info->self->uri) : "",
