@@ -214,6 +214,7 @@ reopen:
     set_handle_fs(exec, fs);
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
+    exec->dentry   = dent;
     ret = fs->d_ops->open(exec, dent, O_RDONLY);
 
     if (qstrempty(&exec->uri)) {
