@@ -323,10 +323,11 @@ do_remap:
             }
         }
 
-        if (l->l_phdr == 0 && (ElfW(Off))c->mapoff <= ehdr->e_phoff &&
-            ((size_t)(c->mapend - c->mapstart + c->mapoff) >= phdr_size))
+        if (l->l_phdr == 0 && (ElfW(Off))c->mapoff <= ehdr->e_phoff
+                && ((size_t)(c->mapend - c->mapstart + c->mapoff) >= phdr_size)) {
             /* Found the program header in this segment.  */
             l->l_phdr = (void*)(c->mapstart + ehdr->e_phoff - c->mapoff);
+        }
 
         if (c->allocend > c->dataend) {
             /* Extra zero pages should appear at the end of this segment,
@@ -387,8 +388,7 @@ do_remap:
 
     if (l->l_phdr == NULL) {
         /* The program header is not contained in any of the segments. We have to allocate memory
-           ourself.
-        */
+         * ourselves. */
         ElfW(Phdr)* newp = malloc(phdr_size);
         if (newp == NULL) {
             errstring = "cannot allocate memory for program header";
@@ -534,7 +534,7 @@ static int read_file_fragment(struct shim_handle* file, void* buf, size_t offset
 }
 
 static int __load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
-    int ret = read_file_fragment(file, ehdr, 0, sizeof(*ehdr));
+    int ret = read_file_fragment(file, ehdr, /*offset=*/0, sizeof(*ehdr));
     if (ret < 0)
         return ret;
 
@@ -548,7 +548,7 @@ static int __load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
 int check_elf_object(struct shim_handle* file) {
     ElfW(Ehdr) ehdr;
 
-    int ret = read_file_fragment(file, &ehdr, 0, sizeof(ehdr));
+    int ret = read_file_fragment(file, &ehdr, /*offset=*/0, sizeof(ehdr));
     if (ret < 0)
         return ret;
 
