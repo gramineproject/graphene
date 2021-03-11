@@ -50,24 +50,34 @@ typedef ElfW(Word) Elf_Symndx;
  * Originally based on glibc link_map structure.
  */
 struct link_map {
-    ElfW(Addr) l_addr;       /* Base address shared object is loaded at. */
-    const char* l_name;      /* Object identifier: file path, or PAL URI if path is unavailable.  */
-    struct link_map* l_next; /* Chain of loaded objects.  */
+    /* Base address shared object is loaded at. */
+    ElfW(Addr) l_addr;
+
+    /* Object identifier: file path, or PAL URI if path is unavailable. */
+    const char* l_name;
+
+    /* Chain of loaded objects. */
+    struct link_map* l_next;
     struct link_map* l_prev;
 
-    ElfW(Phdr)* l_phdr;      /* Pointer to program header table.  */
+    /* Pointer to program header table, and whether it's allocated separately by us. */
+    ElfW(Phdr)* l_phdr;
     bool l_phdr_allocated;
-    ElfW(Addr) l_entry;        /* Entry point location.  */
-    ElfW(Half) l_phnum;        /* Number of program header entries.  */
 
-    /* Start and finish of memory map for this object.  l_map_start
-       need not be the same as l_addr.  */
+    /* Entry point location. */
+    ElfW(Addr) l_entry;
+
+    /* Number of program header entries.  */
+    ElfW(Half) l_phnum;
+
+    /* Start and finish of memory map for this object.  l_map_start need not be the same as
+     * l_addr. */
     ElfW(Addr) l_map_start, l_map_end;
 
     const char* l_interp_libname;
     ElfW(Addr) l_main_entry;
 
-    /* pointer to related file */
+    /* Pointer to related file. */
     struct shim_handle* l_file;
 
 #define MAX_LOADCMDS 4
