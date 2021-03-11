@@ -63,18 +63,22 @@ regression: all
 	@mkdir -p scripts/testdir
 
 	./pal_loader ./bash -c "ls" > OUTPUT
-	@grep -q "Makefile" OUTPUT && echo "[ Success 1/6 ]"
+	@grep -q "Makefile" OUTPUT && echo "[ Success 1/7 ]"
 	@rm OUTPUT
 
 	./pal_loader ./bash -c "cd scripts && bash bash_test.sh 1" > OUTPUT
-	@grep -q "hello 1" OUTPUT      && echo "[ Success 2/6 ]"
-	@grep -q "createdfile" OUTPUT  && echo "[ Success 3/6 ]"
-	@grep -q "somefile" OUTPUT     && echo "[ Success 4/6 ]"
-	@grep -q "current date" OUTPUT && echo "[ Success 5/6 ]"
+	@grep -q "hello 1" OUTPUT      && echo "[ Success 2/7 ]"
+	@grep -q "createdfile" OUTPUT  && echo "[ Success 3/7 ]"
+	@grep -q "somefile" OUTPUT     && echo "[ Success 4/7 ]"
+	@grep -q "current date" OUTPUT && echo "[ Success 5/7 ]"
 	@rm OUTPUT
 
 	./pal_loader ./bash -c "cd scripts && bash bash_test.sh 3" > OUTPUT
-	@grep -q "hello 3" OUTPUT      && echo "[ Success 6/6 ]"
+	@grep -q "hello 3" OUTPUT      && echo "[ Success 6/7 ]"
+	@rm OUTPUT
+
+	./pal_loader ./bash -c "readlink /proc/self/exe" > OUTPUT
+	@grep -qE "^(/usr)?/bin/readlink" OUTPUT && echo "[ Success 7/7 ]"
 	@rm OUTPUT
 
 	@rm -rf scripts/testdir

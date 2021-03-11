@@ -24,16 +24,12 @@ fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
 
 # Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by Bash
 fs.mount.lib64.type = "chroot"
-fs.mount.lib64.path = "/lib64"
-fs.mount.lib64.uri = "file:/lib64"
+fs.mount.lib64.path = "$(ARCH_LIBDIR)"
+fs.mount.lib64.uri = "file:$(ARCH_LIBDIR)"
 
 fs.mount.usr_lib.type = "chroot"
 fs.mount.usr_lib.path = "/usr/lib"
 fs.mount.usr_lib.uri = "file:/usr/lib"
-
-fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
 
 # Mount /bin
 fs.mount.bin.type = "chroot"
@@ -63,6 +59,7 @@ sgx.trusted_files.cat = "file:$(EXECDIR)/cat"
 sgx.trusted_files.rm = "file:$(EXECDIR)/rm"
 sgx.trusted_files.cp = "file:$(EXECDIR)/cp"
 sgx.trusted_files.date = "file:$(EXECDIR)/date"
+sgx.trusted_files.readlink = "file:$(EXECDIR)/readlink"
 
 # Glibc libraries
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
