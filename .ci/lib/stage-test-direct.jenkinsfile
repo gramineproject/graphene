@@ -49,7 +49,7 @@ stage('test-direct') {
             cd Examples/memcached
             make -j8 all
             make start-graphene-server &
-            sleep 1
+            ../../Scripts/wait_for_server 5 127.0.0.1 11211
             # memcslap populates server but doesn't report errors, use
             # memcached-tool for this (must return two lines of stats)
             memcslap --servers=127.0.0.1 --concurrency=8
@@ -66,7 +66,7 @@ stage('test-direct') {
             fi
             make -j8 all
             make start-graphene-server &
-            sleep 1
+            ../../Scripts/wait_for_server 5 127.0.0.1 6379
             ./src/src/redis-benchmark
         '''
     }
@@ -75,7 +75,7 @@ stage('test-direct') {
             cd Examples/lighttpd
             make -j8 all
             make start-graphene-server &
-            sleep 1
+            ../../Scripts/wait_for_server 5 127.0.0.1 8003
             LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8003
         '''
     }
@@ -84,7 +84,7 @@ stage('test-direct') {
             cd Examples/nginx
             make -j8 all
             make start-graphene-server &
-            sleep 1
+            ../../Scripts/wait_for_server 5 127.0.0.1 8002
             LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8002
         '''
     }
@@ -93,8 +93,9 @@ stage('test-direct') {
             cd Examples/apache
             make -j8 all
             make start-graphene-server &
-            sleep 1
+            ../../Scripts/wait_for_server 5 127.0.0.1 8001
             LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8001
+            ../../Scripts/wait_for_server 5 127.0.0.1 8443
             LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh https://127.0.0.1:8443
         '''
     }
