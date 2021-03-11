@@ -36,6 +36,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     linux-headers-4.15.0-20-generic \
     meson \
     net-tools \
+    netcat-openbsd \
     pkg-config \
     protobuf-c-compiler \
     pylint3 \

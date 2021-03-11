@@ -35,6 +35,7 @@ RUN apt-get update \
        libxxf86vm1 \
        linux-headers-4.4.0-161-generic \
        net-tools \
+       netcat-openbsd \
        ninja-build \
        pkg-config \
        protobuf-c-compiler \
