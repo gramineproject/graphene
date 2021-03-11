@@ -62,7 +62,7 @@ pal_loader:
 .PHONY: check
 check: all
 	./pal_loader ./nodejs helloworld.js 3000 & SERVER_ID=$$!; \
-	sleep 3; \
+	../../Scripts/wait_for_server 5 127.0.0.1 3000; \
 	curl localhost:3000 > OUTPUT; \
 	kill -9 $$SERVER_ID;
 	@grep -q "Hello World!" OUTPUT && echo "[ Success 1/1 ]"
