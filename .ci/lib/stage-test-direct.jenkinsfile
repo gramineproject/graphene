@@ -79,25 +79,25 @@ stage('test-direct') {
             LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8003
         '''
     }
-    timeout(time: 10, unit: 'MINUTES') {
-        sh '''
-            cd Examples/nginx
-            make -j8 all
-            make start-graphene-server &
-            sleep 1
-            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8002
-        '''
-    }
-    timeout(time: 20, unit: 'MINUTES') {
-        sh '''
-            cd Examples/apache
-            make -j8 all
-            make start-graphene-server &
-            sleep 1
-            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8001
-            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh https://127.0.0.1:8443
-        '''
-    }
+    // timeout(time: 10, unit: 'MINUTES') {
+    //     sh '''
+    //         cd Examples/nginx
+    //         make -j8 all
+    //         make start-graphene-server &
+    //         sleep 1
+    //         LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8002
+    //     '''
+    // }
+    // timeout(time: 20, unit: 'MINUTES') {
+    //     sh '''
+    //         cd Examples/apache
+    //         make -j8 all
+    //         make start-graphene-server &
+    //         sleep 1
+    //         LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8001
+    //         LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh https://127.0.0.1:8443
+    //     '''
+    // }
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/blender

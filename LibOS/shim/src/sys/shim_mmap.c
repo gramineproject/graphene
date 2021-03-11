@@ -77,6 +77,8 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
     if (flags & MAP_ANONYMOUS) {
         switch (flags & MAP_TYPE) {
             case MAP_SHARED:
+                /* PAL API doesn't support anonymous shared memory. */
+                return (void*)-ENOSYS;
             case MAP_PRIVATE:
                 break;
             default:
