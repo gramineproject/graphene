@@ -184,37 +184,31 @@ reopen:
         return ret;
 
     struct shim_mount* fs = dent->fs;
-    get_dentry(dent);
 
-    if (!fs->d_ops->open) {
-        ret = -EACCES;
-    err:
-        put_dentry(dent);
-        return ret;
-    }
+    if (!fs->d_ops->open)
+        return -EACCES;
 
     if (fs->d_ops->mode) {
         __kernel_mode_t mode;
         if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
-            goto err;
+            return ret;
         /* Check if the file is executable. Currently just looks at the user bit. */
-        if (!(mode & S_IXUSR)) {
-            ret = -EACCES;
-            goto err;
-        }
+        if (!(mode & S_IXUSR))
+            return -EACCES;
     }
 
     struct shim_handle* exec = NULL;
 
-    if (!(exec = get_new_handle())) {
-        ret = -ENOMEM;
-        goto err;
-    }
+    if (!(exec = get_new_handle()))
+        return -ENOMEM;
 
     set_handle_fs(exec, fs);
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
-    exec->dentry   = dent;
+
+    get_dentry(dent);
+    exec->dentry = dent;
+
     ret = fs->d_ops->open(exec, dent, O_RDONLY);
 
     if (qstrempty(&exec->uri)) {
