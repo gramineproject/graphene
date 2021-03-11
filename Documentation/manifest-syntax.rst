@@ -267,6 +267,10 @@ FS mount points
     fs.mount.[identifier].path = "[PATH]"
     fs.mount.[identifier].uri  = "[URI]"
 
+This syntax specifies how file systems are mounted inside the library OS. For
+dynamically linked binaries, usually at least one `chroot` mount point is
+required in the manifest (the mount point of the Glibc library).
+
 Graphene currently supports two types of mount points:
 
 * ``chroot``: Host-backed files. All host files and sub-directories found under
@@ -286,6 +290,9 @@ Graphene currently supports two types of mount points:
   is especially useful in trusted environments (like Intel SGX) for securely
   storing temporary files. This concept is similar to Linux's tmpfs. Files
   under ``tmpfs`` mount points currently do *not* support mmap and fork/clone.
+
+Start (current working) directory
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
