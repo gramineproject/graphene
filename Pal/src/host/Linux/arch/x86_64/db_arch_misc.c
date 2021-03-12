@@ -112,7 +112,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
      * SMT support etc. by parsing sysfs pseudo-files */
     int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
     if (online_logical_cores < 0) {
-        rv = unix_to_pal_error(ERRNO(online_logical_cores));
+        rv = unix_to_pal_error(online_logical_cores);
         goto out_brand;
     }
     ci->online_logical_cores = online_logical_cores;
@@ -120,7 +120,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
                                                  /*count=*/true);
     if (possible_logical_cores < 0) {
-        rv = unix_to_pal_error(ERRNO(possible_logical_cores));
+        rv = unix_to_pal_error(possible_logical_cores);
         goto out_brand;
     }
     ci->possible_logical_cores = possible_logical_cores;
@@ -134,14 +134,14 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
                                         /*count=*/true);
     if (core_siblings < 0) {
-        rv = unix_to_pal_error(ERRNO(core_siblings));
+        rv = unix_to_pal_error(core_siblings);
         goto out_brand;
     }
 
     int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
                                        /*count=*/true);
     if (smt_siblings < 0) {
-        rv = unix_to_pal_error(ERRNO(smt_siblings));
+        rv = unix_to_pal_error(smt_siblings);
         goto out_brand;
     }
     ci->physical_cores_per_socket = core_siblings / smt_siblings;
@@ -160,7 +160,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
         cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
         if (cpu_socket[idx] < 0) {
             printf("Cannot read %s\n", filename);
-            rv = unix_to_pal_error(ERRNO(cpu_socket[idx]));
+            rv = unix_to_pal_error(cpu_socket[idx]);
             goto out_phy_id;
         }
     }
@@ -258,7 +258,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
     int ret = get_topology_info(topo_info);
     if (ret < 0)
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
 
     return 0;
 }

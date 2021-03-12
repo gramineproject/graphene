@@ -400,9 +400,9 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
     *sizeptr = tf->size;
     if (*sizeptr) {
         ret = ocall_mmap_untrusted(umem, tf->size, PROT_READ, MAP_SHARED, fd, /*offset=*/0);
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             *umem = NULL;
-            ret = unix_to_pal_error(ERRNO(ret));
+            ret = unix_to_pal_error(ret);
             goto failed;
         }
     }

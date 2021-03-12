@@ -89,7 +89,7 @@ static pf_status_t cb_write(pf_handle_t handle, const void* buffer, uint64_t off
 static pf_status_t cb_truncate(pf_handle_t handle, uint64_t size) {
     int fd = *(int*)handle;
     int ret = ocall_ftruncate(fd, size);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         log_error("cb_truncate(%d, %lu): ocall failed: %d\n", fd, size, ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
@@ -129,7 +129,7 @@ static pf_status_t cb_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv, co
 
 static pf_status_t cb_random(uint8_t* buffer, size_t size) {
     int ret = _DkRandomBitsRead(buffer, size);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         log_error("_DkRandomBitsRead failed: %d\n", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
@@ -240,7 +240,7 @@ static int is_directory(const char* path, bool* is_dir) {
 
     *is_dir = false;
     int ret = ocall_open(path, O_RDONLY, 0);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         /* this can be called on a path without the file existing, assume non-dir for now */
         ret = 0;
         goto out;
@@ -248,7 +248,7 @@ static int is_directory(const char* path, bool* is_dir) {
 
     fd = ret;
     ret = ocall_fstat(fd, &st);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         log_error("is_directory(%s): fstat failed: %d\n", path, ret);
         goto out;
     }
@@ -259,12 +259,12 @@ static int is_directory(const char* path, bool* is_dir) {
 out:
     if (fd >= 0) {
         int rv = ocall_close(fd);
-        if (IS_ERR(rv)) {
+        if (rv < 0) {
             log_error("is_directory(%s): close failed: %d\n", path, rv);
         }
     }
 
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 /* Register all files from the given directory recursively */
@@ -278,9 +278,9 @@ static int register_protected_dir(const char* path) {
         return -PAL_ERROR_NOMEM;
 
     ret = ocall_open(path, O_RDONLY | O_DIRECTORY, 0);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         log_error("register_protected_dir: opening %s failed: %d\n", path, ret);
-        ret = unix_to_pal_error(ERRNO(ret));
+        ret = unix_to_pal_error(ret);
         goto out;
     }
     fd = ret;
@@ -289,8 +289,8 @@ static int register_protected_dir(const char* path) {
     int returned;
     do {
         returned = ocall_getdents(fd, buf, bufsize);
-        if (IS_ERR(returned)) {
-            ret = unix_to_pal_error(ERRNO(returned));
+        if (returned < 0) {
+            ret = unix_to_pal_error(returned);
             log_error("register_protected_dir: reading %s failed: %d\n", path, ret);
             goto out;
         }

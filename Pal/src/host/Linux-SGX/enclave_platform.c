@@ -23,7 +23,7 @@ int sgx_get_quote(const sgx_spid_t* spid, const sgx_quote_nonce_t* nonce,
     ret = ocall_get_quote(spid, linkable, &report, nonce, quote, quote_len);
     if (ret < 0) {
         log_error("Failed to get quote\n");
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
     return 0;
 }

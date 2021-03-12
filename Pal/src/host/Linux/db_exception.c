@@ -30,13 +30,13 @@ static int block_signal(int sig, bool block) {
     int how = block ? SIG_BLOCK : SIG_UNBLOCK;
     int ret = arch_do_rt_sigprocmask(sig, how);
 
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+    return ret < 0 ? unix_to_pal_error(ret) : 0;
 }
 
 static int set_signal_handler(int sig, void* handler) {
     int ret = arch_do_rt_sigaction(sig, handler, ASYNC_SIGNALS, ARRAY_SIZE(ASYNC_SIGNALS));
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     return block_signal(sig, /*block=*/false);
 }
@@ -44,8 +44,8 @@ static int set_signal_handler(int sig, void* handler) {
 int block_async_signals(bool block) {
     for (size_t i = 0; i < ARRAY_SIZE(ASYNC_SIGNALS); i++) {
         int ret = block_signal(ASYNC_SIGNALS[i], block);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
     }
     return 0;
 }

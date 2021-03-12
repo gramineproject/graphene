@@ -61,7 +61,7 @@ static int block_signal(int sig, bool block) {
     __sigaddset(&mask, sig);
 
     int ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL, sizeof(__sigset_t));
-    return IS_ERR(ret) ? -ERRNO(ret) : 0;
+    return ret < 0 ? ret : 0;
 }
 
 static int set_signal_handler(int sig, void* handler) {
@@ -76,8 +76,8 @@ static int set_signal_handler(int sig, void* handler) {
         __sigaddset((__sigset_t*)&action.sa_mask, ASYNC_SIGNALS[i]);
 
     int ret = INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
+    if (ret < 0)
+        return ret;
 
     return block_signal(sig, /*block=*/false);
 }
@@ -85,8 +85,8 @@ static int set_signal_handler(int sig, void* handler) {
 int block_async_signals(bool block) {
     for (size_t i = 0; i < ARRAY_SIZE(ASYNC_SIGNALS); i++) {
         int ret = block_signal(ASYNC_SIGNALS[i], block);
-        if (IS_ERR(ret))
-            return -ERRNO(ret);
+        if (ret < 0)
+            return ret;
     }
     return 0;
 }

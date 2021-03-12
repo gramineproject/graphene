@@ -69,11 +69,11 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
          */
         ret = ocall_futex(m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout_us);
 
-        if (IS_ERR(ret)) {
-            if (ERRNO(ret) == EWOULDBLOCK) {
+        if (ret < 0) {
+            if (ret == -EWOULDBLOCK) {
                 ret = -PAL_ERROR_TRYAGAIN;
             } else {
-                ret = unix_to_pal_error(ERRNO(ret));
+                ret = unix_to_pal_error(ret);
             }
             __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
             goto out;

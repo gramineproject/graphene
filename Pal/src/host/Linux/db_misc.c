@@ -27,8 +27,8 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
         ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
     }
 
-    if (IS_ERR(ret))
-        return ret;
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     /* in microseconds */
     *out_usec = 1000000 * (uint64_t)time.tv_sec + time.tv_nsec / 1000;
@@ -38,7 +38,7 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
 size_t _DkRandomBitsRead(void* buffer, size_t size) {
     if (!g_pal_sec.random_device) {
         int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
-        if (IS_ERR(fd))
+        if (fd < 0)
             return -PAL_ERROR_DENIED;
 
         g_pal_sec.random_device = fd;
@@ -48,7 +48,7 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
     do {
         int bytes = INLINE_SYSCALL(read, 3, g_pal_sec.random_device, buffer + total_bytes,
                                    size - total_bytes);
-        if (IS_ERR(bytes))
+        if (bytes < 0)
             return -PAL_ERROR_DENIED;
 
         total_bytes += (size_t)bytes;

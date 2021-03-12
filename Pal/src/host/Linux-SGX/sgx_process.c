@@ -67,7 +67,8 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
     int fds[2] = {-1, -1};
 
     int socktype = SOCK_STREAM;
-    if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds))))
+    ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds);
+    if (ret < 0)
         goto out;
 
     const char** argv = __alloca(sizeof(const char*) * (nargs + 5));
@@ -88,7 +89,7 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
     }
 
     ret = vfork_exec(/*parent_stream=*/fds[1], argv);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto out;
 
     /* parent continues here */
@@ -114,31 +115,31 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
     memcpy(proc_args.pipe_prefix, pal_sec->pipe_prefix, sizeof(PAL_SEC_STR));
 
     ret = INLINE_SYSCALL(write, 3, fds[1], &proc_args, sizeof(struct proc_args));
-    if (IS_ERR(ret) || (size_t)ret != sizeof(struct proc_args)) {
-        ret = IS_ERR(ret) ? ret : -EINTR;
+    if (ret < 0 || (size_t)ret != sizeof(struct proc_args)) {
+        ret = ret < 0 ? ret : -EINTR;
         goto out;
     }
 
     ret = INLINE_SYSCALL(write, 3, fds[1], g_pal_enclave.application_path,
                          proc_args.application_path_size);
-    if (IS_ERR(ret) || (size_t)ret != proc_args.application_path_size) {
-        ret = IS_ERR(ret) ? ret : -EINTR;
+    if (ret < 0 || (size_t)ret != proc_args.application_path_size) {
+        ret = ret < 0 ? ret : -EINTR;
         goto out;
     }
 
     ret = INLINE_SYSCALL(write, 3, fds[1], manifest, proc_args.manifest_size);
-    if (IS_ERR(ret) || (size_t)ret != proc_args.manifest_size) {
-        ret = IS_ERR(ret) ? ret : -EINTR;
+    if (ret < 0 || (size_t)ret != proc_args.manifest_size) {
+        ret = ret < 0 ? ret : -EINTR;
         goto out;
     }
 
     ret = INLINE_SYSCALL(read, 3, fds[1], &rete, sizeof(rete));
-    if (IS_ERR(ret) || (size_t)ret != sizeof(rete)) {
-        ret = IS_ERR(ret) ? ret : -EINTR;
+    if (ret < 0 || (size_t)ret != sizeof(rete)) {
+        ret = ret < 0 ? ret : -EINTR;
         goto out;
     }
 
-    if (IS_ERR(rete)) {
+    if (rete < 0) {
         ret = rete;
         goto out;
     }
@@ -150,7 +151,7 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 
     ret = child;
 out:
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         if (fds[0] >= 0)
             INLINE_SYSCALL(close, 1, fds[0]);
         if (fds[1] >= 0)
@@ -169,8 +170,8 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** a
     char* application_path = NULL;
 
     bytes_read = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(struct proc_args));
-    if (IS_ERR(bytes_read) || (size_t)bytes_read != sizeof(struct proc_args)) {
-        ret = IS_ERR(bytes_read) ? bytes_read : -EINTR;
+    if (bytes_read < 0 || (size_t)bytes_read != sizeof(struct proc_args)) {
+        ret = bytes_read < 0 ? bytes_read : -EINTR;
         goto out;
     }
 
@@ -188,23 +189,23 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** a
 
     bytes_read = INLINE_SYSCALL(read, 3, parent_pipe_fd, application_path,
                                 proc_args.application_path_size);
-    if (IS_ERR(bytes_read) || (size_t)bytes_read != proc_args.application_path_size) {
-        ret = IS_ERR(bytes_read) ? bytes_read : -EINTR;
+    if (bytes_read < 0 || (size_t)bytes_read != proc_args.application_path_size) {
+        ret = bytes_read < 0 ? bytes_read : -EINTR;
         goto out;
     }
     application_path[proc_args.application_path_size] = '\0';
 
     bytes_read = INLINE_SYSCALL(read, 3, parent_pipe_fd, manifest, proc_args.manifest_size);
-    if (IS_ERR(bytes_read) || (size_t)bytes_read != proc_args.manifest_size) {
-        ret = IS_ERR(bytes_read) ? bytes_read : -EINTR;
+    if (bytes_read < 0 || (size_t)bytes_read != proc_args.manifest_size) {
+        ret = bytes_read < 0 ? bytes_read : -EINTR;
         goto out;
     }
     manifest[proc_args.manifest_size] = '\0';
 
     int child_status = 0;
     bytes_written = INLINE_SYSCALL(write, 3, parent_pipe_fd, &child_status, sizeof(child_status));
-    if (IS_ERR(bytes_written) || (size_t)bytes_written != sizeof(child_status)) {
-        ret = IS_ERR(bytes_written) ? bytes_written : -EINTR;
+    if (bytes_written < 0 || (size_t)bytes_written != sizeof(child_status)) {
+        ret = bytes_written < 0 ? bytes_written : -EINTR;
         goto out;
     }
 
