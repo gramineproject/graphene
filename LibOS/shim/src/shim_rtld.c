@@ -37,12 +37,6 @@
 #include "shim_vdso-arch.h"
 #include "shim_vma.h"
 
-#ifndef DT_THISPROCNUM
-#define DT_THISPROCNUM 0
-#endif
-
-typedef ElfW(Word) Elf_Symndx;
-
 /*
  * Structure describing a loaded shared object. The `l_next' and `l_prev' members form a chain of
  * all the shared objects loaded at startup.
@@ -131,15 +125,6 @@ static struct link_map* new_elf_object(const char* realname) {
 
     return new;
 }
-
-#if __BYTE_ORDER == __BIG_ENDIAN
-#define byteorder ELFDATA2MSB
-#elif __BYTE_ORDER == __LITTLE_ENDIAN
-#define byteorder ELFDATA2LSB
-#else
-#error "Unknown __BYTE_ORDER " __BYTE_ORDER
-#define byteorder ELFDATANONE
-#endif
 
 static int read_loadcmd(const ElfW(Phdr*) ph, struct loadcmd *c) {
     assert(ph->p_type == PT_LOAD);
@@ -459,14 +444,32 @@ static int __remove_elf_object(struct link_map* l) {
 static int __check_elf_header(ElfW(Ehdr)* ehdr) {
     const char* errstring __attribute__((unused));
 
-#define ELF32_CLASS ELFCLASS32
-#define ELF64_CLASS ELFCLASS64
+#if __ELF_NATIVE_CLASS == 32
+#define elf_class ELFCLASS32
+#elif __ELF_NATIVE_CLASS == 64
+#define elf_class ELFCLASS64
+#else
+#error "Unknown __ELF_NATIVE_CLASS" __ELF_NATIVE_CLASS
+#define elf_class ELFCLASSNONE
+#endif
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define byteorder  ELFDATA2MSB
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+#define byteorder ELFDATA2LSB
+#else
+#error "Unknown __BYTE_ORDER " __BYTE_ORDER
+#define byteorder ELFDATANONE
+#endif
 
     static const unsigned char expected[EI_NIDENT] = {
         [EI_MAG0] = ELFMAG0,       [EI_MAG1] = ELFMAG1,      [EI_MAG2] = ELFMAG2,
-        [EI_MAG3] = ELFMAG3,       [EI_CLASS] = ELFW(CLASS), [EI_DATA] = byteorder,
+        [EI_MAG3] = ELFMAG3,       [EI_CLASS] = elf_class,   [EI_DATA] = byteorder,
         [EI_VERSION] = EV_CURRENT, [EI_OSABI] = 0,
     };
+
+#undef elf_class
+#undef byteorder
 
     /* See whether the ELF header is what we expect.  */
     if (memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 ||
