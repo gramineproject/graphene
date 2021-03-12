@@ -14,21 +14,9 @@
 int g_log_level = PAL_LOG_NONE;
 
 static inline int debug_fputs(const char* buf, size_t size) {
-    size_t bytes = 0;
-
-    while (bytes < size) {
-        PAL_NUM x = size - bytes;
-        int ret = DkDebugLog((void*)(buf + bytes), &x);
-        if (ret < 0) {
-            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
-                continue;
-            }
-            return pal_to_unix_errno(ret);
-        }
-
-        bytes += x;
-    }
-
+    int ret = DkDebugLog((void*)buf, size);
+    if (ret < 0)
+        return pal_to_unix_errno(ret);
     return 0;
 }
 

@@ -7,7 +7,7 @@
 
 #include "pal_error.h"
 
-static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
+static int unix_to_pal_error_positive(int unix_errno) {
     switch (unix_errno) {
         case ENOENT:
             return -PAL_ERROR_STREAMNOTEXIST;
@@ -43,6 +43,19 @@ static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
             return -PAL_ERROR_DENIED;
     }
 }
+
+/*!
+ * \brief Translate UNIX error code into PAL error code.
+ *
+ * The sign of the error code is preserved.
+ */
+static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
+    if (unix_errno >= 0) {
+        return unix_to_pal_error_positive(unix_errno);
+    }
+    return -unix_to_pal_error_positive(-unix_errno);
+}
+
 #endif /* IN_PAL */
 
 #endif /* PAL_LINUX_ERROR_H */
