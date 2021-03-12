@@ -38,6 +38,6 @@ int _DkInitDebugStream(const char* path) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-ssize_t _DkDebugLog(const void* buf, size_t size) {
+int _DkDebugLog(const void* buf, size_t size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
