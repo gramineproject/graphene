@@ -629,7 +629,7 @@ static bool __need_interp(struct link_map* exec_map) {
 extern const char** library_paths;
 
 static int __load_interp_object(struct link_map* exec_map) {
-    const char* interp_name = (const char*)exec_map->l_interp_libname + (long)exec_map->l_addr;
+    const char* interp_name = exec_map->l_interp_libname;
     int len                 = strlen(interp_name);
     const char* filename    = interp_name + len - 1;
     while (filename > interp_name && *filename != '/') {
