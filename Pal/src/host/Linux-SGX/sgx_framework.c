@@ -199,6 +199,15 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     return 0;
 }
 
+void prot_flags_to_permissions_str(char* p, int prot) {
+    if (prot & PROT_READ)
+        p[0] = 'R';
+    if (prot & PROT_WRITE)
+        p[1] = 'W';
+    if (prot & PROT_EXEC)
+        p[2] = 'X';
+}
+
 int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, unsigned long size,
                          enum sgx_page_type type, int prot, bool skip_eextend,
                          const char* comment) {
@@ -236,17 +245,13 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
             break;
     }
 
-    char p[4] = "---";
+
     const char* t = (type == SGX_PAGE_TCS) ? "TCS" : "REG";
     const char* m = skip_eextend ? "" : " measured";
 
+    char p[4] = "---";
     if (type == SGX_PAGE_REG) {
-        if (prot & PROT_READ)
-            p[0] = 'R';
-        if (prot & PROT_WRITE)
-            p[1] = 'W';
-        if (prot & PROT_EXEC)
-            p[2] = 'X';
+        prot_flags_to_permissions_str(p, prot);
     }
 
     if (size == g_page_size)

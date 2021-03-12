@@ -54,7 +54,7 @@ static inline int64_t sgx_getkey(sgx_key_request_t* keyrequest, sgx_key_128bit_t
 /*!
  * \brief Low-level wrapper around EACCEPT instruction leaf.
  *
- * Caller is responsible for parameter alignment: 64B for `si` and 4KB(page size) for `addr`.
+ * Caller is responsible for parameter alignment: 64B for `si` and 4KB (page size) for `addr`.
  */
 static inline int64_t sgx_accept(sgx_arch_sec_info_t* si, const void* addr) {
     int64_t rax = EACCEPT;
@@ -69,7 +69,7 @@ static inline int64_t sgx_accept(sgx_arch_sec_info_t* si, const void* addr) {
 /*!
  * \brief Low-level wrapper around EMODPE instruction leaf.
  *
- * Caller is responsible for parameter alignment: 64B for `si` and 4KB(page size) for `addr`.
+ * Caller is responsible for parameter alignment: 64B for `si` and 4KB (page size) for `addr`.
  */
 static inline int64_t sgx_modpe(sgx_arch_sec_info_t* si, const void* addr) {
     int64_t rax = EMODPE;

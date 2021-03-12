@@ -455,17 +455,10 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             assert(areas[i].data_src == ZERO);
         }
 
-        /* skip adding free (heap) pages to the enclave */
+        /* skip adding free (heap) pages to the enclave if EDMM is enabled */
         if (enclave->pal_sec.edmm_enable_heap && !strcmp(areas[i].desc, "free")) {
             char p[4] = "---";
-            if (areas[i].type == SGX_PAGE_REG) {
-                if (areas[i].prot & PROT_READ)
-                    p[0] = 'R';
-                if (areas[i].prot & PROT_WRITE)
-                    p[1] = 'W';
-                if (areas[i].prot & PROT_EXEC)
-                    p[2] = 'X';
-            }
+            prot_flags_to_permissions_str(p, areas[i].prot);
             urts_log_debug("SKIP adding pages to enclave: %p-%p [%s:%s] (%s)%s\n",
                             (void *)areas[i].addr,
                             (void *)areas[i].addr + areas[i].size,

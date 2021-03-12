@@ -399,7 +399,7 @@ class TC_30_Syscall(RegressionTestCase):
     @unittest.skipIf(HAS_SGX,
         'On SGX, SIGBUS isn\'t always implemented correctly, for lack '
         'of memory protection. For now, some of these cases won\'t work.')
-    def test_051_mmap_sgx(self):
+    def test_051_mmap(self):
         stdout, _ = self.run_binary(['mmap_file'], timeout=60)
 
         # Private mmap beyond file range

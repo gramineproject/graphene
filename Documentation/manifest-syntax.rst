@@ -381,7 +381,7 @@ creating the enclave but allocated dynamically using EACCEPT when Graphene
 requests more heap memory. This triggers a page fault (#PF) which is handled by
 the Intel SGX driver (legacy driver) by EAUGing the page and returning the
 control back to the enclave. The enclave now continues from the same EACCEPT
-instruction (but this time this instruction succeeds).
+instruction (but this time the instruction succeeds).
 
 One of the key advantages of EDMM is that the enclave ends up using only the
 EPC pages that it requires and the user does not need to tailor the enclave

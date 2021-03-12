@@ -525,7 +525,7 @@ def generate_measurement(enclave_base, attr, areas):
                     load_file(mrenclave, file, offset, baseaddr_ + addr, filesize, memsize,
                               desc, flags)
         else:
-            # Skip EADDing of heap("free") pages when EDMM is enabled.
+            # Skip EADDing of heap ("free") pages when EDMM is enabled.
             if edmm_enable_heap == 1 and area.desc == "free":
                 continue
             for addr in range(area.addr, area.addr + area.size, offs.PAGESIZE):
