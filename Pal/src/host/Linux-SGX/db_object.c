@@ -108,14 +108,14 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 
     ret = ocall_poll(fds, nfds, timeout_us);
 
-    if (IS_ERR(ret)) {
-        switch (ERRNO(ret)) {
-            case EINTR:
-            case ERESTART:
+    if (ret < 0) {
+        switch (ret) {
+            case -EINTR:
+            case -ERESTART:
                 ret = -PAL_ERROR_INTERRUPTED;
                 break;
             default:
-                ret = unix_to_pal_error(ERRNO(ret));
+                ret = unix_to_pal_error(ret);
                 break;
         }
         goto out;

@@ -49,17 +49,17 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
 
                 ret = ocall_futex(event->event.signaled, FUTEX_WAKE, nwaiters, -1);
 
-                if (IS_ERR(ret)) {
+                if (ret < 0) {
                     __atomic_store_n(event->event.signaled, 0, __ATOMIC_SEQ_CST);
-                    ret = unix_to_pal_error(ERRNO(ret));
+                    ret = unix_to_pal_error(ret);
                 }
             }
         }
     } else {
         // Only one thread wakes up, leave unsignaled
         ret = ocall_futex(event->event.signaled, FUTEX_WAKE, 1, -1);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
     }
 
     return ret;
@@ -87,7 +87,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
                     ret = 0;
                     break;
                 } else {
-                    ret = unix_to_pal_error(-ret);
+                    ret = unix_to_pal_error(ret);
                     break;
                 }
             }

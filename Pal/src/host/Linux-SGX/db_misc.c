@@ -371,7 +371,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     if (known_leaf->cache && !get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
-    if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
+    if (ocall_cpuid(leaf, subleaf, values) < 0)
         return -PAL_ERROR_DENIED;
 
     sanity_check_cpuid(leaf, subleaf, values);

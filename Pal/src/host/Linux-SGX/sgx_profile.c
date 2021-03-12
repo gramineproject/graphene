@@ -47,10 +47,10 @@ static ssize_t debug_read(void* dest, void* addr, size_t size) {
         ret = INLINE_SYSCALL(pread, 4, g_mem_fd, (uint8_t*)dest + total, size - total,
                              (off_t)addr + total);
 
-        if (IS_ERR(ret) && ERRNO(ret) == EINTR)
+        if (ret < 0 && ret == -EINTR)
             continue;
 
-        if (IS_ERR(ret))
+        if (ret < 0)
             return ret;
 
         if (ret == 0)
@@ -65,7 +65,7 @@ static ssize_t debug_read(void* dest, void* addr, size_t size) {
 
 static int debug_read_all(void* dest, void* addr, size_t size) {
     ssize_t ret = debug_read(dest, addr, size);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return ret;
     if ((size_t)ret < size)
         return -EINVAL;
@@ -106,7 +106,7 @@ int sgx_profile_init(void) {
     g_profile_mode = g_pal_enclave.profile_mode;
 
     ret = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDONLY | O_LARGEFILE, 0);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         urts_log_error("sgx_profile_init: opening /proc/self/mem failed: %d\n", ret);
         goto out;
     }
@@ -133,15 +133,15 @@ int sgx_profile_init(void) {
 out:
     if (g_mem_fd > 0) {
         int close_ret = INLINE_SYSCALL(close, 1, g_mem_fd);
-        if (IS_ERR(close_ret))
+        if (close_ret < 0)
             urts_log_error("sgx_profile_init: closing /proc/self/mem failed: %d\n",
-                           ERRNO(close_ret));
+                           close_ret);
         g_mem_fd = -1;
     }
 
     if (g_perf_data) {
         ssize_t close_ret = pd_close(g_perf_data);
-        if (IS_ERR(close_ret))
+        if (close_ret < 0)
             urts_log_error("sgx_profile_init: pd_close failed: %ld\n", close_ret);
             g_perf_data = NULL;
     }
@@ -158,14 +158,14 @@ void sgx_profile_finish(void) {
     spinlock_lock(&g_perf_data_lock);
 
     size = pd_close(g_perf_data);
-    if (IS_ERR(size))
+    if (size < 0)
         urts_log_error("sgx_profile_finish: pd_close failed: %ld\n", size);
     g_perf_data = NULL;
 
     spinlock_unlock(&g_perf_data_lock);
 
     ret = INLINE_SYSCALL(close, 1, g_mem_fd);
-    if (IS_ERR(ret))
+    if (ret < 0)
         urts_log_error("sgx_profile_finish: closing /proc/self/mem failed: %d\n", ret);
     g_mem_fd = -1;
 
@@ -186,7 +186,7 @@ static void sample_simple(uint64_t rip) {
     ret = pd_event_sample_simple(g_perf_data, rip, pid, tid, g_profile_period);
     spinlock_unlock(&g_perf_data_lock);
 
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         urts_log_error("error recording sample: %d\n", ret);
     }
 }
@@ -201,7 +201,7 @@ static void sample_stack(sgx_pal_gpr_t* gpr) {
     uint8_t stack[PD_STACK_SIZE];
     size_t stack_size;
     ret = debug_read(stack, (void*)gpr->rsp, sizeof(stack));
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         urts_log_error("error reading stack: %d\n", ret);
         return;
     }
@@ -212,7 +212,7 @@ static void sample_stack(sgx_pal_gpr_t* gpr) {
                                 gpr, stack, stack_size);
     spinlock_unlock(&g_perf_data_lock);
 
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         urts_log_error("error recording sample: %d\n", ret);
     }
 }
@@ -229,7 +229,7 @@ static bool update_time(void) {
     // Check current CPU time
     struct timespec ts;
     int ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_THREAD_CPUTIME_ID, &ts);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         urts_log_error("sgx_profile_sample: clock_gettime failed: %d\n", ret);
         return false;
     }
@@ -261,7 +261,7 @@ void sgx_profile_sample_aex(void* tcs) {
 
     sgx_pal_gpr_t gpr;
     ret = get_sgx_gpr(&gpr, tcs);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         urts_log_error("sgx_profile_sample_aex: error reading GPR: %d\n", ret);
         return;
     }
@@ -284,7 +284,7 @@ void sgx_profile_sample_ocall_inner(void* enclave_gpr) {
 
     sgx_pal_gpr_t gpr;
     ret = debug_read_all(&gpr, enclave_gpr, sizeof(gpr));
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         urts_log_error("sgx_profile_sample_ocall_inner: error reading GPR: %d\n", ret);
         return;
     }
@@ -329,13 +329,13 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
     // Open the file and mmap it.
 
     int fd = INLINE_SYSCALL(open, 3, path, O_RDONLY, 0);
-    if (IS_ERR(fd)) {
+    if (fd < 0) {
         urts_log_error("sgx_profile_report_elf(%s): open failed: %d\n", filename, fd);
         return;
     }
 
     off_t elf_length = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_END);
-    if (IS_ERR(elf_length)) {
+    if (elf_length < 0) {
         urts_log_error("sgx_profile_report_elf(%s): lseek failed: %ld\n", filename, elf_length);
         goto out_close;
     }
@@ -371,25 +371,25 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
             uint64_t offset = ALLOC_ALIGN_DOWN(phdr[i].p_offset);
             ret = pd_event_mmap(g_perf_data, path, pid,
                                 (uint64_t)addr + mapstart, mapend - mapstart, offset);
-            if (IS_ERR(ret))
+            if (ret < 0)
                 break;
         }
     }
     spinlock_unlock(&g_perf_data_lock);
 
-    if (IS_ERR(ret))
+    if (ret < 0)
         urts_log_error("sgx_profile_report_elf(%s): pd_event_mmap failed: %d\n", filename, ret);
 
     // Clean up.
 
 out_unmap:
     ret = INLINE_SYSCALL(munmap, 2, elf_addr, elf_length);
-    if (IS_ERR(ret))
+    if (ret < 0)
         urts_log_error("sgx_profile_report_elf(%s): munmap failed: %d\n", filename, ret);
 
 out_close:
     ret = INLINE_SYSCALL(close, 1, fd);
-    if (IS_ERR(ret))
+    if (ret < 0)
         urts_log_error("sgx_profile_report_elf(%s): close failed: %d\n", filename, ret);
 }
 

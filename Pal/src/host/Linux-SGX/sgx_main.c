@@ -60,12 +60,13 @@ static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
                                unsigned long* entry) {
     int ret = 0;
 
-    if (IS_ERR(ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET)))
+    ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
+    if (ret < 0)
         return ret;
 
     char filebuf[FILEBUF_SIZE];
     ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return ret;
 
     if ((size_t)ret < sizeof(ElfW(Ehdr)))
@@ -104,12 +105,13 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
                                unsigned long prot) {
     int ret = 0;
 
-    if (IS_ERR(ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET)))
+    ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
+    if (ret < 0)
         return ret;
 
     char filebuf[FILEBUF_SIZE];
     ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return ret;
 
     const ElfW(Ehdr)* header = (void*)filebuf;
@@ -199,7 +201,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     static void* tcs_addrs[MAX_DBG_THREADS];
 
     enclave_image = INLINE_SYSCALL(open, 3, enclave->libpal_uri + URI_PREFIX_FILE_LEN, O_RDONLY, 0);
-    if (IS_ERR(enclave_image)) {
+    if (enclave_image < 0) {
         urts_log_error("Cannot find enclave image: %s\n", enclave->libpal_uri);
         ret = enclave_image;
         goto out;
@@ -496,7 +498,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     if (g_sgx_enable_stats) {
         /* set TCS.FLAGS.DBGOPTIN in all enclave threads to enable perf counters, Intel PT, etc */
         enclave_mem = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDWR | O_LARGEFILE, 0);
-        if (IS_ERR(enclave_mem)) {
+        if (enclave_mem < 0) {
             urts_log_error("Setting TCS.FLAGS.DBGOPTIN failed: %d\n", -enclave_mem);
             goto out;
         }
@@ -507,7 +509,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
             ret = INLINE_SYSCALL(pread, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
                                  (off_t)tcs_flags_ptr);
-            if (IS_ERR(ret)) {
+            if (ret < 0) {
                 urts_log_error("Reading TCS.FLAGS.DBGOPTIN failed: %d\n", -ret);
                 goto out;
             }
@@ -516,7 +518,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
             ret = INLINE_SYSCALL(pwrite, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
                                  (off_t)tcs_flags_ptr);
-            if (IS_ERR(ret)) {
+            if (ret < 0) {
                 urts_log_error("Writing TCS.FLAGS.DBGOPTIN failed: %d\n", -ret);
                 goto out;
             }
@@ -1001,7 +1003,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     }
 
     enclave->sigfile = INLINE_SYSCALL(open, 3, sig_path, O_RDONLY | O_CLOEXEC, 0);
-    if (IS_ERR(enclave->sigfile)) {
+    if (enclave->sigfile < 0) {
         urts_log_error("Cannot open sigstruct file %s\n", sig_path);
         return -EINVAL;
     }
@@ -1013,7 +1015,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     }
 
     enclave->token = INLINE_SYSCALL(open, 3, token_path, O_RDONLY | O_CLOEXEC, 0);
-    if (IS_ERR(enclave->token)) {
+    if (enclave->token < 0) {
         urts_log_error(
             "Cannot open token %s. Use pal-sgx-get-token on the runtime host or run "
             "`make SGX=1 sgx-tokens` in the Graphene source to create the token file.\n",

@@ -44,7 +44,7 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
 
                 ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, nwaiters, NULL,
                                      NULL, 0);
-                if (IS_ERR(ret))
+                if (ret < 0)
                     __atomic_store_n(&event->event.signaled, 0, __ATOMIC_SEQ_CST);
             }
         }
@@ -53,7 +53,7 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
         ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, 1, NULL, NULL, 0);
     }
 
-    return IS_ERR(ret) ? -PAL_ERROR_TRYAGAIN : ret;
+    return ret < 0 ? -PAL_ERROR_TRYAGAIN : ret;
 }
 
 int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
@@ -87,7 +87,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
                     ret = 0;
                     break;
                 } else {
-                    ret = unix_to_pal_error(-ret);
+                    ret = unix_to_pal_error(ret);
                     break;
                 }
             }

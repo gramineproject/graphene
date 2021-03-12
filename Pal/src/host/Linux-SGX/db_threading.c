@@ -114,8 +114,8 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     _DkInternalUnlock(&g_thread_list_lock);
 
     int ret = ocall_clone_thread();
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     /* There can be subtle race between the parent and child so hold the parent until child updates
        its tcs. */
@@ -128,7 +128,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
 
 int _DkThreadDelayExecution(uint64_t* duration_us) {
     int ret = ocall_sleep(duration_us);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 /* PAL call DkThreadYieldExecution. Yield the execution
@@ -159,17 +159,17 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 
 int _DkThreadResume(PAL_HANDLE threadHandle) {
     int ret = ocall_resume_thread(threadHandle->thread.tcs);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
     int ret = ocall_sched_setaffinity(thread->thread.tcs, cpumask_size, cpu_mask);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
     int ret = ocall_sched_getaffinity(thread->thread.tcs, cpumask_size, cpu_mask);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 struct handle_ops g_thread_ops = {
