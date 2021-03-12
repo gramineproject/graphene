@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include "gsgx.h"
+#include "linux_utils.h"
 #include "quote/aesm.pb-c.h"
 #include "sgx_attest.h"
 #include "sgx_internal.h"
@@ -86,6 +87,7 @@ err:
  * back to the caller.
  */
 static int request_aesm_service(Request* req, Response** res) {
+    uint8_t* res_buf = NULL;
     int aesm_socket = connect_aesm_service();
     if (aesm_socket < 0)
         return aesm_socket;
@@ -94,27 +96,32 @@ static int request_aesm_service(Request* req, Response** res) {
     uint8_t* req_buf = __alloca(req_len);
     request__pack(req, req_buf);
 
-    int ret = INLINE_SYSCALL(write, 3, aesm_socket, &req_len, sizeof(req_len));
+    int ret = write_all(aesm_socket, &req_len, sizeof(req_len));
     if (ret < 0)
         goto out;
 
-    ret = INLINE_SYSCALL(write, 3, aesm_socket, req_buf, req_len);
+    ret = write_all(aesm_socket, req_buf, req_len);
     if (ret < 0)
         goto out;
 
     uint32_t res_len;
-    ret = INLINE_SYSCALL(read, 3, aesm_socket, &res_len, sizeof(res_len));
+    ret = read_all(aesm_socket, &res_len, sizeof(res_len));
     if (ret < 0)
         goto out;
 
-    uint8_t* res_buf = __alloca(res_len);
-    ret = INLINE_SYSCALL(read, 3, aesm_socket, res_buf, res_len);
+    res_buf = malloc(res_len);
+    if (!res_buf) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    ret = read_all(aesm_socket, res_buf, res_len);
     if (ret < 0)
         goto out;
 
     *res = response__unpack(NULL, res_len, res_buf);
     ret = *res == NULL ? -EINVAL : 0;
 out:
+    free(res_buf);
     INLINE_SYSCALL(close, 1, aesm_socket);
     if (ret < 0) {
         urts_log_error("Cannot communicate with aesm_service (read/write returned error %d).\n"

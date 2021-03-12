@@ -2,6 +2,7 @@
 
 #include "gsgx.h"
 #include "hex.h"
+#include "linux_utils.h"
 #include "pal_linux.h"
 #include "pal_rtld.h"
 #include "sgx_arch.h"
@@ -92,9 +93,9 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t* sig) {
         return -EINVAL;
     }
 
-    int bytes = INLINE_SYSCALL(read, 3, sigfile, sig, sizeof(sgx_arch_enclave_css_t));
-    if (bytes < 0)
-        return bytes;
+    ret = read_all(sigfile, sig, sizeof(sgx_arch_enclave_css_t));
+    if (ret < 0)
+        return ret;
 
     return 0;
 }

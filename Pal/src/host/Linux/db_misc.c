@@ -10,6 +10,7 @@
 
 #include "api.h"
 #include "pal.h"
+#include "linux_utils.h"
 #include "pal_defs.h"
 #include "pal_error.h"
 #include "pal_internal.h"
@@ -44,15 +45,9 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
         g_pal_sec.random_device = fd;
     }
 
-    size_t total_bytes = 0;
-    do {
-        int bytes = INLINE_SYSCALL(read, 3, g_pal_sec.random_device, buffer + total_bytes,
-                                   size - total_bytes);
-        if (bytes < 0)
-            return -PAL_ERROR_DENIED;
-
-        total_bytes += (size_t)bytes;
-    } while (total_bytes < size);
+    int ret = read_all(g_pal_sec.random_device, buffer, size);
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     return 0;
 }

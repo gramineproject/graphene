@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 
 #include "api.h"
+#include "linux_utils.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -80,7 +81,7 @@ int handle_set_cloexec(PAL_HANDLE handle, bool enable) {
 }
 
 void _DkPrintConsole(const void* buf, size_t size) {
-    INLINE_SYSCALL(write, 3, 2 /*stderr*/, buf, size);
+    write_all(2 /*stderr*/, buf, size);
 }
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
@@ -383,11 +384,12 @@ int _DkInitDebugStream(const char* path) {
     return 0;
 }
 
-ssize_t _DkDebugLog(const void* buf, size_t size) {
+int _DkDebugLog(const void* buf, size_t size) {
     if (g_log_fd < 0)
         return -PAL_ERROR_BADHANDLE;
 
-    ssize_t ret = INLINE_SYSCALL(write, 3, g_log_fd, buf, size);
-    ret = ret < 0 ? unix_to_pal_error(ret) : ret;
-    return ret;
+    int ret = write_all(g_log_fd, buf, size);
+    if (ret < 0)
+        return unix_to_pal_error(ret);
+    return 0;
 }

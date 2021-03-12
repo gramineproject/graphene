@@ -713,12 +713,11 @@ void DkObjectClose(PAL_HANDLE objectHandle);
  * \brief Output a message to the debug stream.
  *
  * \param buffer message to write.
- * \param[in,out] on entry `*size` should hold \p buffer size. On successful return it contains
- *                the number of bytes written.
+ * \param[in] size \p buffer size.
  *
  * \return 0 on success, negative error code on failure.
  */
-int DkDebugLog(PAL_PTR buffer, PAL_NUM* size);
+int DkDebugLog(PAL_PTR buffer, PAL_NUM size);
 
 /*!
  * \brief Get the current time

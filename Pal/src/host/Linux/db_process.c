@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 
 #include "api.h"
+#include "linux_utils.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -253,11 +254,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
 
     /* step 4: send parameters over the process handle */
 
-    ret = INLINE_SYSCALL(write, 3, child_handle->process.stream, proc_args,
-                         sizeof(struct proc_args) + data_size);
-
-    if (ret < 0 || (size_t)ret < sizeof(struct proc_args) + data_size) {
-        ret = -PAL_ERROR_DENIED;
+    ret = write_all(child_handle->process.stream, proc_args, sizeof(struct proc_args) + data_size);
+    if (ret < 0) {
+        ret = unix_to_pal_error(ret);
         goto out;
     }
 
@@ -284,10 +283,10 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
 
     struct proc_args proc_args;
 
-    long bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(proc_args));
-    if (bytes < 0 || bytes != sizeof(proc_args)) {
-        int err = bytes < 0 ? unix_to_pal_error(-bytes) : PAL_ERROR_INTERRUPTED;
-        INIT_FAIL(err, "communication with parent failed");
+    ret = read_all(parent_pipe_fd, &proc_args, sizeof(proc_args));
+    if (ret < 0) {
+        ret = unix_to_pal_error(ret);
+        INIT_FAIL(-ret, "communication with parent failed");
     }
 
     /* a child must have parent handle and an executable */
@@ -300,9 +299,11 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
     if (!data)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
 
-    bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, data_size);
-    if (bytes < 0 || (size_t)bytes != data_size)
-        INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
+    ret = read_all(parent_pipe_fd, data, data_size);
+    if (ret < 0) {
+        ret = unix_to_pal_error(ret);
+        INIT_FAIL(-ret, "communication with parent failed");
+    }
 
     /* now deserialize the parent_handle */
     PAL_HANDLE parent = NULL;

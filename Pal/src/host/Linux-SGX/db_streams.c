@@ -418,11 +418,14 @@ int _DkInitDebugStream(const char* path) {
     return 0;
 }
 
-ssize_t _DkDebugLog(const void* buf, size_t size) {
+int _DkDebugLog(const void* buf, size_t size) {
     if (g_log_fd < 0)
         return -PAL_ERROR_BADHANDLE;
 
+    // TODO: add retrying on EINTR
     ssize_t ret = ocall_write(g_log_fd, buf, size);
-    ret = ret < 0 ? unix_to_pal_error(ret) : ret;
-    return ret;
+    if (ret < 0 || (size_t)ret != size) {
+        return ret < 0 ? unix_to_pal_error(ret) : -PAL_ERROR_INTERRUPTED;
+    }
+    return 0;
 }
