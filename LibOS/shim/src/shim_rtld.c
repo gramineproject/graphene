@@ -73,7 +73,6 @@ struct link_map {
     /* Pointer to related file. */
     struct shim_handle* l_file;
 
-#define MAX_LOADCMDS 4
     struct loadcmd {
         /*
          * Load command for a single segment. The following properties are true:
