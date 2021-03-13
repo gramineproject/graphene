@@ -225,13 +225,13 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
 
         if ((ret = bkeep_mmap_fixed(map_start, map_size, c->prot, map_flags, file, c->map_off,
                                     /*comment=*/NULL)) < 0) {
-            log_debug("execute_loadcmds: failed to bookkeep address of segment\n");
+            log_debug("%s: failed to bookkeep address of segment\n", __func__);
             return ret;
         }
 
         if ((ret = file->fs->fs_ops->mmap(file, &map_start, map_size, c->prot, map_flags,
                                           c->map_off) < 0)) {
-            log_debug("execute_loadcmds: failed to map segment\n");
+            log_debug("%s: failed to map segment\n", __func__);
             return ret;
         }
     }
@@ -247,7 +247,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
         if ((c->prot & PROT_WRITE) == 0) {
             if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_alloc_align,
                                               pal_prot | PAL_PROT_WRITE) < 0)) {
-                log_debug("execute_loadcmd: cannot change memory protections\n");
+                log_debug("%s: cannot change memory protections\n", __func__);
                 return pal_to_unix_errno(ret);
             }
         }
@@ -257,7 +257,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
         if ((c->prot & PROT_WRITE) == 0) {
             if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_alloc_align,
                                               pal_prot) < 0)) {
-                log_debug("execute_loadcmd: cannot change memory protections\n");
+                log_debug("%s: cannot change memory protections\n", __func__);
                 return pal_to_unix_errno(ret);
             }
         }
@@ -272,13 +272,13 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
         if ((ret = bkeep_mmap_fixed(zero_page_start, zero_page_size, c->prot,
                                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
                                     /*file=*/NULL, /*offset=*/0, /*comment=*/NULL)) < 0) {
-            log_debug("execute_loadcmds: cannot bookkeep address of zero-fill pages\n");
+            log_debug("%s: cannot bookkeep address of zero-fill pages\n", __func__);
             return ret;
         }
 
         if ((ret = DkVirtualMemoryAlloc(&zero_page_start, zero_page_size, /*alloc_type=*/0,
                                         pal_prot)) < 0) {
-            log_debug("execute_loadcmds: cannot map zero-fill pages\n");
+            log_debug("%s: cannot map zero-fill pages\n", __func__);
             return pal_to_unix_errno(ret);
         }
     }
