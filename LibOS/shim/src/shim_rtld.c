@@ -978,6 +978,13 @@ BEGIN_CP_FUNC(library) {
             new_map->l_name = name;
         }
 
+        if (map->l_phdr_allocated) {
+            size_t size = sizeof(map->l_phdr[0]) * map->l_phnum;
+            ElfW(Phdr)* phdr = (ElfW(Phdr)*)(base + ADD_CP_OFFSET(size));
+            memcpy(phdr, map->l_phdr, size);
+            new_map->l_phdr = phdr;
+        }
+
         ADD_CP_FUNC_ENTRY(off);
     } else {
         new_map = (struct link_map*)(base + off);
@@ -994,6 +1001,9 @@ BEGIN_RS_FUNC(library) {
 
     CP_REBASE(map->l_name);
     CP_REBASE(map->l_file);
+
+    if (map->l_phdr_allocated)
+        CP_REBASE(map->l_phdr);
 
     struct link_map* old_map = __search_map_by_name(map->l_name);
 
