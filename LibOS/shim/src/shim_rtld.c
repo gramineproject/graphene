@@ -73,6 +73,7 @@ struct link_map {
     /* Pointer to related file. */
     struct shim_handle* l_file;
 
+    /* Size of all the data segments (including BSS), for setting up the brk region */
     size_t l_data_segment_size;
 };
 
@@ -387,7 +388,6 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
             phdr_vaddr = c->start + ehdr->e_phoff - c->map_off;
         }
 
-        // Count all the data segments (including BSS)
         if (!(c->prot & PROT_EXEC))
             l->l_data_segment_size += c->alloc_end - c->start;
     }
