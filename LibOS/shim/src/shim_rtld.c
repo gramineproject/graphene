@@ -160,12 +160,12 @@ static int read_loadcmd(const ElfW(Phdr*) ph, struct loadcmd* c) {
     return 0;
 }
 
-static int read_all_loadcmds(const ElfW(Phdr*) phdr, unsigned int phnum,
+static ssize_t read_all_loadcmds(const ElfW(Phdr*) phdr, size_t phnum,
                              struct loadcmd** loadcmds) {
     const ElfW(Phdr*) ph;
     int ret;
 
-    int n = 0;
+    size_t n = 0;
     for (ph = phdr; ph < &phdr[phnum]; ph++)
         if (ph->p_type == PT_LOAD)
             n++;
@@ -291,7 +291,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
     ElfW(Phdr)* phdr = NULL;
     ElfW(Addr) phdr_vaddr = 0, interp_libname_vaddr = 0;
     struct loadcmd* loadcmds = NULL;
-    int n_loadcmds;
+    ssize_t n_loadcmds;
     const char* errstring = NULL;
     int ret;
 
