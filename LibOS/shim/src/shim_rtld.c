@@ -73,37 +73,38 @@ struct link_map {
     /* Pointer to related file. */
     struct shim_handle* l_file;
 
-    struct loadcmd {
-        /*
-         * Load command for a single segment. The following properties are true:
-         *
-         *   - start <= data_end <= map_end <= alloc_end
-         *   - start, map_end, alloc_end are page-aligned
-         *   - map_off is page-aligned
-         *
-         * The addresses are not relocated (i.e. you need to add l_addr to them).
-         */
+    size_t l_data_segment_size;
+};
 
-        /* Start of memory area */
-        ElfW(Addr) start;
+struct loadcmd {
+    /*
+     * Load command for a single segment. The following properties are true:
+     *
+     *   - start <= data_end <= map_end <= alloc_end
+     *   - start, map_end, alloc_end are page-aligned
+     *   - map_off is page-aligned
+     *
+     * The addresses are not relocated (i.e. you need to add l_addr to them).
+     */
 
-        /* End of file data (data_end .. alloc_end should be zeroed out) */
-        ElfW(Addr) data_end;
+    /* Start of memory area */
+    ElfW(Addr) start;
 
-        /* End of mapped file data (data_end rounded up to page size, so that we can mmap
-         * start .. map_end) */
-        ElfW(Addr) map_end;
+    /* End of file data (data_end .. alloc_end should be zeroed out) */
+    ElfW(Addr) data_end;
 
-        /* End of memory area */
-        ElfW(Addr) alloc_end;
+    /* End of mapped file data (data_end rounded up to page size, so that we can mmap
+     * start .. map_end) */
+    ElfW(Addr) map_end;
 
-        /* File offset */
-        off_t map_off;
+    /* End of memory area */
+    ElfW(Addr) alloc_end;
 
-        /* Permissions for memory area */
-        int prot;
-    }* l_loadcmds;
-    int l_nloadcmds;
+    /* File offset */
+    off_t map_off;
+
+    /* Permissions for memory area */
+    int prot;
 };
 
 static struct link_map* loaded_libraries = NULL;
@@ -289,6 +290,8 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
 static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
     ElfW(Phdr)* phdr = NULL;
     ElfW(Addr) phdr_vaddr = 0, interp_libname_vaddr = 0;
+    struct loadcmd* loadcmds = NULL;
+    int n_loadcmds;
     const char* errstring = NULL;
     int ret;
 
@@ -323,12 +326,12 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
 
     /* Scan the program header table load commands and additional information. */
 
-    if ((l->l_nloadcmds = read_all_loadcmds(phdr, ehdr->e_phnum, &l->l_loadcmds)) < 0) {
+    if ((n_loadcmds = read_all_loadcmds(phdr, ehdr->e_phnum, &loadcmds)) < 0) {
         errstring = "failed to read load commands";
         goto err;
     }
 
-    if (l->l_nloadcmds == 0) {
+    if (n_loadcmds == 0) {
         /* This only happens for a malformed object, and the calculations below assume the loadcmds
          * array is not empty. */
         errstring = "object file has no loadable segments";
@@ -350,7 +353,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
 
     /* Determine the load address. */
 
-    size_t total_size = l->l_loadcmds[l->l_nloadcmds - 1].alloc_end - l->l_loadcmds[0].start;
+    size_t total_size = loadcmds[n_loadcmds - 1].alloc_end - loadcmds[0].start;
 
     if (ehdr->e_type == ET_DYN) {
         /* This is a position-independent shared object, reserve a memory area to determine load
@@ -362,16 +365,17 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
             goto err;
         }
 
-        l->l_addr = (ElfW(Addr))map_start - l->l_loadcmds[0].start;
+        l->l_addr = (ElfW(Addr))map_start - loadcmds[0].start;
     } else {
         l->l_addr = 0;
     }
-    l->l_map_start = l->l_loadcmds[0].start + l->l_addr;
+    l->l_map_start = loadcmds[0].start + l->l_addr;
     l->l_map_end   = l->l_map_start + total_size;
 
     /* Execute load commands. */
 
-    for (struct loadcmd* c = &l->l_loadcmds[0]; c < &l->l_loadcmds[l->l_nloadcmds]; c++) {
+    l->l_data_segment_size = 0;
+    for (struct loadcmd* c = &loadcmds[0]; c < &loadcmds[n_loadcmds]; c++) {
         if ((ret = execute_loadcmd(c, l->l_addr, file)) < 0) {
             errstring = "failed to execute load command";
             goto err;
@@ -382,6 +386,10 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
             /* Found the program header in this segment. */
             phdr_vaddr = c->start + ehdr->e_phoff - c->map_off;
         }
+
+        // Count all the data segments (including BSS)
+        if (!(c->prot & PROT_EXEC))
+            l->l_data_segment_size += c->alloc_end - c->start;
     }
 
     /* Ensure program header table is available. */
@@ -411,12 +419,13 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
     l->l_entry = ehdr->e_entry + l->l_addr;
 
     free(phdr);
+    free(loadcmds);
     return l;
 
 err:
     log_debug("loading %s: %s\n", l->l_name, errstring);
     free(phdr);
-    free(l->l_loadcmds);
+    free(loadcmds);
     if (l->l_phdr_allocated)
         free(l->l_phdr);
     free(l);
@@ -464,8 +473,6 @@ static int __remove_elf_object(struct link_map* l) {
 
     if (l->l_phdr_allocated)
         free(l->l_phdr);
-
-    free(l->l_loadcmds);
 
     free(l);
 
@@ -844,15 +851,8 @@ int init_brk_from_executable(struct shim_handle* exec) {
     if (!exec_map) {
         return -EINVAL;
     }
-
-    size_t data_segment_size = 0;
-    // Count all the data segments (including BSS)
-    struct loadcmd* c = exec_map->l_loadcmds;
-    for (; c < &exec_map->l_loadcmds[exec_map->l_nloadcmds]; c++)
-        if (!(c->prot & PROT_EXEC))
-            data_segment_size += c->alloc_end - c->start;
-
-    return init_brk_region((void*)ALLOC_ALIGN_UP(exec_map->l_map_end), data_segment_size);
+    return init_brk_region((void*)ALLOC_ALIGN_UP(exec_map->l_map_end),
+                           exec_map->l_data_segment_size);
 }
 
 int register_library(const char* name, unsigned long load_address) {
