@@ -24,9 +24,7 @@
 #include "sysdep-arch.h"
 #include "sysdeps/generic/ldsodefs.h"
 
-#define IS_ERR   INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO    INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
 
 struct timespec;

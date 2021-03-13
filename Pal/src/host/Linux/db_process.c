@@ -286,7 +286,7 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
 
     long bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(proc_args));
     if (bytes < 0 || bytes != sizeof(proc_args)) {
-        int err = bytes < 0 ? unix_to_pal_error(bytes) : PAL_ERROR_INTERRUPTED;
+        int err = bytes < 0 ? unix_to_pal_error(-bytes) : PAL_ERROR_INTERRUPTED;
         INIT_FAIL(err, "communication with parent failed");
     }
 
@@ -376,7 +376,6 @@ static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
                 return -PAL_ERROR_DENIED;
         }
 
-    assert(bytes >= 0);
     return bytes;
 }
 

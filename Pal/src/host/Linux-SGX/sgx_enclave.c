@@ -445,7 +445,7 @@ static long sgx_ocall_connect(void* pms) {
     if (ms->ms_addr) {
         ret = INLINE_SYSCALL(connect, 3, fd, ms->ms_addr, ms->ms_addrlen);
 
-        if (ret < 0 && ret == -EINPROGRESS) {
+        if (ret == -EINPROGRESS) {
             do {
                 struct pollfd pfd = {
                     .fd      = fd,
@@ -453,7 +453,7 @@ static long sgx_ocall_connect(void* pms) {
                     .revents = 0,
                 };
                 ret = INLINE_SYSCALL(ppoll, 4, &pfd, 1, NULL, NULL);
-            } while (ret < 0 && ret == -EWOULDBLOCK);
+            } while (ret == -EWOULDBLOCK);
         }
 
         if (ret < 0)
@@ -596,7 +596,7 @@ static long sgx_ocall_sleep(void* pms) {
     }
 
     ret = INLINE_SYSCALL(nanosleep, 2, &req, &rem);
-    if (ret < 0 && ret == -EINTR)
+    if (ret == -EINTR)
         ms->ms_microsec = rem.tv_sec * 1000000UL + rem.tv_nsec / 1000UL;
     return ret;
 }
@@ -630,7 +630,7 @@ static long sgx_ocall_delete(void* pms) {
 
     ret = INLINE_SYSCALL(unlink, 1, ms->ms_pathname);
 
-    if (ret < 0 && ret == -EISDIR)
+    if (ret == -EISDIR)
         ret = INLINE_SYSCALL(rmdir, 1, ms->ms_pathname);
 
     return ret;

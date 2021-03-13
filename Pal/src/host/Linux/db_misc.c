@@ -28,7 +28,7 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     }
 
     if (ret < 0)
-        return ret;
+        return unix_to_pal_error(ret);
 
     /* in microseconds */
     *out_usec = 1000000 * (uint64_t)time.tv_sec + time.tv_nsec / 1000;

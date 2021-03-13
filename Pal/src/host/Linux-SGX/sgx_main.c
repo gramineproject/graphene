@@ -222,7 +222,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     ret = read_enclave_token(enclave->token, &enclave_token);
     if (ret < 0) {
-        urts_log_error("Reading enclave token failed: %d\n", -ret);
+        urts_log_error("Reading enclave token failed: %d\n", ret);
         goto out;
     }
     enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
@@ -243,7 +243,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     ret = read_enclave_sigstruct(enclave->sigfile, &enclave_sigstruct);
     if (ret < 0) {
-        urts_log_error("Reading enclave sigstruct failed: %d\n", -ret);
+        urts_log_error("Reading enclave sigstruct failed: %d\n", ret);
         goto out;
     }
 
@@ -252,7 +252,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     enclave_secs.size = enclave->size;
     ret = create_enclave(&enclave_secs, &enclave_token);
     if (ret < 0) {
-        urts_log_error("Creating enclave failed: %d\n", -ret);
+        urts_log_error("Creating enclave failed: %d\n", ret);
         goto out;
     }
 
@@ -371,7 +371,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     ret = scan_enclave_binary(enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
     if (ret < 0) {
-        urts_log_error("Scanning Pal binary (%s) failed: %d\n", enclave->libpal_uri, -ret);
+        urts_log_error("Scanning Pal binary (%s) failed: %d\n", enclave->libpal_uri, ret);
         goto out;
     }
 
@@ -400,7 +400,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         if (areas[i].data_src == ELF_FD) {
             ret = load_enclave_binary(&enclave_secs, areas[i].fd, areas[i].addr, areas[i].prot);
             if (ret < 0) {
-                urts_log_error("Loading enclave binary failed: %d\n", -ret);
+                urts_log_error("Loading enclave binary failed: %d\n", ret);
                 goto out;
             }
             continue;
@@ -413,6 +413,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             if (IS_ERR_P(data) || data == NULL) {
                 /* Note that Graphene currently doesn't handle 0x0 addresses */
                 urts_log_error("Allocating memory failed\n");
+                ret = -ENOMEM;
                 goto out;
             }
         }
@@ -465,14 +466,14 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
 
         if (ret < 0) {
-            urts_log_error("Adding pages (%s) to enclave failed: %d\n", areas[i].desc, -ret);
+            urts_log_error("Adding pages (%s) to enclave failed: %d\n", areas[i].desc, ret);
             goto out;
         }
     }
 
     ret = init_enclave(&enclave_secs, &enclave_sigstruct, &enclave_token);
     if (ret < 0) {
-        urts_log_error("Initializing enclave failed: %d\n", -ret);
+        urts_log_error("Initializing enclave failed: %d\n", ret);
         goto out;
     }
 
@@ -497,11 +498,12 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     if (g_sgx_enable_stats) {
         /* set TCS.FLAGS.DBGOPTIN in all enclave threads to enable perf counters, Intel PT, etc */
-        enclave_mem = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDWR | O_LARGEFILE, 0);
-        if (enclave_mem < 0) {
-            urts_log_error("Setting TCS.FLAGS.DBGOPTIN failed: %d\n", -enclave_mem);
+        ret = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDWR | O_LARGEFILE, 0);
+        if (ret < 0) {
+            urts_log_error("Setting TCS.FLAGS.DBGOPTIN failed: %d\n", ret);
             goto out;
         }
+        enclave_mem = ret;
 
         for (size_t i = 0; i < enclave->thread_num; i++) {
             uint64_t tcs_flags;
@@ -510,7 +512,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             ret = INLINE_SYSCALL(pread, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
                                  (off_t)tcs_flags_ptr);
             if (ret < 0) {
-                urts_log_error("Reading TCS.FLAGS.DBGOPTIN failed: %d\n", -ret);
+                urts_log_error("Reading TCS.FLAGS.DBGOPTIN failed: %d\n", ret);
                 goto out;
             }
 
@@ -519,7 +521,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             ret = INLINE_SYSCALL(pwrite, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
                                  (off_t)tcs_flags_ptr);
             if (ret < 0) {
-                urts_log_error("Writing TCS.FLAGS.DBGOPTIN failed: %d\n", -ret);
+                urts_log_error("Writing TCS.FLAGS.DBGOPTIN failed: %d\n", ret);
                 goto out;
             }
         }

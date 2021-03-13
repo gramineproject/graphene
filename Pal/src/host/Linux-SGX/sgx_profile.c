@@ -47,7 +47,7 @@ static ssize_t debug_read(void* dest, void* addr, size_t size) {
         ret = INLINE_SYSCALL(pread, 4, g_mem_fd, (uint8_t*)dest + total, size - total,
                              (off_t)addr + total);
 
-        if (ret < 0 && ret == -EINTR)
+        if (ret == -EINTR)
             continue;
 
         if (ret < 0)

@@ -329,15 +329,20 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     }
 
     /* call getsockname to get socket address */
-    if ((ret = INLINE_SYSCALL(getsockname, 3, fd, bind_addr, &bind_addrlen)) < 0)
+    ret = INLINE_SYSCALL(getsockname, 3, fd, bind_addr, &bind_addrlen);
+    if (ret < 0) {
+        ret = unix_to_pal_error(ret);
         goto failed;
+    }
 
     ret = INLINE_SYSCALL(listen, 2, fd, DEFAULT_BACKLOG);
-    if (ret < 0)
-        return -PAL_ERROR_DENIED;
+    if (ret < 0) {
+        ret = unix_to_pal_error(ret);
+        goto failed;
+    }
 
     *handle = socket_create_handle(pal_type_tcpsrv, fd, options, bind_addr, bind_addrlen, NULL, 0);
-    if (!(*handle)) {
+    if (!*handle) {
         ret = -PAL_ERROR_NOMEM;
         goto failed;
     }
@@ -438,7 +443,7 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
 
     ret = INLINE_SYSCALL(connect, 3, fd, dest_addr, dest_addrlen);
 
-    if (ret < 0 && ret == -EINPROGRESS) {
+    if (ret == -EINPROGRESS) {
         struct pollfd pfd = {.fd = fd, .events = POLLOUT, .revents = 0};
         ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, NULL, NULL, 0);
     }

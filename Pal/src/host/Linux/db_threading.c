@@ -128,7 +128,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     PAL_HANDLE hdl = NULL;
     void* stack = get_thread_stack();
     if (!stack) {
-        ret = -ENOMEM;
+        ret = -PAL_ERROR_NOMEM;
         goto err;
     }
 
@@ -153,7 +153,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
 
     hdl = malloc(HANDLE_SIZE(thread));
     if (!hdl) {
-        ret = -ENOMEM;
+        ret = -PAL_ERROR_NOMEM;
         goto err;
     }
     SET_HANDLE_TYPE(hdl, thread);
