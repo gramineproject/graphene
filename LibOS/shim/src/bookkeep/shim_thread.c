@@ -265,6 +265,17 @@ struct shim_thread* get_new_thread(void) {
     }
 
     struct shim_thread* cur_thread = get_cur_thread();
+    size_t groups_size = cur_thread->groups_info.count * sizeof(cur_thread->groups_info.groups[0]);
+    if (groups_size > 0) {
+        thread->groups_info.groups = malloc(groups_size);
+        if (!thread->groups_info.groups) {
+            put_thread(thread);
+            return NULL;
+        }
+        thread->groups_info.count = cur_thread->groups_info.count;
+        memcpy(thread->groups_info.groups, cur_thread->groups_info.groups, groups_size);
+    }
+
     lock(&cur_thread->lock);
 
     thread->uid       = cur_thread->uid;
@@ -357,6 +368,8 @@ void put_thread(struct shim_thread* thread) {
             }
             bkeep_remove_tmp_vma(tmp_vma);
         }
+
+        free(thread->groups_info.groups);
 
         if (thread->pal_handle && thread->pal_handle != PAL_CB(first_thread))
             DkObjectClose(thread->pal_handle);
@@ -563,6 +576,13 @@ BEGIN_CP_FUNC(thread) {
 
         new_thread->libos_stack_bottom = NULL;
 
+        if (thread->groups_info.count > 0) {
+            size_t groups_size = thread->groups_info.count * sizeof(thread->groups_info.groups[0]);
+            size_t toff = ADD_CP_OFFSET(groups_size);
+            new_thread->groups_info.groups = (void*)(base + toff);
+            memcpy(new_thread->groups_info.groups, thread->groups_info.groups, groups_size);
+        }
+
         new_thread->pal_handle = NULL;
 
         new_thread->handle_map = NULL;
@@ -605,6 +625,11 @@ BEGIN_RS_FUNC(thread) {
     __UNUSED(offset);
 
     CP_REBASE(thread->list);
+    if (thread->groups_info.count) {
+        CP_REBASE(thread->groups_info.groups);
+    } else {
+        assert(!thread->groups_info.groups);
+    }
     CP_REBASE(thread->handle_map);
     CP_REBASE(thread->signal_dispositions);
 
