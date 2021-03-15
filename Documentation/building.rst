@@ -63,14 +63,13 @@ Prerequisites
 Run the following commands on Ubuntu to install SGX-related dependencies::
 
     sudo apt-get install -y libprotobuf-c-dev protobuf-c-compiler \
-       libcurl4-openssl-dev
+       libcurl4-openssl-dev python3-pip
     python3 -m pip install toml>=0.10
 
     # For Ubuntu 18.04
     sudo apt-get install -y python3-protobuf
 
     # For Ubuntu 16.04
-    sudo apt install -y python3-pip
     sudo /usr/bin/pip3 install protobuf
 
 2a. Install the Linux kernel patched with FSGSBASE
