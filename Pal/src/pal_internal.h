@@ -240,7 +240,7 @@ int _DkSystemTimeQuery(uint64_t* out_usec);
  * Cryptographically secure random.
  * 0 on success, negative on failure.
  */
-size_t _DkRandomBitsRead(void* buffer, size_t size);
+int _DkRandomBitsRead(void* buffer, size_t size);
 int _DkSegmentRegisterGet(int reg, void** addr);
 int _DkSegmentRegisterSet(int reg, void* addr);
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);

@@ -111,7 +111,7 @@ int mbedtls_to_pal_error(int error) {
 #define BITS_PER_BYTE 8
 
 /* This is declared in pal_internal.h, but that can't be included here. */
-size_t _DkRandomBitsRead(void* buffer, size_t size);
+int _DkRandomBitsRead(void* buffer, size_t size);
 
 /* Wrapper to provide mbedtls the RNG interface it expects. It passes an
  * extra context parameter, and expects a return value of 0 for success

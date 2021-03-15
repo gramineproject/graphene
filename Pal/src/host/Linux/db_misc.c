@@ -36,7 +36,7 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     return 0;
 }
 
-size_t _DkRandomBitsRead(void* buffer, size_t size) {
+int _DkRandomBitsRead(void* buffer, size_t size) {
     if (!g_pal_sec.random_device) {
         int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
         if (fd < 0)

@@ -765,7 +765,7 @@ int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
     return 0;
 }
 
-size_t _DkRandomBitsRead(void* buffer, size_t size) {
+int _DkRandomBitsRead(void* buffer, size_t size) {
     uint32_t rand;
     for (size_t i = 0; i < size; i += sizeof(rand)) {
         rand = rdrand();

@@ -82,7 +82,11 @@ __attribute__((__optimize__("-fno-stack-protector"))) void pal_start_thread(void
 
     /* each newly-created thread (including the first thread) has its own random stack canary */
     uint64_t stack_protector_canary;
-    _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
+    int ret = _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
+    if (ret < 0) {
+        log_error("Error: _DkRandomBitsRead() failed (%d)\n", ret);
+        _DkProcessExit(1);
+    }
     pal_set_tcb_stack_canary(stack_protector_canary);
     PAL_TCB* pal_tcb = pal_get_tcb();
     memset(&pal_tcb->libos_tcb, 0, sizeof(pal_tcb->libos_tcb));
