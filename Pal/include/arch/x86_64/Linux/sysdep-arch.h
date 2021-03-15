@@ -143,14 +143,8 @@
 #undef INTERNAL_SYSCALL
 #define INTERNAL_SYSCALL(name, err, nr, args...) INTERNAL_SYSCALL_NCS(__NR_##name, err, nr, ##args)
 
-#undef INTERNAL_SYSCALL_ERROR
-#define INTERNAL_SYSCALL_ERROR(val) ((val) < 0)
-
 #undef INTERNAL_SYSCALL_ERROR_P
 #define INTERNAL_SYSCALL_ERROR_P(val) ((unsigned long)(val) >= (unsigned long)-4095L)
-
-#undef INTERNAL_SYSCALL_ERRNO
-#define INTERNAL_SYSCALL_ERRNO(val) (-(val))
 
 #undef INTERNAL_SYSCALL_ERRNO_P
 #define INTERNAL_SYSCALL_ERRNO_P(val) (-((long)val))

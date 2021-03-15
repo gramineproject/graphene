@@ -197,7 +197,7 @@ int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int f
         retval = sgx_exitless_ocall(OCALL_MMAP_UNTRUSTED, ms);
     } while (retval == -EINTR);
 
-    if (IS_ERR(retval)) {
+    if (retval < 0) {
         sgx_reset_ustack(old_ustack);
         return IS_UNIX_ERR(retval) ? retval : -EPERM;
     }
@@ -242,7 +242,7 @@ int ocall_munmap_untrusted(const void* addr, size_t size) {
         retval = sgx_exitless_ocall(OCALL_MUNMAP_UNTRUSTED, ms);
     } while (retval == -EINTR);
 
-    if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
+    if (retval < 0 && !IS_UNIX_ERR(retval))
         retval = -EPERM;
 
     sgx_reset_ustack(old_ustack);
@@ -275,7 +275,7 @@ static int ocall_mmap_untrusted_cache(size_t size, void** addrptr, bool* need_mu
         /* AEX signal handling case: cache is in use, so make explicit mmap/munmap */
         ret = ocall_mmap_untrusted(addrptr, size, PROT_READ | PROT_WRITE,
                                    MAP_ANONYMOUS | MAP_PRIVATE, /*fd=*/-1, /*offset=*/0);
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             return ret;
         }
         *need_munmap = true;
@@ -289,7 +289,7 @@ static int ocall_mmap_untrusted_cache(size_t size, void** addrptr, bool* need_mu
             return 0;
         }
         ret = ocall_munmap_untrusted(cache->addr, cache->size);
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             cache->valid = false;
             __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
             return ret;
@@ -298,7 +298,7 @@ static int ocall_mmap_untrusted_cache(size_t size, void** addrptr, bool* need_mu
 
     ret = ocall_mmap_untrusted(addrptr, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE,
                                /*fd=*/-1, /*offset=*/0);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         cache->valid = false;
         __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
     } else {
@@ -408,7 +408,7 @@ ssize_t ocall_read(int fd, void* buf, size_t count) {
     void* old_ustack = sgx_prepare_ustack();
     if (count > MAX_UNTRUSTED_STACK_BUF) {
         retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
-        if (IS_ERR(retval)) {
+        if (retval < 0) {
             sgx_reset_ustack(old_ustack);
             return retval;
         }
@@ -468,7 +468,7 @@ ssize_t ocall_write(int fd, const void* buf, size_t count) {
         if (count > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
             retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
-            if (IS_ERR(retval)) {
+            if (retval < 0) {
                 sgx_reset_ustack(old_ustack);
                 return retval;
             }
@@ -520,7 +520,7 @@ ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
     void* old_ustack = sgx_prepare_ustack();
     if (count > MAX_UNTRUSTED_STACK_BUF) {
         retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
-        if (IS_ERR(retval)) {
+        if (retval < 0) {
             sgx_reset_ustack(old_ustack);
             return retval;
         }
@@ -579,7 +579,7 @@ ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset) {
         if (count > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
             retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
-            if (IS_ERR(retval)) {
+            if (retval < 0) {
                 sgx_reset_ustack(old_ustack);
                 return retval;
             }
@@ -1115,7 +1115,7 @@ ssize_t ocall_recv(int sockfd, void* buf, size_t count, struct sockaddr* addr, s
 
     if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
         retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
-        if (IS_ERR(retval)) {
+        if (retval < 0) {
             goto out;
         }
         is_obuf_mapped = true;
@@ -1205,7 +1205,7 @@ ssize_t ocall_send(int sockfd, const void* buf, size_t count, const struct socka
         if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
             retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
-            if (IS_ERR(retval))
+            if (retval < 0)
                 goto out;
             is_obuf_mapped = true;
             memcpy(obuf, buf, count);
@@ -1572,7 +1572,7 @@ int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* r
         retval = sgx_exitless_ocall(OCALL_GET_QUOTE, ms);
     } while (retval == -EINTR);
 
-    if (!IS_ERR(retval)) {
+    if (retval >= 0) {
         ms_ocall_get_quote_t ms_copied;
         if (!sgx_copy_to_enclave(&ms_copied, sizeof(ms_copied), ms, sizeof(*ms))) {
             retval = -EACCES;
@@ -1599,7 +1599,7 @@ int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* r
             }
 
             retval = ocall_munmap_untrusted(ms_copied.ms_quote, ALLOC_ALIGN_UP(len));
-            if (IS_ERR(retval)) {
+            if (retval < 0) {
                 goto out;
             }
 
@@ -1609,7 +1609,7 @@ int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* r
     }
 
 out:
-    if (IS_ERR(retval))
+    if (retval < 0)
         free(buf);
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -1639,7 +1639,7 @@ int ocall_sched_setaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
         retval = sgx_exitless_ocall(OCALL_SCHED_SETAFFINITY, ms);
     } while (retval == -EINTR);
 
-    if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
+    if (retval < 0 && !IS_UNIX_ERR(retval))
         retval = -EPERM;
 
     sgx_reset_ustack(old_ustack);
@@ -1688,7 +1688,7 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
         retval = sgx_exitless_ocall(OCALL_SCHED_GETAFFINITY, ms);
     } while (retval == -EINTR);
 
-    if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
+    if (retval < 0 && !IS_UNIX_ERR(retval))
         retval = -EPERM;
 
     if (retval > 0 && !sgx_copy_to_enclave(cpu_mask, cpumask_size, untrusted_cpu_mask, retval))

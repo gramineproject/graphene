@@ -60,8 +60,8 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
                                            PAL_CREATE_TO_LINUX_OPEN(create)  |
                                            PAL_OPTION_TO_LINUX_OPEN(options),
                              share);
-        if (IS_ERR(ret)) {
-            ret = unix_to_pal_error(ERRNO(ret));
+        if (ret < 0) {
+            ret = unix_to_pal_error(ret);
             goto fail;
         }
         hdl->dev.fd = ret;
@@ -93,7 +93,7 @@ static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void*
         return -PAL_ERROR_DENIED;
 
     int64_t bytes = INLINE_SYSCALL(read, 3, handle->dev.fd, buffer, size);
-    return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
+    return bytes < 0 ? unix_to_pal_error(bytes) : bytes;
 }
 
 static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
@@ -107,7 +107,7 @@ static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, cons
         return -PAL_ERROR_DENIED;
 
     int64_t bytes = INLINE_SYSCALL(write, 3, handle->dev.fd, buffer, size);
-    return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
+    return bytes < 0 ? unix_to_pal_error(bytes) : bytes;
 }
 
 static int dev_close(PAL_HANDLE handle) {
@@ -120,7 +120,7 @@ static int dev_close(PAL_HANDLE handle) {
         ret = INLINE_SYSCALL(close, 1, handle->dev.fd);
     }
     handle->dev.fd = PAL_IDX_POISON;
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+    return ret < 0 ? unix_to_pal_error(ret) : 0;
 }
 
 static int dev_flush(PAL_HANDLE handle) {
@@ -129,8 +129,8 @@ static int dev_flush(PAL_HANDLE handle) {
 
     if (handle->dev.fd != PAL_IDX_POISON) {
         int ret = INLINE_SYSCALL(fsync, 1, handle->dev.fd);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
     }
     return 0;
 }
@@ -152,8 +152,8 @@ static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* att
         /* other devices must query the host */
         struct stat stat_buf;
         int ret = INLINE_SYSCALL(stat, 2, uri, &stat_buf);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         attr->readable     = stataccess(&stat_buf, ACCESS_R);
         attr->writable     = stataccess(&stat_buf, ACCESS_W);
@@ -182,8 +182,8 @@ static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         /* other devices must query the host */
         struct stat stat_buf;
         int ret = INLINE_SYSCALL(fstat, 2, handle->dev.fd, &stat_buf);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         attr->readable     = stataccess(&stat_buf, ACCESS_R);
         attr->writable     = stataccess(&stat_buf, ACCESS_W);

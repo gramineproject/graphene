@@ -48,26 +48,28 @@ defs	= -DIN_SHIM
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
+arch_objs = \
+	shim_arch_prctl.o \
+	shim_context.o \
+	shim_table.o \
+	start.o \
+	syscallas.o
+
 objs = \
-	shim_arch_prctl-$(ARCH).o \
 	shim_async.o \
 	shim_checkpoint.o \
-	shim_context-$(ARCH).o \
 	shim_debug.o \
 	shim_init.o \
 	shim_malloc.o \
 	shim_object.o \
 	shim_parser.o \
+	shim_rtld.o \
 	shim_syscalls.o \
-	shim_table-$(ARCH).o \
-	start-$(ARCH).o \
-	syscallas-$(ARCH).o \
 	bookkeep/shim_handle.o \
 	bookkeep/shim_process.o \
 	bookkeep/shim_signal.o \
 	bookkeep/shim_thread.o \
 	bookkeep/shim_vma.o \
-	elf/shim_rtld.o \
 	fs/shim_dcache.o \
 	fs/shim_fs.o \
 	fs/shim_fs_hash.o \
@@ -134,7 +136,8 @@ objs = \
 	sys/shim_wrappers.o \
 	utils/printf.o \
 	utils/strobjs.o \
-	vdso/vdso-data.o
+	vdso/vdso-data.o \
+	$(addprefix arch/$(ARCH)/,$(arch_objs))
 
 all_objs = \
 	$(objs) \
@@ -157,9 +160,9 @@ endif
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sfr)
 
-LDFLAGS-libsysdb.so += --version-script shim.map -T shim-$(ARCH).lds --eh-frame-hdr
+LDFLAGS-libsysdb.so += --version-script shim.map -T arch/$(ARCH)/shim.lds --eh-frame-hdr
 libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
-	     $(graphene_lib) $(pal_lib) shim.map shim-$(ARCH).lds
+	     $(graphene_lib) $(pal_lib) shim.map arch/$(ARCH)/shim.lds
 	$(call cmd,ld_so_o)
 
 .PHONY: graphene_lib_recurse
@@ -187,7 +190,11 @@ libsysdb.a: $(objs)
 %.s: %.S
 	$(call cmd,cpp_s_S)
 
-syscallas-$(ARCH).S shim_context-$(ARCH).c: asm-offsets.h
+arch/$(ARCH)/asm-offsets.h: asm-offsets.h
+	ln -fs ../../$^ arch/$(ARCH)/asm-offsets.h
+CLEAN_FILES += arch/$(ARCH)/asm-offsets.h
+
+arch/$(ARCH)/syscallas.S arch/$(ARCH)/shim_context.c: arch/$(ARCH)/asm-offsets.h
 
 include ../../../Scripts/Makefile.rules
 

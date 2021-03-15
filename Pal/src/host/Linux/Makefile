@@ -41,15 +41,19 @@ commons_objs = \
 	stack_protector.o \
 	topo_info.o
 
+arch_objs = \
+	clone.o \
+	db_arch_exception.o \
+	db_arch_misc.o \
+	pal_start.o
+
 objs = \
-	clone-$(ARCH).o \
 	db_devices.o \
 	db_eventfd.o \
 	db_events.o \
 	db_exception.o \
 	db_files.o \
 	db_main.o \
-	db_main-$(ARCH).o \
 	db_memory.o \
 	db_misc.o \
 	db_mutex.o \
@@ -61,7 +65,7 @@ objs = \
 	db_streams.o \
 	db_threading.o \
 	$(commons_objs) \
-	pal_start-$(ARCH).o
+	$(addprefix arch/$(ARCH)/,$(arch_objs))
 
 graphene_lib = .lib/graphene-lib.a
 

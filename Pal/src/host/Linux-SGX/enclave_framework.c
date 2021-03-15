@@ -400,9 +400,9 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
     *sizeptr = tf->size;
     if (*sizeptr) {
         ret = ocall_mmap_untrusted(umem, tf->size, PROT_READ, MAP_SHARED, fd, /*offset=*/0);
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             *umem = NULL;
-            ret = unix_to_pal_error(ERRNO(ret));
+            ret = unix_to_pal_error(ret);
             goto failed;
         }
     }
@@ -747,14 +747,19 @@ static int init_trusted_file(const char* key, const char* uri) {
     char* normpath = NULL;
 
     /* read sgx.trusted_checksum.<key> entry from manifest */
-    char* fullkey = alloc_concat("sgx.trusted_checksum.", -1, key, -1);
+    char* fullkey = alloc_concat3("sgx.trusted_checksum.\"", -1, key, -1, "\"", -1);
     if (!fullkey)
         return -PAL_ERROR_NOMEM;
 
     char* trusted_checksum = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, fullkey, &trusted_checksum);
     if (ret < 0) {
-        log_error("Cannot parse \'%s\' (the value must be put in double quotes!)\n", fullkey);
+        log_error("Cannot parse '%s'\n", fullkey);
+        ret = -PAL_ERROR_INVAL;
+        goto out;
+    }
+    if (!trusted_checksum) {
+        log_error("Missing '%s' entry\n", fullkey);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }

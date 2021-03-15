@@ -21,7 +21,7 @@ static inline void* __malloc(size_t size) {
     void* addr = NULL;
     int ret = ocall_mmap_untrusted(&addr, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE,
                                    /*fd=*/-1, /*offset=*/0);
-    return IS_ERR(ret) ? NULL : addr;
+    return ret < 0 ? NULL : addr;
 }
 
 #define system_malloc(size) __malloc(size)

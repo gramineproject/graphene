@@ -17,7 +17,8 @@ rm OUTPUT
 # === web server and client (on port 8005) ===
 echo -e "\n\nRunning HTTP server dummy-web-server.py in the background:"
 ./pal_loader ./python scripts/dummy-web-server.py 8005 & echo $! > server.PID
-sleep 30  # Graphene-SGX takes a lot of time to initialize
+# Graphene-SGX may take a lot of time to initialize
+../../Scripts/wait_for_server 60 127.0.0.1 8005
 
 echo -e "\n\nRunning HTTP client test-http.py:"
 ./pal_loader ./python scripts/test-http.py localhost 8005 > OUTPUT1

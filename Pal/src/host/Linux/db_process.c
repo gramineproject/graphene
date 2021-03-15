@@ -46,7 +46,7 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     int ret;
 
     ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -132,7 +132,7 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
     int res = INLINE_SYSCALL(execve, 3, g_pal_loader_path, proc_param->argv,
                              g_linux_state.host_environ);
     /* execve failed, but we're after vfork, so we can't do anything more than just exit */
-    INLINE_SYSCALL(exit_group, 1, ERRNO(res));
+    INLINE_SYSCALL(exit_group, 1, -res);
     die_or_inf_loop();
 }
 
@@ -238,7 +238,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
         goto out;
 
     ret = child_process(&param);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -256,7 +256,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
     ret = INLINE_SYSCALL(write, 3, child_handle->process.stream, proc_args,
                          sizeof(struct proc_args) + data_size);
 
-    if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args) + data_size) {
+    if (ret < 0 || (size_t)ret < sizeof(struct proc_args) + data_size) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -285,8 +285,8 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
     struct proc_args proc_args;
 
     long bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(proc_args));
-    if (IS_ERR(bytes) || bytes != sizeof(proc_args)) {
-        int err = IS_ERR(bytes) ? -unix_to_pal_error(ERRNO(bytes)) : PAL_ERROR_INTERRUPTED;
+    if (bytes < 0 || bytes != sizeof(proc_args)) {
+        int err = bytes < 0 ? unix_to_pal_error(-bytes) : PAL_ERROR_INTERRUPTED;
         INIT_FAIL(err, "communication with parent failed");
     }
 
@@ -301,7 +301,7 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
 
     bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, data_size);
-    if (IS_ERR(bytes) || (size_t)bytes != data_size)
+    if (bytes < 0 || (size_t)bytes != data_size)
         INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
 
     /* now deserialize the parent_handle */
@@ -347,11 +347,11 @@ static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
 
     int64_t bytes = INLINE_SYSCALL(read, 3, handle->process.stream, buffer, count);
 
-    if (IS_ERR(bytes))
-        switch (ERRNO(bytes)) {
-            case EWOULDBLOCK:
+    if (bytes < 0)
+        switch (bytes) {
+            case -EWOULDBLOCK:
                 return -PAL_ERROR_TRYAGAIN;
-            case EINTR:
+            case -EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
                 return -PAL_ERROR_DENIED;
@@ -366,17 +366,16 @@ static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
 
     int64_t bytes = INLINE_SYSCALL(write, 3, handle->process.stream, buffer, count);
 
-    if (IS_ERR(bytes))
-        switch (ERRNO(bytes)) {
-            case EWOULDBLOCK:
+    if (bytes < 0)
+        switch (bytes) {
+            case -EWOULDBLOCK:
                 return -PAL_ERROR_TRYAGAIN;
-            case EINTR:
+            case -EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
                 return -PAL_ERROR_DENIED;
         }
 
-    assert(!IS_ERR(bytes));
     return bytes;
 }
 
@@ -424,8 +423,8 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     /* get number of bytes available for reading */
     ret = INLINE_SYSCALL(ioctl, 3, handle->process.stream, FIONREAD, &val);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     attr->pending_size = val;
 
@@ -433,8 +432,8 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     struct pollfd pfd  = {.fd = handle->process.stream, .events = POLLIN | POLLOUT, .revents = 0};
     struct timespec tp = {0, 0};
     ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     attr->readable = ret == 1 && (pfd.revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
     attr->writable = ret == 1 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
@@ -450,8 +449,8 @@ static int proc_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         ret = INLINE_SYSCALL(fcntl, 3, handle->process.stream, F_SETFL,
                              handle->process.nonblocking ? O_NONBLOCK : 0);
 
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         handle->process.nonblocking = attr->nonblocking;
     }

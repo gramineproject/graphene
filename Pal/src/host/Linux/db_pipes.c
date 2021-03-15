@@ -57,25 +57,25 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
 
     struct sockaddr_un addr;
     ret = pipe_addr(name, &addr);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return -PAL_ERROR_DENIED;
 
     int nonblock = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
 
     int fd = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | nonblock, 0);
-    if (IS_ERR(fd))
-        return unix_to_pal_error(ERRNO(fd));
+    if (fd < 0)
+        return unix_to_pal_error(fd);
 
     ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr.sun_path) - 1);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         INLINE_SYSCALL(close, 1, fd);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     ret = INLINE_SYSCALL(listen, 2, fd, 1);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         INLINE_SYSCALL(close, 1, fd);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
@@ -118,8 +118,8 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
         return -PAL_ERROR_DENIED;
 
     int newfd = INLINE_SYSCALL(accept4, 4, handle->pipe.fd, NULL, NULL, O_CLOEXEC);
-    if (IS_ERR(newfd))
-        return unix_to_pal_error(ERRNO(newfd));
+    if (newfd < 0)
+        return unix_to_pal_error(newfd);
 
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipe));
     if (!clnt) {
@@ -155,19 +155,19 @@ static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
 
     struct sockaddr_un addr;
     ret = pipe_addr(name, &addr);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return -PAL_ERROR_DENIED;
 
     int nonblock = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
 
     int fd = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | nonblock, 0);
-    if (IS_ERR(fd))
+    if (fd < 0)
         return -PAL_ERROR_DENIED;
 
     ret = INLINE_SYSCALL(connect, 3, fd, &addr, sizeof(addr.sun_path) - 1);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         INLINE_SYSCALL(close, 1, fd);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
@@ -206,8 +206,8 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
     int nonblock = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
 
     int ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | nonblock, 0, fds);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
     if (!hdl) {
@@ -291,8 +291,8 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] : handle->pipe.fd;
 
     ssize_t bytes = INLINE_SYSCALL(read, 3, fd, buffer, len);
-    if (IS_ERR(bytes))
-        return unix_to_pal_error(ERRNO(bytes));
+    if (bytes < 0)
+        return unix_to_pal_error(bytes);
 
     return bytes;
 }
@@ -317,8 +317,8 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, size_t len, const 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] : handle->pipe.fd;
 
     ssize_t bytes = INLINE_SYSCALL(write, 3, fd, buffer, len);
-    if (IS_ERR(bytes))
-        return unix_to_pal_error(ERRNO(bytes));
+    if (bytes < 0)
+        return unix_to_pal_error(bytes);
 
     return bytes;
 }
@@ -414,8 +414,8 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (!IS_HANDLE_TYPE(handle, pipesrv)) {
         int val;
         ret = INLINE_SYSCALL(ioctl, 3, handle->pipe.fd, FIONREAD, &val);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         attr->pending_size = val;
     }
@@ -427,8 +427,8 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
                                 {.fd = handle->pipeprv.fds[1], .events = POLLOUT, .revents = 0}};
         struct timespec tp   = {0, 0};
         ret = INLINE_SYSCALL(ppoll, 5, &pfd, 2, &tp, NULL, 0);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         attr->readable = ret >= 1 && (pfd[0].revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
         attr->writable = ret >= 1 && (pfd[1].revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
@@ -443,8 +443,8 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         struct pollfd pfd  = {.fd = handle->pipe.fd, .events = pfd_events, .revents = 0};
         struct timespec tp = {0, 0};
         ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         attr->readable = ret == 1 && (pfd.revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
         attr->writable = ret == 1 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
@@ -473,8 +473,8 @@ static int pipe_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (attr->nonblocking != *nonblocking) {
         int ret = INLINE_SYSCALL(fcntl, 3, handle->generic.fds[0], F_SETFL,
                                  attr->nonblocking ? O_NONBLOCK : 0);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         *nonblocking = attr->nonblocking;
     }

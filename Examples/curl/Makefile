@@ -61,7 +61,7 @@ pal_loader:
 .PHONY: check
 check: all
 	(cd test-docroot; exec python3 -m http.server -b 127.0.0.1 19111) & httpd_pid=$$!; \
-	sleep 1; \
+	../../Scripts/wait_for_server 5 127.0.0.1 19111; \
 	./pal_loader ./curl http://127.0.0.1:19111/ > OUTPUT; rc=$$?; \
 	kill $$httpd_pid; exit $$rc
 

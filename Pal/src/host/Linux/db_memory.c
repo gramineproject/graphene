@@ -36,7 +36,7 @@ int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
     mem = (void*)ARCH_MMAP(addr, size, prot, flags, -1, 0);
 
     if (IS_ERR_P(mem))
-        return unix_to_pal_error(ERRNO_P(mem));
+        return unix_to_pal_error(-ERRNO_P(mem));
 
     *paddr = mem;
     return 0;
@@ -45,18 +45,18 @@ int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
 int _DkVirtualMemoryFree(void* addr, size_t size) {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+    return ret < 0 ? unix_to_pal_error(ret) : 0;
 }
 
 int _DkVirtualMemoryProtect(void* addr, size_t size, int prot) {
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, PAL_PROT_TO_LINUX(prot));
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+    return ret < 0 ? unix_to_pal_error(ret) : 0;
 }
 
 static int read_proc_meminfo(const char* key, unsigned long* val) {
     int fd = INLINE_SYSCALL(open, 3, "/proc/meminfo", O_RDONLY, 0);
 
-    if (IS_ERR(fd))
+    if (fd < 0)
         return -PAL_ERROR_DENIED;
 
     char buffer[40];
@@ -68,7 +68,7 @@ static int read_proc_meminfo(const char* key, unsigned long* val) {
     ret = -PAL_ERROR_DENIED;
     while (1) {
         ret = INLINE_SYSCALL(read, 3, fd, buffer + r, 40 - r);
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             ret = -PAL_ERROR_DENIED;
             break;
         }

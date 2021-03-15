@@ -156,7 +156,7 @@ int pal_thread_init(void* tcbptr) {
 
     /* set GS reg of this thread to thread's TCB; after this point, can use get_tcb_urts() */
     ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         ret = -EPERM;
         goto out;
     }
@@ -168,7 +168,7 @@ int pal_thread_init(void* tcbptr) {
             .ss_size  = ALT_STACK_SIZE - sizeof(*tcb)
         };
         ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             ret = -EPERM;
             goto out;
         }
@@ -280,9 +280,9 @@ int clone_thread(void) {
                     CLONE_PARENT_SETTID,
                 (void*)tcb, &dummy_parent_tid_field, NULL);
 
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         INLINE_SYSCALL(munmap, 2, stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
-        return -ERRNO(ret);
+        return ret;
     }
     return 0;
 }

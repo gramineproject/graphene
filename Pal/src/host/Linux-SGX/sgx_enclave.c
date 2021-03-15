@@ -169,7 +169,7 @@ static long sgx_ocall_fionread(void* pms) {
     int val;
     ODEBUG(OCALL_FIONREAD, ms);
     ret = INLINE_SYSCALL(ioctl, 3, ms->ms_fd, FIONREAD, &val);
-    return IS_ERR(ret) ? ret : val;
+    return ret < 0 ? ret : val;
 }
 
 static long sgx_ocall_fsetnonblock(void* pms) {
@@ -179,7 +179,7 @@ static long sgx_ocall_fsetnonblock(void* pms) {
     ODEBUG(OCALL_FSETNONBLOCK, ms);
 
     ret = INLINE_SYSCALL(fcntl, 2, ms->ms_fd, F_GETFL);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return ret;
 
     flags = ret;
@@ -331,7 +331,7 @@ static long sgx_ocall_listen(void* pms) {
     }
 
     ret = INLINE_SYSCALL(socket, 3, ms->ms_domain, ms->ms_type | SOCK_CLOEXEC, ms->ms_protocol);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err;
 
     fd = ret;
@@ -340,37 +340,37 @@ static long sgx_ocall_listen(void* pms) {
     int reuseaddr = 1;
     ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr,
                          sizeof(reuseaddr));
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err_fd;
 
     if (ms->ms_domain == AF_INET6) {
         /* IPV6_V6ONLY socket option can only be set before first bind */
         ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ms->ms_ipv6_v6only,
                              sizeof(ms->ms_ipv6_v6only));
-        if (IS_ERR(ret))
+        if (ret < 0)
             goto err_fd;
     }
 
     ret = INLINE_SYSCALL(bind, 3, fd, ms->ms_addr, (int)ms->ms_addrlen);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err_fd;
 
     if (ms->ms_addr) {
         int addrlen = ms->ms_addrlen;
         ret = INLINE_SYSCALL(getsockname, 3, fd, ms->ms_addr, &addrlen);
-        if (IS_ERR(ret))
+        if (ret < 0)
             goto err_fd;
         ms->ms_addrlen = addrlen;
     }
 
     if (ms->ms_type & SOCK_STREAM) {
         ret = INLINE_SYSCALL(listen, 2, fd, DEFAULT_BACKLOG);
-        if (IS_ERR(ret))
+        if (ret < 0)
             goto err_fd;
     }
 
     ret = sock_getopt(fd, &ms->ms_sockopt);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err_fd;
 
     return fd;
@@ -394,12 +394,12 @@ static long sgx_ocall_accept(void* pms) {
     int addrlen = ms->ms_addrlen;
 
     ret = INLINE_SYSCALL(accept4, 4, ms->ms_sockfd, ms->ms_addr, &addrlen, O_CLOEXEC);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err;
 
     fd = ret;
     ret = sock_getopt(fd, &ms->ms_sockopt);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err_fd;
 
     ms->ms_addrlen = addrlen;
@@ -423,7 +423,7 @@ static long sgx_ocall_connect(void* pms) {
     }
 
     ret = INLINE_SYSCALL(socket, 3, ms->ms_domain, ms->ms_type | SOCK_CLOEXEC, ms->ms_protocol);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err;
 
     fd = ret;
@@ -433,19 +433,19 @@ static long sgx_ocall_connect(void* pms) {
             /* IPV6_V6ONLY socket option can only be set before first bind */
             ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ms->ms_ipv6_v6only,
                                  sizeof(ms->ms_ipv6_v6only));
-            if (IS_ERR(ret))
+            if (ret < 0)
                 goto err_fd;
         }
 
         ret = INLINE_SYSCALL(bind, 3, fd, ms->ms_bind_addr, ms->ms_bind_addrlen);
-        if (IS_ERR(ret))
+        if (ret < 0)
             goto err_fd;
     }
 
     if (ms->ms_addr) {
         ret = INLINE_SYSCALL(connect, 3, fd, ms->ms_addr, ms->ms_addrlen);
 
-        if (IS_ERR(ret) && ERRNO(ret) == EINPROGRESS) {
+        if (ret == -EINPROGRESS) {
             do {
                 struct pollfd pfd = {
                     .fd      = fd,
@@ -453,23 +453,23 @@ static long sgx_ocall_connect(void* pms) {
                     .revents = 0,
                 };
                 ret = INLINE_SYSCALL(ppoll, 4, &pfd, 1, NULL, NULL);
-            } while (IS_ERR(ret) && ERRNO(ret) == -EWOULDBLOCK);
+            } while (ret == -EWOULDBLOCK);
         }
 
-        if (IS_ERR(ret))
+        if (ret < 0)
             goto err_fd;
     }
 
     if (ms->ms_bind_addr && !ms->ms_bind_addr->sa_family) {
         int addrlen = ms->ms_bind_addrlen;
         ret = INLINE_SYSCALL(getsockname, 3, fd, ms->ms_bind_addr, &addrlen);
-        if (IS_ERR(ret))
+        if (ret < 0)
             goto err_fd;
         ms->ms_bind_addrlen = addrlen;
     }
 
     ret = sock_getopt(fd, &ms->ms_sockopt);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto err_fd;
 
     return fd;
@@ -506,12 +506,12 @@ static long sgx_ocall_recv(void* pms) {
 
     ret = INLINE_SYSCALL(recvmsg, 3, ms->ms_sockfd, &hdr, 0);
 
-    if (!IS_ERR(ret) && hdr.msg_name) {
+    if (ret >= 0 && hdr.msg_name) {
         /* note that ms->ms_addr is filled by recvmsg() itself */
         ms->ms_addrlen = hdr.msg_namelen;
     }
 
-    if (!IS_ERR(ret) && hdr.msg_control) {
+    if (ret >= 0 && hdr.msg_control) {
         /* note that ms->ms_control is filled by recvmsg() itself */
         ms->ms_controllen = hdr.msg_controllen;
     }
@@ -596,7 +596,7 @@ static long sgx_ocall_sleep(void* pms) {
     }
 
     ret = INLINE_SYSCALL(nanosleep, 2, &req, &rem);
-    if (IS_ERR(ret) && ERRNO(ret) == EINTR)
+    if (ret == -EINTR)
         ms->ms_microsec = rem.tv_sec * 1000000UL + rem.tv_nsec / 1000UL;
     return ret;
 }
@@ -630,7 +630,7 @@ static long sgx_ocall_delete(void* pms) {
 
     ret = INLINE_SYSCALL(unlink, 1, ms->ms_pathname);
 
-    if (IS_ERR(ret) && ERRNO(ret) == EISDIR)
+    if (ret == -EISDIR)
         ret = INLINE_SYSCALL(rmdir, 1, ms->ms_pathname);
 
     return ret;
@@ -820,7 +820,7 @@ static int start_rpc(size_t num_of_threads) {
                         CLONE_THREAD | CLONE_SIGHAND | CLONE_PTRACE | CLONE_PARENT_SETTID,
                         NULL, &dummy_parent_tid_field, NULL);
 
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             INLINE_SYSCALL(munmap, 2, stack, RPC_STACK_SIZE);
             return -ENOMEM;
         }

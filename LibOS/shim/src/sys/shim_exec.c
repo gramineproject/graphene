@@ -186,7 +186,6 @@ reopen:
         return ret;
 
     struct shim_mount* fs = dent->fs;
-    get_dentry(dent);
 
     if (!fs->d_ops->open) {
         ret = -EACCES;
@@ -216,9 +215,14 @@ reopen:
     set_handle_fs(exec, fs);
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
+
+    get_dentry(dent);
+    exec->dentry   = dent;
+
     ret = fs->d_ops->open(exec, dent, O_RDONLY);
 
     if (qstrempty(&exec->uri)) {
+        put_dentry(dent);
         put_handle(exec);
         return -EACCES;
     }
@@ -226,6 +230,7 @@ reopen:
     dentry_get_path_into_qstr(dent, &exec->path);
 
     if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
+        put_dentry(dent);
         put_handle(exec);
         return ret;
     }
@@ -286,6 +291,7 @@ reopen:
 
         if (!started) {
             log_warning("file not recognized as ELF or shebang");
+            put_dentry(dent);
             put_handle(exec);
             return -ENOEXEC;
         }
@@ -300,10 +306,12 @@ reopen:
         log_debug("detected as script: run by %s\n", first->arg);
         file = first->arg;
         LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
+        put_dentry(dent);
         put_handle(exec);
         goto reopen;
     }
 
+    put_dentry(dent);
     /* If `execve` is invoked concurrently by multiple threads, let only one succeed. From this
      * point errors are fatal. */
     static unsigned int first = 0;
@@ -320,6 +328,7 @@ reopen:
     /* Passing ownership of `exec`. */
     ret = shim_do_execve_rtld(exec, argv, envp);
     assert(ret < 0);
+
     put_handle(exec);
     /* We might have killed some threads and closed some fds and execve failed internally. User app
      * might now be in undefined state, we would better blow everything up. */

@@ -36,6 +36,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     linux-headers-4.15.0-20-generic \
     meson \
     net-tools \
+    netcat-openbsd \
     pkg-config \
     protobuf-c-compiler \
     pylint3 \
@@ -61,7 +62,8 @@ RUN python3 -m pip install \
     asv \
     recommonmark \
     'Sphinx==1.8' \
-    sphinx_rtd_theme
+    sphinx_rtd_theme \
+    toml>=0.10
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN groupadd -r leeroy -g 1001 && useradd -u 1001 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \

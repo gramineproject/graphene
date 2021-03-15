@@ -41,7 +41,6 @@ enclave-objs = \
 	db_exception.o \
 	db_files.o \
 	db_main.o \
-	db_main-$(ARCH).o \
 	db_memory.o \
 	db_misc.o \
 	db_mutex.o \
@@ -67,7 +66,7 @@ enclave-objs = \
 enclave-asm-objs = enclave_entry.o
 
 urts-objs = \
-	clone-x86_64.o \
+	clone.o \
 	sgx_enclave.o \
 	sgx_exception.o \
 	sgx_framework.o \

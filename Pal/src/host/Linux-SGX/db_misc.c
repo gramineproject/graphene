@@ -10,6 +10,9 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "cpu.h"
+#include "gsgx.h"
+#include "linux_utils.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -18,7 +21,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "gsgx.h"
+#include "seqlock.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
 #include "toml.h"
@@ -28,7 +31,7 @@
 uint64_t g_tsc_hz = 0; /* TSC frequency for fast and accurate time ("invariant TSC" HW feature) */
 static uint64_t g_start_tsc = 0;
 static uint64_t g_start_usec = 0;
-static PAL_LOCK g_tsc_lock = LOCK_INIT;
+static seqlock_t g_tsc_lock = INIT_SEQLOCK_UNLOCKED;
 
 /**
  * Initialize the data structures used for date/time emulation using TSC
@@ -41,54 +44,67 @@ void init_tsc(void) {
 
 /* TODO: result comes from the untrusted host, introduce some schielding */
 int _DkSystemTimeQuery(uint64_t* out_usec) {
-    uint64_t usec = 0;
-    uint64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_diff;
     int ret;
 
-    if (g_tsc_hz > 0) {
-        _DkInternalLock(&g_tsc_lock);
-        if (g_start_tsc > 0 && g_start_usec > 0) {
-            /* calculate the TSC-based time */
-            tsc_diff = get_tsc() - g_start_tsc;
-            if (tsc_diff < INT64_MAX / 1000000) {
-                tsc_usec = g_start_usec + (tsc_diff * 1000000 / g_tsc_hz);
-                if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
-                    /* no need to refine yet */
-                    usec = tsc_usec;
-                }
-            }
-        }
-        _DkInternalUnlock(&g_tsc_lock);
-
-        if (!usec) {
-            /* refresh the baseline usec and TSC to contain the drift */
-            tsc_cyc1 = get_tsc();
-            ret = ocall_gettime(&usec);
-            tsc_cyc2 = get_tsc();
-            if (!ret) {
-                /* the ocall_gettime() is a time consuming operation.   *
-                 * it includes EENTER and EEXIT instructions, our best  *
-                 * estimation is the timestamp obtained in the middle   *
-                 * time point, therefore, the tsc_cyc as baseline will  *
-                 * be calibrated precisely in this way.                 */
-                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) / 2) + tsc_cyc1;
-                _DkInternalLock(&g_tsc_lock);
-                /* refresh the baseline data if no other thread updated g_start_tsc */
-                if (g_start_tsc < tsc_cyc) {
-                    g_start_usec = usec;
-                    g_start_tsc = tsc_cyc;
-                }
-                _DkInternalUnlock(&g_tsc_lock);
-            } else {
-                return -PAL_ERROR_DENIED;
-            }
-        }
-    } else {
-        /* fallback to the slow ocall */
-        ret = ocall_gettime(&usec);
-        if (ret < 0)
-            return -PAL_ERROR_DENIED;
+    if (!g_tsc_hz) {
+        /* RDTSC is not allowed or no Invariant TSC feature -- fallback to the slow ocall */
+        return ocall_gettime(out_usec);
     }
+
+    uint32_t seq;
+    uint64_t start_tsc;
+    uint64_t start_usec;
+    do {
+        seq = read_seqbegin(&g_tsc_lock);
+        start_tsc  = g_start_tsc;
+        start_usec = g_start_usec;
+    } while (read_seqretry(&g_tsc_lock, seq));
+
+    uint64_t usec = 0;
+    if (start_tsc > 0 && start_usec > 0) {
+        /* baseline TSC/usec pair was initialized, can calculate time via RDTSC (but should be
+         * careful with integer overflow during calculations) */
+        uint64_t diff_tsc = get_tsc() - start_tsc;
+        if (diff_tsc < UINT64_MAX / 1000000) {
+            uint64_t diff_usec = diff_tsc * 1000000 / g_tsc_hz;
+            if (diff_usec < TSC_REFINE_INIT_TIMEOUT_USECS) {
+                /* less than TSC_REFINE_INIT_TIMEOUT_USECS passed from the previous update of
+                 * TSC/usec pair (time drift is contained), use the RDTSC-calculated time */
+                usec = start_usec + diff_usec;
+                if (usec < start_usec)
+                    return -PAL_ERROR_OVERFLOW;
+            }
+        }
+    }
+
+    if (usec) {
+        *out_usec = usec;
+        return 0;
+    }
+
+    /* if we are here, either the baseline TSC/usec pair was not yet initialized or too much time
+     * passed since the previous TSC/usec update, so let's refresh them to contain the time drift */
+    uint64_t tsc_cyc1 = get_tsc();
+    ret = ocall_gettime(&usec);
+    if (ret < 0)
+        return -PAL_ERROR_DENIED;
+    uint64_t tsc_cyc2 = get_tsc();
+
+    /* we need to match the OCALL-obtained timestamp (`usec`) with the RDTSC-obtained number of
+     * cycles (`tsc_cyc`); since OCALL is a time-consuming operation, we estimate `tsc_cyc` as a
+     * mid-point between the RDTSC values obtained right-before and right-after the OCALL. */
+    uint64_t tsc_cyc = tsc_cyc1 + (tsc_cyc2 - tsc_cyc1) / 2;
+    if (tsc_cyc < tsc_cyc1)
+        return -PAL_ERROR_OVERFLOW;
+
+    /* refresh the baseline data if no other thread updated g_start_tsc */
+    write_seqbegin(&g_tsc_lock);
+    if (g_start_tsc < tsc_cyc) {
+        g_start_tsc  = tsc_cyc;
+        g_start_usec = usec;
+    }
+    write_seqend(&g_tsc_lock);
+
     *out_usec = usec;
     return 0;
 }
@@ -355,7 +371,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     if (known_leaf->cache && !get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
-    if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
+    if (ocall_cpuid(leaf, subleaf, values) < 0)
         return -PAL_ERROR_DENIED;
 
     sanity_check_cpuid(leaf, subleaf, values);
@@ -520,4 +536,267 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
 
 int _DkSetProtectedFilesKey(const PAL_PTR pf_key_hex) {
     return set_protected_files_key(pf_key_hex);
+}
+
+/* Rest is moved from old `db_main-x86_64.c`. */
+
+#define FOUR_CHARS_VALUE(s, w)      \
+    (s)[0] = (w) & 0xff;            \
+    (s)[1] = ((w) >>  8) & 0xff;    \
+    (s)[2] = ((w) >> 16) & 0xff;    \
+    (s)[3] = ((w) >> 24) & 0xff;
+
+#define BPI  32
+#define POWER2(power) \
+    (1ULL << (power))
+#define RIGHTMASK(width) \
+    (((unsigned long)(width) >= BPI) ? ~0ULL : POWER2(width) - 1ULL)
+
+#define BIT_EXTRACT_LE(value, start, after) \
+    (((unsigned long)(value) & RIGHTMASK(after)) >> start)
+
+#define CPUID_LEAF_INVARIANT_TSC 0x80000007
+#define CPUID_LEAF_TSC_FREQ 0x15
+#define CPUID_LEAF_PROC_FREQ 0x16
+
+static const char* const g_cpu_flags[] = {
+    "fpu",    // "x87 FPU on chip"
+    "vme",    // "virtual-8086 mode enhancement"
+    "de",     // "debugging extensions"
+    "pse",    // "page size extensions"
+    "tsc",    // "time stamp counter"
+    "msr",    // "RDMSR and WRMSR support"
+    "pae",    // "physical address extensions"
+    "mce",    // "machine check exception"
+    "cx8",    // "CMPXCHG8B inst."
+    "apic",   // "APIC on chip"
+    NULL,
+    "sep",    // "SYSENTER and SYSEXIT"
+    "mtrr",   // "memory type range registers"
+    "pge",    // "PTE global bit"
+    "mca",    // "machine check architecture"
+    "cmov",   // "conditional move/compare instruction"
+    "pat",    // "page attribute table"
+    "pse36",  // "page size extension"
+    "pn",     // "processor serial number"
+    "clflush",    // "CLFLUSH instruction"
+    NULL,
+    "dts",    // "debug store"
+    "acpi",   // "Onboard thermal control"
+    "mmx",    // "MMX Technology"
+    "fxsr",   // "FXSAVE/FXRSTOR"
+    "sse",    // "SSE extensions"
+    "sse2",   // "SSE2 extensions"
+    "ss",     // "self snoop"
+    "ht",     // "hyper-threading / multi-core supported"
+    "tm",     // "therm. monitor"
+    "ia64",   // "IA64"
+    "pbe",    // "pending break event"
+};
+
+static ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size) {
+    int fd;
+
+    fd = ocall_open(filename, O_RDONLY, 0);
+    if (fd < 0)
+        return fd;
+
+    /* Although the whole file might not fit in this size, the first cpu description should. */
+    ssize_t n = ocall_read(fd, buf, buf_size);
+    ocall_close(fd);
+
+    return n;
+}
+
+static double get_bogomips(void) {
+    char buf[2048];
+    ssize_t len;
+
+    len = read_file_buffer("/proc/cpuinfo", buf, sizeof(buf) - 1);
+    if (len < 0)
+        return 0.0;
+    buf[len] = 0;
+
+    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf));
+}
+
+bool is_tsc_usable(void) {
+    uint32_t words[PAL_CPUID_WORD_NUM];
+    _DkCpuIdRetrieve(CPUID_LEAF_INVARIANT_TSC, 0, words);
+    return words[PAL_CPUID_WORD_EDX] & 1 << 8;
+}
+
+/* return TSC frequency or 0 if invariant TSC is not supported */
+uint64_t get_tsc_hz(void) {
+    uint32_t words[PAL_CPUID_WORD_NUM];
+
+    _DkCpuIdRetrieve(CPUID_LEAF_TSC_FREQ, 0, words);
+    if (!words[PAL_CPUID_WORD_EAX] || !words[PAL_CPUID_WORD_EBX]) {
+        /* TSC/core crystal clock ratio is not enumerated, can't use RDTSC for accurate time */
+        return 0;
+    }
+
+    if (words[PAL_CPUID_WORD_ECX] > 0) {
+        /* calculate TSC frequency as core crystal clock frequency (EAX) * EBX / EAX; cast to 64-bit
+         * first to prevent integer overflow */
+        uint64_t ecx_hz = words[PAL_CPUID_WORD_ECX];
+        return ecx_hz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
+    }
+
+    /* some Intel CPUs do not report nominal frequency of crystal clock, let's calculate it
+     * based on Processor Frequency Information Leaf (CPUID 16H); this leaf always exists if
+     * TSC Frequency Leaf exists; logic is taken from Linux 5.11's arch/x86/kernel/tsc.c */
+    _DkCpuIdRetrieve(CPUID_LEAF_PROC_FREQ, 0, words);
+    if (!words[PAL_CPUID_WORD_EAX]) {
+        /* processor base frequency (in MHz) is not enumerated, can't calculate frequency */
+        return 0;
+    }
+
+    /* processor base frequency is in MHz but we need to return TSC frequency in Hz; cast to 64-bit
+     * first to prevent integer overflow */
+    uint64_t base_frequency_mhz = words[PAL_CPUID_WORD_EAX];
+    return base_frequency_mhz * 1000000;
+}
+
+int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
+    unsigned int words[PAL_CPUID_WORD_NUM];
+    int rv = 0;
+
+    const size_t VENDOR_ID_SIZE = 13;
+    char* vendor_id = malloc(VENDOR_ID_SIZE);
+    if (!vendor_id)
+        return -PAL_ERROR_NOMEM;
+
+    _DkCpuIdRetrieve(0, 0, words);
+    FOUR_CHARS_VALUE(&vendor_id[0], words[PAL_CPUID_WORD_EBX]);
+    FOUR_CHARS_VALUE(&vendor_id[4], words[PAL_CPUID_WORD_EDX]);
+    FOUR_CHARS_VALUE(&vendor_id[8], words[PAL_CPUID_WORD_ECX]);
+    vendor_id[VENDOR_ID_SIZE - 1] = '\0';
+    ci->cpu_vendor = vendor_id;
+    // Must be an Intel CPU
+    if (memcmp(vendor_id, "GenuineIntel", 12)) {
+        rv = -PAL_ERROR_INVAL;
+        goto out_vendor_id;
+    }
+
+    const size_t BRAND_SIZE = 49;
+    char* brand = malloc(BRAND_SIZE);
+    if (!brand) {
+        rv = -PAL_ERROR_NOMEM;
+        goto out_vendor_id;
+    }
+    _DkCpuIdRetrieve(0x80000002, 0, words);
+    memcpy(&brand[ 0], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
+    _DkCpuIdRetrieve(0x80000003, 0, words);
+    memcpy(&brand[16], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
+    _DkCpuIdRetrieve(0x80000004, 0, words);
+    memcpy(&brand[32], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
+    brand[BRAND_SIZE - 1] = '\0';
+    ci->cpu_brand = brand;
+
+    ci->online_logical_cores = g_pal_sec.online_logical_cores;
+    ci->physical_cores_per_socket = g_pal_sec.physical_cores_per_socket;
+    ci->cpu_socket = g_pal_sec.cpu_socket;
+
+    _DkCpuIdRetrieve(1, 0, words);
+    ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
+                       BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 20, 28);
+    ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  4,  8) +
+                      (BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 16, 20) << 4);
+    ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  0,  4);
+
+    int flen = 0, fmax = 80;
+    char* flags = malloc(fmax);
+    if (!flags) {
+        rv = -PAL_ERROR_NOMEM;
+        goto out_brand;
+    }
+
+    for (int i = 0; i < 32; i++) {
+        if (!g_cpu_flags[i])
+            continue;
+
+        if (BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EDX], i, i + 1)) {
+            int len = strlen(g_cpu_flags[i]);
+            if (flen + len + 1 > fmax) {
+                char* new_flags = malloc(fmax * 2);
+                if (!new_flags) {
+                    rv = -PAL_ERROR_NOMEM;
+                    goto out_flags;
+                }
+                memcpy(new_flags, flags, flen);
+                free(flags);
+                fmax *= 2;
+                flags = new_flags;
+            }
+            memcpy(flags + flen, g_cpu_flags[i], len);
+            flen += len;
+            flags[flen++] = ' ';
+        }
+    }
+
+    flags[flen ? flen - 1 : 0] = 0;
+    ci->cpu_flags = flags;
+
+    ci->cpu_bogomips = get_bogomips();
+    if (ci->cpu_bogomips == 0.0) {
+        log_warning("Warning: bogomips could not be retrieved, passing 0.0 to the application\n");
+    }
+
+    return rv;
+out_flags:
+    free(flags);
+out_brand:
+    free(brand);
+out_vendor_id:
+    free(vendor_id);
+    return rv;
+}
+
+int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
+    topo_info->num_online_nodes = g_pal_sec.topo_info.num_online_nodes;
+    topo_info->num_cache_index  = g_pal_sec.topo_info.num_cache_index;
+    topo_info->core_topology    = g_pal_sec.topo_info.core_topology;
+    topo_info->numa_topology    = g_pal_sec.topo_info.numa_topology;
+    COPY_ARRAY(topo_info->online_logical_cores, g_pal_sec.topo_info.online_logical_cores);
+    COPY_ARRAY(topo_info->possible_logical_cores, g_pal_sec.topo_info.possible_logical_cores);
+    COPY_ARRAY(topo_info->online_nodes, g_pal_sec.topo_info.online_nodes);
+
+    return 0;
+}
+
+size_t _DkRandomBitsRead(void* buffer, size_t size) {
+    uint32_t rand;
+    for (size_t i = 0; i < size; i += sizeof(rand)) {
+        rand = rdrand();
+        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
+    }
+    return 0;
+}
+
+int _DkSegmentRegisterGet(int reg, void** addr) {
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            *addr = (void*)GET_ENCLAVE_TLS(fsbase);
+            return 0;
+        case PAL_SEGMENT_GS:
+            /* GS is internally used, deny any access to it */
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
+    }
+}
+
+int _DkSegmentRegisterSet(int reg, void* addr) {
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            SET_ENCLAVE_TLS(fsbase, addr);
+            wrfsbase((uint64_t)addr);
+            return 0;
+        case PAL_SEGMENT_GS:
+            /* GS is internally used, deny any access to it */
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
+    }
 }

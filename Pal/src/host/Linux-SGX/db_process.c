@@ -158,8 +158,8 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
             nargs++;
 
     ret = ocall_create_process(exec_uri, nargs, args, &stream_fd, &child_pid);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     PAL_HANDLE child = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(child, process);
@@ -296,7 +296,7 @@ static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
         bytes = _DkStreamSecureRead(handle->process.ssl_ctx, buffer, count);
     } else {
         bytes = ocall_read(handle->process.stream, buffer, count);
-        bytes = IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
+        bytes = bytes < 0 ? unix_to_pal_error(bytes) : bytes;
     }
 
     return bytes;
@@ -314,7 +314,7 @@ static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
         bytes = _DkStreamSecureWrite(handle->process.ssl_ctx, buffer, count);
     } else {
         bytes = ocall_write(handle->process.stream, buffer, count);
-        bytes = IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
+        bytes = bytes < 0 ? unix_to_pal_error(bytes) : bytes;
     }
 
     return bytes;
@@ -368,16 +368,16 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     /* get number of bytes available for reading */
     ret = ocall_fionread(handle->process.stream);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     attr->pending_size = ret;
 
     /* query if there is data available for reading */
     struct pollfd pfd = {.fd = handle->process.stream, .events = POLLIN | POLLOUT, .revents = 0};
     ret = ocall_poll(&pfd, 1, 0);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     attr->readable = ret == 1 && (pfd.revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
     attr->writable = ret == 1 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
@@ -390,8 +390,8 @@ static int proc_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     if (attr->nonblocking != handle->process.nonblocking) {
         int ret = ocall_fsetnonblock(handle->process.stream, handle->process.nonblocking);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         handle->process.nonblocking = attr->nonblocking;
     }

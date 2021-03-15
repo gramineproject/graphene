@@ -50,8 +50,8 @@ static const sgx_ql_att_key_id_t g_default_ecdsa_p256_att_key_id = {
  */
 static int connect_aesm_service(void) {
     int sock = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM, 0);
-    if (IS_ERR(sock))
-        return -ERRNO(sock);
+    if (sock < 0)
+        return sock;
 
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
@@ -59,9 +59,9 @@ static int connect_aesm_service(void) {
     (void)strcpy_static(addr.sun_path, "\0" AESM_SOCKET_NAME_LEGACY, sizeof(addr.sun_path));
 
     int ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
-    if (!IS_ERR(ret))
+    if (ret >= 0)
         return sock;
-    if (ERRNO(ret) != ECONNREFUSED)
+    if (ret != -ECONNREFUSED)
         goto err;
 
     memset(&addr, 0, sizeof(addr));
@@ -69,7 +69,7 @@ static int connect_aesm_service(void) {
     (void)strcpy_static(addr.sun_path, AESM_SOCKET_NAME_NEW, sizeof(addr.sun_path));
 
     ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
-    if (!IS_ERR(ret))
+    if (ret >= 0)
         return sock;
 
 err:
@@ -77,7 +77,7 @@ err:
     urts_log_error("Cannot connect to aesm_service (tried " AESM_SOCKET_NAME_LEGACY " and "
                    AESM_SOCKET_NAME_NEW " UNIX sockets).\nPlease check its status! (`service aesmd "
                    "status` on Ubuntu)\n");
-    return -ERRNO(ret);
+    return ret;
 }
 
 /*
@@ -95,21 +95,21 @@ static int request_aesm_service(Request* req, Response** res) {
     request__pack(req, req_buf);
 
     int ret = INLINE_SYSCALL(write, 3, aesm_socket, &req_len, sizeof(req_len));
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto out;
 
     ret = INLINE_SYSCALL(write, 3, aesm_socket, req_buf, req_len);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto out;
 
     uint32_t res_len;
     ret = INLINE_SYSCALL(read, 3, aesm_socket, &res_len, sizeof(res_len));
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto out;
 
     uint8_t* res_buf = __alloca(res_len);
     ret = INLINE_SYSCALL(read, 3, aesm_socket, res_buf, res_len);
-    if (IS_ERR(ret))
+    if (ret < 0)
         goto out;
 
     *res = response__unpack(NULL, res_len, res_buf);
@@ -118,9 +118,9 @@ out:
     INLINE_SYSCALL(close, 1, aesm_socket);
     if (ret < 0) {
         urts_log_error("Cannot communicate with aesm_service (read/write returned error %d).\n"
-                       "Please check its status! (`service aesmd status` on Ubuntu)\n", ERRNO(ret));
+                       "Please check its status! (`service aesmd status` on Ubuntu)\n", ret);
     }
-    return -ERRNO(ret);
+    return ret;
 }
 
 int init_quoting_enclave_targetinfo(bool is_epid, sgx_target_info_t* qe_targetinfo) {
