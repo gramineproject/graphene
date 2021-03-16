@@ -104,7 +104,7 @@ static int free_edmm_page_range(void* start, size_t size) {
     secinfo.flags = SGX_SECINFO_FLAGS_TRIM | SGX_SECINFO_FLAGS_MODIFIED;
     memset(&secinfo.reserved, 0, sizeof(secinfo.reserved));
 
-    unsigned int nr_pages = size / g_pal_state.alloc_align;
+    size_t nr_pages = size / g_pal_state.alloc_align;
     ret = ocall_trim_epc_pages(addr, nr_pages);
     if (ret < 0) {
         log_debug("EPC trim page on [%p, %p) failed (%d)\n", addr, end, ret);
@@ -122,7 +122,7 @@ static int free_edmm_page_range(void* start, size_t size) {
 
     ret = ocall_notify_accept(addr, nr_pages);
     if (ret < 0) {
-        log_debug("EPC notify_accept on [%p, %p), %d pages failed (%d)\n", addr, end, nr_pages, ret);
+        log_debug("EPC notify_accept on [%p, %p), %ld pages failed (%d)\n", addr, end, nr_pages, ret);
         return ret;
     }
 

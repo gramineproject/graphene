@@ -313,8 +313,8 @@ typedef struct {
 } ms_ocall_get_quote_t;
 
 typedef struct {
-    unsigned long start_addr;
-    unsigned int nr_pages;
+    void* start_addr;
+    size_t nr_pages;
 } ms_ocall_sgx_range_t ;
 
 #pragma pack(pop)

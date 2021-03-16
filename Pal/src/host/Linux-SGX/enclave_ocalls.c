@@ -1701,7 +1701,7 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     return retval;
 }
 
-int ocall_trim_epc_pages(void* addr, unsigned int nr_pages) {
+int ocall_trim_epc_pages(void* addr, size_t nr_pages) {
     int retval = 0;
     ms_ocall_sgx_range_t* ms;
 
@@ -1711,7 +1711,7 @@ int ocall_trim_epc_pages(void* addr, unsigned int nr_pages) {
         retval = -ENOMEM;
         goto out;
     }
-    ms->start_addr = (unsigned long)addr;
+    ms->start_addr = addr;
     ms->nr_pages = nr_pages;
 
     do {
@@ -1723,7 +1723,7 @@ out:
     return retval;
 }
 
-int ocall_notify_accept(void* addr, unsigned int nr_pages) {
+int ocall_notify_accept(void* addr, size_t nr_pages) {
     int retval = 0;
     ms_ocall_sgx_range_t* ms;
 
@@ -1733,7 +1733,7 @@ int ocall_notify_accept(void* addr, unsigned int nr_pages) {
         retval = -ENOMEM;
         goto out;
     }
-    ms->start_addr = (unsigned long)addr;
+    ms->start_addr = addr;
     ms->nr_pages = nr_pages;
 
     do {
