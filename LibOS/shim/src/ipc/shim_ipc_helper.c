@@ -111,8 +111,13 @@ static int init_ns_ipc_port(void) {
 
         /* We are the very first Graphene process, hence also IPC leader. */
         assert(g_process_ipc_info.self);
-        get_ipc_info(g_process_ipc_info.self);
-        g_process_ipc_info.ns = g_process_ipc_info.self;
+        g_process_ipc_info.ns = create_ipc_info(g_process_ipc_info.self->vmid,
+                                                qstrgetstr(&g_process_ipc_info.self->uri),
+                                                g_process_ipc_info.self->uri.len);
+        if (!g_process_ipc_info.ns) {
+            return -ENOMEM;
+        }
+        assert(!g_process_ipc_info.ns->port);
         return 0;
     }
 
