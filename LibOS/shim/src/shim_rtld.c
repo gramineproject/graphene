@@ -300,7 +300,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
     ElfW(Phdr)* phdr = NULL;
     ElfW(Addr) interp_libname_vaddr = 0;
     struct loadcmd* loadcmds = NULL;
-    size_t n_loadcmds;
+    size_t n_loadcmds = 0;
     const char* errstring = NULL;
     int ret = 0;
 
