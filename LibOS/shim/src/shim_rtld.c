@@ -54,9 +54,8 @@ struct link_map {
     struct link_map* l_next;
     struct link_map* l_prev;
 
-    /* Pointer to program header table, and whether it's allocated separately by us. */
+    /* Pointer to program header table. */
     ElfW(Phdr)* l_phdr;
-    bool l_phdr_allocated;
 
     /* Entry point location. */
     ElfW(Addr) l_entry;
@@ -102,7 +101,7 @@ struct loadcmd {
     ElfW(Addr) alloc_end;
 
     /* File offset */
-    off_t map_off;
+    size_t map_off;
 
     /* Permissions for memory area */
     int prot;
@@ -111,7 +110,7 @@ struct loadcmd {
 static struct link_map* loaded_libraries = NULL;
 static struct link_map* interp_map = NULL;
 
-static int read_file_fragment(struct shim_handle* file, void* buf, size_t offset, size_t size);
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, size_t offset);
 
 static struct link_map* new_elf_object(const char* realname) {
     struct link_map* new;
@@ -127,15 +126,10 @@ static struct link_map* new_elf_object(const char* realname) {
     return new;
 }
 
-static int read_loadcmd(const ElfW(Phdr*) ph, struct loadcmd* c) {
+static int read_loadcmd(const ElfW(Phdr)* ph, struct loadcmd* c) {
     assert(ph->p_type == PT_LOAD);
 
-    if (!IS_ALLOC_ALIGNED(ph->p_align)) {
-        log_debug("%s: ELF load command alignment not page-aligned\n", __func__);
-        return -EINVAL;
-    }
-
-    if (!IS_ALIGNED_POW2(ph->p_vaddr - ph->p_offset, ph->p_align)) {
+    if (!IS_ALLOC_ALIGNED(ph->p_vaddr - ph->p_offset)) {
         log_debug("%s: ELF load command address/offset not properly aligned\n", __func__);
         return -EINVAL;
     }
@@ -161,9 +155,9 @@ static int read_loadcmd(const ElfW(Phdr*) ph, struct loadcmd* c) {
     return 0;
 }
 
-static ssize_t read_all_loadcmds(const ElfW(Phdr*) phdr, size_t phnum,
+static int read_all_loadcmds(const ElfW(Phdr)* phdr, size_t phnum, size_t* n_loadcmds,
                              struct loadcmd** loadcmds) {
-    const ElfW(Phdr*) ph;
+    const ElfW(Phdr)* ph;
     int ret;
 
     size_t n = 0;
@@ -174,20 +168,31 @@ static ssize_t read_all_loadcmds(const ElfW(Phdr*) phdr, size_t phnum,
     if (n == 0)
         return 0;
 
-    if ((*loadcmds = malloc(n * sizeof(struct loadcmd))) == NULL) {
+    if ((*loadcmds = malloc(n * sizeof(**loadcmds))) == NULL) {
         log_debug("%s: failed to allocate memory\n", __func__);
         return -ENOMEM;
     }
 
     struct loadcmd* c = *loadcmds;
+    const ElfW(Phdr)* ph_prev = NULL;
     for (ph = phdr; ph < &phdr[phnum]; ph++)
         if (ph->p_type == PT_LOAD) {
+            if (ph_prev && !(ph_prev->p_vaddr < ph->p_vaddr)) {
+                log_debug("%s: PT_LOAD segments are not in ascending order\n", __func__);
+                ret = -EINVAL;
+                goto err;
+            }
+
+            ph_prev = ph;
+
             if ((ret = read_loadcmd(ph, c)) < 0)
                 goto err;
+
             c++;
         }
 
-    return n;
+    *n_loadcmds = n;
+    return 0;
 
 err:
     free(*loadcmds);
@@ -214,16 +219,20 @@ static int reserve_dyn(size_t total_size, void** addr) {
 /*
  * Execute a single load command: bookkeep the memory, map the file content, and make sure the area
  * not mapped to a file (ph_filesz .. ph_memsz) is zero-filled.
+ *
+ * This function doesn't undo allocations in case of error: if it fails, it may leave some segments
+ * already allocated.
  */
 static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
                            struct shim_handle* file) {
     int ret;
+    int map_flags = MAP_FIXED | MAP_PRIVATE;
+    PAL_FLG pal_prot = LINUX_PROT_TO_PAL(c->prot, map_flags);
 
     /* Map the part that should be loaded from file, rounded up to page size. */
     if (c->start < c->map_end) {
         void* map_start = (void*)(load_addr + c->start);
         size_t map_size = c->map_end - c->start;
-        int map_flags =  MAP_FILE | MAP_FIXED | MAP_PRIVATE;
 
         if ((ret = bkeep_mmap_fixed(map_start, map_size, c->prot, map_flags, file, c->map_off,
                                     /*comment=*/NULL)) < 0) {
@@ -243,8 +252,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
     if (c->data_end < c->map_end) {
         void* zero_start = (void*)(load_addr + c->data_end);
         size_t zero_size = c->map_end - c->data_end;
-        void* last_page_start = (void*)(ALLOC_ALIGN_DOWN(load_addr + c->data_end));
-        PAL_FLG pal_prot = LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0);
+        void* last_page_start = ALLOC_ALIGN_DOWN_PTR(zero_start);
 
         if ((c->prot & PROT_WRITE) == 0) {
             if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_alloc_align,
@@ -254,7 +262,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
             }
         }
 
-        memset(zero_start, '\0', zero_size);
+        memset(zero_start, 0, zero_size);
 
         if ((c->prot & PROT_WRITE) == 0) {
             if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_alloc_align,
@@ -269,17 +277,17 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
     if (c->map_end < c->alloc_end) {
         void* zero_page_start = (void*)(load_addr + c->map_end);
         size_t zero_page_size = c->alloc_end - c->map_end;
-        PAL_FLG pal_prot = LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0);
+        int zero_map_flags = MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS;
+        PAL_FLG zero_pal_prot = LINUX_PROT_TO_PAL(c->prot, zero_map_flags);
 
-        if ((ret = bkeep_mmap_fixed(zero_page_start, zero_page_size, c->prot,
-                                    MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+        if ((ret = bkeep_mmap_fixed(zero_page_start, zero_page_size, c->prot, zero_map_flags,
                                     /*file=*/NULL, /*offset=*/0, /*comment=*/NULL)) < 0) {
             log_debug("%s: cannot bookkeep address of zero-fill pages\n", __func__);
             return ret;
         }
 
         if ((ret = DkVirtualMemoryAlloc(&zero_page_start, zero_page_size, /*alloc_type=*/0,
-                                        pal_prot)) < 0) {
+                                        zero_pal_prot)) < 0) {
             log_debug("%s: cannot map zero-fill pages\n", __func__);
             return pal_to_unix_errno(ret);
         }
@@ -290,11 +298,11 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
 
 static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
     ElfW(Phdr)* phdr = NULL;
-    ElfW(Addr) phdr_vaddr = 0, interp_libname_vaddr = 0;
+    ElfW(Addr) interp_libname_vaddr = 0;
     struct loadcmd* loadcmds = NULL;
-    ssize_t n_loadcmds;
+    size_t n_loadcmds;
     const char* errstring = NULL;
-    int ret;
+    int ret = 0;
 
     /* Check if the file is valid. */
 
@@ -318,16 +326,17 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
     phdr = (ElfW(Phdr)*)malloc(phdr_size);
     if (!phdr) {
         errstring = "phdr malloc failure";
+        ret = -ENOMEM;
         goto err;
     }
-    if ((ret = read_file_fragment(file, phdr, ehdr->e_phoff, phdr_size)) < 0) {
+    if ((ret = read_file_fragment(file, phdr, phdr_size, ehdr->e_phoff)) < 0) {
         errstring = "cannot read phdr";
         goto err;
     }
 
     /* Scan the program header table load commands and additional information. */
 
-    if ((n_loadcmds = read_all_loadcmds(phdr, ehdr->e_phnum, &loadcmds)) < 0) {
+    if ((ret = read_all_loadcmds(phdr, ehdr->e_phnum, &n_loadcmds, &loadcmds)) < 0) {
         errstring = "failed to read load commands";
         goto err;
     }
@@ -336,6 +345,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
         /* This only happens for a malformed object, and the calculations below assume the loadcmds
          * array is not empty. */
         errstring = "object file has no loadable segments";
+        ret = -EINVAL;
         goto err;
     }
 
@@ -344,10 +354,6 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
         switch (ph->p_type) {
             case PT_INTERP:
                 interp_libname_vaddr = ph->p_vaddr;
-                break;
-
-            case PT_PHDR:
-                phdr_vaddr = ph->p_vaddr;
                 break;
         }
     }
@@ -374,7 +380,6 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
     l->l_map_end   = l->l_map_start + total_size;
 
     /* Execute load commands. */
-
     l->l_data_segment_size = 0;
     for (struct loadcmd* c = &loadcmds[0]; c < &loadcmds[n_loadcmds]; c++) {
         if ((ret = execute_loadcmd(c, l->l_addr, file)) < 0) {
@@ -382,52 +387,69 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
             goto err;
         }
 
-        if (phdr_vaddr == 0 && (ElfW(Off))c->map_off <= ehdr->e_phoff
-                && ((size_t)(c->data_end - c->start + c->map_off) >= phdr_size)) {
+        if (ehdr->e_phoff >= c->map_off
+                && ehdr->e_phoff + phdr_size <= c->map_off + (c->data_end - c->start)) {
             /* Found the program header in this segment. */
-            phdr_vaddr = c->start + ehdr->e_phoff - c->map_off;
+            ElfW(Addr) phdr_vaddr = ehdr->e_phoff - c->map_off + c->start;
+            l->l_phdr = (ElfW(Phdr)*)(phdr_vaddr + l->l_addr);
+        }
+
+
+        if (interp_libname_vaddr != 0 && (c->start <= interp_libname_vaddr &&
+                                          interp_libname_vaddr < c->data_end)) {
+            /* Found the interpreter name in this segment (but we need to validate length). */
+            const char* interp_libname = (const char*)(interp_libname_vaddr + l->l_addr);
+            size_t maxlen = c->data_end - interp_libname_vaddr;
+            size_t len = strnlen(interp_libname, maxlen);
+            if (len == maxlen) {
+                errstring = "interpreter name is longer than mapped segment";
+                ret = -EINVAL;
+                goto err;
+            }
+            l->l_interp_libname = interp_libname;
+        }
+
+        if (ehdr->e_entry != 0 && (c->start <= ehdr->e_entry && ehdr->e_entry < c->data_end)) {
+            /* Found the entry point in this segment. */
+            l->l_entry = (ElfW(Addr))(ehdr->e_entry + l->l_addr);
         }
 
         if (!(c->prot & PROT_EXEC))
             l->l_data_segment_size += c->alloc_end - c->start;
     }
 
-    /* Ensure program header table is available. */
+    /* Check if various fields were found in mapped segments (if specified at all). */
 
-    if (phdr_vaddr == 0) {
-        /* The program header is not contained in any of the segments. We have to allocate memory
-         * ourselves. */
-        ElfW(Phdr)* newp = malloc(phdr_size);
-        if (newp == NULL) {
-            errstring = "cannot allocate memory for program header";
-            goto err;
-        }
+    if (!l->l_phdr) {
+        errstring = "program header not found in any of the segments";
+        ret = -EINVAL;
+        goto err;
+    }
 
-        l->l_phdr = memcpy(newp, phdr, phdr_size);
-        l->l_phdr_allocated = true;
-    } else {
-        /* Adjust the PT_PHDR value by the runtime load address.  */
-        l->l_phdr = (ElfW(Phdr)*)(phdr_vaddr + l->l_addr);
+    if (interp_libname_vaddr != 0 && !l->l_interp_libname) {
+        errstring = "interpreter name not found in any of the segments";
+        ret = -EINVAL;
+        goto err;
+    }
+
+    if (ehdr->e_entry != 0 && !l->l_entry) {
+        errstring = "interpreter name not found in any of the segments";
+        ret = -EINVAL;
+        goto err;
     }
 
     /* Fill in remaining link_map information. */
 
-    if (interp_libname_vaddr != 0)
-        l->l_interp_libname = (const char*)(interp_libname_vaddr + l->l_addr);
-
     l->l_phnum = ehdr->e_phnum;
-    l->l_entry = ehdr->e_entry + l->l_addr;
 
     free(phdr);
     free(loadcmds);
     return l;
 
 err:
-    log_debug("loading %s: %s\n", l->l_name, errstring);
+    log_debug("loading %s: %s (%d)\n", l->l_name, errstring, ret);
     free(phdr);
     free(loadcmds);
-    if (l->l_phdr_allocated)
-        free(l->l_phdr);
     free(l);
     return NULL;
 }
@@ -470,9 +492,6 @@ static int __remove_elf_object(struct link_map* l) {
 
     if (interp_map == l)
         interp_map = NULL;
-
-    if (l->l_phdr_allocated)
-        free(l->l_phdr);
 
     free(l);
 
@@ -547,7 +566,7 @@ verify_failed:
     return -EINVAL;
 }
 
-static int read_file_fragment(struct shim_handle* file, void* buf, size_t offset, size_t size) {
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, size_t offset) {
     if (!file)
         return -EINVAL;
 
@@ -571,7 +590,7 @@ static int read_file_fragment(struct shim_handle* file, void* buf, size_t offset
 }
 
 static int __load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
-    int ret = read_file_fragment(file, ehdr, /*offset=*/0, sizeof(*ehdr));
+    int ret = read_file_fragment(file, ehdr, sizeof(*ehdr), /*offset=*/0);
     if (ret < 0)
         return ret;
 
@@ -585,7 +604,7 @@ static int __load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
 int check_elf_object(struct shim_handle* file) {
     ElfW(Ehdr) ehdr;
 
-    int ret = read_file_fragment(file, &ehdr, /*offset=*/0, sizeof(ehdr));
+    int ret = read_file_fragment(file, &ehdr, sizeof(ehdr), /*offset=*/0);
     if (ret < 0)
         return ret;
 
@@ -978,13 +997,6 @@ BEGIN_CP_FUNC(library) {
             new_map->l_name = name;
         }
 
-        if (map->l_phdr_allocated) {
-            size_t size = sizeof(map->l_phdr[0]) * map->l_phnum;
-            ElfW(Phdr)* phdr = (ElfW(Phdr)*)(base + ADD_CP_OFFSET(size));
-            memcpy(phdr, map->l_phdr, size);
-            new_map->l_phdr = phdr;
-        }
-
         ADD_CP_FUNC_ENTRY(off);
     } else {
         new_map = (struct link_map*)(base + off);
@@ -1001,9 +1013,6 @@ BEGIN_RS_FUNC(library) {
 
     CP_REBASE(map->l_name);
     CP_REBASE(map->l_file);
-
-    if (map->l_phdr_allocated)
-        CP_REBASE(map->l_phdr);
 
     struct link_map* old_map = __search_map_by_name(map->l_name);
 
