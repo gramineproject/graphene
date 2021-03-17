@@ -41,7 +41,7 @@ struct shim_fs_ops {
 
     /* mmap: mmap handle to address */
     int (*mmap)(struct shim_handle* hdl, void** addr, size_t size, int prot, int flags,
-                off_t offset);
+                size_t offset);
 
     /* flush: flush out user buffer */
     int (*flush)(struct shim_handle* hdl);

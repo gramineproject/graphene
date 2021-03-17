@@ -474,21 +474,33 @@ void put_handle(struct shim_handle* hdl) {
     }
 }
 
-off_t get_file_size(struct shim_handle* hdl) {
+int get_file_size(struct shim_handle* hdl, size_t* size) {
     if (!hdl->fs || !hdl->fs->fs_ops)
         return -EINVAL;
 
-    if (hdl->fs->fs_ops->poll)
-        return hdl->fs->fs_ops->poll(hdl, FS_POLL_SZ);
+    if (hdl->fs->fs_ops->poll) {
+        off_t x = hdl->fs->fs_ops->poll(hdl, FS_POLL_SZ);
+        if (x < 0) {
+            return -EINVAL;
+        }
+        *size = (size_t)x;
+        return 0;
+    }
 
     if (hdl->fs->fs_ops->hstat) {
         struct stat stat;
         int ret = hdl->fs->fs_ops->hstat(hdl, &stat);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
-        return stat.st_size;
+        }
+        if (stat.st_size < 0) {
+            return -EINVAL;
+        }
+        *size = (size_t)stat.st_size;
+        return 0;
     }
 
+    *size = 0;
     return 0;
 }
 

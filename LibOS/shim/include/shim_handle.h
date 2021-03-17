@@ -417,7 +417,7 @@ int walk_handle_map(int (*callback)(struct shim_fd_handle*, struct shim_handle_m
 int init_handle(void);
 int init_important_handles(void);
 
-off_t get_file_size(struct shim_handle* file);
+int get_file_size(struct shim_handle* file, size_t* size);
 
 int do_handle_read(struct shim_handle* hdl, void* buf, int count);
 int do_handle_write(struct shim_handle* hdl, const void* buf, int count);

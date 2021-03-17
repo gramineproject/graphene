@@ -46,7 +46,7 @@ struct shim_vma {
     int prot;
     int flags;
     struct shim_handle* file;
-    off_t offset; // offset inside `file`, where `begin` starts
+    size_t offset; // offset inside `file`, where `begin` starts
     union {
         /* If this `vma` is used, it is included in `vma_tree` using this node. */
         struct avl_tree_node tree_node;
@@ -722,7 +722,7 @@ static bool is_file_prot_matching(struct shim_handle* file_hdl, int prot) {
 }
 
 int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags, struct shim_handle* file,
-                     off_t offset, const char* comment) {
+                     size_t offset, const char* comment) {
     assert(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE));
 
     if (!length || !IS_ALLOC_ALIGNED(length) || !IS_ALLOC_ALIGNED_PTR(addr)) {
@@ -937,7 +937,7 @@ int bkeep_mprotect(void* addr, size_t length, int prot, bool is_internal) {
 /* This function allocates at most 1 vma. If in the future it uses more, `_vma_malloc` should be
  * updated as well. */
 int bkeep_mmap_any_in_range(void* _bottom_addr, void* _top_addr, size_t length, int prot, int flags,
-                            struct shim_handle* file, off_t offset, const char* comment,
+                            struct shim_handle* file, size_t offset, const char* comment,
                             void** ret_val_ptr) {
     assert(_bottom_addr < _top_addr);
 
@@ -1024,13 +1024,13 @@ out:
     return ret;
 }
 
-int bkeep_mmap_any(size_t length, int prot, int flags, struct shim_handle* file, off_t offset,
+int bkeep_mmap_any(size_t length, int prot, int flags, struct shim_handle* file, size_t offset,
                    const char* comment, void** ret_val_ptr) {
     return bkeep_mmap_any_in_range(PAL_CB(user_address.start), PAL_CB(user_address.end), length,
                                    prot, flags, file, offset, comment, ret_val_ptr);
 }
 
-int bkeep_mmap_any_aslr(size_t length, int prot, int flags, struct shim_handle* file, off_t offset,
+int bkeep_mmap_any_aslr(size_t length, int prot, int flags, struct shim_handle* file, size_t offset,
                         const char* comment, void** ret_val_ptr) {
     int ret;
     ret = bkeep_mmap_any_in_range(PAL_CB(user_address.start), g_aslr_addr_top, length, prot, flags,
@@ -1248,8 +1248,9 @@ BEGIN_CP_FUNC(vma) {
                  * (3) Data in the last file-backed page is valid before or after
                  *     forking. Has to be included in process migration.
                  */
-                off_t file_len = get_file_size(vma->file);
-                if (file_len >= 0 && (off_t)(vma->file_offset + vma->length) > file_len) {
+                size_t file_len = 0;
+                if (!get_file_size(vma->file, &file_len)
+                        && vma->file_offset + vma->length > file_len) {
                     send_size = file_len > vma->file_offset ? file_len - vma->file_offset : 0;
                     send_size = ALLOC_ALIGN_UP(send_size);
                 }

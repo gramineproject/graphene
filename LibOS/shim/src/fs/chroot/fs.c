@@ -691,7 +691,7 @@ out:
 }
 
 static int chroot_mmap(struct shim_handle* hdl, void** addr, size_t size, int prot, int flags,
-                       off_t offset) {
+                       size_t offset) {
     int ret;
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
