@@ -82,7 +82,7 @@ sgx.thread_num = 4
 sgx.trusted_files.r = "file:$(R_EXEC)"
 sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
 sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/lib/"
 
 # Other libraries as dependencies of R
 sgx.trusted_files.stats_lib = "file:$(R_HOME)/"
