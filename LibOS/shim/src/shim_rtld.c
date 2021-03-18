@@ -129,8 +129,19 @@ static struct link_map* new_elf_object(const char* realname) {
 static int read_loadcmd(const ElfW(Phdr)* ph, struct loadcmd* c) {
     assert(ph->p_type == PT_LOAD);
 
+    if (ph->p_align > 1) {
+        if (!IS_POWER_OF_2(ph->p_align)) {
+            log_debug("%s: ELF load command alignment value is not a power of 2\n", __func__);
+            return -EINVAL;
+        }
+        if (!IS_ALIGNED_POW2(ph->p_vaddr - ph->p_offset, ph->p_align)) {
+            log_debug("%s: ELF load command address/offset not properly aligned\n", __func__);
+            return -EINVAL;
+        }
+    }
+
     if (!IS_ALLOC_ALIGNED(ph->p_vaddr - ph->p_offset)) {
-        log_debug("%s: ELF load command address/offset not properly aligned\n", __func__);
+        log_debug("%s: ELF load command address/offset not page-aligned\n", __func__);
         return -EINVAL;
     }
 
@@ -370,8 +381,8 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
          * This is a position-independent shared object, reserve a memory area to determine load
          * address.
          *
-         * Note that we reserve memory starting from virtual address 0, not from load_start. This is
-         * to ensure that the load base (l_addr) will not be lower than 0.
+         * Note that we reserve memory starting from offset 0, not from load_start. This is to
+         * ensure that the load base (l_addr) will not be lower than 0.
          */
         void* addr;
 
