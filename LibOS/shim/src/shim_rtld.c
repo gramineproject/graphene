@@ -100,6 +100,9 @@ struct loadcmd {
     /* End of memory area */
     ElfW(Addr) alloc_end;
 
+    /* Requested alignment */
+    size_t align;
+
     /* File offset */
     uint64_t map_off;
 
@@ -129,6 +132,11 @@ static struct link_map* new_elf_object(const char* realname) {
 static int read_loadcmd(const ElfW(Phdr)* ph, struct loadcmd* c) {
     assert(ph->p_type == PT_LOAD);
 
+    if (ph->p_align > 1 && !IS_POWER_OF_2(ph->p_align)) {
+        log_debug("%s: ELF p_align value is not a power of 2\n", __func__);
+        return -EINVAL;
+    }
+
     if (!IS_ALLOC_ALIGNED(ph->p_vaddr - ph->p_offset)) {
         log_debug("%s: ELF load command address/offset not properly aligned\n", __func__);
         return -EINVAL;
@@ -139,6 +147,7 @@ static int read_loadcmd(const ElfW(Phdr)* ph, struct loadcmd* c) {
         return -EINVAL;
     }
 
+    c->align = ph->p_align;
     c->start = ALLOC_ALIGN_DOWN(ph->p_vaddr);
     c->data_end = ph->p_vaddr + ph->p_filesz;
     c->map_end = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
@@ -208,14 +217,24 @@ err:
  * Find an initial memory area for a shared object. This bookkeeps the area to make sure we can
  * access all of it, but doesn't actually map the memory: we will do that when loading the segments.
  */
-static int reserve_dyn(size_t total_size, void** addr) {
+static int reserve_dyn(size_t total_size, void** addr, size_t align) {
     int ret;
 
-    if ((ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(total_size), PROT_NONE, VMA_UNMAPPED,
+    assert(align >= g_pal_alloc_align);
+
+    /* bkeep_* will only guarantee alignment to g_pal_alloc_align. If we need higher alignment, we
+     * might need room to adjust the result. */
+    if (align > g_pal_alloc_align)
+        total_size += align;
+
+    if ((ret = bkeep_mmap_any_aslr(total_size, PROT_NONE, VMA_UNMAPPED,
                                    /*file=*/NULL, /*offset=*/0, /*comment=*/NULL, addr) < 0)) {
         log_debug("reserve_dyn: failed to find an address for shared object\n");
         return ret;
     }
+
+    if (align > g_pal_alloc_align)
+        *addr = ALIGN_UP_PTR_POW2(*addr, align);
 
     return 0;
 }
@@ -370,12 +389,23 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
          * This is a position-independent shared object, reserve a memory area to determine load
          * address.
          *
-         * Note that we reserve memory starting from virtual address 0, not from load_start. This is
-         * to ensure that the load base (l_addr) will not be lower than 0.
+         * Note that we reserve memory starting from offset 0, not from load_start. This is to
+         * ensure that the load base (l_addr) will not be lower than 0.
+         *
+         * We also make sure that the address for a program (but not interpreter) is aligned
+         * according to the maximum requested p_align value, as this is what Linux does.
          */
-        void* addr;
 
-        if ((ret = reserve_dyn(load_end, &addr)) < 0) {
+        size_t max_align = g_pal_alloc_align;
+
+        if (interp_libname_vaddr != 0) {
+            for (struct loadcmd* c = &loadcmds[0]; c < &loadcmds[n_loadcmds]; c++)
+                if (c->align > max_align)
+                    max_align = c->align;
+        }
+
+        void* addr;
+        if ((ret = reserve_dyn(load_end, &addr, max_align)) < 0) {
             errstring = "failed to allocate memory for shared object";
             goto err;
         }
