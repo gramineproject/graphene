@@ -66,7 +66,15 @@ long shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
     if (gidsetsize < 0 || (unsigned int)gidsetsize > NGROUPS_MAX)
         return -EINVAL;
 
-    if (gidsetsize && test_user_memory(grouplist, gidsetsize * sizeof(gid_t), /*write=*/false))
+    struct shim_thread* current = get_cur_thread();
+    if (gidsetsize == 0) {
+        free(current->groups_info.groups);
+        current->groups_info.groups = NULL;
+        current->groups_info.count = 0;
+        return 0;
+    }
+
+    if (test_user_memory(grouplist, gidsetsize * sizeof(gid_t), /*write=*/false))
         return -EFAULT;
 
     size_t groups_len = (size_t)gidsetsize;
@@ -78,7 +86,6 @@ long shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
         groups[i] = grouplist[i];
     }
 
-    struct shim_thread* current = get_cur_thread();
     void* old_groups = NULL;
     current->groups_info.count = groups_len;
     old_groups = current->groups_info.groups;

@@ -16,7 +16,7 @@
 #include "shim_utils.h"
 
 long shim_do_readv(int fd, const struct iovec* vec, int vlen) {
-    if (!vec || test_user_memory((void*)vec, sizeof(*vec) * vlen, false))
+    if (test_user_memory((void*)vec, sizeof(*vec) * vlen, false))
         return -EINVAL;
 
     for (int i = 0; i < vlen; i++) {
@@ -78,7 +78,7 @@ out:
  * shall remain unchanged, and errno shall be set to indicate an error
  */
 long shim_do_writev(int fd, const struct iovec* vec, int vlen) {
-    if (!vec || test_user_memory((void*)vec, sizeof(*vec) * vlen, false))
+    if (test_user_memory((void*)vec, sizeof(*vec) * vlen, false))
         return -EINVAL;
 
     for (int i = 0; i < vlen; i++) {

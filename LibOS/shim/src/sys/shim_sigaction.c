@@ -184,7 +184,7 @@ long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr, size_t setsize) {
     if (setsize != sizeof(sigset_t)) {
         return -EINVAL;
     }
-    if (!mask_ptr || test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
+    if (test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
         return -EFAULT;
 
     __sigset_t mask = *mask_ptr;
@@ -227,7 +227,7 @@ long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;
 
-    if (!set || test_user_memory(set, sigsetsize, /*write=*/true))
+    if (test_user_memory(set, sigsetsize, /*write=*/true))
         return -EFAULT;
 
     get_all_pending_signals(set);

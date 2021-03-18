@@ -39,7 +39,7 @@ int do_handle_read(struct shim_handle* hdl, void* buf, int count) {
 }
 
 long shim_do_read(int fd, void* buf, size_t count) {
-    if (!buf || test_user_memory(buf, count, true))
+    if (test_user_memory(buf, count, true))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -74,7 +74,7 @@ int do_handle_write(struct shim_handle* hdl, const void* buf, int count) {
 }
 
 long shim_do_write(int fd, const void* buf, size_t count) {
-    if (!buf || test_user_memory((void*)buf, count, false))
+    if (test_user_memory((void*)buf, count, false))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -172,7 +172,7 @@ out:
 }
 
 long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
-    if (!buf || test_user_memory(buf, count, true))
+    if (test_user_memory(buf, count, true))
         return -EFAULT;
 
     if (pos < 0)
@@ -222,7 +222,7 @@ out:
 }
 
 long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
-    if (!buf || test_user_memory(buf, count, false))
+    if (test_user_memory(buf, count, false))
         return -EFAULT;
 
     if (pos < 0)
@@ -293,7 +293,7 @@ static inline int get_dirent_type(mode_t type) {
 }
 
 long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
-    if (!buf || test_user_memory(buf, count, true))
+    if (test_user_memory(buf, count, true))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -401,7 +401,7 @@ out_no_unlock:
 }
 
 long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
-    if (!buf || test_user_memory(buf, count, true))
+    if (test_user_memory(buf, count, true))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);

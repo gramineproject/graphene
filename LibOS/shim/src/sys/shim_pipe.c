@@ -97,7 +97,7 @@ long shim_do_pipe2(int* filedes, int flags) {
         return -EINVAL;
     }
 
-    if (!filedes || test_user_memory(filedes, 2 * sizeof(int), true))
+    if (test_user_memory(filedes, 2 * sizeof(int), true))
         return -EFAULT;
 
     int vfd1 = -1;
@@ -172,7 +172,7 @@ long shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     if ((type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC)) != SOCK_STREAM)
         return -EPROTONOSUPPORT;
 
-    if (!sv || test_user_memory(sv, 2 * sizeof(int), true))
+    if (test_user_memory(sv, 2 * sizeof(int), true))
         return -EFAULT;
 
     int vfd1 = -1;
