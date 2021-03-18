@@ -397,7 +397,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
             goto err;
         }
 
-        if (ehdr->e_phoff >= c->map_off
+        if (!l->l_phdr && ehdr->e_phoff >= c->map_off
                 && ehdr->e_phoff + phdr_size <= c->map_off + (c->data_end - c->start)) {
             /* Found the program header in this segment. */
             ElfW(Addr) phdr_vaddr = ehdr->e_phoff - c->map_off + c->start;
@@ -405,8 +405,8 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
         }
 
 
-        if (interp_libname_vaddr != 0 && (c->start <= interp_libname_vaddr &&
-                                          interp_libname_vaddr < c->data_end)) {
+        if (interp_libname_vaddr != 0 && !l->l_interp_libname && c->start <= interp_libname_vaddr
+                && interp_libname_vaddr < c->data_end) {
             /* Found the interpreter name in this segment (but we need to validate length). */
             const char* interp_libname = (const char*)(interp_libname_vaddr + l->l_addr);
             size_t maxlen = c->data_end - interp_libname_vaddr;
@@ -419,7 +419,8 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
             l->l_interp_libname = interp_libname;
         }
 
-        if (ehdr->e_entry != 0 && (c->start <= ehdr->e_entry && ehdr->e_entry < c->data_end)) {
+        if (ehdr->e_entry != 0 && !l->l_entry && c->start <= ehdr->e_entry
+                && ehdr->e_entry < c->data_end) {
             /* Found the entry point in this segment. */
             l->l_entry = (ElfW(Addr))(ehdr->e_entry + l->l_addr);
         }
