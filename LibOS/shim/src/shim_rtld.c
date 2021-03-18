@@ -165,8 +165,11 @@ static int read_all_loadcmds(const ElfW(Phdr)* phdr, size_t phnum, size_t* n_loa
         if (ph->p_type == PT_LOAD)
             n++;
 
-    if (n == 0)
+    if (n == 0) {
+        *n_loadcmds = 0;
+        *loadcmds = NULL;
         return 0;
+    }
 
     if ((*loadcmds = malloc(n * sizeof(**loadcmds))) == NULL) {
         log_debug("%s: failed to allocate memory\n", __func__);
@@ -195,6 +198,7 @@ static int read_all_loadcmds(const ElfW(Phdr)* phdr, size_t phnum, size_t* n_loa
     return 0;
 
 err:
+    *n_loadcmds = 0;
     free(*loadcmds);
     *loadcmds = NULL;
     return ret;
@@ -360,24 +364,30 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
 
     /* Determine the load address. */
 
-    size_t total_size = loadcmds[n_loadcmds - 1].alloc_end - loadcmds[0].start;
+    size_t load_start = loadcmds[0].start;
+    size_t load_end = loadcmds[n_loadcmds - 1].alloc_end;
 
     if (ehdr->e_type == ET_DYN) {
-        /* This is a position-independent shared object, reserve a memory area to determine load
-         * address. */
-        void* map_start;
+        /*
+         * This is a position-independent shared object, reserve a memory area to determine load
+         * address.
+         *
+         * Note that we reserve memory starting from virtual address 0, not from load_start. This is
+         * to ensure that the load base (l_addr) will not be lower than 0.
+         */
+        void* addr;
 
-        if ((ret = reserve_dyn(total_size, &map_start)) < 0) {
+        if ((ret = reserve_dyn(load_end, &addr)) < 0) {
             errstring = "failed to allocate memory for shared object";
             goto err;
         }
 
-        l->l_addr = (ElfW(Addr))map_start - loadcmds[0].start;
+        l->l_addr = (ElfW(Addr))addr;
     } else {
         l->l_addr = 0;
     }
-    l->l_map_start = loadcmds[0].start + l->l_addr;
-    l->l_map_end   = l->l_map_start + total_size;
+    l->l_map_start = load_start + l->l_addr;
+    l->l_map_end   = load_end + l->l_addr;
 
     /* Execute load commands. */
     l->l_data_segment_size = 0;
