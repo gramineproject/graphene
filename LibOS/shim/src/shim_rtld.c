@@ -101,7 +101,7 @@ struct loadcmd {
     ElfW(Addr) alloc_end;
 
     /* File offset */
-    size_t map_off;
+    uint64_t map_off;
 
     /* Permissions for memory area */
     int prot;
@@ -110,7 +110,7 @@ struct loadcmd {
 static struct link_map* loaded_libraries = NULL;
 static struct link_map* interp_map = NULL;
 
-static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, size_t offset);
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, uint64_t offset);
 
 static struct link_map* new_elf_object(const char* realname) {
     struct link_map* new;
@@ -575,7 +575,9 @@ verify_failed:
     return -EINVAL;
 }
 
-static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, size_t offset) {
+/* TODO: On 32-bit platforms, this function will not handle big offsets because fs_ops->seek() takes
+ * offset as off_t. That's a limitation of Graphene filesystem API and should be fixed there. */
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, uint64_t offset) {
     if (!file)
         return -EINVAL;
 
