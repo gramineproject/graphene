@@ -355,10 +355,8 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
 
     const ElfW(Phdr)* ph;
     for (ph = phdr; ph < &phdr[ehdr->e_phnum]; ph++) {
-        switch (ph->p_type) {
-            case PT_INTERP:
-                interp_libname_vaddr = ph->p_vaddr;
-                break;
+        if (ph->p_type == PT_INTERP) {
+            interp_libname_vaddr = ph->p_vaddr;
         }
     }
 
@@ -444,7 +442,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
     }
 
     if (ehdr->e_entry != 0 && !l->l_entry) {
-        errstring = "interpreter name not found in any of the segments";
+        errstring = "entry point not found in any of the segments";
         ret = -EINVAL;
         goto err;
     }
