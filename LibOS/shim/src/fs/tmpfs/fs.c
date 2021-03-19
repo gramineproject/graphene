@@ -265,7 +265,7 @@ out:
    pre-allocates memory region at a specific address (making it impossible to have two mmaps on the
    same tmpfs file), and shim_do_munmap() doesn't have a callback into tmpfs at all. */
 static int tmpfs_mmap(struct shim_handle* hdl, void** addr, size_t size, int prot, int flags,
-                      off_t offset) {
+                      uint64_t offset) {
     __UNUSED(hdl);
     __UNUSED(addr);
     __UNUSED(size);
@@ -504,7 +504,7 @@ static int tmpfs_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
         tmpfs_dput(dent);
     } else if (tmpfs_data->type == FILE_DIR && dent->nchildren != 0) {
         struct shim_dentry* tmp = NULL;
-        int nchildren = 0;
+        size_t nchildren = 0;
         LISTP_FOR_EACH_ENTRY(tmp, &dent->children, siblings) {
             if (tmp->state & DENTRY_NEGATIVE)
                 continue;
