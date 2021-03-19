@@ -47,9 +47,9 @@ fs.mount.cwd.path = "$(INSTALL_DIR_ABSPATH)"
 fs.mount.cwd.uri = "file:$(INSTALL_DIR)"
 
 # Mount lighttpd's default server.upload-dirs path
-fs.mount.var_tmp.type = "chroot"
+fs.mount.var_tmp.type = "tmpfs"
 fs.mount.var_tmp.path = "/var/tmp"
-fs.mount.var_tmp.uri = "file:/var/tmp"
+fs.mount.var_tmp.uri = "file:dummy-unused-by-tmpfs-uri"
 
 # SGX general options
 
@@ -87,6 +87,7 @@ sgx.trusted_files.nss_files = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
 sgx.trusted_files.mod_indexfile = "file:$(INSTALL_DIR)/lib/mod_indexfile.so"
 sgx.trusted_files.mod_dirlisting = "file:$(INSTALL_DIR)/lib/mod_dirlisting.so"
 sgx.trusted_files.mod_staticfile = "file:$(INSTALL_DIR)/lib/mod_staticfile.so"
+sgx.trusted_files.mod_deflate = "file:$(INSTALL_DIR)/lib/mod_deflate.so"
 
 # Trusted configuration files
 sgx.trusted_files.conf = "file:lighttpd.conf"

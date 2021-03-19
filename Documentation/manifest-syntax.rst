@@ -263,13 +263,33 @@ FS mount points
 
 ::
 
-    fs.mount.[identifier].type = "[chroot|...]"
+    fs.mount.[identifier].type = "[chroot|tmpfs]"
     fs.mount.[identifier].path = "[PATH]"
     fs.mount.[identifier].uri  = "[URI]"
 
 This syntax specifies how file systems are mounted inside the library OS. For
-dynamically linked binaries, usually at least one mount point is required in the
-manifest (the mount point of the Glibc library).
+dynamically linked binaries, usually at least one `chroot` mount point is
+required in the manifest (the mount point of the Glibc library).
+
+Graphene currently supports two types of mount points:
+
+* ``chroot``: Host-backed files. All host files and sub-directories found under
+  ``[URI]`` are forwarded to a Graphene instance and placed under ``[PATH]``.
+  For example, with a host-level path specified as
+  ``fs.mount.lib.uri = "file:graphene/Runtime/"`` and forwarded to Graphene via
+  ``fs.mount.lib.path = "/lib"``, a host-level file
+  ``graphene/Runtime/libc.so.6`` is visible to graphenized application as
+  ``/lib/libc.so.6``. This concept is similar to FreeBSD's chroot and to
+  Docker's named volumes. Files under ``chroot`` mount points support mmap and
+  fork/clone.
+
+* ``tmpfs``: Temporary in-memory-only files. These files are *not* backed by
+  host-level files. The tmpfs files are created under ``[PATH]`` (this path is
+  empty on Graphene instance startup) and are destroyed when a Graphene
+  instance terminates. The ``[URI]`` parameter is always ignored. ``tmpfs``
+  is especially useful in trusted environments (like Intel SGX) for securely
+  storing temporary files. This concept is similar to Linux's tmpfs. Files
+  under ``tmpfs`` mount points currently do *not* support mmap and fork/clone.
 
 Start (current working) directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
