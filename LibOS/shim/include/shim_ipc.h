@@ -80,7 +80,6 @@ DEFINE_LIST(shim_ipc_info);
 struct shim_ipc_info {
     IDTYPE vmid;
     struct shim_ipc_port* port;
-    PAL_HANDLE pal_handle;
     struct shim_qstr uri;
     LIST_TYPE(shim_ipc_info) hlist;
     REFTYPE ref_count;
@@ -105,9 +104,6 @@ struct shim_ipc_msg {
     // TODO: this is only a temporary workaround until we rewrite the IPC subsystem.
     char msg[] __attribute__((aligned(16)));
 } __attribute__((packed));
-
-struct shim_ipc_port;
-struct shim_thread;
 
 DEFINE_LIST(shim_ipc_msg_with_ack);
 struct shim_ipc_msg_with_ack {
@@ -423,7 +419,6 @@ void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini
                         struct shim_ipc_port** portptr);
 void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type, port_fini fini);
 void del_ipc_port_fini(struct shim_ipc_port* port);
-struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type);
 void get_ipc_port(struct shim_ipc_port* port);
 void put_ipc_port(struct shim_ipc_port* port);
 void del_all_ipc_ports(void);
@@ -434,7 +429,6 @@ void put_ipc_info(struct shim_ipc_info* port);
 
 struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size_t len);
 void put_ipc_info_in_list(struct shim_ipc_info* info);
-struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid);
 
 static inline size_t get_ipc_msg_size(size_t payload) {
     size_t size = sizeof(struct shim_ipc_msg) + payload;

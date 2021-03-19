@@ -17,14 +17,14 @@
 
 int get_hw_resource(const char* filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
+    if (fd < 0)
+        return fd;
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
     INLINE_SYSCALL(close, 1, fd);
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
+    if (ret < 0)
+        return ret;
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
@@ -80,13 +80,13 @@ int get_hw_resource(const char* filename, bool count) {
 
 int read_file_buffer(const char* filename, char* buf, size_t count) {
     int fd = INLINE_SYSCALL(open, 2, filename, O_RDONLY);
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
+    if (fd < 0)
+        return fd;
 
     int ret = INLINE_SYSCALL(read, 3, fd, buf, count);
     INLINE_SYSCALL(close, 1, fd);
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
+    if (ret < 0)
+        return ret;
 
     return ret;
 }
@@ -106,13 +106,13 @@ static int get_num_cache_level(const char* path) {
     int num_dirs = 0;
 
     int fd = INLINE_SYSCALL(open, 2, path, O_RDONLY | O_DIRECTORY);
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
+    if (fd < 0)
+        return fd;
 
     while (true) {
         int nread = INLINE_SYSCALL(getdents64, 3, fd, buf, 1024);
-        if (IS_ERR(nread)) {
-            num_dirs = -ERRNO(nread);
+        if (nread < 0) {
+            num_dirs = nread;
             goto out;
         }
 

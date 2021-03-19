@@ -73,7 +73,7 @@ out:
     return (mode & acc);
 }
 
-void _DkPrintConsole(const void* buf, int size) {
+void _DkPrintConsole(const void* buf, size_t size) {
     ocall_write(2 /*stderr*/, buf, size);
 }
 
@@ -278,9 +278,9 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 
     /* first send hdl_hdr so the recipient knows how many FDs were transferred + how large is cargo */
     ret = ocall_send(fd, &hdl_hdr, sizeof(struct hdl_header), NULL, 0, NULL, 0);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         free(hdl_data);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     /* construct ancillary data of FDs-to-transfer in a control message */
@@ -296,9 +296,9 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     /* next send FDs-to-transfer as ancillary data */
     ret = ocall_send(fd, DUMMYPAYLOAD, DUMMYPAYLOADSIZE, NULL, 0, control_hdr,
                      control_hdr->cmsg_len);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         free(hdl_data);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     /* finally send the serialized cargo as payload (possibly encrypted) */
@@ -306,11 +306,11 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
         ret = _DkStreamSecureWrite(hdl->process.ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
     } else {
         ret = ocall_write(fd, hdl_data, hdl_hdr.data_size);
-        ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+        ret = ret < 0 ? unix_to_pal_error(ret) : ret;
     }
 
     free(hdl_data);
-    return IS_ERR(ret) ? ret : 0;
+    return ret < 0 ? ret : 0;
 }
 
 /*!
@@ -332,8 +332,8 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     /* first receive hdl_hdr so that we know how many FDs were transferred + how large is cargo */
     ret = ocall_recv(fd, &hdl_hdr, sizeof(hdl_hdr), NULL, NULL, NULL, NULL);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     if ((size_t)ret != sizeof(hdl_hdr)) {
         /* This check is to shield from a Iago attack. We know that ocall_send() in _DkSendHandle()
@@ -357,8 +357,8 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     char dummypayload[DUMMYPAYLOADSIZE];
     ret = ocall_recv(fd, dummypayload, DUMMYPAYLOADSIZE, NULL, NULL, control_buf,
                      &control_buf_size);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     /* finally receive the serialized cargo as payload (possibly encrypted) */
     char hdl_data[hdl_hdr.data_size];
@@ -367,9 +367,9 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
         ret = _DkStreamSecureRead(hdl->process.ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
     } else {
         ret = ocall_read(fd, hdl_data, hdl_hdr.data_size);
-        ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+        ret = ret < 0 ? unix_to_pal_error(ret) : ret;
     }
-    if (IS_ERR(ret))
+    if (ret < 0)
         return ret;
 
     /* prepare array of FDs from the received FDs-to-transfer */
@@ -382,7 +382,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     /* deserialize cargo handle from a blob hdl_data */
     PAL_HANDLE handle = NULL;
     ret = handle_deserialize(&handle, hdl_data, hdl_hdr.data_size, fds);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return ret;
 
     /* restore cargo handle's FDs from the received FDs-to-transfer */
@@ -408,21 +408,24 @@ int _DkInitDebugStream(const char* path) {
         ret = ocall_close(g_log_fd);
         g_log_fd = PAL_LOG_DEFAULT_FD;
         if (ret < 0)
-            return unix_to_pal_error(ERRNO(ret));
+            return unix_to_pal_error(ret);
     }
 
     ret = ocall_open(path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
     if (ret < 0)
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     g_log_fd = ret;
     return 0;
 }
 
-ssize_t _DkDebugLog(const void* buf, size_t size) {
+int _DkDebugLog(const void* buf, size_t size) {
     if (g_log_fd < 0)
         return -PAL_ERROR_BADHANDLE;
 
+    // TODO: add retrying on EINTR
     ssize_t ret = ocall_write(g_log_fd, buf, size);
-    ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
-    return ret;
+    if (ret < 0 || (size_t)ret != size) {
+        return ret < 0 ? unix_to_pal_error(ret) : -PAL_ERROR_INTERRUPTED;
+    }
+    return 0;
 }

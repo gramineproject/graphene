@@ -51,8 +51,8 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
     /* Using create arg as a work-around (note: initval is uint32 but create is int32).*/
     ret = ocall_eventfd(create, eventfd_type(options));
 
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(eventfd));
     SET_HANDLE_TYPE(hdl, eventfd);
@@ -81,8 +81,8 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
      * attacks) */
     ssize_t bytes = ocall_read(handle->eventfd.fd, buffer, len);
 
-    if (IS_ERR(bytes))
-        return unix_to_pal_error(ERRNO(bytes));
+    if (bytes < 0)
+        return unix_to_pal_error(bytes);
 
     return bytes;
 }
@@ -99,8 +99,8 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
         return -PAL_ERROR_INVAL;
 
     ssize_t bytes = ocall_write(handle->eventfd.fd, buffer, len);
-    if (IS_ERR(bytes))
-        return unix_to_pal_error(ERRNO(bytes));
+    if (bytes < 0)
+        return unix_to_pal_error(bytes);
 
     return bytes;
 }
@@ -118,16 +118,16 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
 
     /* get number of bytes available for reading */
     ret = ocall_fionread(handle->eventfd.fd);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     attr->pending_size = ret;
 
     /* query if there is data available for reading */
     struct pollfd pfd = {.fd = handle->eventfd.fd, .events = POLLIN | POLLOUT, .revents = 0};
     ret = ocall_poll(&pfd, 1, 0);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     attr->readable = ret == 1 && (pfd.revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
     attr->writable = ret == 1 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;

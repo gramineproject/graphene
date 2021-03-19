@@ -24,7 +24,7 @@
 #endif // IN_SHIM
 
 typedef struct {
-    int lock;
+    uint32_t lock;
 #ifdef DEBUG_SPINLOCKS_SHIM
     unsigned int owner;
 #endif // DEBUG_SPINLOCKS_SHIM
@@ -94,7 +94,7 @@ static inline int spinlock_trylock(spinlock_t* lock) {
  * \brief Acquire spinlock.
  */
 static inline void spinlock_lock(spinlock_t* lock) {
-    int val;
+    uint32_t val;
 
     /* First check if lock is already free. */
     if (__atomic_exchange_n(&lock->lock, SPINLOCK_LOCKED, __ATOMIC_ACQUIRE) == SPINLOCK_UNLOCKED) {
@@ -122,7 +122,7 @@ out:
  * \return            0 if acquiring the lock succeeded, 1 if timed out.
  */
 static inline int spinlock_lock_timeout(spinlock_t* lock, unsigned long iterations) {
-    int val;
+    uint32_t val;
 
     /* First check if lock is already free. */
     if (__atomic_exchange_n(&lock->lock, SPINLOCK_LOCKED, __ATOMIC_ACQUIRE) == SPINLOCK_UNLOCKED) {
@@ -157,7 +157,7 @@ out_success:
  * of `*lock` are written into `*expected`. If `desired` is written into `*lock` then true is
  * returned.
  */
-static inline int spinlock_cmpxchg(spinlock_t* lock, int* expected, int desired) {
+static inline int spinlock_cmpxchg(spinlock_t* lock, uint32_t* expected, uint32_t desired) {
     static_assert(SAME_TYPE(&lock->lock, expected), "spinlock is not implemented as int*");
     return __atomic_compare_exchange_n(&lock->lock, expected, desired, /*weak=*/false,
                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);

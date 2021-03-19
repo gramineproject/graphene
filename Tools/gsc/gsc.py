@@ -87,12 +87,32 @@ def extract_working_dir_from_image_config(config, env):
         working_dir = working_dir + '/'
     env.globals.update({'working_dir': working_dir})
 
+def extract_environment_from_image_config(config):
+    env_list = config['Env']
+    base_image_environment = ''
+    for env_var in env_list:
+        # TODO: switch to loader.env_src_file = "file:file_with_serialized_envs" if
+        # the need for multi-line envvars arises
+        if '\n' in env_var:
+            # we use TOML's basic single-line strings, can't have newlines
+            print(f'Skipping environment variable `{env_var.split("=", maxsplit=1)[0]}`: '
+                    'its value contains newlines.')
+            continue
+        escaped_env_var = env_var.translate(str.maketrans({'\\': r'\\', '"': r'\"'}))
+        env_var_name = escaped_env_var.split('=', maxsplit=1)[0]
+        if env_var_name == f'PATH' or env_var_name == f'LD_LIBRARY_PATH':
+            # PATH and LD_LIBRARY_PATH are already part of entrypoint.manifest.template.
+            # Their values are provided in finalize_manifest.py, hence skipping here.
+            continue
+        env_var_value = escaped_env_var.split('=', maxsplit=1)[1]
+        base_image_environment += f'loader.env.{env_var_name} = "{env_var_value}"\n'
+    return base_image_environment
 
 def extract_build_args(args):
     buildargs_dict = {}
     for item in args.build_arg:
         if '=' in item:
-            key, value = item.split('=', 1)
+            key, value = item.split('=', maxsplit=1)
             buildargs_dict[key] = value
         else:
             # user specified --build-arg with key and without value, let's retrieve value from env
@@ -154,10 +174,15 @@ def gsc_build(args):
         with open(args.manifest, 'r') as user_manifest_file:
             user_manifest_contents = user_manifest_file.read()
 
+    # extract base docker image's environment variables to append inside entrypoint.manifest file
+    base_image_environment = extract_environment_from_image_config(original_image.attrs['Config'])
+
     with open(tmp_build_path / 'entrypoint.manifest', 'w') as entrypoint_manifest:
         entrypoint_manifest.write(env.get_template('entrypoint.manifest.template').render())
         entrypoint_manifest.write('\n')
         entrypoint_manifest.write(user_manifest_contents)
+        entrypoint_manifest.write('\n')
+        entrypoint_manifest.write(base_image_environment)
         entrypoint_manifest.write('\n')
 
     # copy helper script to finalize the manifest from within graphenized Docker image

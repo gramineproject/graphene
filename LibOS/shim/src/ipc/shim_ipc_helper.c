@@ -17,9 +17,6 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-// TODO: There's some dead code left in this file after removal of execve-in-new-process quirk. We
-// need to clean it up.
-
 #define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 
 static struct shim_lock ipc_port_mgr_lock;
@@ -79,19 +76,12 @@ static ipc_callback ipc_callbacks[] = {
 static int init_self_ipc_port(void) {
     lock(&g_process_ipc_info.lock);
 
+    assert(!g_process_ipc_info.self);
+    /* very first process or clone/fork case: create IPC port from scratch */
+    g_process_ipc_info.self = create_ipc_info_and_port(/*use_vmid_as_port_name=*/true);
     if (!g_process_ipc_info.self) {
-        /* very first process or clone/fork case: create IPC port from scratch */
-        g_process_ipc_info.self = create_ipc_info_and_port(/*use_vmid_as_port_name=*/true);
-        if (!g_process_ipc_info.self) {
-            unlock(&g_process_ipc_info.lock);
-            return -EACCES;
-        }
-    } else {
-        /* execve case: inherited IPC port from parent process */
-        assert(g_process_ipc_info.self->pal_handle && !qstrempty(&g_process_ipc_info.self->uri));
-
-        add_ipc_port_by_id(g_process_ipc_info.self->vmid, g_process_ipc_info.self->pal_handle,
-                           IPC_PORT_LISTENING, /*fini=*/NULL, &g_process_ipc_info.self->port);
+        unlock(&g_process_ipc_info.lock);
+        return -EACCES;
     }
 
     unlock(&g_process_ipc_info.lock);
@@ -107,15 +97,7 @@ static int init_parent_ipc_port(void) {
     lock(&g_process_ipc_info.lock);
     assert(g_process_ipc_info.parent && g_process_ipc_info.parent->vmid);
 
-    /* for execve case, my parent is the parent of my parent (current process transparently inherits
-     * the "real" parent through already opened pal_handle on "temporary" parent's
-     * g_process_ipc_info.parent) */
-    if (!g_process_ipc_info.parent->pal_handle) {
-        /* for clone/fork case, parent is connected on parent_process */
-        g_process_ipc_info.parent->pal_handle = PAL_CB(parent_process);
-    }
-
-    add_ipc_port_by_id(g_process_ipc_info.parent->vmid, g_process_ipc_info.parent->pal_handle,
+    add_ipc_port_by_id(g_process_ipc_info.parent->vmid, PAL_CB(parent_process),
                        IPC_PORT_CONNECTION | IPC_PORT_DIRECTPARENT, /*fini=*/NULL,
                        &g_process_ipc_info.parent->port);
 
@@ -129,7 +111,11 @@ static int init_ns_ipc_port(void) {
         return 0;
     }
 
-    if (!g_process_ipc_info.ns->pal_handle && qstrempty(&g_process_ipc_info.ns->uri)) {
+    if (g_process_ipc_info.ns->port) {
+        return 0;
+    }
+
+    if (qstrempty(&g_process_ipc_info.ns->uri)) {
         /* there is no connection to NS leader via PAL handle and there is no URI to find NS leader:
          * do not create NS IPC port now, it will be created on-demand during NS leader lookup */
         return 0;
@@ -137,18 +123,16 @@ static int init_ns_ipc_port(void) {
 
     lock(&g_process_ipc_info.lock);
 
-    if (!g_process_ipc_info.ns->pal_handle) {
-        log_debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
-        int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0,
-                               &g_process_ipc_info.ns->pal_handle);
-        if (ret < 0) {
-            unlock(&g_process_ipc_info.lock);
-            return pal_to_unix_errno(ret);
-        }
+    log_debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
+    PAL_HANDLE handle = NULL;
+    int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0, &handle);
+    if (ret < 0) {
+        unlock(&g_process_ipc_info.lock);
+        return pal_to_unix_errno(ret);
     }
 
-    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, g_process_ipc_info.ns->pal_handle,
-                       IPC_PORT_CONNECTION, /*fini=*/NULL, &g_process_ipc_info.ns->port);
+    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, handle, IPC_PORT_CONNECTION, /*fini=*/NULL,
+                       &g_process_ipc_info.ns->port);
 
     unlock(&g_process_ipc_info.lock);
     return 0;
@@ -397,27 +381,6 @@ void del_all_ipc_ports(void) {
     }
 
     unlock(&ipc_helper_lock);
-}
-
-struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type) {
-    struct shim_ipc_port* port = NULL;
-
-    assert(vmid && type);
-    lock(&ipc_helper_lock);
-
-    struct shim_ipc_port* tmp;
-    LISTP_FOR_EACH_ENTRY(tmp, &port_list, list) {
-        if (tmp->vmid == vmid && (tmp->type & type)) {
-            log_debug("Found port %p (handle %p) for process %u (type %04x)\n", tmp,
-                      tmp->pal_handle, tmp->vmid, tmp->type);
-            port = tmp;
-            __get_ipc_port(port);
-            break;
-        }
-    }
-
-    unlock(&ipc_helper_lock);
-    return port;
 }
 
 #define PORTS_ON_STACK_CNT 32

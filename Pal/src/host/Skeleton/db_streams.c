@@ -12,7 +12,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-void _DkPrintConsole(const void* buf, int size) {
+void _DkPrintConsole(const void* buf, size_t size) {
     /* needs to be implemented */
 }
 
@@ -38,6 +38,6 @@ int _DkInitDebugStream(const char* path) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-ssize_t _DkDebugLog(const void* buf, size_t size) {
+int _DkDebugLog(const void* buf, size_t size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

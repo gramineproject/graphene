@@ -62,8 +62,8 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
                              PAL_CREATE_TO_LINUX_OPEN(create)  |
                              PAL_OPTION_TO_LINUX_OPEN(options),
                         share);
-    if (IS_ERR(fd)) {
-        ret = unix_to_pal_error(ERRNO(fd));
+    if (fd < 0) {
+        ret = unix_to_pal_error(fd);
         goto out;
     }
 
@@ -71,9 +71,9 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     /* check if the file is seekable and get real file size */
     ret = ocall_fstat(fd, &st);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         log_error("file_open(%s): fstat failed: %d\n", path, ret);
-        ret = unix_to_pal_error(ERRNO(ret));
+        ret = unix_to_pal_error(ret);
         goto out;
     }
 
@@ -188,8 +188,8 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
             ret = ocall_read(handle->file.fd, buffer, count);
         }
 
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         return ret;
     }
@@ -251,8 +251,8 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
             ret = ocall_write(handle->file.fd, buffer, count);
         }
 
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (ret < 0)
+            return unix_to_pal_error(ret);
 
         return ret;
     }
@@ -314,7 +314,7 @@ static int file_delete(PAL_HANDLE handle, int access) {
         return -PAL_ERROR_INVAL;
 
     int ret = ocall_delete(handle->file.realpath);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr, int prot,
@@ -427,9 +427,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
         ret = ocall_mmap_untrusted(&mem, size, PAL_PROT_TO_LINUX(prot), MAP_SHARED, handle->file.fd,
                                    offset);
-        if (!IS_ERR(ret))
+        if (ret >= 0)
             *addr = mem;
-        return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+        return ret < 0 ? unix_to_pal_error(ret) : ret;
     }
 
     if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {
@@ -492,11 +492,11 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
                 bytes_read += bytes;
             } else if (bytes == 0) {
                 break; /* EOF */
-            } else if (ERRNO(bytes) == EINTR || ERRNO(bytes) == EAGAIN) {
+            } else if (bytes == -EINTR || bytes == -EAGAIN) {
                 continue;
             } else {
                 log_error("file_map - ocall_pread on allowed file returned %ld\n", bytes);
-                ret = unix_to_pal_error(ERRNO(bytes));
+                ret = unix_to_pal_error(bytes);
                 goto out;
             }
         }
@@ -537,8 +537,8 @@ static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
         return pf_file_setlength(pf, handle, length);
 
     int ret = ocall_ftruncate(handle->file.fd, length);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     handle->file.total = length;
     return (int64_t)length;
@@ -633,22 +633,23 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     /* open the file with O_NONBLOCK to avoid blocking the current thread if it is actually a FIFO
      * pipe; O_NONBLOCK will be reset below if it is a regular file */
     int fd = ocall_open(uri, O_NONBLOCK, 0);
-    if (IS_ERR(fd))
-        return unix_to_pal_error(ERRNO(fd));
+    if (fd < 0)
+        return unix_to_pal_error(fd);
 
+    char* path = NULL;
     struct stat stat_buf;
     int ret = ocall_fstat(fd, &stat_buf);
 
     /* if it failed, return the right error code */
-    if (IS_ERR(ret)) {
-        ret = unix_to_pal_error(ERRNO(ret));
+    if (ret < 0) {
+        ret = unix_to_pal_error(ret);
         goto out;
     }
 
     file_attrcopy(attr, &stat_buf);
 
-    char path[URI_MAX];
     size_t len = URI_MAX;
+    path = malloc(len);
     ret = get_norm_path(uri, path, &len);
     if (ret < 0) {
         log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
@@ -667,8 +668,8 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
         /* reset O_NONBLOCK because pf_file_attrquery() may issue reads which don't expect
          * non-blocking mode */
         ret = ocall_fsetnonblock(fd, 0);
-        if (IS_ERR(ret)) {
-            ret = unix_to_pal_error(ERRNO(ret));
+        if (ret < 0) {
+            ret = unix_to_pal_error(ret);
             goto out;
         }
 
@@ -678,6 +679,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     }
 
 out:
+    free(path);
     ocall_close(fd);
     return ret;
 }
@@ -688,8 +690,8 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     struct stat stat_buf;
 
     int ret = ocall_fstat(fd, &stat_buf);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     file_attrcopy(attr, &stat_buf);
 
@@ -714,8 +716,8 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 static int file_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int fd  = handle->file.fd;
     int ret = ocall_fchmod(fd, attr->share_flags | PERM_rw_______);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     return 0;
 }
@@ -729,9 +731,9 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
         return -PAL_ERROR_NOMEM;
 
     int ret = ocall_rename(handle->file.realpath, uri);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         free(tmp);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     /* initial realpath is part of handle object and will be freed with it */
@@ -793,18 +795,18 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {
         ret = ocall_mkdir(uri, share);
 
-        if (IS_ERR(ret)) {
-            if (ERRNO(ret) == EEXIST && create & PAL_CREATE_ALWAYS)
+        if (ret < 0) {
+            if (ret == -EEXIST && create & PAL_CREATE_ALWAYS)
                 return -PAL_ERROR_STREAMEXIST;
-            if (ERRNO(ret) != EEXIST)
-                return unix_to_pal_error(ERRNO(ret));
-            assert(ERRNO(ret) == EEXIST && create & PAL_CREATE_TRY);
+            if (ret != -EEXIST)
+                return unix_to_pal_error(ret);
+            assert(ret == -EEXIST && create & PAL_CREATE_TRY);
         }
     }
 
     ret = ocall_open(uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options), 0);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     int len        = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
@@ -882,7 +884,7 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* 
         }
 
         int size = ocall_getdents(handle->dir.fd, handle->dir.buf, DIRBUF_SIZE);
-        if (IS_ERR(size)) {
+        if (size < 0) {
             /*
              * If something was written just return that and pretend no error
              * was seen - it will be caught next time.
@@ -890,7 +892,7 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* 
             if (bytes_written) {
                 return bytes_written;
             }
-            return unix_to_pal_error(ERRNO(size));
+            return unix_to_pal_error(size);
         }
 
         if (!size) {
@@ -934,7 +936,7 @@ static int dir_delete(PAL_HANDLE handle, int access) {
         return ret;
 
     ret = ocall_delete(handle->dir.realpath);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 static int dir_rename(PAL_HANDLE handle, const char* type, const char* uri) {
@@ -946,9 +948,9 @@ static int dir_rename(PAL_HANDLE handle, const char* type, const char* uri) {
         return -PAL_ERROR_NOMEM;
 
     int ret = ocall_rename(handle->dir.realpath, uri);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         free(tmp);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     /* initial realpath is part of handle object and will be freed with it */

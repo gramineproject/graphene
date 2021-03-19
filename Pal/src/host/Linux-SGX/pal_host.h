@@ -12,6 +12,8 @@
 #error "cannot be included outside PAL"
 #endif
 
+#include <stddef.h>
+
 #include "atomic.h"
 #include "list.h"
 #include "spinlock.h"
@@ -23,7 +25,7 @@ typedef spinlock_t PAL_LOCK;
 #define _DkInternalUnlock   spinlock_unlock
 #define _DkInternalIsLocked spinlock_is_locked
 
-void* malloc_untrusted(int size);
+void* malloc_untrusted(size_t size);
 void free_untrusted(void* mem);
 
 /* Simpler mutex design: a single variable that tracks whether the

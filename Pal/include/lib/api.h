@@ -204,34 +204,23 @@ void* calloc(size_t nmemb, size_t size);
 
 #define COMPILER_BARRIER() ({ __asm__ __volatile__("" ::: "memory"); })
 
-/* Idea taken from: https://elixir.bootlin.com/linux/v5.6/source/include/linux/compiler.h */
-#define READ_ONCE(x)                            \
-    ({                                          \
-        __typeof__(x) _y;                       \
-        COMPILER_BARRIER();                     \
-        __builtin_memcpy(&_y, &(x), sizeof(x)); \
-        COMPILER_BARRIER();                     \
-        _y;                                     \
-    })
+/* We need this artificial assignment in READ_ONCE because of a GCC bug:
+ * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99258
+ */
+#define READ_ONCE(x) ({ __typeof__(x) y = *(volatile __typeof__(x)*)&(x); y;})
 
-#define WRITE_ONCE(x, y)                        \
-    ({                                          \
-        __typeof__(x) _y = (__typeof__(x))(y);  \
-        COMPILER_BARRIER();                     \
-        __builtin_memcpy(&(x), &_y, sizeof(x)); \
-        COMPILER_BARRIER();                     \
-        _y;                                     \
-    })
+#define WRITE_ONCE(x, y) do { *(volatile __typeof__(x)*)&(x) = (y); } while (0)
 
 /* Libc printf functions. stdio.h/stdarg.h. */
-void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt, ...)
+void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const char* fmt, ...)
     __attribute__((format(printf, 4, 5)));
 
-void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt,
+void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const char* fmt,
                 va_list ap) __attribute__((format(printf, 4, 0)));
 
-int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap);
-int snprintf(char* buf, size_t n, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
+int vsnprintf(char* buf, size_t buf_size, const char* fmt, va_list ap);
+int snprintf(char* buf, size_t buf_size, const char* fmt, ...)
+    __attribute__((format(printf, 3, 4)));
 
 /* Miscelleneous */
 

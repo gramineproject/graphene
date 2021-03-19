@@ -72,6 +72,11 @@ struct shim_thread {
     /* credentials */
     IDTYPE uid, gid, euid, egid;
 
+    struct {
+        size_t count;
+        gid_t* groups;
+    } groups_info;
+
     /* thread pal handle */
     PAL_HANDLE pal_handle;
 

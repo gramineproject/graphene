@@ -30,7 +30,7 @@ long shim_do_statfs(const char* path, struct statfs* buf);
 long shim_do_fstatfs(int fd, struct statfs* buf);
 long shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout);
 long shim_do_lseek(int fd, off_t offset, int origin);
-void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset);
+void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, unsigned long offset);
 long shim_do_mprotect(void* addr, size_t len, int prot);
 long shim_do_munmap(void* addr, size_t len);
 void* shim_do_brk(void* brk);

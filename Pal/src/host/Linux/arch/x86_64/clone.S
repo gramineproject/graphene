@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * clone-x86_64.S
- *
  * This file contains architecture-specific implementation of clone
  * method.
  * The source code is imported and modified from the GNU C Library.

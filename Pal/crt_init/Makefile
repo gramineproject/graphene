@@ -7,11 +7,11 @@ files_to_build += user_start.o user_shared_start.o
 all: $(files_to_build)
 test:
 
-user_start.o: user_start-$(ARCH).S
+user_start.o: arch/$(ARCH)/user_start.S
 	$(call cmd,as_o_S)
 
 ASFLAGS-user_shared_start.o = -DSHARED -fPIC
-user_shared_start.o: user_start-$(ARCH).S
+user_shared_start.o: arch/$(ARCH)/user_start.S
 	$(call cmd,as_o_S)
 
 include $(wildcard *.d)

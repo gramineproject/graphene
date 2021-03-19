@@ -33,7 +33,7 @@ static struct new_utsname g_current_uname = {
 };
 
 long shim_do_uname(struct new_utsname* buf) {
-    if (!buf || test_user_memory(buf, sizeof(*buf), /*write=*/true))
+    if (test_user_memory(buf, sizeof(*buf), /*write=*/true))
         return -EFAULT;
 
     memcpy(buf, &g_current_uname, sizeof(g_current_uname));

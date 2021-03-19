@@ -20,7 +20,7 @@ long shim_do_stat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
-    if (!stat || test_user_memory(stat, sizeof(*stat), true))
+    if (test_user_memory(stat, sizeof(*stat), true))
         return -EFAULT;
 
     int ret;
@@ -47,7 +47,7 @@ long shim_do_lstat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
-    if (!stat || test_user_memory(stat, sizeof(*stat), true))
+    if (test_user_memory(stat, sizeof(*stat), true))
         return -EFAULT;
 
     int ret;
@@ -146,7 +146,7 @@ long shim_do_readlink(const char* file, char* buf, int bufsize) {
 
 static int __do_statfs(struct shim_mount* fs, struct statfs* buf) {
     __UNUSED(fs);
-    if (!buf || test_user_memory(buf, sizeof(*buf), true))
+    if (test_user_memory(buf, sizeof(*buf), true))
         return -EFAULT;
 
     memset(buf, 0, sizeof(*buf));

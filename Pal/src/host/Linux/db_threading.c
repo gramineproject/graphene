@@ -91,13 +91,13 @@ __attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* 
      * _DkRandomBitsRead), so let's install a default canary in the child's TCB */
     pal_tcb_set_stack_canary(&tcb->common, STACK_PROTECTOR_CANARY_DEFAULT);
     ret = pal_set_tcb(&tcb->common);
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
+    if (ret < 0)
+        return ret;
 
     /* each newly-created thread (including the first thread) has its own random stack canary */
     uint64_t stack_protector_canary;
     ret = _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
-    if (IS_ERR(ret))
+    if (ret < 0)
         return -EPERM;
 
     pal_tcb_set_stack_canary(&tcb->common, stack_protector_canary);
@@ -110,8 +110,8 @@ __attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* 
         };
 
         ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
-        if (IS_ERR(ret))
-            return -ERRNO(ret);
+        if (ret < 0)
+            return ret;
     }
 
     if (tcb->callback)
@@ -128,7 +128,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     PAL_HANDLE hdl = NULL;
     void* stack = get_thread_stack();
     if (!stack) {
-        ret = -ENOMEM;
+        ret = -PAL_ERROR_NOMEM;
         goto err;
     }
 
@@ -153,7 +153,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
 
     hdl = malloc(HANDLE_SIZE(thread));
     if (!hdl) {
-        ret = -ENOMEM;
+        ret = -PAL_ERROR_NOMEM;
         goto err;
     }
     SET_HANDLE_TYPE(hdl, thread);
@@ -172,7 +172,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
                     CLONE_PARENT_SETTID,
                 (void*)tcb, &hdl->thread.tid, NULL);
 
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         ret = -PAL_ERROR_DENIED;
         goto err;
     }
@@ -202,7 +202,7 @@ int _DkThreadDelayExecution(uint64_t* duration_us) {
 
     int ret = INLINE_SYSCALL(nanosleep, 2, &sleeptime, &remainingtime);
 
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         PAL_NUM remaining = remainingtime.tv_sec * 1000000 + remainingtime.tv_nsec / 1000;
         *duration_us -= remaining;
         return -PAL_ERROR_INTERRUPTED;
@@ -279,7 +279,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 int _DkThreadResume(PAL_HANDLE threadHandle) {
     int ret = INLINE_SYSCALL(tgkill, 3, g_linux_state.pid, threadHandle->thread.tid, SIGCONT);
 
-    if (IS_ERR(ret))
+    if (ret < 0)
         return -PAL_ERROR_DENIED;
 
     return 0;
@@ -288,13 +288,13 @@ int _DkThreadResume(PAL_HANDLE threadHandle) {
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
     int ret = INLINE_SYSCALL(sched_setaffinity, 3, thread->thread.tid, cpumask_size, cpu_mask);
 
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
     int ret = INLINE_SYSCALL(sched_getaffinity, 3, thread->thread.tid, cpumask_size, cpu_mask);
 
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 struct handle_ops g_thread_ops = {

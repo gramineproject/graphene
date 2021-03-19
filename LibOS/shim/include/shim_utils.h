@@ -48,18 +48,18 @@ static inline void qstrfree(struct shim_qstr* qstr) {
     qstr->len     = 0;
 }
 
-static inline char* qstrsetstr(struct shim_qstr* qstr, const char* str, size_t size) {
+static inline char* qstrsetstr(struct shim_qstr* qstr, const char* str, size_t len) {
     if (!str) {
         qstrfree(qstr);
         return NULL;
     }
 
-    if (size >= STR_SIZE)
+    if (len >= STR_SIZE)
         return NULL;
 
     char* buf = qstr->name;
 
-    if (size >= QSTR_SIZE) {
+    if (len >= QSTR_SIZE) {
         if (!qstr->oflow) {
             qstr->oflow = get_str_obj();
             if (!qstr->oflow)
@@ -73,27 +73,27 @@ static inline char* qstrsetstr(struct shim_qstr* qstr, const char* str, size_t s
         }
     }
 
-    memcpy(buf, str, size);
-    buf[size] = 0;
-    qstr->len = size;
+    memcpy(buf, str, len);
+    buf[len] = 0;
+    qstr->len = len;
 
     return buf;
 }
 
 static inline char* qstrsetstrs(struct shim_qstr* qstr, int nstrs, const char** strs,
-                                size_t* sizes) {
-    size_t total_size = 0;
+                                size_t* lengths) {
+    size_t total_len = 0;
 
     for (int i = 0; i < nstrs; i++) {
-        total_size += sizes[i];
+        total_len += lengths[i];
     }
 
-    if (total_size >= STR_SIZE)
+    if (total_len >= STR_SIZE)
         return NULL;
 
     char* buf = qstr->name;
 
-    if (total_size >= QSTR_SIZE) {
+    if (total_len >= QSTR_SIZE) {
         if (!qstr->oflow) {
             // TODO: alloc proper size.
             qstr->oflow = get_str_obj();
@@ -107,11 +107,11 @@ static inline char* qstrsetstrs(struct shim_qstr* qstr, int nstrs, const char** 
     qstr->len = 0;
 
     for (int i = 0; i < nstrs; i++) {
-        int size = sizes[i];
-        memcpy(ptr, strs[i], size);
-        ptr[size] = 0;
-        qstr->len += size;
-        ptr += size;
+        size_t len = lengths[i];
+        memcpy(ptr, strs[i], len);
+        ptr[len] = 0;
+        qstr->len += len;
+        ptr += len;
     }
 
     return buf;
@@ -126,11 +126,11 @@ static inline void qstrcopy(struct shim_qstr* to, const struct shim_qstr* from) 
     to->hash = from->hash;
 }
 
-static inline int qstrcmpstr(const struct shim_qstr* qstr, const char* str, size_t size) {
-    if (qstr->len != size)
+static inline int qstrcmpstr(const struct shim_qstr* qstr, const char* str, size_t len) {
+    if (qstr->len != len)
         return 1;
 
-    return memcmp(qstrgetstr(qstr), str, size);
+    return memcmp(qstrgetstr(qstr), str, len);
 }
 
 /* heap allocation functions */
@@ -144,7 +144,6 @@ void* malloc_copy(const void* mem, size_t size);
 int check_elf_object(struct shim_handle* file);
 int load_elf_object(struct shim_handle* file);
 int load_elf_interp(struct shim_handle* exec);
-int free_elf_interp(void);
 noreturn void execute_elf_object(struct shim_handle* exec, void* argp, elf_auxv_t* auxp);
 int remove_loaded_libraries(void);
 

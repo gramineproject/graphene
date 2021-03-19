@@ -183,9 +183,6 @@ For SGX, one needs to do the following::
    cd Pal/regression
    make SGX=1 regression
 
-If a |nbsp| test fails unexpectedly, one can use the :makevar:`KEEP_LOG=1`
-option to get the complete output.
-
 One can run tests manually (prepend the command with ``SGX=1`` or
 ``PAL_HOST=Linux-SGX`` to run the SGX variant)::
 
@@ -226,9 +223,10 @@ Management Team
 
 The current members of the management team are:
 
-* Michał Kowalczyk (Invisible Things Lab/Golem)
+* Michał Kowalczyk (Invisible Things Lab/Intel)
 * Dmitrii Kuvaiskii (Intel)
-* Borys Popławski (Invisible Things Lab/Golem)
+* Paweł Marczewski (Invisible Things Lab/Intel)
+* Borys Popławski (Invisible Things Lab/Intel)
 * Don Porter (UNC)
 * Chia-Che Tsai (Texas A&M University)
 * Rafał Wojdyła (Invisible Things Lab/Golem)

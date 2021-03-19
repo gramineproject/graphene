@@ -52,6 +52,7 @@ include ../../Scripts/Makefile.configs
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
 pytorch.sig pytorch.manifest.sgx: sgx_outputs
+	@:
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: pytorch.manifest

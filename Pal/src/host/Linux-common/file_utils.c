@@ -12,6 +12,40 @@
 #include "linux_utils.h"
 #include "sysdep-arch.h"
 
+int read_all(int fd, void* buf, size_t size) {
+    size_t bytes_read = 0;
+    while (bytes_read < size) {
+        long ret = INLINE_SYSCALL(read, 3, fd, buf + bytes_read, size - bytes_read);
+        if (ret <= 0) {
+            if (ret == -EINTR)
+                continue;
+            if (ret == 0)
+                ret = -EINVAL; // unexpected EOF
+            return ret;
+        }
+        bytes_read += (size_t)ret;
+    }
+    return 0;
+}
+
+int write_all(int fd, const void* buf, size_t size) {
+    size_t bytes_written = 0;
+    while (bytes_written < size) {
+        long ret = INLINE_SYSCALL(write, 3, fd, buf + bytes_written, size - bytes_written);
+        if (ret <= 0) {
+            if (ret == -EINTR)
+                continue;
+            if (ret == 0) {
+                /* This case should be impossible. */
+                ret = -EINVAL;
+            }
+            return ret;
+        }
+        bytes_written += (size_t)ret;
+    }
+    return 0;
+}
+
 int read_text_file_to_cstr(const char* path, char** out) {
     long ret;
     char* buf = NULL;

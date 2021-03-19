@@ -183,6 +183,8 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
         COMPILER_BARRIER();
         /* Check that we are still supposed to sleep. */
         if (!__atomic_load_n(&qnode.in_use, __ATOMIC_ACQUIRE)) {
+            /* Something woke us up and took of the list in the meantime. */
+            ret = -ERESTARTSYS;
             break;
         }
         ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/false);

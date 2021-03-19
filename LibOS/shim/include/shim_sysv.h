@@ -40,7 +40,7 @@ struct msg_qobj {
 
 struct msg_item {
     void* next;
-    unsigned short size;
+    size_t size;
     char data[];
 } __attribute__((packed));
 
@@ -60,7 +60,7 @@ struct msg_ext_item {
 
 struct msg_req {
     struct msg_req* next;
-    unsigned short size;
+    size_t size;
     int flags;
     struct sysv_client dest;
 };
@@ -78,14 +78,14 @@ struct msg_type {
 #define DEFAULT_MSG_QUEUE_SIZE 2048
 
 struct msg_handle_backup {
-    int perm;        /* access permissions */
-    int nmsgs;       /* number of msgs */
-    int currentsize; /* current size in bytes */
+    int perm;           /* access permissions */
+    int nmsgs;          /* number of msgs */
+    size_t currentsize; /* current size in bytes */
 };
 
 struct msg_backup {
     long type;
-    int size;
+    size_t size;
     char data[];
 };
 

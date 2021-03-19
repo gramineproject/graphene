@@ -114,6 +114,9 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
 static void emulate_rdtsc_and_print_warning(sgx_cpu_context_t* uc) {
     static int first = 0;
     if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) == 0) {
+        /* if we end up emulating RDTSC/RDTSCP instruction, we cannot use invariant TSC */
+        extern uint64_t g_tsc_hz;
+        g_tsc_hz = 0;
         log_warning("Warning: all RDTSC/RDTSCP instructions are emulated (imprecisely) via "
                     "gettime() syscall.\n");
     }
@@ -184,10 +187,15 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
 
     if (!ei.info.valid) {
         event_num = exit_info;
+        if (event_num <= 0 || event_num >= PAL_EVENT_NUM_BOUND) {
+            log_error("Illegal exception reported by untrusted PAL: %d\n", event_num);
+            _DkProcessExit(1);
+        }
     } else {
         switch (ei.info.vector) {
             case SGX_EXCEPTION_VECTOR_BR:
-                event_num = PAL_EVENT_NUM_BOUND;
+                log_error("Handling #BR exceptions is currently unsupported by Graphene\n");
+                _DkProcessExit(1);
                 break;
             case SGX_EXCEPTION_VECTOR_UD:
                 if (handle_ud(uc)) {
@@ -270,13 +278,17 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
     restore_pal_context(uc, &ctx);
 }
 
-/* TODO: shouldn't this function ignore sync events???
+/* TODO: remove this function (SGX signal handling needs to be revisited)
  * actually what is the point of this function?
  * Tracked: https://github.com/oscarlab/graphene/issues/2140 */
 noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
                                      PAL_XREGS_STATE* xregs_state) {
-    assert(event > 0 && event < PAL_EVENT_NUM_BOUND);
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
+
+    if (event != PAL_EVENT_QUIT && event != PAL_EVENT_INTERRUPTED) {
+        log_error("Illegal exception reported by untrusted PAL: %lu\n", event);
+        _DkProcessExit(1);
+    }
 
     PAL_CONTEXT ctx;
     save_pal_context(&ctx, uc, xregs_state);

@@ -17,16 +17,16 @@ static size_t g_page_size = PRESET_PAGESIZE;
 
 #define ALLOC_ALIGNMENT g_page_size
 
-static inline void* __malloc(int size) {
+static inline void* __malloc(size_t size) {
     void* addr = NULL;
     int ret = ocall_mmap_untrusted(&addr, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE,
                                    /*fd=*/-1, /*offset=*/0);
-    return IS_ERR(ret) ? NULL : addr;
+    return ret < 0 ? NULL : addr;
 }
 
 #define system_malloc(size) __malloc(size)
 
-static inline void __free(void* addr, int size) {
+static inline void __free(void* addr, size_t size) {
     ocall_munmap_untrusted(addr, size);
 }
 
@@ -45,7 +45,7 @@ void init_untrusted_slab_mgr(void) {
         INIT_FAIL(PAL_ERROR_NOMEM, "cannot initialize slab manager");
 }
 
-void* malloc_untrusted(int size) {
+void* malloc_untrusted(size_t size) {
     return slab_alloc(untrusted_slabmgr, size);
 }
 

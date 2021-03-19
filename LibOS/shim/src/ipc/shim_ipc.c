@@ -83,10 +83,6 @@ static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid, const char* uri, siz
 static void __free_ipc_info(struct shim_ipc_info* info) {
     assert(locked(&ipc_info_lock));
 
-    if (info->pal_handle) {
-        DkObjectClose(info->pal_handle);
-        info->pal_handle = NULL;
-    }
     if (info->port)
         put_ipc_port(info->port);
     qstrfree(&info->uri);
@@ -165,24 +161,6 @@ void put_ipc_info_in_list(struct shim_ipc_info* info) {
         __put_ipc_info(info);
     }
     unlock(&ipc_info_lock);
-}
-
-struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid) {
-    assert(vmid);
-    lock(&ipc_info_lock);
-
-    struct shim_ipc_info* info;
-    LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
-    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
-        if (info->vmid == vmid && !qstrempty(&info->uri)) {
-            __get_ipc_info(info);
-            unlock(&ipc_info_lock);
-            return info;
-        }
-    }
-
-    unlock(&ipc_info_lock);
-    return NULL;
 }
 
 struct shim_process_ipc_info* create_process_ipc_info(void) {
@@ -365,14 +343,17 @@ struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name) {
     /* pipe for g_process_ipc_info.self is of format "pipe:<g_process_ipc_info.vmid>", others with
      * random name */
     char uri[PIPE_URI_SIZE];
-    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle, &info->uri,
-                    use_vmid_as_port_name) < 0) {
+    PAL_HANDLE handle = NULL;
+    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &handle, &info->uri, use_vmid_as_port_name) < 0) {
         put_ipc_info(info);
         return NULL;
     }
 
-    add_ipc_port_by_id(g_process_ipc_info.vmid, info->pal_handle, IPC_PORT_LISTENING, NULL,
-                       &info->port);
+    add_ipc_port_by_id(g_process_ipc_info.vmid, handle, IPC_PORT_LISTENING, NULL, &info->port);
+
+    if (!info->port) {
+        DkObjectClose(handle);
+    }
 
     return info;
 }
@@ -412,19 +393,10 @@ BEGIN_CP_FUNC(ipc_info) {
         *new_info = *info;
         REF_SET(new_info->ref_count, 0);
 
+        assert(!new_info->port);
+
         /* call qstr-specific checkpointing function for new_info->uri */
         DO_CP_IN_MEMBER(qstr, new_info, uri);
-
-        if (info->pal_handle) {
-            struct shim_palhdl_entry* entry;
-            /* call palhdl-specific checkpointing function to checkpoint
-             * info->pal_handle and return created object in entry */
-            DO_CP(palhdl, info->pal_handle, &entry);
-            /* info's PAL handle will be re-opened with new URI during
-             * palhdl restore (see checkpoint.c) */
-            entry->uri     = &new_info->uri;
-            entry->phandle = &new_info->pal_handle;
-        }
     } else {
         /* already checkpointed */
         new_info = (struct shim_ipc_info*)(base + off);

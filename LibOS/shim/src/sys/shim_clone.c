@@ -118,7 +118,6 @@ static BEGIN_MIGRATION_DEF(fork, struct shim_process* process_description,
 #ifdef DEBUG
     DEFINE_MIGRATE(gdb_map, NULL, 0);
 #endif
-    DEFINE_MIGRATE(groups_info, NULL, 0);
 }
 END_MIGRATION_DEF(fork)
 

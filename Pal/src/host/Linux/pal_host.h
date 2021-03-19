@@ -146,12 +146,16 @@ typedef struct pal_handle {
             PAL_BOL isnotification;
         } event;
     };
-} * PAL_HANDLE;
+}* PAL_HANDLE;
 
 #define RFD(n)   (1 << (MAX_FDS * 0 + (n)))
 #define WFD(n)   (1 << (MAX_FDS * 1 + (n)))
 #define ERROR(n) (1 << (MAX_FDS * 2 + (n)))
 
 #define HANDLE_TYPE(handle) ((handle)->hdr.type)
+
+int arch_do_rt_sigprocmask(int sig, int how);
+int arch_do_rt_sigaction(int sig, void* handler,
+                         const int* async_signals, size_t num_async_signals);
 
 #endif /* PAL_HOST_H */

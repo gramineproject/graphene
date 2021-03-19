@@ -373,7 +373,7 @@ int DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     return ops->attrsetbyhdl(handle, attr);
 }
 
-int _DkStreamGetName(PAL_HANDLE handle, char* buffer, int size) {
+int _DkStreamGetName(PAL_HANDLE handle, char* buffer, size_t size) {
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
     if (!ops)
@@ -382,12 +382,12 @@ int _DkStreamGetName(PAL_HANDLE handle, char* buffer, int size) {
     if (!ops->getname)
         return -PAL_ERROR_NOTSUPPORT;
 
-    int ret = ops->getname(handle, buffer, size - 1);
+    int ret = ops->getname(handle, buffer, size ? size - 1 : 0);
 
     if (ret < 0)
         return ret;
 
-    ((char*)buffer)[ret] = 0;
+    buffer[ret] = 0;
     return ret;
 }
 
@@ -565,12 +565,6 @@ const char* _DkStreamRealpath(PAL_HANDLE hdl) {
     return ops->getrealpath(hdl);
 }
 
-int DkDebugLog(PAL_PTR buffer, PAL_NUM* size) {
-    ssize_t ret = _DkDebugLog(buffer, *size);
-    if (ret < 0) {
-        return ret;
-    }
-
-    *size = ret;
-    return 0;
+int DkDebugLog(PAL_PTR buffer, PAL_NUM size) {
+    return _DkDebugLog(buffer, size);
 }

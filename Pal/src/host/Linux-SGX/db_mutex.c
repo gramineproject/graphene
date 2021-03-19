@@ -31,12 +31,12 @@ int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
     PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
     SET_HANDLE_TYPE(mut, mutex);
     __atomic_store_n(&mut->mutex.mut.nwaiters.counter, 0, __ATOMIC_SEQ_CST);
-    mut->mutex.mut.locked = malloc_untrusted(sizeof(uint32_t));
+    mut->mutex.mut.locked = malloc_untrusted(sizeof(*mut->mutex.mut.locked));
     if (!mut->mutex.mut.locked) {
         free(mut);
         return -PAL_ERROR_NOMEM;
     }
-    *handle                  = mut;
+    *handle = mut;
     __atomic_store_n(mut->mutex.mut.locked, initialCount, __ATOMIC_SEQ_CST);
     return 0;
 }
@@ -69,11 +69,11 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
          */
         ret = ocall_futex(m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout_us);
 
-        if (IS_ERR(ret)) {
-            if (ERRNO(ret) == EWOULDBLOCK) {
+        if (ret < 0) {
+            if (ret == -EWOULDBLOCK) {
                 ret = -PAL_ERROR_TRYAGAIN;
             } else {
-                ret = unix_to_pal_error(ERRNO(ret));
+                ret = unix_to_pal_error(ret);
             }
             __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
             goto out;

@@ -8,8 +8,9 @@
 #ifndef _SHIM_FS_H_
 #define _SHIM_FS_H_
 
-#include <stdbool.h>
 #include <asm/stat.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "list.h"
 #include "pal.h"
@@ -41,7 +42,7 @@ struct shim_fs_ops {
 
     /* mmap: mmap handle to address */
     int (*mmap)(struct shim_handle* hdl, void** addr, size_t size, int prot, int flags,
-                off_t offset);
+                uint64_t offset);
 
     /* flush: flush out user buffer */
     int (*flush)(struct shim_handle* hdl);

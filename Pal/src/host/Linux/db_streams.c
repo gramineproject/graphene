@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 
 #include "api.h"
+#include "linux_utils.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -72,15 +73,15 @@ int handle_set_cloexec(PAL_HANDLE handle, bool enable) {
         if (HANDLE_HDR(handle)->flags & (RFD(i) | WFD(i))) {
             long flags = enable ? FD_CLOEXEC : 0;
             int ret = INLINE_SYSCALL(fcntl, 3, handle->generic.fds[i], F_SETFD, flags);
-            if (IS_ERR(ret) && ERRNO(ret) != EBADF)
+            if (ret < 0 && ret != -EBADF)
                 return -PAL_ERROR_DENIED;
         }
 
     return 0;
 }
 
-void _DkPrintConsole(const void* buf, int size) {
-    INLINE_SYSCALL(write, 3, 2 /*stderr*/, buf, size);
+void _DkPrintConsole(const void* buf, size_t size) {
+    write_all(2 /*stderr*/, buf, size);
 }
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
@@ -89,7 +90,7 @@ int _DkStreamUnmap(void* addr, uint64_t size) {
     /* Just let the kernel tell us if the mapping isn't good. */
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
-    if (IS_ERR(ret))
+    if (ret < 0)
         return -PAL_ERROR_DENIED;
 
     return 0;
@@ -159,7 +160,7 @@ int handle_serialize(PAL_HANDLE handle, void** data) {
     return hdlsz + dsz1 + dsz2;
 }
 
-int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
+int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size) {
     PAL_HANDLE hdl = malloc(size);
     if (!hdl)
         return -PAL_ERROR_NOMEM;
@@ -245,9 +246,9 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     message_hdr.msg_iovlen = 1;
 
     ret = INLINE_SYSCALL(sendmsg, 3, fd, &message_hdr, MSG_NOSIGNAL);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         free(hdl_data);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     /* construct ancillary data of FDs-to-transfer in a control message */
@@ -270,13 +271,13 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     message_hdr.msg_iovlen = 1;
 
     ret = INLINE_SYSCALL(sendmsg, 3, fd, &message_hdr, 0);
-    if (IS_ERR(ret)) {
+    if (ret < 0) {
         free(hdl_data);
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     }
 
     free(hdl_data);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+    return ret < 0 ? unix_to_pal_error(ret) : 0;
 }
 
 /*!
@@ -304,8 +305,8 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     message_hdr.msg_iovlen = 1;
 
     ret = INLINE_SYSCALL(recvmsg, 3, fd, &message_hdr, 0);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     if ((size_t)ret != sizeof(hdl_hdr)) {
         /* This check is to shield from a Iago attack. We know that sendmsg() in _DkSendHandle()
@@ -335,13 +336,13 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     message_hdr.msg_iovlen = 1;
 
     ret = INLINE_SYSCALL(recvmsg, 3, fd, &message_hdr, 0);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (ret < 0)
+        return unix_to_pal_error(ret);
 
     /* deserialize cargo handle from a blob hdl_data */
     PAL_HANDLE handle = NULL;
     ret = handle_deserialize(&handle, hdl_data, hdl_hdr.data_size);
-    if (IS_ERR(ret))
+    if (ret < 0)
         return ret;
 
     /* restore cargo handle's FDs from the received FDs-to-transfer */
@@ -373,21 +374,22 @@ int _DkInitDebugStream(const char* path) {
         ret = INLINE_SYSCALL(close, 1, g_log_fd);
         g_log_fd = PAL_LOG_DEFAULT_FD;
         if (ret < 0)
-            return unix_to_pal_error(ERRNO(ret));
+            return unix_to_pal_error(ret);
     }
 
     ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
     if (ret < 0)
-        return unix_to_pal_error(ERRNO(ret));
+        return unix_to_pal_error(ret);
     g_log_fd = ret;
     return 0;
 }
 
-ssize_t _DkDebugLog(const void* buf, size_t size) {
+int _DkDebugLog(const void* buf, size_t size) {
     if (g_log_fd < 0)
         return -PAL_ERROR_BADHANDLE;
 
-    ssize_t ret = INLINE_SYSCALL(write, 3, g_log_fd, buf, size);
-    ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
-    return ret;
+    int ret = write_all(g_log_fd, buf, size);
+    if (ret < 0)
+        return unix_to_pal_error(ret);
+    return 0;
 }

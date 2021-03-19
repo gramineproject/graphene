@@ -13,8 +13,8 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 INSTALL_DIR ?= $(THIS_DIR)install
-HTTPD_SRC ?= $(THIS_DIR)httpd-2.4.41
-HTTPD_CHECKSUM ?= 3c0f9663240beb0f008acf3b4501c4f339d7467ee345a36c86c46b4d6f3a5461
+HTTPD_SRC ?= $(THIS_DIR)httpd-2.4.46
+HTTPD_CHECKSUM ?= 44b759ce932dc090c0e75c0210b4485ebf6983466fb8ca1b446c8168e1a1aec2
 
 # Mirros for downloading the Apache source code
 HTTPD_MIRRORS ?= \
@@ -55,8 +55,11 @@ $(INSTALL_DIR)/bin/httpd: $(HTTPD_SRC)/configure
 	cd $(HTTPD_SRC) && $(MAKE)
 	cd $(HTTPD_SRC) && $(MAKE) install
 
+# We need to patch the Apache makefile: it has broken group-target, which does not work on
+# parallel builds.
 $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
 	tar --touch -xzf $<
+	cd $(HTTPD_SRC) && patch -p1 -l < ../apache_makefile.patch
 
 $(HTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) $(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)httpd/$(HTTPD_SRC).tar.gz)

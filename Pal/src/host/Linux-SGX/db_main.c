@@ -625,7 +625,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     init_enclave_key();
 
     init_cpuid();
-    init_tsc();
 
     /* now we can add a link map for PAL itself */
     setup_pal_map(&g_pal_map);
@@ -658,6 +657,14 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_linux_state.process_id = g_pal_sec.pid;
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+
+    /* initialize "Invariant TSC" HW feature for fast and accurate gettime and immediately probe
+     * RDTSC instruction inside SGX enclave (via dummy get_tsc) -- it is possible that
+     * the CPU supports invariant TSC but doesn't support executing RDTSC inside SGX enclave, in
+     * this case the SIGILL exception is generated and leads to emulate_rdtsc_and_print_warning()
+     * which unsets invariant TSC, and we end up falling back to the slower ocall_gettime() */
+    init_tsc();
+    (void)get_tsc(); /* must be after `ready_for_exceptions=1` since it may generate SIGILL */
 
     /* Now that enclave memory is set up, parse and store host topology info into g_pal_sec struct */
     ret = parse_host_topo_info(&sec_info);
@@ -709,7 +716,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     if (preheat_enclave == 1) {
         for (uint8_t* i = g_pal_sec.heap_min; i < (uint8_t*)g_pal_sec.heap_max; i += g_page_size)
-            READ_ONCE(*i);
+            READ_ONCE(*(size_t*)i);
     }
 
     ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",

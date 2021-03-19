@@ -46,7 +46,7 @@
                        | MAP_HUGE_2MB           \
                        | MAP_HUGE_1GB)
 
-void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
+void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, unsigned long offset) {
     struct shim_handle* hdl = NULL;
     long ret = 0;
 

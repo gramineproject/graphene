@@ -28,7 +28,7 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-size_t _DkRandomBitsRead(void* buffer, size_t size) {
+int _DkRandomBitsRead(void* buffer, size_t size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

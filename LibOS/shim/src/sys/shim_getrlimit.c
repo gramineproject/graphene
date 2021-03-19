@@ -80,7 +80,7 @@ void set_rlimit_cur(int resource, uint64_t rlim) {
 long shim_do_getrlimit(int resource, struct __kernel_rlimit* rlim) {
     if (resource < 0 || RLIM_NLIMITS <= resource)
         return -EINVAL;
-    if (!rlim || test_user_memory(rlim, sizeof(*rlim), true))
+    if (test_user_memory(rlim, sizeof(*rlim), true))
         return -EFAULT;
 
     lock(&rlimit_lock);
@@ -96,7 +96,7 @@ long shim_do_setrlimit(int resource, struct __kernel_rlimit* rlim) {
 
     if (resource < 0 || RLIM_NLIMITS <= resource)
         return -EINVAL;
-    if (!rlim || test_user_memory(rlim, sizeof(*rlim), false))
+    if (test_user_memory(rlim, sizeof(*rlim), false))
         return -EFAULT;
     if (rlim->rlim_cur > rlim->rlim_max)
         return -EINVAL;

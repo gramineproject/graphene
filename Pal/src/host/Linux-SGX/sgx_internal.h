@@ -16,9 +16,7 @@
 #include "sysdep-arch.h"
 #include "toml.h"
 
-#define IS_ERR   INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO    INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
 
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));

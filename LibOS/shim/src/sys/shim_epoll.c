@@ -132,7 +132,7 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
         return -EINVAL;
 
     if (op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD)
-        if (!event || test_user_memory(event, sizeof(*event), false)) {
+        if (test_user_memory(event, sizeof(*event), false)) {
             /* surprisingly, man(epoll_ctl) does not specify EFAULT if event is invalid so
              * we re-use EINVAL; also note that EPOLL_CTL_DEL ignores event completely */
             return -EINVAL;

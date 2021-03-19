@@ -15,6 +15,7 @@
 #include <linux/shm.h>
 #include <linux/un.h>
 #include <stdalign.h>
+#include <stdint.h>
 
 #include "atomic.h"  // TODO: migrate to stdatomic.h
 #include "list.h"
@@ -357,8 +358,8 @@ struct shim_handle* get_new_handle(void);
 void get_handle(struct shim_handle* hdl);
 void put_handle(struct shim_handle* hdl);
 
-/* Set handle to non-blocking mode. */
-int set_handle_nonblocking(struct shim_handle* hdl);
+/* Set handle to non-blocking or blocking mode. */
+int set_handle_nonblocking(struct shim_handle* hdl, bool on);
 
 /* file descriptor table */
 struct shim_fd_handle {
@@ -417,7 +418,7 @@ int walk_handle_map(int (*callback)(struct shim_fd_handle*, struct shim_handle_m
 int init_handle(void);
 int init_important_handles(void);
 
-off_t get_file_size(struct shim_handle* file);
+int get_file_size(struct shim_handle* file, uint64_t* size);
 
 int do_handle_read(struct shim_handle* hdl, void* buf, int count);
 int do_handle_write(struct shim_handle* hdl, const void* buf, int count);
