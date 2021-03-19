@@ -174,9 +174,12 @@ def path_to_key(path):
 
 
 def walk_dir(path):
+    res = []
     for sub_path in path.rglob('*'):
         if sub_path.is_file():
-            yield sub_path
+            res.append(sub_path)
+    res.sort()
+    return res
 
 
 def get_trusted_files(manifest, check_exist=True, do_hash=True):
