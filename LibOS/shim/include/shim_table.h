@@ -36,7 +36,7 @@ long shim_do_munmap(void* addr, size_t len);
 void* shim_do_brk(void* brk);
 long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
                           struct __kernel_sigaction* oldact, size_t sigsetsize);
-long shim_do_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset);
+long shim_do_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset, size_t sigsetsize);
 long shim_do_rt_sigreturn(void);
 long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos);
