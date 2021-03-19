@@ -191,7 +191,7 @@ def get_trusted_files(manifest, check_exist=True, do_hash=True):
         path = Path(resolve_uri(val, check_exist))
         if path.is_dir():
             for sub_path in list_dir(path):
-                sub_key = path_to_key(key + str(sub_path))
+                sub_key = path_to_key(str(sub_path))
                 uri = 'file:' + str(sub_path)
                 targets[sub_key] = uri, sub_path
         else:
