@@ -21,3 +21,5 @@ if (fileExists('/var/run/aesmd/aesm.socket')) {
 
 env.WERROR = '1'
 env.MAKEOPTS = '-j8'
+
+env.RA_TLS_ALLOW_OUTDATED_TCB_INSECURE = '1'
