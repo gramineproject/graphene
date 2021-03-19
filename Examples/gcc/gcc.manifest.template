@@ -32,7 +32,7 @@ sgx.trusted_files.ld_ = "file:/usr/bin/ld"
 
 sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
 sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
 sgx.trusted_files.gcc_data = "file:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/"
 sgx.trusted_files.hostdebug = "file:/usr/lib/debug/usr/$(ARCH_LIBDIR)"
 

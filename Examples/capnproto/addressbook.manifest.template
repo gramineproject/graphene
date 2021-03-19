@@ -46,4 +46,4 @@ sgx.thread_num = 8
 sgx.trusted_files.addressbook = "file:addressbook"
 sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
 sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"

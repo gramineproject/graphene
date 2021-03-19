@@ -57,7 +57,7 @@ sgx.thread_num = 4
 sgx.trusted_files.client = "file:client"
 sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
 sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
 sgx.trusted_files.libs = "file:./libs/"
 
 # Name Service Switch (NSS) files. Glibc reads these files as part of name-

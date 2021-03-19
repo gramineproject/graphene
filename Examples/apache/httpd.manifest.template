@@ -72,7 +72,7 @@ sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
 
 # Other libraries required by Apache
 sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
 
 # Apache data (trusted)
 sgx.trusted_files.conf = "file:$(INSTALL_DIR)/conf"

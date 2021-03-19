@@ -89,7 +89,7 @@ fs.mount.etc.uri = "file:/etc"
 sgx.trusted_files.busybox = "file:busybox"
 sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
 sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr$(ARCH_LIBDIR)/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
 
 # Trusted non-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure
