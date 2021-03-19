@@ -5,7 +5,6 @@ import unittest
 
 from test_fs import TC_00_FileSystem
 
-# Do tmpfs tests.
 # pylint: disable=too-many-public-methods
 class TC_10_Tmpfs(TC_00_FileSystem):
     @classmethod
@@ -48,22 +47,18 @@ class TC_10_Tmpfs(TC_00_FileSystem):
         self.assertIn('compare(' + file_path + ') RW OK', stdout)
         self.assertIn('close(' + file_path + ') RW OK', stdout)
 
-    # TODO: will decide to drop or enchance it for tmpfs
     @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_115_seek_tell(self):
         TC_00_FileSystem.test_115_seek_tell(self)
 
-    # TODO: will decide to drop or enchance it for tmpfs
     @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_120_file_delete(self):
         TC_00_FileSystem.test_120_file_delete(self)
 
-    # TODO: will decide to drop or enchance it for tmpfs
     @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_130_file_stat(self):
         TC_00_FileSystem.test_130_file_stat(self)
 
-    # TODO: will decide to drop or enchance it for tmpfs
     @unittest.skip("impossible to do setup on tmpfs with python only")
     def test_140_file_truncate(self):
         TC_00_FileSystem.test_140_file_truncate(self)

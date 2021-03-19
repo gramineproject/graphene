@@ -176,7 +176,7 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
     }
 
     hdl->acc_mode = ACC_MODE(flags & O_ACCMODE);
-    ret           = 0;
+    ret = 0;
 
 out:
     unlock(&data->lock);
@@ -228,8 +228,8 @@ static ssize_t tmpfs_read(struct shim_handle* hdl, void* buf, size_t count) {
 
     lock(&hdl->lock);
     ssize_t ret = str_read(hdl, buf, count);
-    /* technically, we should update access time here, but we skip this because it
-     * could hurt performance on Linux-SGX host */
+    /* technically, we should update access time here, but we skip this because it could hurt
+     * performance on Linux-SGX host */
     unlock(&hdl->lock);
     return ret;
 }
@@ -436,9 +436,9 @@ static int tmpfs_truncate(struct shim_handle* hdl, off_t len) {
 }
 
 static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
-    int ret                = 0;
+    int ret = 0;
     size_t dirent_buf_size = 0;
-    char* dirent_buf       = NULL;
+    char* dirent_buf = NULL;
 
     struct shim_tmpfs_data* tmpfs_data = dent->data;
     assert(tmpfs_data);
@@ -446,7 +446,7 @@ static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) 
         return -ENOTDIR;
     }
 
-    struct shim_dentry* tmp_dent     = NULL;
+    struct shim_dentry* tmp_dent = NULL;
     struct shim_tmpfs_data* tmp_data = NULL;
     LISTP_FOR_EACH_ENTRY(tmp_dent, &dent->children, siblings) {
         assert((tmp_dent->state & DENTRY_INVALID_FLAGS) == 0);
@@ -465,7 +465,7 @@ static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) 
         goto out;
     }
 
-    size_t dirent_cur_off     = 0;
+    size_t dirent_cur_off = 0;
     struct shim_dirent** last = NULL;
     LISTP_FOR_EACH_ENTRY(tmp_dent, &dent->children, siblings) {
         if (tmp_dent->state & DENTRY_NEGATIVE)
@@ -475,12 +475,12 @@ static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) 
             continue;
 
         struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-        dptr->ino                = tmp_dent->ino;
-        dptr->type               = tmp_data->type == FILE_DIR ? LINUX_DT_DIR : LINUX_DT_REG;
+        dptr->ino  = tmp_dent->ino;
+        dptr->type = tmp_data->type == FILE_DIR ? LINUX_DT_DIR : LINUX_DT_REG;
         memcpy(dptr->name, qstrgetstr(&tmp_dent->name), tmp_dent->name.len + 1);
         size_t len = SHIM_DIRENT_ALIGNED_SIZE(tmp_dent->name.len + 1);
         dptr->next = (struct shim_dirent*)(dirent_buf + dirent_cur_off + len);
-        last       = &dptr->next;
+        last = &dptr->next;
         dirent_cur_off += len;
     }
     if (last) {
@@ -489,7 +489,6 @@ static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) 
     *dirent = (struct shim_dirent*)dirent_buf;
 
 out:
-    /* Need to free output buffer if error is returned */
     if (ret) {
         free(dirent_buf);
     }
@@ -505,7 +504,7 @@ static int tmpfs_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
         tmpfs_dput(dent);
     } else if (tmpfs_data->type == FILE_DIR && dent->nchildren != 0) {
         struct shim_dentry* tmp = NULL;
-        int nchildren           = 0;
+        int nchildren = 0;
         LISTP_FOR_EACH_ENTRY(tmp, &dent->children, siblings) {
             if (tmp->state & DENTRY_NEGATIVE)
                 continue;
@@ -529,7 +528,7 @@ static int tmpfs_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
 
 static off_t tmpfs_poll(struct shim_handle* hdl, int poll_type) {
     struct shim_str_data* data = hdl->info.str.data;
-    off_t size                 = data ? data->len : 0;
+    off_t size = data ? data->len : 0;
 
     if (poll_type == FS_POLL_SZ)
         return size;
