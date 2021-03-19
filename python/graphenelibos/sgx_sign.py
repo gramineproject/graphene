@@ -747,7 +747,8 @@ def main_sign(manifest, args):
 
     # Get trusted hashes and measurements
 
-    # use `list()` to ensure non-laziness
+    # Use `list()` to ensure non-laziness (`manifest_sgx` is a part of `manifest`, and we'll be
+    # changing it while iterating).
     expanded_trusted_files = list(get_trusted_files(manifest).items())
     manifest_sgx['trusted_files'] = {} # generate the list from scratch, dropping directory entries
     print('Trusted files:')

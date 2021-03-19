@@ -86,7 +86,7 @@ sgx.trusted_files.usr_libdir = "file:/usr/lib/"
 
 # Other libraries as dependencies of R
 sgx.trusted_files.stats_lib = "file:$(R_HOME)/"
-sgx.trusted_files.scripts = "file:scripts"
+sgx.trusted_files.scripts = "file:scripts/"
 
 # SGX untrusted (allowed) files/directories
 sgx.allowed_files.tmp = "file:/tmp"

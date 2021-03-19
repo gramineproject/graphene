@@ -90,7 +90,7 @@ sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
 sgx.trusted_files.usr_libdir = "file:/usr/lib/"
 sgx.trusted_files.python_dir = "file:$(PYTHONHOME)/"
 sgx.trusted_files.dist = "file:$(PYTHONDISTHOME)/"
-sgx.trusted_files.scripts = "file:scripts"
+sgx.trusted_files.scripts = "file:scripts/"
 
 # SGX untrusted (allowed) files/directories
 sgx.allowed_files.tmp = "file:/tmp"

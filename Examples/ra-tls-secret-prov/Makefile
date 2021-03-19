@@ -14,8 +14,6 @@
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
-ARCH_LIBDIR ?= /lib/x86_64-linux-gnu
-
 # for EPID attestation, specify your SPID and linkable/unlinkable attestation policy;
 # for DCAP/ECDSA attestation, specify SPID as empty string (linkable value is ignored)
 RA_CLIENT_SPID ?=
@@ -29,20 +27,22 @@ GRAPHENE_LOG_LEVEL = error
 CFLAGS += -O2
 endif
 
+include ../../Scripts/Makefile.configs
+
 .PHONY: all
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: .mbedtls_built pal_loader \
+app: mbedtls/.mbedtls_built pal_loader \
      secret_prov_min_client.manifest.sgx secret_prov_min_client.sig secret_prov_min_client.token \
      secret_prov_client.manifest.sgx     secret_prov_client.sig     secret_prov_client.token     \
      secret_prov_pf_client.manifest.sgx  secret_prov_pf_client.sig  secret_prov_pf_client.token
 
 .PHONY: epid
-epid: secret_prov_server_epid .epid_libs_copied
+epid: secret_prov_server_epid libs/.epid_libs_copied
 
 .PHONY: dcap
-dcap: secret_prov_server_dcap .dcap_libs_copied
+dcap: secret_prov_server_dcap libs/.dcap_libs_copied
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
@@ -73,8 +73,8 @@ $(MBEDTLS_SRC):
 $(MBEDCRYPTO_SRC):
 	$(GRAPHENEDIR)/Scripts/download --output $@ $(foreach mirror,$(MBEDCRYPTO_URI),--url $(mirror)/$(MBEDCRYPTO_SRC)) --sha256 $(MBEDCRYPTO_CHECKSUM)
 
-.SECONDARY: .mbedtls_downloaded
-.mbedtls_downloaded: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
+.SECONDARY: mbedtls/.mbedtls_downloaded
+mbedtls/.mbedtls_downloaded: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 	tar --touch -xzf $(MBEDTLS_SRC)
 	tar --touch -xzf $(MBEDCRYPTO_SRC)
 	mv mbedtls-mbedtls-$(MBEDTLS_VERSION) mbedtls
@@ -83,14 +83,14 @@ $(MBEDCRYPTO_SRC):
 	mv mbedtls/mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls/crypto
 	touch $@
 
-.SECONDARY: .mbedtls_configured
-.mbedtls_configured: .mbedtls_downloaded
+.SECONDARY: mbedtls/.mbedtls_configured
+mbedtls/.mbedtls_configured: mbedtls/.mbedtls_downloaded
 	mkdir -p mbedtls/install
 	cd mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C
 	touch $@
 
-.SECONDARY: .mbedtls_built
-.mbedtls_built: .mbedtls_configured
+.SECONDARY: mbedtls/.mbedtls_built
+mbedtls/.mbedtls_built: mbedtls/.mbedtls_configured
 	$(MAKE) -C mbedtls SHARED=1 DESTDIR=install install .
 	touch $@
 
@@ -99,22 +99,22 @@ $(MBEDCRYPTO_SRC):
 CFLAGS += -Wall -std=c11 -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
 LFLAGS += -Wl,-rpath,. -L./libs/ -lmbedcrypto -lmbedtls -lmbedx509
 
-secret_prov_server_epid: src/secret_prov_server.c .mbedtls_libs_copied .epid_libs_copied
+secret_prov_server_epid: src/secret_prov_server.c libs/.mbedtls_libs_copied libs/.epid_libs_copied
 	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_verify_epid -pthread -o $@
 
 # linker option --no-as-needed is required because SGX DCAP library (libsgx_dcap_quoteverify.so)
 # does dlopen() instead of directly linking against libsgx_urts.so, and without this option
 # compilers remove the "seemingly unused" libsgx_urts.so
-secret_prov_server_dcap: src/secret_prov_server.c .mbedtls_libs_copied .dcap_libs_copied
+secret_prov_server_dcap: src/secret_prov_server.c libs/.mbedtls_libs_copied libs/.dcap_libs_copied
 	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -Wl,--no-as-needed -lsgx_urts -lsecret_prov_verify_dcap -pthread -o $@
 
-secret_prov_client: src/secret_prov_client.c .mbedtls_libs_copied .common_libs_copied
+secret_prov_client: src/secret_prov_client.c libs/.mbedtls_libs_copied libs/.common_libs_copied
 	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_attest -o $@
 
-secret_prov_min_client: src/secret_prov_min_client.c .mbedtls_libs_copied .common_libs_copied
+secret_prov_min_client: src/secret_prov_min_client.c libs/.mbedtls_libs_copied libs/.common_libs_copied
 	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
-secret_prov_pf_client: src/secret_prov_pf_client.c .mbedtls_libs_copied .common_libs_copied
+secret_prov_pf_client: src/secret_prov_pf_client.c libs/.mbedtls_libs_copied libs/.common_libs_copied
 	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
 ########################### COPIES FOR CONVENIENCE ############################
@@ -122,8 +122,8 @@ secret_prov_pf_client: src/secret_prov_pf_client.c .mbedtls_libs_copied .common_
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/$@ .
 
-.SECONDARY: .mbedtls_libs_copied
-.mbedtls_libs_copied: .mbedtls_built
+.SECONDARY: libs/.mbedtls_libs_copied
+libs/.mbedtls_libs_copied: mbedtls/.mbedtls_built
 	mkdir -p libs
 
 	cd libs                                        && \
@@ -136,8 +136,8 @@ pal_loader:
 
 	touch $@
 
-.SECONDARY: .common_libs_copied
-.common_libs_copied:
+.SECONDARY: libs/.common_libs_copied
+libs/.common_libs_copied:
 	mkdir -p libs
 	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/pf_crypt/pf_crypt pf_crypt
 	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/common/libsgx_util.so libs/
@@ -145,14 +145,14 @@ pal_loader:
 	touch $@
 
 
-.SECONDARY: .epid_libs_copied
-.epid_libs_copied: .common_libs_copied
+.SECONDARY: libs/.epid_libs_copied
+libs/.epid_libs_copied: libs/.common_libs_copied
 	mkdir -p libs
 	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libsecret_prov_verify_epid.so libs/
 	touch $@
 
-.SECONDARY: .dcap_libs_copied
-.dcap_libs_copied: .common_libs_copied
+.SECONDARY: libs/.dcap_libs_copied
+libs/.dcap_libs_copied: libs/.common_libs_copied
 	mkdir -p libs
 	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libsecret_prov_verify_dcap.so libs/
 	touch $@
@@ -167,7 +167,7 @@ secret_prov_client.manifest: secret_prov_client.manifest.template
 	    -e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 	    $< > $@
 
-secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client .common_libs_copied
+secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client libs/.common_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
@@ -188,7 +188,7 @@ secret_prov_min_client.manifest: secret_prov_min_client.manifest.template
 	    -e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 	    $< > $@
 
-secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov_min_client .common_libs_copied
+secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov_min_client libs/.common_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
@@ -201,7 +201,7 @@ secret_prov_min_client.token: secret_prov_min_client.sig
 
 ########################## PREPARE PROTECTED FILES ############################
 
-files/input.txt: files/wrap-key files/plain.txt .common_libs_copied
+files/input.txt: files/wrap-key files/plain.txt libs/.common_libs_copied
 	LD_LIBRARY_PATH=./libs/ ./pf_crypt encrypt -w files/wrap-key -i files/plain.txt -o $@
 
 ############################## PF CLIENT MANIFEST #############################
@@ -214,7 +214,7 @@ secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
 	    -e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 	    $< > $@
 
-secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_pf_client .common_libs_copied
+secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_pf_client libs/.common_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
@@ -261,9 +261,8 @@ check_dcap: app dcap files/input.txt
 clean:
 	$(RM) -r *.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pal_loader pf_crypt \
 	         secret_prov_server_epid secret_prov_server_dcap \
-	         secret_prov_client secret_prov_min_client secret_prov_pf_client libs \
-	         .mbedtls_libs_copied .common_libs_copied .epid_libs_copied .dcap_libs_copied \
+	         secret_prov_client secret_prov_min_client secret_prov_pf_client libs/
 
 .PHONY: distclean
 distclean: clean
-	$(RM) -r mbedtls .mbedtls_downloaded .mbedtls_configured .mbedtls_built *.tar.gz files/input.txt
+	$(RM) -r mbedtls/ *.tar.gz files/input.txt
