@@ -1,4 +1,4 @@
-node('sgx_slave_2.6') {
+node('nigel') {
     checkout scm
 
     load '.ci/lib/config.jenkinsfile'
