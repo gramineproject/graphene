@@ -10,15 +10,14 @@ import hashlib
 import os
 import pathlib
 import shutil
+import struct
 import sys
 import tempfile
-import struct
-
-import jinja2
 
 import docker  # pylint: disable=import-error
+import jinja2
+import toml    # pylint: disable=import-error
 import yaml    # pylint: disable=import-error
-import toml
 
 def gsc_image_name(original_image_name):
     return f'gsc-{original_image_name}'
@@ -295,16 +294,14 @@ def gsc_sign_image(args):
           f'`{unsigned_image_name}`.')
 
 
-# Offsets for fields in SIGSTRUCT (defined by the SGX HW architecture, never change)
+# Offsets for fields in SIGSTRUCT (defined by the SGX HW architecture, they never change)
 SGX_ARCH_ENCLAVE_CSS_DATE = 20
 SGX_ARCH_ENCLAVE_CSS_MODULUS = 128
 SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH = 960
 SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID = 1024
 SGX_ARCH_ENCLAVE_CSS_ISV_SVN = 1026
-
 # Simplified version of read_sigstruct from Pal/src/host/Linux-SGX/signer/pal-sgx-get-token
 def read_sigstruct(sig):
-
     # Field format: (offset, type, value)
     fields = {
         'date': (SGX_ARCH_ENCLAVE_CSS_DATE, '<HBB', 'year', 'month', 'day'),
@@ -313,11 +310,9 @@ def read_sigstruct(sig):
         'isv_prod_id': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, '<H', 'isv_prod_id'),
         'isv_svn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, '<H', 'isv_svn'),
     }
-
-    attr = dict()
+    attr = {}
     for field in fields.values():
         values = struct.unpack_from(field[1], sig, field[0])
-
         for i, value in enumerate(values):
             attr[field[i + 2]] = value
 
@@ -326,48 +321,39 @@ def read_sigstruct(sig):
 def import_sigstruct_from_file(f_sig):
     with open(f_sig, 'rb') as sig:
         attr = read_sigstruct(sig.read())
-
         # calculate MRSIGNER as sha256 hash over RSA public key's modulus
         mrsigner = hashlib.sha256()
         mrsigner.update(attr['modulus'])
-
         sigstruct = {}
         sigstruct['mr_enclave'] = attr['enclave_hash'].hex()
         sigstruct['mr_signer'] = mrsigner.digest().hex()
         sigstruct['isv_prod_id'] = attr['isv_prod_id']
         sigstruct['isv_svn'] = attr['isv_svn']
         sigstruct['date'] = '%d-%02d-%02d' % (attr['year'], attr['month'], attr['day'])
-
         return sigstruct
 
 # Retrieve information about a previously built graphenized Docker image
 def gsc_info_image(args):
-
     image = args.image
-
     docker_socket = docker.from_env()
-
     gsc_image = get_docker_image(docker_socket, image)
     if gsc_image is None:
         print(f'Could not find graphenized Docker image {image}.\n'
-              f'Please make sure to build the graphenized image first by using gsc build command.')
+              'Please make sure to build the graphenized image first by using \'gsc build\''
+              ' command.')
         sys.exit(1)
-
     # Create temporary directory for sigstruct files
     with tempfile.TemporaryDirectory() as tmpdirname:
-
         # Copy sigstruct files into temporary directory
         docker_socket.containers.run(image, '\'cp *.sig /tmp/host/ 2>/dev/null || :\'',
                                  entrypoint=['sh', '-c'], remove=True,
                                  volumes={tmpdirname: {'bind': '/tmp/host', 'mode': 'rw'}})
-
         siginfo = {}
         for root, _, files in os.walk(tmpdirname):
             for file_sig in files:
                 if file_sig.endswith('.sig'):
                     siginfo[file_sig[:file_sig.rfind('.sig')]] = import_sigstruct_from_file(
                                                                     os.path.join(root, file_sig))
-
         if len(siginfo) > 0:
             print(toml.dumps(siginfo))
         else:

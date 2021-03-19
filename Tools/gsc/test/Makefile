@@ -30,14 +30,14 @@ all: $(KEY_FILE)
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
 	done
 
-config-%.yaml: ../config.yaml.template
-	echo "Distro: \"$${d}\"" > config-$${d}.yaml
-	echo "Graphene:" >> config-$${d}.yaml
-	echo "    Repository: \"$(GRAPHENE_REPO)\"" >> config-$${d}.yaml
-	echo "    Branch:     \"$(GRAPHENE_BRANCH)\"" >> config-$${d}.yaml
-	echo "SGXDriver:" >> config-$${d}.yaml
-	echo "    Repository: \"$(SGXDRIVER_REPO)\"" >> config-$${d}.yaml
-	echo "    Branch:     \"$(SGXDRIVER_BRANCH)\"" >> config-$${d}.yaml;
+config-%.yaml:
+	echo "Distro: \"$*\"" > config-$*.yaml
+	echo "Graphene:" >> config-$*.yaml
+	echo "    Repository: \"$(GRAPHENE_REPO)\"" >> config-$*.yaml
+	echo "    Branch:     \"$(GRAPHENE_BRANCH)\"" >> config-$*.yaml
+	echo "SGXDriver:" >> config-$*.yaml
+	echo "    Repository: \"$(SGXDRIVER_REPO)\"" >> config-$*.yaml
+	echo "    Branch:     \"$(SGXDRIVER_BRANCH)\"" >> config-$*.yaml;
 
 $(KEY_FILE):
 	openssl genrsa -3 -out $(KEY_FILE) 3072
