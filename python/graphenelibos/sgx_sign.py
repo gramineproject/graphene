@@ -173,7 +173,7 @@ def path_to_key(path):
     return sha256(path.encode()).hex()
 
 
-def list_dir(path):
+def walk_dir(path):
     for sub_path in path.rglob('*'):
         if sub_path.is_file():
             yield sub_path
@@ -190,7 +190,7 @@ def get_trusted_files(manifest, check_exist=True, do_hash=True):
     for key, val in manifest['sgx']['trusted_files'].items():
         path = Path(resolve_uri(val, check_exist))
         if path.is_dir():
-            for sub_path in list_dir(path):
+            for sub_path in walk_dir(path):
                 sub_key = path_to_key(str(sub_path))
                 uri = 'file:' + str(sub_path)
                 targets[sub_key] = uri, sub_path
