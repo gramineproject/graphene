@@ -36,7 +36,8 @@ void display_report_body(const sgx_report_body_t* body);
  *  \param[in] ias_report_size    Size of \a ias_report in bytes.
  *  \param[in] ias_sig_b64        IAS report signature (base64-encoded as returned by IAS).
  *  \param[in] ias_sig_b64_size   Size of \a ias_sig_b64 in bytes.
- *  \param[in] allow_outdated_tcb Treat IAS status GROUP_OUT_OF_DATE as OK.
+ *  \param[in] allow_outdated_tcb Treat IAS status codes: GROUP_OUT_OF_DATE, CONFIGURATION_NEEDED,
+ *                                SW_HARDENING_NEEDED, CONFIGURATION_AND_SW_HARDENING_NEEDED as OK.
  *  \param[in] nonce              (Optional) Nonce that's expected in the report.
  *  \param[in] mr_signer          (Optional) Expected mr_signer quote field.
  *  \param[in] mr_enclave         (Optional) Expected mr_enclave quote field.
@@ -68,7 +69,8 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
  *  \param[in] ias_report_size    Size of \a ias_report in bytes.
  *  \param[in] ias_sig_b64        IAS report signature (base64-encoded as returned by IAS).
  *  \param[in] ias_sig_b64_size   Size of \a ias_sig_b64 in bytes.
- *  \param[in] allow_outdated_tcb Treat IAS status GROUP_OUT_OF_DATE as OK.
+ *  \param[in] allow_outdated_tcb Treat IAS status codes: GROUP_OUT_OF_DATE, CONFIGURATION_NEEDED,
+ *                                SW_HARDENING_NEEDED, CONFIGURATION_AND_SW_HARDENING_NEEDED as OK.
  *  \param[in] nonce              (Optional) Nonce that's expected in the report.
  *  \param[in] ias_pub_key_pem    (Optional) IAS public RSA key (PEM format, NULL-terminated).
  *                                If not specified, a hardcoded Intel's key is used.
