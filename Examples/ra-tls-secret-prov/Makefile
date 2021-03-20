@@ -97,25 +97,26 @@ mbedtls/.mbedtls_built: mbedtls/.mbedtls_configured
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
 CFLAGS += -Wall -std=c11 -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
-LFLAGS += -Wl,-rpath,. -L./libs/ -lmbedcrypto -lmbedtls -lmbedx509
+# These flags are *NOT* for production, setting rpath is here only to simplify the test setup.
+LFLAGS += -Wl,-rpath,./libs/ -L./libs/ -lmbedcrypto -lmbedtls -lmbedx509
 
 secret_prov_server_epid: src/secret_prov_server.c libs/.mbedtls_libs_copied libs/.epid_libs_copied
-	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_verify_epid -pthread -o $@
+	$(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_verify_epid -pthread -o $@
 
 # linker option --no-as-needed is required because SGX DCAP library (libsgx_dcap_quoteverify.so)
 # does dlopen() instead of directly linking against libsgx_urts.so, and without this option
 # compilers remove the "seemingly unused" libsgx_urts.so
 secret_prov_server_dcap: src/secret_prov_server.c libs/.mbedtls_libs_copied libs/.dcap_libs_copied
-	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -Wl,--no-as-needed -lsgx_urts -lsecret_prov_verify_dcap -pthread -o $@
+	$(CC) $< $(CFLAGS) $(LFLAGS) -Wl,--no-as-needed -lsgx_urts -lsecret_prov_verify_dcap -pthread -o $@
 
 secret_prov_client: src/secret_prov_client.c libs/.mbedtls_libs_copied libs/.common_libs_copied
-	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_attest -o $@
+	$(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_attest -o $@
 
 secret_prov_min_client: src/secret_prov_min_client.c libs/.mbedtls_libs_copied libs/.common_libs_copied
-	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -o $@
+	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
 secret_prov_pf_client: src/secret_prov_pf_client.c libs/.mbedtls_libs_copied libs/.common_libs_copied
-	LD_LIBRARY_PATH=./libs/ $(CC) $< $(CFLAGS) $(LFLAGS) -o $@
+	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
 ########################### COPIES FOR CONVENIENCE ############################
 
@@ -202,7 +203,7 @@ secret_prov_min_client.token: secret_prov_min_client.sig
 ########################## PREPARE PROTECTED FILES ############################
 
 files/input.txt: files/wrap-key files/plain.txt libs/.common_libs_copied
-	LD_LIBRARY_PATH=./libs/ ./pf_crypt encrypt -w files/wrap-key -i files/plain.txt -o $@
+	./pf_crypt encrypt -w files/wrap-key -i files/plain.txt -o $@
 
 ############################## PF CLIENT MANIFEST #############################
 
@@ -229,7 +230,7 @@ secret_prov_pf_client.token: secret_prov_pf_client.sig
 
 .PHONY: check_epid
 check_epid: app epid files/input.txt
-	LD_LIBRARY_PATH=./libs/ ./secret_prov_server_epid >/dev/null & SERVER_ID=$$!; \
+	./secret_prov_server_epid >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
@@ -243,7 +244,7 @@ check_epid: app epid files/input.txt
 
 .PHONY: check_dcap
 check_dcap: app dcap files/input.txt
-	LD_LIBRARY_PATH=./libs/ ./secret_prov_server_dcap >/dev/null & SERVER_ID=$$!; \
+	./secret_prov_server_dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
