@@ -86,7 +86,7 @@ long shim_do_rt_sigreturn(void) {
 long shim_do_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset, size_t sigsetsize) {
     __sigset_t old;
 
-    if (sigsetsize != sizeof(sigset_t))
+    if (sigsetsize != sizeof(__sigset_t))
         return -EINVAL;
 
     if (how != SIG_BLOCK && how != SIG_UNBLOCK && how != SIG_SETMASK)
