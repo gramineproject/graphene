@@ -2,9 +2,9 @@
 #include <err.h>
 #include <errno.h>
 #include <linux/futex.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <signal.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
