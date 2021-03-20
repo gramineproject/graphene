@@ -98,7 +98,7 @@ mbedtls/.mbedtls_built: mbedtls/.mbedtls_configured
 
 CFLAGS += -Wall -std=c11 -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
 # These flags are *NOT* for production, setting rpath is here only to simplify the test setup.
-LFLAGS += -Wl,-rpath,./libs/ -L./libs/ -lmbedcrypto -lmbedtls -lmbedx509
+LFLAGS += -Wl,-rpath-link,./libs/ -L./libs/ -lmbedcrypto -lmbedtls -lmbedx509
 
 secret_prov_server_epid: src/secret_prov_server.c libs/.mbedtls_libs_copied libs/.epid_libs_copied
 	$(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_verify_epid -pthread -o $@

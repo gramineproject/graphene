@@ -95,7 +95,7 @@ mbedtls/.mbedtls_built: mbedtls/.mbedtls_configured
 
 CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include
 # These flags are *NOT* for production, setting rpath is here only to simplify the test setup.
-LFLAGS += -Wl,-rpath,./libs/ -L./libs/ -ldl -lmbedcrypto -lmbedtls -lmbedx509
+LFLAGS += -Wl,-rpath-link,./libs/ -L./libs/ -ldl -lmbedcrypto -lmbedtls -lmbedx509
 
 server: src/server.c libs/.mbedtls_libs_copied
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
