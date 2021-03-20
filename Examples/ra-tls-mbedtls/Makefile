@@ -207,6 +207,7 @@ client_epid.token: client_epid.sig
 check_epid: app epid
 	SGX=1 ./pal_loader server epid >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid > OUTPUT; \
 	./client epid 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
@@ -220,6 +221,7 @@ check_epid: app epid
 check_epid_fail: app epid
 	SGX=1 ./pal_loader server epid dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
@@ -227,6 +229,7 @@ check_epid_fail: app epid
 check_dcap: app dcap
 	SGX=1 ./pal_loader server dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap > OUTPUT; \
 	./client dcap 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
@@ -240,6 +243,7 @@ check_dcap: app dcap
 check_dcap_fail: app dcap
 	SGX=1 ./pal_loader server dcap dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 

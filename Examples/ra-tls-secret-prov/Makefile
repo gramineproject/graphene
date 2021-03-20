@@ -203,7 +203,7 @@ secret_prov_min_client.token: secret_prov_min_client.sig
 ########################## PREPARE PROTECTED FILES ############################
 
 files/input.txt: files/wrap-key files/plain.txt libs/.common_libs_copied
-	./pf_crypt encrypt -w files/wrap-key -i files/plain.txt -o $@
+	LD_LIBRARY_PATH=./libs/ ./pf_crypt encrypt -w files/wrap-key -i files/plain.txt -o $@
 
 ############################## PF CLIENT MANIFEST #############################
 
@@ -230,7 +230,7 @@ secret_prov_pf_client.token: secret_prov_pf_client.sig
 
 .PHONY: check_epid
 check_epid: app epid files/input.txt
-	./secret_prov_server_epid >/dev/null & SERVER_ID=$$!; \
+	LD_LIBRARY_PATH=./libs/ ./secret_prov_server_epid >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
@@ -244,7 +244,7 @@ check_epid: app epid files/input.txt
 
 .PHONY: check_dcap
 check_dcap: app dcap files/input.txt
-	./secret_prov_server_dcap >/dev/null & SERVER_ID=$$!; \
+	LD_LIBRARY_PATH=./libs/ ./secret_prov_server_dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \

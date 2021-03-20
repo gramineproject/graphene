@@ -174,12 +174,7 @@ def path_to_key(path):
 
 
 def walk_dir(path):
-    res = []
-    for sub_path in path.rglob('*'):
-        if sub_path.is_file():
-            res.append(sub_path)
-    res.sort()
-    return res
+    return sorted(filter(Path.is_file, path.rglob('*')))
 
 
 def get_trusted_files(manifest, check_exist=True, do_hash=True):
@@ -754,10 +749,8 @@ def main_sign(manifest, args):
     # changing it while iterating).
     expanded_trusted_files = list(get_trusted_files(manifest).items())
     manifest_sgx['trusted_files'] = {} # generate the list from scratch, dropping directory entries
-    print('Trusted files:')
     for key, val in expanded_trusted_files:
         uri, _, hash_ = val
-        print('    %s %s' % (hash_, uri))
         manifest_sgx['trusted_files'][key] = uri
         manifest_sgx['trusted_checksum'][key] = hash_
 
