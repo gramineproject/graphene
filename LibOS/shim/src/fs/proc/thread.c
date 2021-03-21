@@ -172,11 +172,8 @@ out:
 }
 
 static int proc_thread_link_stat(const char* name, struct stat* buf) {
-    struct shim_dentry* dent;
-
     __UNUSED(name);
-    __UNUSED(dent);
-    memset(buf, 0, sizeof(struct stat));
+    memset(buf, 0, sizeof(*buf));
 
     buf->st_dev = buf->st_ino = 1;
     buf->st_mode              = PERM_r________ | S_IFLNK;
@@ -184,8 +181,7 @@ static int proc_thread_link_stat(const char* name, struct stat* buf) {
     buf->st_gid               = 0;
     buf->st_size              = 0;
 
-    return 0;
-    
+    return 0; 
 }
 
 static int proc_thread_link_follow_link(const char* name, struct shim_qstr* link) {
