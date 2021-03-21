@@ -174,19 +174,18 @@ out:
 static int proc_thread_link_stat(const char* name, struct stat* buf) {
     struct shim_dentry* dent;
 
-    int ret = find_thread_link(name, NULL, &dent);
-    if (ret < 0)
-        return ret;
+    __UNUSED(name);
+    __UNUSED(dent);
+    memset(buf, 0, sizeof(struct stat));
 
-    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->stat) {
-        ret = -EACCES;
-        goto out;
-    }
+    buf->st_dev = buf->st_ino = 1;
+    buf->st_mode              = PERM_r________ | S_IFLNK;
+    buf->st_uid               = 0;
+    buf->st_gid               = 0;
+    buf->st_size              = 0;
 
-    ret = dent->fs->d_ops->stat(dent, buf);
-out:
-    put_dentry(dent);
-    return ret;
+    return 0;
+    
 }
 
 static int proc_thread_link_follow_link(const char* name, struct shim_qstr* link) {
