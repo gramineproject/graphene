@@ -3,6 +3,7 @@
 import filecmp
 import os
 import shutil
+import unittest
 
 from regression import (
     HAS_SGX,
@@ -311,3 +312,31 @@ class TC_00_FileSystem(RegressionTestCase):
         stdout, stderr = self.run_binary([executable, '/mounted/input', '/mounted/output'],
                                          timeout=30)
         self.verify_copy(stdout, stderr, '/mounted/input', executable)
+
+    def _test_multiple_writers(self, n_lines, n_processes, n_threads):
+        output_path = os.path.join(self.OUTPUT_DIR, 'output.txt')
+        self.run_binary(['multiple_writers',
+                         output_path, str(n_lines), str(n_processes), str(n_threads)])
+
+        with open(output_path, 'r') as f:
+            lines = f.readlines()
+
+        expected_lines = []
+        for i in range(n_processes):
+            for j in range(n_threads):
+                for k in range(n_lines):
+                    expected_lines.append('%04d %04d %04d: proc %d thread %d line %d\n' % (
+                        i, j, k, i, j, k))
+
+        self.assertListEqual(sorted(lines), expected_lines)
+
+    def test_220_multiple_writers_many_threads(self):
+        self._test_multiple_writers(20, 1, 3)
+
+    @unittest.skip('file handle sync is not supported yet')
+    def test_221_multiple_writers_many_processes(self):
+        self._test_multiple_writers(20, 3, 1)
+
+    @unittest.skip('file handle sync is not supported yet')
+    def test_222_multiple_writers_many_processes_and_threads(self):
+        self._test_multiple_writers(20, 3, 3)

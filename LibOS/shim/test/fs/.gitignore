@@ -11,6 +11,7 @@
 /copy_seq
 /copy_whole
 /delete
+/multiple_writers
 /open_close
 /open_flags
 /read_write

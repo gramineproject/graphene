@@ -13,6 +13,7 @@ copy_execs = \
 execs = \
 	$(copy_execs) \
 	delete \
+	multiple_writers
 	open_close \
 	open_flags \
 	read_write \
@@ -44,6 +45,8 @@ $(execs): common.o
 $(copy_execs): common_copy.o
 
 $(copy_mmap_execs): CFLAGS += -DCOPY_MMAP
+
+multiple_writers: LDLIBS += -lpthread
 
 %.o: %.c
 	$(call cmd,cc_o_c)
