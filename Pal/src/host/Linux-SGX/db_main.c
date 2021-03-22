@@ -588,6 +588,22 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* Extract EDMM mode */
     g_pal_sec.edmm_enable_heap = sec_info.edmm_enable_heap;
 
+    /* Extract enclave heap preheat options */
+    g_pal_sec.preheat_enclave_sz = sec_info.preheat_enclave_sz;
+    if (g_pal_sec.preheat_enclave_sz > 0) {
+        uint8_t* i;
+        /* Heap allocation requests are serviced starting from highest heap address when ASLR is
+         * disabled. So optimizing for this case by preheating from the top of heap. */
+        if (g_pal_sec.edmm_enable_heap == 1)
+            i = (uint8_t*)g_pal_sec.heap_max - g_pal_sec.preheat_enclave_sz;
+        else
+            i = (uint8_t*)g_pal_sec.heap_min;
+
+        log_debug("%s: preheat start = %p, end = %p\n", __func__, (void*)i, g_pal_sec.heap_max);
+        for (; i < (uint8_t*)g_pal_sec.heap_max; i += g_page_size)
+            READ_ONCE(*(size_t*)i);
+    }
+
     /* For {p,u,g}ids we can at least do some minimal checking. */
 
     /* ppid should be positive when interpreted as signed. It's 0 if we don't
@@ -703,21 +719,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     g_pal_state.raw_manifest_data = manifest_addr;
     g_pal_state.manifest_root = manifest_root;
-
-    bool preheat_enclave;
-    ret = toml_bool_in(g_pal_state.manifest_root, "sgx.preheat_enclave", /*defaultval=*/false,
-                       &preheat_enclave);
-    if (ret < 0) {
-        log_error("Cannot parse \'sgx.preheat_enclave\' (the value must be `true` or `false`)");
-        ocall_exit(1, true);
-    }
-    if (!g_pal_sec.edmm_enable_heap && preheat_enclave == 1) {
-        log_warning("EDMM ('sgx.edmm_enable_heap') and preheat-enclave ('sgx.preheat_enclave') are"
-                    " both enabled. Graphene will use EDMM only for the region excluded by"
-                    " preheat-enclave size.");
-        for (uint8_t* i = g_pal_sec.heap_min; i < (uint8_t*)g_pal_sec.heap_max; i += g_page_size)
-            READ_ONCE(*(size_t*)i);
-    }
 
     ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",
                              /*defaultval=*/0, &g_pal_internal_mem_size);

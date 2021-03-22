@@ -88,7 +88,28 @@ static void __free_vma(struct heap_vma* vma) {
 int init_enclave_pages(void) {
     g_heap_bottom = g_pal_sec.heap_min;
     g_heap_top    = g_pal_sec.heap_max;
+    log_debug("%s: g_heap_bottom: %p, g_heap_top: %p\n", __func__, g_heap_bottom, g_heap_top);
     return 0;
+}
+
+/* Returns size that is non overlapping with the pre-allocated heap when preheat option is turned on.
+ * 0 means entire request overlaps with the pre-allocated region. */
+static size_t find_preallocated_heap_nonoverlap(void* addr, size_t size) {
+    size_t non_overlapping_sz = size;
+
+    if (g_pal_sec.preheat_enclave_sz > 0) {
+        if ((char*)addr >= (char*)g_heap_top - g_pal_sec.preheat_enclave_sz)
+            /* Full overlap: Entire request lies in the pre-allocated region */
+            non_overlapping_sz = 0;
+        else if ((char*)addr + size > (char*)g_heap_top - g_pal_sec.preheat_enclave_sz)
+            /* Partial overlap: Update size to skip the overlapped region. */
+            non_overlapping_sz = (char*)g_heap_top - g_pal_sec.preheat_enclave_sz - (char*)addr;
+        else
+            /* No overlap */
+            non_overlapping_sz = size;
+    }
+
+    return non_overlapping_sz;
 }
 
 /* This function trims EPC pages on enclave's request. The sequence is as below:
@@ -100,6 +121,16 @@ int init_enclave_pages(void) {
  * 5. Driver issues EREMOVE to complete the request. */
 static int free_edmm_page_range(void* start, size_t size) {
     void* addr = ALLOC_ALIGN_DOWN_PTR(start);
+    size_t non_overlapping_sz = find_preallocated_heap_nonoverlap(addr, size);
+    log_debug("%s: preallocated heap addr = %p, org_size = %lx, updated_size=%lx\n", __func__, addr,
+              size, non_overlapping_sz);
+
+    /* Entire request overlaps with preallocated heap, so simply return. */
+    if (non_overlapping_sz == 0)
+        return 0;
+    else
+        size = non_overlapping_sz;
+
     void* end = (void*)((char*)addr + size);
     int ret = 0;
 
@@ -141,6 +172,16 @@ static int free_edmm_page_range(void* start, size_t size) {
  * may be used by the enclave). The control returns back to enclave.
  * 3. Enclave continues the same EACCEPT and the instruction succeeds this time. */
 static int get_edmm_page_range(void* start, size_t size, bool executable) {
+    size_t non_overlapping_sz = find_preallocated_heap_nonoverlap(start, size);
+    log_debug("%s: preallocated heap addr = %p, org_size = %lx, updated_size=%lx\n", __func__,
+              start, size, non_overlapping_sz);
+
+    /* Entire request overlaps with preallocated heap, so simply return. */
+    if (non_overlapping_sz == 0)
+        return 0;
+    else
+        size = non_overlapping_sz;
+
     void* lo = start;
     void* addr = (void*)((char*)lo + size);
 
@@ -238,8 +279,6 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
             heap_ranges_to_alloc[unallocated_cnt].size = vma_above->bottom - unallocated_start_addr;
             heap_ranges_to_alloc[unallocated_cnt].addr = unallocated_start_addr;
             unallocated_cnt++;
-            log_debug("%s: free region while merging vma_above, addr=%p size=0x%lx\n",
-                      __func__, unallocated_start_addr, vma_above->bottom - unallocated_start_addr);
         }
 
         vma->bottom = MIN(vma_above->bottom, vma->bottom);
@@ -433,6 +472,7 @@ int free_enclave_pages(void* addr, size_t size) {
                 free_heap_top == heap_ranges_to_free[free_cnt-1].addr) {
                 heap_ranges_to_free[free_cnt-1].addr = free_heap_bottom;
                 heap_ranges_to_free[free_cnt-1].size += range;
+                assert(0);
             } else {
                 assert(free_cnt < EDMM_HEAP_RANGE_CNT);
                 /* found a new non-contiguous range */
@@ -476,9 +516,6 @@ int free_enclave_pages(void* addr, size_t size) {
 out:
     if (ret >=0 && g_pal_sec.edmm_enable_heap) {
         for (int i = 0; i < free_cnt; i++) {
-            log_debug("%s: edmm actual free addr = %p, size = %lx\n", __func__,
-                       heap_ranges_to_free[i].addr, heap_ranges_to_free[i].size);
-
             ret = free_edmm_page_range(heap_ranges_to_free[i].addr, heap_ranges_to_free[i].size);
             if (ret < 0) {
                 ret = -PAL_ERROR_INVAL;

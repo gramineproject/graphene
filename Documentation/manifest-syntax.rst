@@ -584,11 +584,15 @@ Pre-heating enclave
 
 ::
 
-    sgx.preheat_enclave = [true|false]
-    (Default: false)
+    sgx.preheat_enclave_sz = ["0"|"1"|"SIZE"]
+    (Default: "0")
 
-When enabled, this option instructs Graphene to pre-fault all heap pages during
-initialization. This has a negative impact on the total run time, but shifts the
+When set to "1", this option instructs Graphene to pre-fault all heap pages during
+initialization and setting it to "0" disables the feature. When ``sgx.edmm_enable_heap``
+is enabled, user can precisely set the amount of heap to preheat by setting the ``SIZE``.
+For example, when size is "64M" Graphene will pre-fault top 64M of heap pages.
+
+This has a negative impact on the total run time, but shifts the
 :term:`EPC` page faults cost to the initialization phase, which can be useful in
 a scenario where a server starts and receives connections / work packages only
 after some time. It also makes the later run time and latency much more

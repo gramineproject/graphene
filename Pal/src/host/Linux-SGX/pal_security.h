@@ -26,6 +26,7 @@ struct pal_sec {
     /* remaining heap usable by application */
     PAL_PTR heap_min, heap_max;
     bool edmm_enable_heap;
+    PAL_NUM preheat_enclave_sz;
 
     /* child's stream FD created and sent over by parent */
     PAL_IDX stream_fd;
