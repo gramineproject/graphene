@@ -35,3 +35,5 @@ sgx.protected_files.input = "file:tmp/pf_input"
 sgx.protected_files.output = "file:tmp/pf_output"
 
 sgx.nonpie_binary = 1
+
+sgx.thread_num = 16
