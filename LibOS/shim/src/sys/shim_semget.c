@@ -616,10 +616,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
 
     if (!sem->owned) {
         if (client) {
-            struct shim_ipc_info* owner = sem->owner;
-            ret = owner ? ipc_sysv_movres_send(client, owner->vmid, qstrgetstr(&owner->uri),
-                                               sem->semid, SYSV_SEM)
-                        : -ECONNREFUSED;
+            ret = -ECONNREFUSED;
             goto out_locked;
         }
 
