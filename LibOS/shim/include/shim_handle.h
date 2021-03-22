@@ -228,7 +228,6 @@ struct shim_msg_handle {
     unsigned long msqkey; /* msg queue key from user */
     IDTYPE msqid;         /* msg queue identifier */
     bool owned;           /* owned by current process */
-    struct shim_ipc_info* owner;
     int perm;        /* access permissions */
     bool deleted;    /* marking the queue deleted */
     int nmsgs;       /* number of msgs */
@@ -253,7 +252,6 @@ struct shim_sem_handle {
     unsigned long semkey;
     IDTYPE semid;
     bool owned;
-    struct shim_ipc_info* owner;
     int perm;
     bool deleted;
     PAL_HANDLE event;

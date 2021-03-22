@@ -617,10 +617,7 @@ int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* dat
 
     if (!msgq->owned) {
         if (src) {
-            struct shim_ipc_info* owner = msgq->owner;
-            ret = owner ? ipc_sysv_movres_send(src, owner->vmid, qstrgetstr(&owner->uri),
-                                               msgq->msqid, SYSV_MSGQ)
-                        : -ECONNREFUSED;
+            ret = -ECONNREFUSED;
             goto out_locked;
         }
 
