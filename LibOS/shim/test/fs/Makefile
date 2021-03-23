@@ -13,7 +13,7 @@ copy_execs = \
 execs = \
 	$(copy_execs) \
 	delete \
-	multiple_writers
+	multiple_writers \
 	open_close \
 	open_flags \
 	read_write \
