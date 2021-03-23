@@ -274,7 +274,7 @@ required in the manifest (the mount point of the Glibc library).
 Graphene currently supports two types of mount points:
 
 * ``chroot``: Host-backed files. All host files and sub-directories found under
-  ``[URI]`` are forwarded to a Graphene instance and placed under ``[PATH]``.
+  ``[URI]`` are forwarded to the Graphene instance and placed under ``[PATH]``.
   For example, with a host-level path specified as
   ``fs.mount.lib.uri = "file:graphene/Runtime/"`` and forwarded to Graphene via
   ``fs.mount.lib.path = "/lib"``, a host-level file
@@ -289,7 +289,8 @@ Graphene currently supports two types of mount points:
   instance terminates. The ``[URI]`` parameter is always ignored. ``tmpfs``
   is especially useful in trusted environments (like Intel SGX) for securely
   storing temporary files. This concept is similar to Linux's tmpfs. Files
-  under ``tmpfs`` mount points currently do *not* support mmap and fork/clone.
+  under ``tmpfs`` mount points currently do *not* support mmap and each process
+  has its own, non-shared tmpfs (i.e. processes don't see each other's files).
 
 Start (current working) directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
