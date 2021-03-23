@@ -43,7 +43,6 @@ static noreturn void libos_clean_and_exit(int exit_code) {
         put_thread(ipc_thread);
     }
 
-    store_all_msg_persist();
     del_all_ipc_ports();
 
     log_debug("process %u exited with status %d\n", g_process_ipc_info.vmid, exit_code);
