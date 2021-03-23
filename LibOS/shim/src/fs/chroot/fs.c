@@ -555,7 +555,7 @@ static int chroot_recreate(struct shim_handle* hdl) {
     ret = __chroot_open(hdl->dentry, uri, hdl->flags & ~(O_CREAT | O_EXCL), 0, hdl, data);
 
 out:
-    unlock(&hdl-lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
