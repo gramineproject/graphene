@@ -73,7 +73,7 @@ static ipc_callback ipc_callbacks[] = {
 static int init_self_ipc_port(void) {
     assert(!g_process_ipc_info.self);
     /* very first process or clone/fork case: create IPC port from scratch */
-    g_process_ipc_info.self = create_ipc_info_and_port(/*use_vmid_as_port_name=*/true);
+    g_process_ipc_info.self = create_ipc_info_and_port();
     if (!g_process_ipc_info.self) {
         return -ENOMEM;
     }
@@ -111,9 +111,7 @@ static int init_ns_ipc_port(void) {
 
         /* We are the very first Graphene process, hence also IPC leader. */
         assert(g_process_ipc_info.self);
-        g_process_ipc_info.ns = create_ipc_info(g_process_ipc_info.self->vmid,
-                                                qstrgetstr(&g_process_ipc_info.self->uri),
-                                                g_process_ipc_info.self->uri.len);
+        g_process_ipc_info.ns = create_ipc_info(g_process_ipc_info.self->vmid);
         if (!g_process_ipc_info.ns) {
             return -ENOMEM;
         }
@@ -122,11 +120,16 @@ static int init_ns_ipc_port(void) {
     }
 
     assert(!g_process_ipc_info.ns->port);
-    assert(!qstrempty(&g_process_ipc_info.ns->uri));
 
-    log_debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
+    char uri[PIPE_URI_SIZE];
+    if (vmid_to_uri(g_process_ipc_info.ns->vmid, uri, sizeof(uri)) < 0) {
+        log_error("buffer for IPC pipe URI too small\n");
+        BUG();
+    }
+
+    log_debug("Connecting to the IPC leader using IPC port %s\n", uri);
     PAL_HANDLE handle = NULL;
-    int ret = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0, &handle);
+    int ret = DkStreamOpen(uri, 0, 0, 0, 0, &handle);
     if (ret < 0) {
         return pal_to_unix_errno(ret);
     }
