@@ -58,7 +58,6 @@ enum {
     IPC_MSG_SYSV_FINDKEY,
     IPC_MSG_SYSV_TELLKEY,
     IPC_MSG_SYSV_DELRES,
-    IPC_MSG_SYSV_MOVRES,
     IPC_MSG_SYSV_MSGSND,
     IPC_MSG_SYSV_MSGRCV,
     IPC_MSG_SYSV_SEMOP,
@@ -73,11 +72,9 @@ enum pid_meta_code { PID_META_CRED, PID_META_EXEC, PID_META_CWD, PID_META_ROOT }
 
 enum sysv_type { SYSV_NONE, SYSV_MSGQ, SYSV_SEM, SYSV_SHM };
 
-DEFINE_LIST(shim_ipc_info);
 struct shim_ipc_info {
     IDTYPE vmid;
     struct shim_ipc_port* port;
-    LIST_TYPE(shim_ipc_info) hlist;
     REFTYPE ref_count;
 };
 
@@ -294,17 +291,6 @@ int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
                          enum sysv_type type);
 int ipc_sysv_delres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* SYSV_MOVRES */
-struct shim_ipc_sysv_movres {
-    IDTYPE resid;
-    enum sysv_type type;
-    IDTYPE owner;
-};
-
-int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, IDTYPE resid,
-                         enum sysv_type type);
-int ipc_sysv_movres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-
 /* SYSV_MSGSND */
 struct shim_ipc_sysv_msgsnd {
     IDTYPE msgid;
@@ -381,9 +367,6 @@ void del_all_ipc_ports(void);
 struct shim_ipc_info* create_ipc_info(IDTYPE vmid);
 void get_ipc_info(struct shim_ipc_info* port);
 void put_ipc_info(struct shim_ipc_info* port);
-
-struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid);
-void put_ipc_info_in_list(struct shim_ipc_info* info);
 
 static inline size_t get_ipc_msg_size(size_t payload) {
     size_t size = sizeof(struct shim_ipc_msg) + payload;

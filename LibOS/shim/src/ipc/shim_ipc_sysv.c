@@ -221,53 +221,6 @@ out:
     return ret;
 }
 
-int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, IDTYPE resid,
-                         enum sysv_type type) {
-    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_movres));
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_SYSV_MOVRES, total_msg_size, client->vmid);
-    struct shim_ipc_sysv_movres* msgin = (struct shim_ipc_sysv_movres*)&msg->msg;
-    msgin->resid                       = resid;
-    msgin->type                        = type;
-    msgin->owner                       = owner;
-    msg->seq = client->seq;
-
-    log_debug("ipc send to %u: IPC_MSG_SYSV_MOVRES(%u, %s, %u)\n", client->vmid, resid,
-              SYSV_TYPE_STR(type), owner);
-
-    return send_ipc_message(msg, client->port);
-}
-
-int ipc_sysv_movres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
-    int ret = 0;
-    struct shim_ipc_sysv_movres* msgin = (struct shim_ipc_sysv_movres*)&msg->msg;
-
-    log_debug("ipc callback from %u: IPC_MSG_SYSV_MOVRES(%u, %s, %u)\n", msg->src, msgin->resid,
-              SYSV_TYPE_STR(msgin->type), msgin->owner);
-
-    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
-    if (!obj)
-        goto out;
-
-    switch (msgin->type) {
-        case SYSV_MSGQ:
-        case SYSV_SEM:
-            obj->retval = -EAGAIN;
-            break;
-        default:
-            ret = -ENOSYS;
-            goto out;
-    }
-
-    add_ipc_subrange(msgin->resid, msgin->owner);
-
-    if (obj->thread)
-        thread_wakeup(obj->thread);
-
-out:
-    return ret;
-}
-
 int ipc_sysv_msgsnd_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, long msgtype,
                          const void* buf, size_t size, unsigned long seq) {
     int ret = 0;

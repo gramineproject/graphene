@@ -240,7 +240,6 @@ struct shim_msg_handle {
     int ntypes;
     int maxtypes;
     struct msg_type* types;
-    LIST_TYPE(shim_msg_handle) list;
     LIST_TYPE(shim_msg_handle) key_hlist;
     LIST_TYPE(shim_msg_handle) qid_hlist;
 };

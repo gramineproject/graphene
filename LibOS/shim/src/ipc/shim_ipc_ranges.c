@@ -181,7 +181,7 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner) {
     r->subranges = NULL;
 
     if (owner) {
-        r->owner = create_ipc_info_in_list(owner);
+        r->owner = create_ipc_info(owner);
         if (!r->owner)
             return -ENOMEM;
     }
@@ -206,7 +206,7 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner) {
                 }
 
                 if (tmp->owner)
-                    put_ipc_info_in_list(tmp->owner);
+                    put_ipc_info(tmp->owner);
 
                 r->used      = tmp->used;
                 r->subranges = tmp->subranges;
@@ -260,7 +260,7 @@ static int add_ipc_range(IDTYPE base, IDTYPE owner) {
 static void __del_ipc_subrange(struct subrange** ptr) {
     struct subrange* s = *ptr;
     *ptr = NULL;
-    put_ipc_info_in_list(s->owner);
+    put_ipc_info(s->owner);
     free(s);
     nsubed--;
 }
@@ -276,7 +276,7 @@ int add_ipc_subrange(IDTYPE idx, IDTYPE owner) {
     assert(owner);
     lock(&range_map_lock);
 
-    s->owner = create_ipc_info_in_list(owner);
+    s->owner = create_ipc_info(owner);
     if (!s->owner) {
         err = -ENOMEM;
         goto failed;

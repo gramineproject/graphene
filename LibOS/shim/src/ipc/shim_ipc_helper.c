@@ -62,7 +62,6 @@ static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_SYSV_FINDKEY]  = &ipc_sysv_findkey_callback,
     [IPC_MSG_SYSV_TELLKEY]  = &ipc_sysv_tellkey_callback,
     [IPC_MSG_SYSV_DELRES]   = &ipc_sysv_delres_callback,
-    [IPC_MSG_SYSV_MOVRES]   = &ipc_sysv_movres_callback,
     [IPC_MSG_SYSV_MSGSND]   = &ipc_sysv_msgsnd_callback,
     [IPC_MSG_SYSV_MSGRCV]   = &ipc_sysv_msgrcv_callback,
     [IPC_MSG_SYSV_SEMOP]    = &ipc_sysv_semop_callback,

@@ -30,22 +30,12 @@ static struct shim_lock ipc_info_mgr_lock;
 #include "memmgr.h"
 static MEM_MGR ipc_info_mgr;
 
-struct shim_lock ipc_info_lock;
-
 struct shim_process_ipc_info g_process_ipc_info;
-
-#define CLIENT_HASH_BITLEN 6
-#define CLIENT_HASH_NUM    (1 << CLIENT_HASH_BITLEN)
-#define CLIENT_HASH_MASK   (CLIENT_HASH_NUM - 1)
-#define CLIENT_HASH(vmid)  ((vmid)&CLIENT_HASH_MASK)
-DEFINE_LISTP(shim_ipc_info);
-static LISTP_TYPE(shim_ipc_info) info_hlist[CLIENT_HASH_NUM];
 
 int init_ipc(void) {
     int ret = 0;
 
-    if (!create_lock(&ipc_info_lock)
-        || !create_lock(&ipc_info_mgr_lock)) {
+    if (!create_lock(&ipc_info_mgr_lock)) {
         return -ENOMEM;
     }
 
@@ -62,9 +52,7 @@ int init_ipc(void) {
     return 0;
 }
 
-static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid) {
-    assert(locked(&ipc_info_lock));
-
+struct shim_ipc_info* create_ipc_info(IDTYPE vmid) {
     struct shim_ipc_info* info =
         get_mem_obj_from_mgr_enlarge(ipc_info_mgr, size_align_up(IPC_INFO_MGR_ALLOC));
     if (!info)
@@ -73,90 +61,25 @@ static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid) {
     memset(info, 0, sizeof(struct shim_ipc_info));
     info->vmid = vmid;
     REF_SET(info->ref_count, 1);
-    INIT_LIST_HEAD(info, hlist);
     return info;
 }
 
-static void __free_ipc_info(struct shim_ipc_info* info) {
-    assert(locked(&ipc_info_lock));
-
+static void free_ipc_info(struct shim_ipc_info* info) {
     if (info->port)
         put_ipc_port(info->port);
     free_mem_obj_to_mgr(ipc_info_mgr, info);
 }
 
-static void __get_ipc_info(struct shim_ipc_info* info) {
+void get_ipc_info(struct shim_ipc_info* info) {
     REF_INC(info->ref_count);
 }
 
-static void __put_ipc_info(struct shim_ipc_info* info) {
-    assert(locked(&ipc_info_lock));
-
-    int ref_count = REF_DEC(info->ref_count);
-    if (!ref_count)
-        __free_ipc_info(info);
-}
-
-void get_ipc_info(struct shim_ipc_info* info) {
-    /* no need to grab ipc_info_lock because __get_ipc_info() does not touch global state */
-    __get_ipc_info(info);
-}
-
 void put_ipc_info(struct shim_ipc_info* info) {
-    /* this is atomic so we don't grab lock in common case of ref_count > 0 */
     int ref_count = REF_DEC(info->ref_count);
 
     if (!ref_count) {
-        lock(&ipc_info_lock);
-        __free_ipc_info(info);
-        unlock(&ipc_info_lock);
+        free_ipc_info(info);
     }
-}
-
-struct shim_ipc_info* create_ipc_info(IDTYPE vmid) {
-    lock(&ipc_info_lock);
-    struct shim_ipc_info* info = __create_ipc_info(vmid);
-    unlock(&ipc_info_lock);
-    return info;
-}
-
-struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid) {
-    assert(vmid);
-
-    struct shim_ipc_info* info;
-    lock(&ipc_info_lock);
-
-    /* check if info with this vmid already exists and return it */
-    LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
-    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
-        if (info->vmid == vmid) {
-            get_ipc_info(info);
-            unlock(&ipc_info_lock);
-            return info;
-        }
-    }
-
-    /* otherwise create new info and return it */
-    info = __create_ipc_info(vmid);
-    if (info) {
-        LISTP_ADD(info, info_bucket, hlist);
-        get_ipc_info(info);
-    }
-
-    unlock(&ipc_info_lock);
-    return info;
-}
-
-void put_ipc_info_in_list(struct shim_ipc_info* info) {
-    LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(info->vmid)];
-
-    lock(&ipc_info_lock);
-    __put_ipc_info(info);
-    if (REF_GET(info->ref_count) == 1) {
-        LISTP_DEL_INIT(info, info_bucket, hlist);
-        __put_ipc_info(info);
-    }
-    unlock(&ipc_info_lock);
 }
 
 struct shim_process_ipc_info* create_process_ipc_info(void) {
