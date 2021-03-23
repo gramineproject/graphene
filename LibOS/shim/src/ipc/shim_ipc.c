@@ -62,7 +62,7 @@ int init_ipc(void) {
     return 0;
 }
 
-static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid, const char* uri, size_t len) {
+static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid) {
     assert(locked(&ipc_info_lock));
 
     struct shim_ipc_info* info =
@@ -72,8 +72,6 @@ static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid, const char* uri, siz
 
     memset(info, 0, sizeof(struct shim_ipc_info));
     info->vmid = vmid;
-    if (uri)
-        qstrsetstr(&info->uri, uri, len);
     REF_SET(info->ref_count, 1);
     INIT_LIST_HEAD(info, hlist);
     return info;
@@ -84,7 +82,6 @@ static void __free_ipc_info(struct shim_ipc_info* info) {
 
     if (info->port)
         put_ipc_port(info->port);
-    qstrfree(&info->uri);
     free_mem_obj_to_mgr(ipc_info_mgr, info);
 }
 
@@ -116,23 +113,23 @@ void put_ipc_info(struct shim_ipc_info* info) {
     }
 }
 
-struct shim_ipc_info* create_ipc_info(IDTYPE vmid, const char* uri, size_t len) {
+struct shim_ipc_info* create_ipc_info(IDTYPE vmid) {
     lock(&ipc_info_lock);
-    struct shim_ipc_info* info = __create_ipc_info(vmid, uri, len);
+    struct shim_ipc_info* info = __create_ipc_info(vmid);
     unlock(&ipc_info_lock);
     return info;
 }
 
-struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size_t len) {
+struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid) {
     assert(vmid);
 
     struct shim_ipc_info* info;
     lock(&ipc_info_lock);
 
-    /* check if info with this vmid & uri already exists and return it */
+    /* check if info with this vmid already exists and return it */
     LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
     LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
-        if (info->vmid == vmid && !qstrcmpstr(&info->uri, uri, len)) {
+        if (info->vmid == vmid) {
             get_ipc_info(info);
             unlock(&ipc_info_lock);
             return info;
@@ -140,7 +137,7 @@ struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size
     }
 
     /* otherwise create new info and return it */
-    info = __create_ipc_info(vmid, uri, len);
+    info = __create_ipc_info(vmid);
     if (info) {
         LISTP_ADD(info, info_bucket, hlist);
         get_ipc_info(info);
@@ -173,17 +170,12 @@ struct shim_process_ipc_info* create_process_ipc_info(void) {
     /* new process after clone/fork has new identity but inherits parent  */
     new_process_ipc_info->vmid   = 0;
     new_process_ipc_info->self   = NULL;
-    new_process_ipc_info->parent = create_ipc_info(g_process_ipc_info.self->vmid,
-                                                   qstrgetstr(&g_process_ipc_info.self->uri),
-                                                   g_process_ipc_info.self->uri.len);
+    new_process_ipc_info->parent = create_ipc_info(g_process_ipc_info.self->vmid);
     if (!new_process_ipc_info->parent)
         goto fail;
 
     assert(g_process_ipc_info.ns);
-    assert(!qstrempty(&g_process_ipc_info.ns->uri));
-    new_process_ipc_info->ns = create_ipc_info(g_process_ipc_info.ns->vmid,
-                                               qstrgetstr(&g_process_ipc_info.ns->uri),
-                                               g_process_ipc_info.ns->uri.len);
+    new_process_ipc_info->ns = create_ipc_info(g_process_ipc_info.ns->vmid);
     if (!new_process_ipc_info->ns)
         goto fail;
 
@@ -327,8 +319,8 @@ out:
     return ret;
 }
 
-struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name) {
-    struct shim_ipc_info* info = create_ipc_info(g_process_ipc_info.vmid, NULL, 0);
+struct shim_ipc_info* create_ipc_info_and_port(void) {
+    struct shim_ipc_info* info = create_ipc_info(g_process_ipc_info.vmid);
     if (!info)
         return NULL;
 
@@ -336,7 +328,7 @@ struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name) {
      * random name */
     char uri[PIPE_URI_SIZE];
     PAL_HANDLE handle = NULL;
-    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &handle, &info->uri, use_vmid_as_port_name) < 0) {
+    if (create_pipe(NULL, uri, sizeof(uri), &handle, NULL, /*use_vmid_for_name=*/true) < 0) {
         put_ipc_info(info);
         return NULL;
     }
@@ -368,9 +360,6 @@ BEGIN_CP_FUNC(ipc_info) {
         REF_SET(new_info->ref_count, 0);
 
         assert(!new_info->port);
-
-        /* call qstr-specific checkpointing function for new_info->uri */
-        DO_CP_IN_MEMBER(qstr, new_info, uri);
     } else {
         /* already checkpointed */
         new_info = (struct shim_ipc_info*)(base + off);
@@ -440,9 +429,7 @@ BEGIN_RS_FUNC(process_ipc_info) {
 
     g_process_ipc_info = *process_ipc_info;
 
-    DEBUG_RS("vmid=%u,uri=%s,parent=%u(%s)", process_ipc_info->vmid,
-             process_ipc_info->self ? qstrgetstr(&process_ipc_info->self->uri) : "",
-             process_ipc_info->parent ? process_ipc_info->parent->vmid : 0,
-             process_ipc_info->parent ? qstrgetstr(&process_ipc_info->parent->uri) : "");
+    DEBUG_RS("vmid=%u,parent=%u", process_ipc_info->vmid,
+             process_ipc_info->parent ? process_ipc_info->parent->vmid : 0);
 }
 END_RS_FUNC(process_ipc_info)

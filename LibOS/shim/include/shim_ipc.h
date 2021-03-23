@@ -77,7 +77,6 @@ DEFINE_LIST(shim_ipc_info);
 struct shim_ipc_info {
     IDTYPE vmid;
     struct shim_ipc_port* port;
-    struct shim_qstr uri;
     LIST_TYPE(shim_ipc_info) hlist;
     REFTYPE ref_count;
 };
@@ -129,7 +128,7 @@ struct shim_ipc_port {
 };
 
 /* common functions for pid & sysv namespaces */
-int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri);
+int add_ipc_subrange(IDTYPE idx, IDTYPE owner);
 IDTYPE allocate_ipc_id(IDTYPE min, IDTYPE max);
 void release_ipc_id(IDTYPE idx);
 
@@ -152,12 +151,7 @@ struct shim_ipc_resp {
 struct ipc_ns_offered {
     IDTYPE base;
     IDTYPE size;
-    size_t owner_offset;
-} __attribute__((packed));
-
-struct ipc_ns_client {
-    IDTYPE vmid;
-    char uri[1];
+    IDTYPE owner;
 } __attribute__((packed));
 
 /* CLD_EXIT: process exit */
@@ -170,11 +164,6 @@ struct shim_ipc_cld_exit {
 
 int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-
-/* LEASE: lease a range of IDs */
-struct shim_ipc_lease {
-    char uri[1];
-} __attribute__((packed));
 
 int ipc_lease_send(void);
 int ipc_lease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
@@ -193,10 +182,9 @@ int ipc_offer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 struct shim_ipc_sublease {
     IDTYPE tenant;
     IDTYPE idx;
-    char uri[1];
 } __attribute__((packed));
 
-int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri);
+int ipc_sublease_send(IDTYPE tenant, IDTYPE idx);
 int ipc_sublease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* QUERY: query the IPC port for a certain ID */
@@ -217,9 +205,6 @@ struct shim_ipc_answer {
     struct ipc_ns_offered answers[];
 } __attribute__((packed));
 
-int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, size_t answers_cnt,
-                    struct ipc_ns_offered* answers, size_t owners_cnt,
-                    struct ipc_ns_client** ownerdata, size_t* ownerdatasz, unsigned long seq);
 int ipc_answer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* PID_KILL: send signal to certain pid */
@@ -314,10 +299,9 @@ struct shim_ipc_sysv_movres {
     IDTYPE resid;
     enum sysv_type type;
     IDTYPE owner;
-    char uri[1];
 };
 
-int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, IDTYPE resid,
+int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, IDTYPE resid,
                          enum sysv_type type);
 int ipc_sysv_movres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
@@ -384,7 +368,7 @@ int init_ipc_helper(void);
 struct shim_process_ipc_info* create_process_ipc_info(void);
 void free_process_ipc_info(struct shim_process_ipc_info* process);
 
-struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name);
+struct shim_ipc_info* create_ipc_info_and_port(void);
 
 void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini,
                         struct shim_ipc_port** portptr);
@@ -394,11 +378,11 @@ void get_ipc_port(struct shim_ipc_port* port);
 void put_ipc_port(struct shim_ipc_port* port);
 void del_all_ipc_ports(void);
 
-struct shim_ipc_info* create_ipc_info(IDTYPE vmid, const char* uri, size_t len);
+struct shim_ipc_info* create_ipc_info(IDTYPE vmid);
 void get_ipc_info(struct shim_ipc_info* port);
 void put_ipc_info(struct shim_ipc_info* port);
 
-struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size_t len);
+struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid);
 void put_ipc_info_in_list(struct shim_ipc_info* info);
 
 static inline size_t get_ipc_msg_size(size_t payload) {

@@ -621,9 +621,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     /* New process is an actual child process for this current process, so notify the leader
      * regarding subleasing of TID (child must create self-pipe with convention of pipe:child-vmid)
      */
-    char process_self_uri[256];
-    snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
-    ipc_sublease_send(child_vmid, thread_description->tid, process_self_uri);
+    ipc_sublease_send(child_vmid, thread_description->tid);
 
     /* create new IPC port to communicate over pal_process channel with the child process */
     add_ipc_port_by_id(child_vmid, pal_process, IPC_PORT_CONNECTION | IPC_PORT_DIRECTCHILD,
