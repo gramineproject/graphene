@@ -524,23 +524,27 @@ static int chroot_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_
 #define NEED_RECREATE(hdl) (!FILE_HANDLE_DATA(hdl))
 
 static int chroot_recreate(struct shim_handle* hdl) {
+    lock(&hdl->lock);
+
     struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
     int ret = 0;
 
     /* quickly bail out if the data is created */
     if (data)
-        return 0;
+        goto out;
 
     const char* uri = qstrgetstr(&hdl->uri);
     size_t len = hdl->uri.len;
 
     if (hdl->dentry) {
         if ((ret = try_create_data(hdl->dentry, uri, len, &data)) < 0)
-            return ret;
+            goto out;
     } else {
         data = __create_data();
-        if (!data)
-            return -ENOMEM;
+        if (!data) {
+            ret = -ENOMEM;
+            goto out;
+        }
         qstrsetstr(&data->host_uri, uri, len);
     }
 
@@ -548,7 +552,11 @@ static int chroot_recreate(struct shim_handle* hdl) {
      * when recreating a file handle after migration, the file should
      * not be created again.
      */
-    return __chroot_open(hdl->dentry, uri, hdl->flags & ~(O_CREAT | O_EXCL), 0, hdl, data);
+    ret = __chroot_open(hdl->dentry, uri, hdl->flags & ~(O_CREAT | O_EXCL), 0, hdl, data);
+
+out:
+    unlock(&hdl->lock);
+    return ret;
 }
 
 static inline bool check_version(struct shim_handle* hdl) {
