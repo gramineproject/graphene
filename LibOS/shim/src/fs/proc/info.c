@@ -81,7 +81,7 @@ retry:
 }
 
 // FIXME: remove once global realloc is enabled
-static void* realloc(void* ptr, size_t old_size, size_t new_size) {
+static void* __realloc(void* ptr, size_t old_size, size_t new_size) {
     void* tmp = malloc(new_size);
     if (!tmp) {
         return NULL;
@@ -108,7 +108,7 @@ retry:
     }
 
     if ((size_t)ret >= *size - off) {
-        char* tmp = realloc(*str, *size, *size + 128);
+        char* tmp = __realloc(*str, *size, *size + 128);
         if (!tmp) {
             return -ENOMEM;
         }
