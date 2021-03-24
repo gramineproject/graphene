@@ -100,8 +100,11 @@ objs = \
 	ipc/shim_ipc_child.o \
 	ipc/shim_ipc_pid.o \
 	ipc/shim_ipc_ranges.o \
+	ipc/shim_ipc_sync.o \
 	ipc/shim_ipc_sysv.o \
 	ipc/shim_ipc_worker.o \
+	sync/shim_sync_server.o \
+	sync/shim_sync_client.o \
 	sys/shim_access.o \
 	sys/shim_alarm.o \
 	sys/shim_brk.o \

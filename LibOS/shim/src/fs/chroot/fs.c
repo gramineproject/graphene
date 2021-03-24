@@ -31,6 +31,27 @@ struct mount_data {
     char root_uri[];
 };
 
+struct file_sync_data {
+    off_t size;
+    off_t marker;
+};
+
+static void file_sync_lock(struct shim_file_handle* file, int state) {
+    struct file_sync_data data;
+    if (sync_lock(&file->sync, state, &data)) {
+        file->size = data.size;
+        file->marker = data.marker;
+    }
+}
+
+static void file_sync_unlock(struct shim_file_handle* file) {
+    struct file_sync_data data = {
+        .size = file->size,
+        .marker = file->marker,
+    };
+    sync_unlock(&file->sync, &data);
+}
+
 #define HANDLE_MOUNT_DATA(h) ((struct mount_data*)(h)->fs->data)
 #define DENTRY_MOUNT_DATA(d) ((struct mount_data*)(d)->fs->data)
 
@@ -413,6 +434,11 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
     hdl->info.file.size    = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
     hdl->info.file.data    = data;
 
+    /* files obtained from checkpoint system will have sync handle initialized already (see
+     * chroot_checkin()) */
+    if (!sync_is_initialized(&hdl->info.file.sync))
+        ret = sync_init(&hdl->info.file.sync, /*id=*/0, sizeof(struct file_sync_data));
+
     return ret;
 }
 
@@ -624,6 +650,7 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
     }
 
     lock(&hdl->lock);
+    file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     ret = DkStreamRead(hdl->pal_handle, file->marker, &count, buf, NULL, 0);
     if (ret < 0) {
@@ -635,6 +662,7 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
             BUG();
     }
 
+    file_sync_unlock(file);
     unlock(&hdl->lock);
 out:
     return ret;
@@ -665,6 +693,7 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     }
 
     lock(&hdl->lock);
+    file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     ret = DkStreamWrite(hdl->pal_handle, file->marker, &count, (void*)buf, NULL);
     if (ret < 0) {
@@ -680,6 +709,7 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
         }
     }
 
+    file_sync_unlock(file);
     unlock(&hdl->lock);
 out:
     return ret;
@@ -712,6 +742,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
     assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
     lock(&hdl->lock);
+    file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     /* TODO: this function emulates lseek() completely inside the LibOS, but some device files
      *       may report size == 0 during fstat() and may provide device-specific lseek() logic;
@@ -746,6 +777,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
     ret = file->marker = marker;
 
 out:
+    file_sync_unlock(file);
     unlock(&hdl->lock);
     return ret;
 }
@@ -761,6 +793,7 @@ static int chroot_truncate(struct shim_handle* hdl, off_t len) {
 
     struct shim_file_handle* file = &hdl->info.file;
     lock(&hdl->lock);
+    file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     file->size = len;
 
@@ -779,6 +812,7 @@ static int chroot_truncate(struct shim_handle* hdl, off_t len) {
         file->marker = len;
 
 out:
+    file_sync_unlock(file);
     unlock(&hdl->lock);
     return ret;
 }
@@ -922,6 +956,11 @@ out:
     return ret;
 }
 
+static void chroot_hput(struct shim_handle* hdl) {
+    if (sync_is_initialized(&hdl->info.file.sync))
+        sync_destroy(&hdl->info.file.sync);
+}
+
 static int chroot_checkout(struct shim_handle* hdl) {
     if (hdl->fs == &chroot_builtin_fs)
         hdl->fs = NULL;
@@ -943,6 +982,13 @@ static int chroot_checkout(struct shim_handle* hdl) {
     }
 
     return 0;
+}
+
+static int chroot_checkin(struct shim_handle* hdl) {
+    /* Recreate the sync handle with the same ID. */
+    uint64_t id = hdl->info.file.sync.id;
+    hdl->info.file.sync.id = 0;
+    return sync_init(&hdl->info.file.sync, id, sizeof(struct file_sync_data));
 }
 
 static ssize_t chroot_checkpoint(void** checkpoint, void* mount_data) {
@@ -1014,9 +1060,10 @@ static off_t chroot_poll(struct shim_handle* hdl, int poll_type) {
     if (poll_type == FS_POLL_SZ)
         return size;
 
-    lock(&hdl->lock);
-
     struct shim_file_handle* file = &hdl->info.file;
+    lock(&hdl->lock);
+    file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
+
     if (check_version(hdl) && file->size < size)
         file->size = size;
 
@@ -1032,6 +1079,7 @@ static off_t chroot_poll(struct shim_handle* hdl, int poll_type) {
     ret = -EAGAIN;
 
 out:
+    file_sync_unlock(file);
     unlock(&hdl->lock);
     return ret;
 }
@@ -1114,7 +1162,9 @@ struct shim_fs_ops chroot_fs_ops = {
     .seek       = &chroot_seek,
     .hstat      = &chroot_hstat,
     .truncate   = &chroot_truncate,
+    .hput       = &chroot_hput,
     .checkout   = &chroot_checkout,
+    .checkin    = &chroot_checkin,
     .checkpoint = &chroot_checkpoint,
     .migrate    = &chroot_migrate,
     .poll       = &chroot_poll,

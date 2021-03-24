@@ -48,6 +48,12 @@ enum {
     IPC_MSG_SYSV_SEMOP,
     IPC_MSG_SYSV_SEMCTL,
     IPC_MSG_SYSV_SEMRET,
+    IPC_MSG_SYNC_REQUEST_UPGRADE,
+    IPC_MSG_SYNC_REQUEST_DOWNGRADE,
+    IPC_MSG_SYNC_REQUEST_CLOSE,
+    IPC_MSG_SYNC_CONFIRM_UPGRADE,
+    IPC_MSG_SYNC_CONFIRM_DOWNGRADE,
+    IPC_MSG_SYNC_CONFIRM_CLOSE,
     IPC_MSG_CODE_BOUND,
 };
 
@@ -417,5 +423,19 @@ struct shim_ipc_sysv_semret {
 
 int ipc_sysv_semret_send(IDTYPE dest, void* vals, size_t valsize, unsigned long seq);
 int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, IDTYPE src);
+
+/* SYNC_REQUEST_*, SYNC_CONFIRM_*/
+struct shim_ipc_sync_msg {
+    uint64_t id;
+    int state;
+    size_t data_size;
+    unsigned char data[];
+};
+
+int ipc_sync_client_send(int code, uint64_t id, int state, size_t data_size, void* data);
+int ipc_sync_server_send(IDTYPE dest, int code, uint64_t id, int state, size_t data_size,
+                         void* data);
+int ipc_sync_client_callback(struct shim_ipc_msg* msg, IDTYPE src);
+int ipc_sync_server_callback(struct shim_ipc_msg* msg, IDTYPE src);
 
 #endif /* SHIM_IPC_H_ */
