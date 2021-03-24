@@ -61,10 +61,7 @@ pal_loader:
 
 .PHONY: check
 check: all
-	./run-tests.sh > TEST_STDOUT 2> TEST_STDERR
-	@grep -q "Success 1/3" TEST_STDOUT
-	@grep -q "Success 2/3" TEST_STDOUT
-	@grep -q "Success 3/3" TEST_STDOUT
+	./run-tests.sh
 
 .PHONY: clean
 clean:
