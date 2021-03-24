@@ -22,6 +22,7 @@
 #include "list.h"
 #include "pal.h"
 #include "shim_defs.h"
+#include "shim_sync.h"
 #include "shim_types.h"
 
 /* Handle types. Many of these are used by a single filesystem. */
@@ -75,6 +76,8 @@ struct shim_file_handle {
     enum shim_file_type type;
     off_t size;
     off_t marker;
+
+    struct sync_handle* sync;
 };
 
 #define FILE_HANDLE_DATA(hdl)  ((hdl)->info.file.data)

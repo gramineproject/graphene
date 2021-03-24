@@ -62,6 +62,13 @@ static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_PID_RETSTATUS] = ipc_pid_retstatus_callback,
     [IPC_MSG_PID_GETMETA]   = ipc_pid_getmeta_callback,
     [IPC_MSG_PID_RETMETA]   = ipc_pid_retmeta_callback,
+
+    [IPC_MSG_SYNC_REQUEST_UPGRADE]   = ipc_sync_request_upgrade_callback,
+    [IPC_MSG_SYNC_REQUEST_DOWNGRADE] = ipc_sync_request_downgrade_callback,
+    [IPC_MSG_SYNC_REQUEST_CLOSE]     = ipc_sync_request_close_callback,
+    [IPC_MSG_SYNC_CONFIRM_UPGRADE]   = ipc_sync_confirm_upgrade_callback,
+    [IPC_MSG_SYNC_CONFIRM_DOWNGRADE] = ipc_sync_confirm_downgrade_callback,
+    [IPC_MSG_SYNC_CONFIRM_CLOSE]     = ipc_sync_confirm_close_callback,
 };
 
 static void ipc_leader_died_callback(void) {
@@ -76,6 +83,10 @@ static void disconnect_callbacks(struct shim_ipc_connection* conn) {
         ipc_leader_died_callback();
     }
     ipc_child_disconnect_callback(conn->vmid);
+
+    if (!g_process_ipc_ids.leader_vmid) {
+        sync_server_disconnect_callback(conn->vmid);
+    }
 
     /*
      * Currently outgoing IPC connections (handled in `shim_ipc.c`) are not cleaned up - there is

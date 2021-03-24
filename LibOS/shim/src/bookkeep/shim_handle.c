@@ -725,6 +725,10 @@ BEGIN_CP_FUNC(handle) {
         INIT_LISTP(&new_hdl->epolls);
 
         switch (hdl->type) {
+            case TYPE_FILE:
+                if (hdl->info.file.sync)
+                    DO_CP(sync_handle, hdl->info.file.sync, &new_hdl->info.file.sync);
+                break;
             case TYPE_EPOLL:
                 /* `new_hdl->info.epoll.fds_count` stays the same - copied above. */
                 DO_CP(epoll_item, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
@@ -768,6 +772,9 @@ BEGIN_RS_FUNC(handle) {
     }
 
     switch (hdl->type) {
+        case TYPE_FILE:
+            CP_REBASE(hdl->info.file.sync);
+            break;
         case TYPE_DEV:
             /* for device handles, info.dev.dev_ops contains function pointers into LibOS; they may
              * have become invalid due to relocation of LibOS text section in the child, update them
