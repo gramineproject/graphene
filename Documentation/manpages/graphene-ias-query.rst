@@ -1,8 +1,8 @@
 .. program:: graphene-ias-query
 
-============================================================================
-:program:`graphene-ias-query` -- Submit Intel Attestation Service v4 request
-============================================================================
+===============================================================================
+:program:`graphene-ias-query` -- Submit Intel Attestation Service APIv4 request
+===============================================================================
 
 Synopsis
 ========
@@ -53,7 +53,7 @@ The functionality is available as Python API:
 
    from graphenelibos import ias
 
-   api = ias.API(key=...)
+   api = ias.APIv4(key=...)
    report = api.get_report(quote=open('quote', 'rb').read())
    print(report.quote_status)
    assert report.quote_status == ias.QuoteStatus.OK

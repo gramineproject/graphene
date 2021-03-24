@@ -58,22 +58,24 @@ class QuoteStatus(_APIEnum):
     ) = (enum.auto() for _ in range(10))
 
 class Report:
-    def __init__(self, request_id, *, headers=None, data=None):
+    def __init__(self, request_id, *, headers=None, data=None, quote_status=None):
+        self.request_id = request_id
         self.headers = headers
         self.data = data
 
-        self.request_id = request_id
-        self.quote_status = QuoteStatus[data['isvEnclaveQuoteStatus']]
+        self.quote_status = quote_status
 
     @classmethod
-    def from_resp(cls, resp):
+    def from_resp_v4(cls, resp):
         data = resp.json()
         return cls(
             request_id=resp.headers['request-id'],
-            headers=dict(resp.headers),
-            data=data)
+            headers=resp.headers,
+            data=data,
+            quote_status=QuoteStatus[data['isvEnclaveQuoteStatus']],
+        )
 
-class IAS:
+class IASv4:
     def __init__(self, key, prod=False):
         self.headers = {'Ocp-Apim-Subscription-Key': key}
         self.api = API if prod else API_DEV
@@ -88,7 +90,7 @@ class IAS:
         with requests.post(self.api / 'attestation/v4/report',
                 json=data, headers=self.headers) as resp:
             resp.raise_for_status()
-            return Report.from_resp(resp)
+            return Report.from_resp_v4(resp)
 
 _FORMAT = {
     'raw': lambda data: data,
@@ -108,13 +110,14 @@ _FORMAT = {
 @click.argument('quote', metavar='FILE', type=click.File('rb'))
 def main(key, fmt, nonce, quote):
     '''
-    Query Intel Attestation Service sending the quote from the FILE.
+    Send an SGX quote from the FILE to the Intel Attestation Service and get the
+    SGX attestation report back.
     '''
-    ias = IAS(key)
+    ias = IASv4(key)
     quote = _FORMAT[fmt](quote.read())
 
     report = ias.get_report(quote, nonce=nonce)
-    click.echo(f'headers:\n{pprint.pformat(report.headers)}')
+    click.echo(f'headers:\n{pprint.pformat(dict(report.headers))}')
     click.echo(f'body:\n{pprint.pformat(report.data)}')
     click.echo(f'quote status: {report.quote_status}')
 
