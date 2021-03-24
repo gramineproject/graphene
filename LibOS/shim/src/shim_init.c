@@ -22,6 +22,7 @@
 #include "shim_ipc.h"
 #include "shim_lock.h"
 #include "shim_process.h"
+#include "shim_sync.h"
 #include "shim_table.h"
 #include "shim_tcb.h"
 #include "shim_thread.h"
@@ -472,7 +473,13 @@ noreturn void* shim_init(int argc, void* args) {
             log_error("shim_init: failed to read parent's confirmation: %d\n", ret);
             DkProcessExit(1);
         }
+    } else { /* !g_pal_control->parent_process */
+        RUN_INIT(init_sync_server);
     }
+
+    /* Note that in the main process, we initialize both sync server and sync client, and the client
+     * communicates with server over a "loopback" IPC connection. */
+    RUN_INIT(init_sync_client);
 
     log_debug("Shim process initialized\n");
 

@@ -36,6 +36,12 @@ enum {
     IPC_MSG_PID_RETSTATUS,
     IPC_MSG_PID_GETMETA,
     IPC_MSG_PID_RETMETA,
+    IPC_MSG_SYNC_REQUEST_UPGRADE,
+    IPC_MSG_SYNC_REQUEST_DOWNGRADE,
+    IPC_MSG_SYNC_REQUEST_CLOSE,
+    IPC_MSG_SYNC_CONFIRM_UPGRADE,
+    IPC_MSG_SYNC_CONFIRM_DOWNGRADE,
+    IPC_MSG_SYNC_CONFIRM_CLOSE,
     IPC_MSG_CODE_BOUND,
 };
 
@@ -317,5 +323,23 @@ struct shim_ipc_pid_retmeta {
 int ipc_pid_retmeta_send(IDTYPE dest, IDTYPE pid, enum pid_meta_code code, const void* data,
                          int datasize, unsigned long seq);
 int ipc_pid_retmeta_callback(IDTYPE src, void* data, unsigned long seq);
+
+/* SYNC_REQUEST_*, SYNC_CONFIRM_ */
+struct shim_ipc_sync {
+    uint64_t id;
+    size_t data_size;
+    int state;
+    unsigned char data[];
+};
+
+int ipc_sync_client_send(int code, uint64_t id, int state, size_t data_size, void* data);
+int ipc_sync_server_send(IDTYPE dest, int code, uint64_t id, int state, size_t data_size,
+                         void* data);
+int ipc_sync_request_upgrade_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_sync_request_downgrade_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_sync_request_close_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_sync_confirm_upgrade_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_sync_confirm_downgrade_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_sync_confirm_close_callback(IDTYPE src, void* data, unsigned long seq);
 
 #endif /* SHIM_IPC_H_ */

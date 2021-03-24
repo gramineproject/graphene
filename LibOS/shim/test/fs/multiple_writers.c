@@ -71,6 +71,7 @@ static void multiple_writers(const char* path, int n_lines, int n_processes, int
         for (int i = 1; i < n_processes; i++)
             wait(NULL);
     }
+    close_fd(path, g_fd);
 }
 
 int main(int argc, char* argv[]) {
