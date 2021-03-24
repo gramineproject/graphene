@@ -30,6 +30,8 @@
 #include "shim_vma.h"
 #include "toml.h"
 
+#include "shim_sync.h"
+
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
               "shim_tcb_t does not fit into PAL_TCB; please increase PAL_LIBOS_TCB_SIZE");
 
@@ -457,6 +459,11 @@ noreturn void* shim_init(int argc, void* args) {
             DkProcessExit(EPIPE);
         }
     }
+
+    if (!PAL_CB(parent_process))
+        RUN_INIT(init_sync_server);
+
+    RUN_INIT(init_sync_client);
 
     log_debug("Shim process initialized\n");
 

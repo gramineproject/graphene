@@ -59,6 +59,12 @@ enum {
     IPC_MSG_SYSV_SEMOP,
     IPC_MSG_SYSV_SEMCTL,
     IPC_MSG_SYSV_SEMRET,
+    IPC_MSG_SYNC_REQUEST_UPGRADE,
+    IPC_MSG_SYNC_REQUEST_DOWNGRADE,
+    IPC_MSG_SYNC_REQUEST_CLOSE,
+    IPC_MSG_SYNC_CONFIRM_UPGRADE,
+    IPC_MSG_SYNC_CONFIRM_DOWNGRADE,
+    IPC_MSG_SYNC_CONFIRM_CLOSE,
     IPC_MSG_CODE_BOUND,
 };
 
@@ -113,6 +119,8 @@ struct shim_ipc_port {
     LIST_TYPE(shim_ipc_port) list;
     LISTP_TYPE(shim_ipc_msg_with_ack) msgs;
     struct shim_lock msgs_lock;
+
+    unsigned int num_sync_handles;
 
     port_fini fini[MAX_IPC_PORT_FINI_CB];
 
@@ -345,6 +353,23 @@ struct shim_ipc_sysv_semret {
 int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, size_t valsize,
                          unsigned long seq);
 int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+
+/*
+ * SYNC_REQUEST_*, SYNC_CONFIRM_*
+ */
+
+struct shim_ipc_sync_msg {
+    uint64_t id;
+    int state;
+    size_t data_size;
+    unsigned char data[];
+};
+
+int ipc_sync_client_send(int code, uint64_t id, int state, size_t data_size, void* data);
+int ipc_sync_server_send(struct shim_ipc_port* port, int code, uint64_t id, int state,
+                         size_t data_size, void* data);
+int ipc_sync_client_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+int ipc_sync_server_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* general-purpose routines */
 int init_ipc(void);
