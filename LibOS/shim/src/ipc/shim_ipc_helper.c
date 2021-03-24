@@ -126,7 +126,7 @@ static int init_ns_ipc_port(void) {
         BUG();
     }
 
-    log_debug("Reconnecting IPC port %s\n", uri);
+    log_debug("Connecting to the IPC leader using IPC port %s\n", uri);
     PAL_HANDLE handle = NULL;
     int ret = DkStreamOpen(uri, 0, 0, 0, 0, &handle);
     if (ret < 0) {
