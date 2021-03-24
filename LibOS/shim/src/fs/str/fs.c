@@ -94,6 +94,12 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
         strhdl->ptr = data->str;
 
     off_t offset  = strhdl->ptr - data->str;
+
+    if (data->len <= offset) {
+        ret = 0;
+        goto out;
+    }
+
     size_t remain = data->len - offset;
 
     if (count >= remain) {
