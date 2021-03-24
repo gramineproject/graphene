@@ -6,9 +6,8 @@ import shutil
 import subprocess
 import unittest
 
-from test_fs import (
-    TC_00_FileSystem,
-)
+# Named import, so that Pytest does not pick up TC_00_FileSystem as belonging to this module.
+import test_fs
 
 from regression import (
     HAS_SGX,
@@ -16,7 +15,7 @@ from regression import (
 )
 
 @unittest.skipUnless(HAS_SGX, 'Protected files require SGX support')
-class TC_50_ProtectedFiles(TC_00_FileSystem):
+class TC_50_ProtectedFiles(test_fs.TC_00_FileSystem):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

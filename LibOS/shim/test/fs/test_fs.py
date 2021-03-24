@@ -342,12 +342,12 @@ class TC_01_Sync(RegressionTestCase):
         self.assertListEqual(sorted(lines), expected_lines)
 
     def test_001_multiple_writers_many_threads(self):
-        self._test_multiple_writers(20, 1, 3)
+        self._test_multiple_writers(20, 1, 5)
 
     @unittest.skip('file handle sync is not supported yet')
     def test_002_multiple_writers_many_processes(self):
-        self._test_multiple_writers(20, 3, 1)
+        self._test_multiple_writers(20, 5, 1)
 
     @unittest.skip('file handle sync is not supported yet')
     def test_003_multiple_writers_many_processes_and_threads(self):
-        self._test_multiple_writers(20, 3, 3)
+        self._test_multiple_writers(20, 5, 5)

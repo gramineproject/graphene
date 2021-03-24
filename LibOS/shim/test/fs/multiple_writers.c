@@ -45,9 +45,9 @@ static void multiple_writers(const char* path, int n_lines, int n_processes, int
     g_proc_id = 0;
     for (int i = 1; i < n_processes; i++) {
         int ret = fork();
-        if (ret < 0)
+        if (ret < 0) {
             fatal_error("error on fork: %d\n", errno);
-        else if (ret == 0) {
+        } else if (ret == 0) {
             g_proc_id = i;
             break;
         }
