@@ -291,13 +291,6 @@ int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
                          enum sysv_type type);
 int ipc_sysv_delres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* SYSV_MOVRES */
-struct shim_ipc_sysv_movres {
-    IDTYPE resid;
-    enum sysv_type type;
-    IDTYPE owner;
-};
-
 /* SYSV_MSGSND */
 struct shim_ipc_sysv_msgsnd {
     IDTYPE msgid;
