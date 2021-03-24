@@ -8,6 +8,11 @@ This tutorial presents a framework for developing a PPML (Privacy-Preserving
 Machine Learning) solution - `TensorFlow Serving <https://www.tensorflow.org/tfx/guide/serving>`__
 cluster with Intel SGX and Graphene.
 
+.. warning::
+
+   This tutorial is an external contribution and wasn't reviewed as thoroughly
+   as the rest of the code. Please be careful, especially in terms of security!
+
 Introduction
 ------------
 
