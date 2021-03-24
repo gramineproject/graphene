@@ -64,6 +64,10 @@ enum {
     IPC_MSG_SYSV_SEMOP,
     IPC_MSG_SYSV_SEMCTL,
     IPC_MSG_SYSV_SEMRET,
+    IPC_MSG_SYNC_REQUEST_UPGRADE,
+    IPC_MSG_SYNC_REQUEST_DOWNGRADE,
+    IPC_MSG_SYNC_UPGRADE,
+    IPC_MSG_SYNC_DOWNGRADE,
     IPC_MSG_CODE_BOUND,
 };
 
@@ -376,6 +380,39 @@ struct shim_ipc_sysv_semret {
 int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, size_t valsize,
                          unsigned long seq);
 int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+
+/*
+ * SYNC_REQUEST_UPGRADE (client -> IPC leader)
+ * SYNC_REQUEST_DOWNGRADE (IPC leader -> client)
+ */
+
+struct shim_ipc_sync_request {
+    uint64_t id;
+    int state;
+};
+
+int ipc_sync_request_upgrade_send(uint64_t id, int state);
+int ipc_sync_request_upgrade_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+int ipc_sync_request_downgrade_send(struct shim_ipc_port* port, uint64_t id, int state);
+int ipc_sync_request_downgrade_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+
+/*
+ * SYNC_UPGRADE (IPC leader -> client)
+ * SYNC_DOWNGRADE (client -> IPC leader)
+ */
+
+struct shim_ipc_sync_response {
+    uint64_t id;
+    int state;
+    size_t data_size;
+    unsigned char data[];
+};
+
+int ipc_sync_upgrade_send(struct shim_ipc_port* port, uint64_t id, int state, size_t data_size,
+                          void* data);
+int ipc_sync_upgrade_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+int ipc_sync_downgrade_send(uint64_t id, int state, size_t data_size, void* data);
+int ipc_sync_downgrade_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* general-purpose routines */
 int init_ipc(void);

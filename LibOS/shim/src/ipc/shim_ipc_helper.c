@@ -45,7 +45,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 
 typedef int (*ipc_callback)(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-static ipc_callback ipc_callbacks[] = {
+static ipc_callback ipc_callbacks[IPC_MSG_CODE_BOUND] = {
     [IPC_MSG_RESP]          = &ipc_resp_callback,
     [IPC_MSG_CHILDEXIT]     = &ipc_cld_exit_callback,
     [IPC_MSG_LEASE]         = &ipc_lease_callback,
@@ -68,6 +68,11 @@ static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_SYSV_SEMOP]    = &ipc_sysv_semop_callback,
     [IPC_MSG_SYSV_SEMCTL]   = &ipc_sysv_semctl_callback,
     [IPC_MSG_SYSV_SEMRET]   = &ipc_sysv_semret_callback,
+
+    [IPC_MSG_SYNC_REQUEST_UPGRADE]   = &ipc_sync_request_upgrade_callback,
+    [IPC_MSG_SYNC_REQUEST_DOWNGRADE] = &ipc_sync_request_downgrade_callback,
+    [IPC_MSG_SYNC_UPGRADE]           = &ipc_sync_upgrade_callback,
+    [IPC_MSG_SYNC_DOWNGRADE]         = &ipc_sync_downgrade_callback,
 };
 
 static int init_self_ipc_port(void) {
@@ -117,8 +122,14 @@ static int init_ns_ipc_port(void) {
         if (!g_process_ipc_info.ns) {
             return -ENOMEM;
         }
-        assert(!g_process_ipc_info.ns->port);
-        return 0;
+
+        /*
+         * Continue and create a loopback connection, so that IPC leader can send messages to
+         * itself.
+         *
+         * TODO: This is a temporary measure to enable sync framework. We should return here without
+         * connecting, and handle "self" messages using another mechanism.
+         */
     }
 
     assert(!g_process_ipc_info.ns->port);
@@ -558,7 +569,9 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
             port, port->pal_handle, msg->code, msg->size, msg->src, msg->dst, msg->seq);
 
         /* skip messages coming from myself (in case of broadcast) */
-        if (msg->src != g_process_ipc_info.vmid) {
+        /* TODO: Make an exception for connections coming from this process, as a temporary measure
+         * to enable sync framework. */
+        if (msg->src != g_process_ipc_info.vmid || port->vmid == g_process_ipc_info.vmid) {
             if (msg->code < IPC_MSG_CODE_BOUND && ipc_callbacks[msg->code]) {
                 /* invoke callback to this msg */
                 ret = (*ipc_callbacks[msg->code])(msg, port);
