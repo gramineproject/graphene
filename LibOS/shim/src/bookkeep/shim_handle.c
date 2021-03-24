@@ -470,6 +470,12 @@ void put_handle(struct shim_handle* hdl) {
         if (hdl->fs)
             put_mount(hdl->fs);
 
+        if ((hdl->type == TYPE_FILE || hdl->type == TYPE_DIR)
+                && sync_is_open(&hdl->info.file.sync)) {
+            log_debug("collect handle %p\n", hdl);
+            sync_close(&hdl->info.file.sync);
+        }
+
         destroy_handle(hdl);
     }
 }
@@ -782,6 +788,13 @@ BEGIN_RS_FUNC(handle) {
             }
             assert(hdl->info.epoll.fds_count == count);
             break;
+        case TYPE_FILE:
+        case TYPE_DIR: {
+            uint64_t id = hdl->info.file.sync.id;
+            size_t buf_size = hdl->info.file.sync.buf_size;
+            sync_open(&hdl->info.file.sync, id, buf_size);
+            break;
+        }
         default:
             break;
     }
