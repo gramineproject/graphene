@@ -24,16 +24,8 @@ sgx.enclave_size = 1024M
 sgx.thread_num = 8
 
 sgx.trusted_files.runtime = "file:@GRAPHENEDIR@/Runtime/"
-sgx.trusted_files.libnsscompat = file:@ARCH_LIBDIR@/libnss_compat.so.2
-sgx.trusted_files.libnssfiles  = file:@ARCH_LIBDIR@/libnss_files.so.2
-sgx.trusted_files.libnssnis  = file:@ARCH_LIBDIR@/libnss_nis.so.2
-sgx.trusted_files.libnsl = file:@ARCH_LIBDIR@/libnsl.so.1
-sgx.trusted_files.libsystemd = file:@ARCH_LIBDIR@/libsystemd.so.0
-sgx.trusted_files.liblzma = file:@ARCH_LIBDIR@/liblzma.so.5
-sgx.trusted_files.libgcrypt = file:@ARCH_LIBDIR@/libgcrypt.so.20
-sgx.trusted_files.libgpgerror = file:@ARCH_LIBDIR@/libgpg-error.so.0
-sgx.trusted_files.liblz4 = file:/usr/@ARCH_LIBDIR@/liblz4.so.1
-sgx.trusted_files.libjemaloc = file:/usr/@ARCH_LIBDIR@/libjemalloc.so.1
+sgx.trusted_files.arch_libdir = "file:@ARCH_LIBDIR@/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/@ARCH_LIBDIR@/"
 
 sgx.allowed_files.nsswitch  = file:/etc/nsswitch.conf
 sgx.allowed_files.ethers    = file:/etc/ethers

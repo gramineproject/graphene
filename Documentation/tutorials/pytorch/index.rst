@@ -255,8 +255,8 @@ First, here are the following SGX-specific lines in the manifest template::
 ``sgx.trusted_files.<name>`` specifies a file or a directory that will be
 verified and trusted by the SGX enclave (in the latter case it's recursively
 traversed and all files are added as trusted). Note that the key string
-``<name>`` may be an arbitrary legal string (but without ``-`` and other special
-symbols) and does not have to be the same as the actual file name.
+``<name>`` may be an arbitrary legal string and does not have to be the same as
+the actual file name.
 
 The way these Trusted Files work is before Graphene runs PyTorch inside the SGX
 enclave, Graphene generates the final SGX manifest file using ``pal-sgx-sign``

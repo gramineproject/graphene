@@ -4,11 +4,6 @@ This directory contains an example for running Python 3 with SciPy/NumPy in Grap
 including the Makefile and a template for generating the manifest. The application is
 tested on Ubuntu 16.04, with both normal Linux and SGX platforms.
 
-This example is *insecure*: the manifest file uses `sgx.allowed_files` to allow all
-Python libraries/scripts without any integrity checks. This example simply shows
-the functionality of Graphene but *does not* prevent the attacker from silently
-modifying Python files. For secure Python usage, see the `python-simple` example.
-
 # Generating the manifest
 
 ## Installing prerequisites

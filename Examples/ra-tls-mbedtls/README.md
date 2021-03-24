@@ -49,6 +49,15 @@ with four additional command-line arguments (see the source code for details).
 
 # Quick Start
 
+First, start with adding the library directory to `LD_LIBRARY_PATH`:
+
+```sh
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./libs
+```
+
+Remember to undo this change after finishing the tutorial (or just do everything
+in a subshell).
+
 - Normal non-RA-TLS flows; without SGX and without Graphene:
 
 ```sh

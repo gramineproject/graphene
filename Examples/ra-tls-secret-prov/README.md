@@ -50,6 +50,15 @@ against `libsecret_prov_attest.so` explicitly at build time.
 
 Please make sure that the corresponding RA-TLS libraries (EPID or DCAP versions) are built.
 
+First, start with adding the library directory to `LD_LIBRARY_PATH`:
+
+```sh
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./libs
+```
+
+Remember to undo this change after finishing the tutorial (or just do everything
+in a subshell).
+
 - Secret Provisioning flows, EPID-based (IAS) attestation:
 
 ```sh

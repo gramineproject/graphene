@@ -27,14 +27,13 @@ have the following elements:
   Graphene-SGX, please include the commands for signing and retrieving
   the token in the `Makefile`.
 
-- Manifest(s):
-  Please provide all the manifests needed for running your application
-  sample. Do not hard-code any user-specific path or personal info
-  in the manifests. The ideal way is to create manifest templates that
-  contain variables to be replaced by runtime options in `Makefile`.
-  See other subdirectories for examples of the manifest templates.
-  We also ask you to provide sufficient comments in all the manifests
-  to help users understand the environment.
+- Manifest:
+  Please provide the manifest needed for running your application sample. Do not
+  hard-code any user-specific path or personal info in the manifest. The ideal
+  way is to create a manifest template that contains variables to be replaced by
+  runtime options in `Makefile`. See other subdirectories for examples of the
+  manifest templates. We also ask you to provide sufficient comments in all the
+  manifests to help users understand the environment.
 
 - Sample inputs and test suites:
   If you have any inputs and test suites for testing the application,
