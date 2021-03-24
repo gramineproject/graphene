@@ -19,6 +19,8 @@ from regression import (
 class TC_50_ProtectedFiles(TC_00_FileSystem):
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
+
         cls.PF_CRYPT = 'bin/pf_crypt'
         cls.PF_TAMPER = 'bin/pf_tamper'
         cls.WRAP_KEY = os.path.join(cls.TEST_DIR, 'wrap-key')
@@ -29,7 +31,6 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         cls.ENCRYPTED_FILES = [os.path.join(cls.ENCRYPTED_DIR, str(v)) for v in cls.FILE_SIZES]
         cls.LIB_PATH = os.path.join(os.getcwd(), 'lib')
 
-        super().setUpClass()
         if not os.path.exists(cls.ENCRYPTED_DIR):
             os.mkdir(cls.ENCRYPTED_DIR)
         cls.OUTPUT_DIR = os.path.join(cls.TEST_DIR, 'pf_output')

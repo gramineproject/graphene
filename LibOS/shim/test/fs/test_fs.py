@@ -313,8 +313,19 @@ class TC_00_FileSystem(RegressionTestCase):
                                          timeout=30)
         self.verify_copy(stdout, stderr, '/mounted/input', executable)
 
+
+class TC_01_Sync(RegressionTestCase):
+    TEST_DIR = 'tmp'
+
+    def setUp(self):
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
+        os.mkdir(self.TEST_DIR)
+
+    def tearDown(self):
+        shutil.rmtree(self.TEST_DIR)
+
     def _test_multiple_writers(self, n_lines, n_processes, n_threads):
-        output_path = os.path.join(self.OUTPUT_DIR, 'output.txt')
+        output_path = os.path.join(self.TEST_DIR, 'output.txt')
         self.run_binary(['multiple_writers',
                          output_path, str(n_lines), str(n_processes), str(n_threads)])
 
@@ -330,13 +341,13 @@ class TC_00_FileSystem(RegressionTestCase):
 
         self.assertListEqual(sorted(lines), expected_lines)
 
-    def test_220_multiple_writers_many_threads(self):
+    def test_001_multiple_writers_many_threads(self):
         self._test_multiple_writers(20, 1, 3)
 
     @unittest.skip('file handle sync is not supported yet')
-    def test_221_multiple_writers_many_processes(self):
+    def test_002_multiple_writers_many_processes(self):
         self._test_multiple_writers(20, 3, 1)
 
     @unittest.skip('file handle sync is not supported yet')
-    def test_222_multiple_writers_many_processes_and_threads(self):
+    def test_003_multiple_writers_many_processes_and_threads(self):
         self._test_multiple_writers(20, 3, 3)
