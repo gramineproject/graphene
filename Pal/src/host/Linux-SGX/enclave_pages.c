@@ -1,5 +1,8 @@
 #include "enclave_pages.h"
 
+#include <asm/errno.h>
+#include <stdalign.h>
+
 #include "api.h"
 #include "list.h"
 #include "pal_error.h"
@@ -100,7 +103,7 @@ static int free_edmm_page_range(void* start, size_t size) {
     void* end = (void*)((char*)addr + size);
     int ret = 0;
 
-    __sgx_mem_aligned sgx_arch_sec_info_t secinfo;
+    alignas(64) sgx_arch_sec_info_t secinfo;
     secinfo.flags = SGX_SECINFO_FLAGS_TRIM | SGX_SECINFO_FLAGS_MODIFIED;
     memset(&secinfo.reserved, 0, sizeof(secinfo.reserved));
 
@@ -116,7 +119,7 @@ static int free_edmm_page_range(void* start, size_t size) {
         ret = sgx_accept(&secinfo, page_addr);
         if (ret) {
             log_debug("EDMM accept page failed while trimming: %p %d\n", page_addr, ret);
-            return -1;
+            return -EFAULT;
         }
     }
 
@@ -141,7 +144,7 @@ static int get_edmm_page_range(void* start, size_t size, bool executable) {
     void* lo = start;
     void* addr = (void*)((char*)lo + size);
 
-    __sgx_mem_aligned sgx_arch_sec_info_t secinfo;
+    alignas(64) sgx_arch_sec_info_t secinfo;
     secinfo.flags = SGX_SECINFO_FLAGS_R | SGX_SECINFO_FLAGS_W | SGX_SECINFO_FLAGS_REG |
                     SGX_SECINFO_FLAGS_PENDING;
     memset(&secinfo.reserved, 0, sizeof(secinfo.reserved));
@@ -153,13 +156,13 @@ static int get_edmm_page_range(void* start, size_t size, bool executable) {
         ret = sgx_accept(&secinfo, addr);
         if (ret) {
             log_debug("EDMM accept page failed: %p %d\n", addr, ret);
-            return -1;
+            return -EFAULT;
         }
 
         /* All new pages will have RW permissions initially, so after EAUG/EACCEPT, extend
          * permission of a VALID enclave page (if needed). */
         if (executable) {
-            __sgx_mem_aligned sgx_arch_sec_info_t secinfo_extend = secinfo;
+            alignas(64) sgx_arch_sec_info_t secinfo_extend = secinfo;
 
             secinfo_extend.flags |= SGX_SECINFO_FLAGS_X;
             sgx_modpe(&secinfo_extend, addr);
@@ -360,8 +363,9 @@ out:
         for (int cnt = 0; cnt < EDMM_HEAP_RANGE_CNT; cnt++) {
             if (!heap_ranges_to_alloc[cnt].size)
                 break;
-            if (get_edmm_page_range(heap_ranges_to_alloc[cnt].addr,
-                                    heap_ranges_to_alloc[cnt].size, 1) < 0) {
+            int retval = get_edmm_page_range(heap_ranges_to_alloc[cnt].addr,
+                                             heap_ranges_to_alloc[cnt].size, 1);
+            if (retval < 0) {
                 ret = NULL;
                 break;
             }
@@ -475,8 +479,9 @@ out:
             log_debug("%s: edmm actual free addr = %p, size = %lx\n", __func__,
                        edmm_free_heap[free_cnt].addr, edmm_free_heap[free_cnt].size);
 
-            if (free_edmm_page_range(edmm_free_heap[free_cnt].addr,
-                                     edmm_free_heap[free_cnt].size) < 0) {
+            ret = free_edmm_page_range(edmm_free_heap[free_cnt].addr,
+                                       edmm_free_heap[free_cnt].size);
+            if (ret < 0) {
                 ret = -PAL_ERROR_INVAL;
                 break;
             }

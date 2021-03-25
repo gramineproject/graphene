@@ -315,6 +315,6 @@ typedef struct {
 typedef struct {
     void* start_addr;
     size_t nr_pages;
-} ms_ocall_sgx_range_t ;
+} ms_ocall_sgx_range_t;
 
 #pragma pack(pop)
