@@ -89,5 +89,10 @@ int main(int argc, const char** argv) {
     __asm__ volatile("nop" ::: "memory");
     a[page_size] = 0xff;
 
+    if (signal(SIGBUS, SIG_DFL) == SIG_ERR) {
+        perror("signal");
+        return 1;
+    }
+
     return 0;
 }
