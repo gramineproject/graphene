@@ -43,7 +43,8 @@ static void file_sync_lock(struct shim_file_handle* file, int state) {
     struct file_sync_data* data;
 
     sync_lock(&file->sync, state);
-    if (file->sync.data_size == sizeof(*data)) {
+    if (file->sync.data_size != 0) {
+        assert(file->sync.data_size == sizeof(*data));
         data = file->sync.buf;
         file->size = data->size;
         file->marker = data->marker;
@@ -53,6 +54,7 @@ static void file_sync_lock(struct shim_file_handle* file, int state) {
 static void file_sync_unlock(struct shim_file_handle* file) {
     struct file_sync_data* data = file->sync.buf;
     file->sync.data_size = sizeof(*data);
+    assert(file->sync.data_size <= file->sync.buf_size);
     data->size = file->size;
     data->marker = file->marker;
     sync_unlock(&file->sync);
@@ -664,7 +666,6 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
         goto out;
     }
 
-    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     ret = DkStreamRead(hdl->pal_handle, file->marker, &count, buf, NULL, 0);
@@ -678,7 +679,6 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
     }
 
     file_sync_unlock(file);
-    unlock(&hdl->lock);
 out:
     return ret;
 }
@@ -706,7 +706,6 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
         goto out;
     }
 
-    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     ret = DkStreamWrite(hdl->pal_handle, file->marker, &count, (void*)buf, NULL);
@@ -724,7 +723,6 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     }
 
     file_sync_unlock(file);
-    unlock(&hdl->lock);
 out:
     return ret;
 }
@@ -754,9 +752,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
         return ret;
 
     struct shim_file_handle* file = &hdl->info.file;
-    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
-
 
     /* TODO: this function emulates lseek() completely inside the LibOS, but some device files
      *       may report size == 0 during fstat() and may provide device-specific lseek() logic;
@@ -792,7 +788,6 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
 
 out:
     file_sync_unlock(file);
-    unlock(&hdl->lock);
     return ret;
 }
 
@@ -806,7 +801,6 @@ static int chroot_truncate(struct shim_handle* hdl, off_t len) {
         return -EINVAL;
 
     struct shim_file_handle* file = &hdl->info.file;
-    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     file->size = len;
@@ -827,7 +821,6 @@ static int chroot_truncate(struct shim_handle* hdl, off_t len) {
 
 out:
     file_sync_unlock(file);
-    unlock(&hdl->lock);
     return ret;
 }
 
@@ -1064,9 +1057,9 @@ static off_t chroot_poll(struct shim_handle* hdl, int poll_type) {
     if (poll_type == FS_POLL_SZ)
         return size;
 
-    lock(&hdl->lock);
-
     struct shim_file_handle* file = &hdl->info.file;
+    file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
+
     if (check_version(hdl) && file->size < size)
         file->size = size;
 
@@ -1082,7 +1075,7 @@ static off_t chroot_poll(struct shim_handle* hdl, int poll_type) {
     ret = -EAGAIN;
 
 out:
-    unlock(&hdl->lock);
+    file_sync_unlock(file);
     return ret;
 }
 
