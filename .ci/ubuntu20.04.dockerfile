@@ -1,4 +1,3 @@
-# Start with 18.04
 FROM ubuntu:20.04
 
 # Add steps here to set up dependencies
