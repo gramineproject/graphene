@@ -11,35 +11,52 @@
  *
  * - SYNC_STATE_SHARED: many processes can have a copy of the handle
  * - SYNC_STATE_EXCLUSIVE: only one process can have a copy of the handle, but the data stored
- *   handle can be updated
+ *   with the handle can be updated
  *
- * When the handle is not locked, it can be downgraded to SYNC_STATE_INVALID by the remote
- * server. However, this will only happen if another process needs the handle. Therefore, as long as
- * the handle is uncontested, there is not communication overhead for using it.
+ * When the handle is not locked, it can be downgraded to INVALID by the remote server. However,
+ * this will only happen when another process needs to modify the same resource, and locks its own
+ * handle in EXCLUSIVE mode (which means that data held by other processes are about to become
+ * invalid). Therefore, as long as the handle is uncontested, there is not communication overhead
+ * for using it.
  *
  * Example usage:
  *
  *     struct obj {
- *         int field;
+ *         int field_one;
+ *         long field_two;
  *         struct sync_handle sync;
  *     };
  *     struct obj obj = {0};
  *
+ *     struct obj_sync_data {
+ *         int field_one;
+ *         long field_two;
+ *     };
+ *
  *     // Initialize the handle
- *     sync_open(&obj.sync, 0, sizeof(obj.field));
+ *     sync_open(&obj.sync, 0, sizeof(struct obj_sync_data));
  *
  *     // Lock. Use SYNC_STATE_SHARED for reading data, SYNC_STATE_EXCLUSIVE if you need to update
- *     // it. After locking, you can read latest data.
+ *     // it. After locking, you can read latest data (if it's there: a newly created handle will
+ *     // not have any data associated).
  *     sync_lock(&obj.sync, SYNC_STATE_EXCLUSIVE);
- *     if (obj.sync.data_size == sizeof(obj.field))
- *         memcpy(&obj.field, obj.sync.buf, sizeof(obj.field);
+ *     if (obj.sync.data_size != 0) {
+ *         struct obj_sync_data* read_data = obj.sync.buf;
+ *         assert(obj.sync.data_size == sizeof(*read_data));
+ *         obj.field_one = read_data->field_one;
+ *         obj.field_two = read_data->field_two;
+ *     }
  *
  *     // Use the object
  *     obj.field = ...;
  *
  *     // Unlock, writing the new data first
- *     obj.sync.data_size = sizeof(obj.field);
- *     memcpy(obj.sync.buf, &obj.field, sizeof(obj.field);
+ *     struct obj_sync_data* write_data = obj.sync.buf;
+ *     obj.sync.data_size = sizeof(*write_data);
+ *     assert(obj.sync.data_size <= obj.sync.buf_size);
+ *     write_data->field_one = obj.field_one;
+ *     write_data->field_two = obj.field_two;
+ *     sync_unlock(&file->sync);
  *
  *     // Close the handle before destroying the object
  *     sync_close(&obj.sync);
@@ -47,6 +64,48 @@
  * The sync engine is currently experimental. To enable it, set `libos.sync.enable = 1` in the
  * manifest. When it's not enabled, sync_lock() and sync_unlock() will function as regular, local
  * locks, and no remote communication will be performed.
+ */
+
+/*
+ * Implementation overview:
+ *
+ * The sync engine uses a client/server architecture. The client code runs on all participating
+ * processes, and the server code runs on the main process. The client and server communicate over
+ * IPC.
+ *
+ * The client sends the following messages to server:
+ *
+ * - REQUEST_UPGRADE(id, state): The client requests access to a resource with given ID (in either
+ *   SHARED or EXCLUSIVE) mode. The server will downgrade the handles for other clients (if that's
+ *   necessary for fulfilling the request), and reply with UPGRADE once the resource can be used.
+ *
+ * - DOWNGRADE(id, state, data_size, data): The client confirms downgrade of its own handle, and
+ *   sends the latest data associated with it. This is usually a response to REQUEST_DOWNGRADE.
+ *
+ * The server sends the following messages to the client:
+ *
+ * - UPGRADE(id, state, data_size, data): The server confirms upgrade of a handle to the
+ *   server. This is a response to REQUEST_UPGRADE.
+ *
+ * - REQUEST_DOWNGRADE(id, state, data_size, data): The server requests the client to downgrade its
+ *   handle. The client will reply with DOWNGRADE when ready.
+ *
+ * Here is an example interaction:
+ *
+ *                                                        client1 state    client2 state
+ *                                                        INVALID          INVALID
+ *  1. client1 -> server: REQUEST_UPGRADE(123, SHARED)    .                .
+ *  2. server -> client1: UPGRADE(123, SHARED)            SHARED           .
+ *  3. client2 -> server: REQUEST_UPGRADE(123, SHARED)    |                .
+ *  4. server -> client2: UPGRADE(123, SHARED)            |                SHARED
+ *  5. client1 -> server: REQUEST_UPGRADE(123, EXCLUSIVE) |                |
+ *  6. server -> client2: REQUEST_DOWNGRADE(123, INVALID) |                |
+ *  7. client2 -> server: DOWNGRADE(123, INVALID)         |                INVALID
+ *  8. server -> client1: UPGRADE(123, EXCLUSIVE)         EXCLUSIVE        .
+ *
+ * In the above diagram, both clients request resource 123 in SHARED mode, and they hold SHARED
+ * handles at the same time. Later, when the first client requests EXCLUSIVE access, the other
+ * client is asked to downgrade to INVALID before the upgrade can be confirmed.
  */
 
 /*
@@ -131,7 +190,8 @@ int init_sync_server(void);
 int init_sync_client(void);
 
 /* Initialize and register a sync handle. If `id` is 0, allocate a fresh handle ID.
- * The handle must have `id` set to 0, for easier lifecycle tracking. */
+ * Before calling sync_open() on given handle, handle->id must be set to 0, for easier lifecycle
+ * tracking. */
 int sync_open(struct sync_handle* handle, uint64_t id, size_t buf_size);
 
 /* Check if the handle has been initialized, to prevent sync_open()/sync_close() outside of

@@ -57,7 +57,7 @@ int init_sync_server(void) {
 }
 
 static struct server_handle* find_handle(uint64_t id) {
-    struct server_handle* handle;
+    struct server_handle* handle = NULL;
     HASH_FIND(hh, g_server_handles, &id, sizeof(id), handle);
     if (!handle) {
         if (!(handle = malloc(sizeof(*handle))))

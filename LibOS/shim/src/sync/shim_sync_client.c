@@ -28,14 +28,16 @@ static struct sync_handle *g_client_handles = NULL;
 static uint32_t g_client_counter = 1;
 static struct shim_lock g_client_lock;
 
-/* Allow creating/using handles in a single-thread scenario before sync client is initialized. */
-
 static inline void lock_client(void) {
+    /* Allow creating/using handles in a single-thread scenario before sync client is initialized
+     * (i.e. when lock is not created yet). */
     if (lock_created(&g_client_lock))
         lock(&g_client_lock);
 }
 
 static inline void unlock_client(void) {
+    /* Allow creating/using handles in a single-thread scenario before sync client is initialized
+     * (i.e. when lock is not created yet). */
     if (lock_created(&g_client_lock))
         unlock(&g_client_lock);
 }
@@ -220,11 +222,18 @@ void sync_unlock(struct sync_handle* handle) {
 }
 
 static struct sync_handle* find_handle(uint64_t id) {
-    struct sync_handle* handle;
+    struct sync_handle* handle = NULL;
     lock_client();
     HASH_FIND(hh, g_client_handles, &id, sizeof(id), handle);
     unlock_client();
 
+    /*
+     * FIXME: This assert is not correct, it's possible that a server sends us an information about
+     * a handle that we already called sync_close() on. This can happen because while sync_close()
+     * sends DOWNGRADE, it does not wait for confirmation, so a race condition is possible where the
+     * server has not received the DOWNGRADE yet. To fix that properly, we need to change the
+     * cleanup logic.
+     */
     assert(handle);
     return handle;
 }
