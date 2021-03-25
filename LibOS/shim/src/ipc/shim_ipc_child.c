@@ -26,9 +26,10 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid) {
      * NOTE: IPC port may be closed by the host OS because the child process exited on the host OS
      * (and so the host OS closed all its sockets). This may happen before arrival of the expected
      * IPC_MSG_CHILDEXIT message from child process. In such case report that the child process was
-     * killed by SIGKILL.
+     * killed by SIGPWR (we've picked this signal hoping that nothing really uses it, as this case
+     * is not distinguishable from a genuine signal).
      */
-    if (mark_child_exited_by_vmid(vmid, /*uid=*/0, /*exit_code=*/0, SIGKILL)) {
+    if (mark_child_exited_by_vmid(vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR)) {
         log_debug("Child process (vmid: 0x%x) got disconnected\n", vmid);
     } else {
         log_debug("Unknown process (vmid: 0x%x) disconnected\n", vmid);
