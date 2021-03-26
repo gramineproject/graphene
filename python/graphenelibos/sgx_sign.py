@@ -104,7 +104,7 @@ def get_enclave_attributes(manifest):
         'XFRM_AVX': struct.pack('<Q', offs.SGX_XFRM_AVX),
         'XFRM_AVX512': struct.pack('<Q', offs.SGX_XFRM_AVX512),
         'XFRM_MPX': struct.pack('<Q', offs.SGX_XFRM_MPX),
-        'XFRM_PKRU': struct.pack("<Q", offs.SGX_XFRM_PKRU),
+        'XFRM_PKRU': struct.pack('<Q', offs.SGX_XFRM_PKRU),
     }
 
     sgx_miscs = {
@@ -147,10 +147,10 @@ def get_enclave_attributes(manifest):
 
 def resolve_uri(uri, check_exist=True):
     if not uri.startswith('file:'):
-        raise ManifestError('Unsupported URI type: ' + uri)
+        raise ManifestError(f'Unsupported URI type: {uri}')
     path = Path(uri[len('file:'):])
     if check_exist and not path.exists():
-        raise ManifestError('Cannot resolve ' + uri + ' or the file does not exist.')
+        raise ManifestError(f'Cannot resolve {uri} or the file does not exist.')
     return str(path)
 
 
@@ -161,8 +161,7 @@ def sha256(data):
 
 
 def get_hash(filename):
-    # TODO: Remove `str()` after dropping support for Ubuntu 16.04 and its ancient Python.
-    with open(str(filename), 'rb') as file:
+    with open(filename, 'rb') as file:
         return sha256(file.read())
 
 
@@ -183,14 +182,14 @@ def get_trusted_files(manifest, check_exist=True, do_hash=True):
     preload_str = manifest['loader']['preload']
     # `filter` below is needed for the case where preload_str == '' (`split` returns [''] then)
     for i, uri in enumerate(filter(None, preload_str.split(','))):
-        targets['preload' + str(i)] = uri, resolve_uri(uri, check_exist)
+        targets[f'preload{i}'] = uri, resolve_uri(uri, check_exist)
 
     for key, val in manifest['sgx']['trusted_files'].items():
         path = Path(resolve_uri(val, check_exist))
         if path.is_dir():
             for sub_path in walk_dir(path):
                 sub_key = path_to_key(str(sub_path))
-                uri = 'file:' + str(sub_path)
+                uri = f'file:{sub_path}'
                 targets[sub_key] = uri, sub_path
         else:
             targets[key] = val, path
@@ -246,7 +245,7 @@ def get_loadcmds(elf_filename):
                          prot))
     proc.wait()
     if proc.returncode != 0:
-        raise RuntimeError('Parsing %s as ELF failed' % elf_filename)
+        raise RuntimeError(f'Parsing {elf_filename} as ELF failed')
     return loadcmds
 
 
@@ -316,7 +315,7 @@ def find_area(areas, desc, allow_none=False):
         return None
 
     if len(matching) != 1:
-        raise KeyError('Could not find exactly one MemoryArea "{}"'.format(desc))
+        raise KeyError(f'Could not find exactly one MemoryArea {desc!r}')
 
     return matching[0]
 
@@ -475,11 +474,11 @@ def generate_measurement(enclave_base, attr, areas):
             prot[2] = 'X'
         prot = ''.join(prot)
 
-        desc = '(' + desc + ')'
+        desc = f'({desc})'
         if measured:
             desc += ' measured'
 
-        print('    %016x-%016lx [%s:%s] %s' % (addr, addr + size, type_, prot, desc))
+        print(f'    {addr:016x}-{addr+size:016x} [{type_}:{prot}] {desc}')
 
     def load_file(digest, file, offset, addr, filesize, memsize, desc, flags):
         # pylint: disable=too-many-arguments
@@ -725,14 +724,14 @@ def main_sign(manifest, args):
     attr['day'] = today.day
 
     print('Attributes:')
-    print('    size:        0x%x' % attr['enclave_size'])
-    print('    thread_num:  %d' % attr['thread_num'])
-    print('    isv_prod_id: %d' % attr['isv_prod_id'])
-    print('    isv_svn:     %d' % attr['isv_svn'])
-    print('    attr.flags:  %s' % attr['flags'].hex())
-    print('    attr.xfrm:   %s' % attr['xfrms'].hex())
-    print('    misc_select: %s' % attr['misc_select'].hex())
-    print('    date:        %d-%02d-%02d' % (attr['year'], attr['month'], attr['day']))
+    print(f'    size:        {attr["enclave_size"]:#x}')
+    print(f'    thread_num:  {attr["thread_num"]}')
+    print(f'    isv_prod_id: {attr["isv_prod_id"]}')
+    print(f'    isv_svn:     {attr["isv_svn"]}')
+    print(f'    attr.flags:  {attr["flags"].hex()}')
+    print(f'    attr.xfrm:   {attr["xfrms"].hex()}')
+    print(f'    misc_select: {attr["misc_select"].hex()}')
+    print(f'    date:        {attr["year"]:04d}-{attr["month"]:02d}-{attr["day"]:02d}')
 
     if manifest_sgx['remote_attestation'] == 1:
         spid = manifest_sgx.get('ra_client_spid', '')
@@ -741,7 +740,7 @@ def main_sign(manifest, args):
         if not spid:
             print('    DCAP/ECDSA')
         else:
-            print('    EPID (spid = %s, linkable = %s)' % (spid, linkable))
+            print(f'    EPID (spid = {spid}, linkable = {linkable})')
 
     # Get trusted hashes and measurements
 
@@ -781,7 +780,7 @@ def main_sign(manifest, args):
     # Generate measurement
     mrenclave = generate_measurement(enclave_base, attr, memory_areas)
     print('Measurement:')
-    print('    %s' % mrenclave.hex())
+    print(f'    {mrenclave.hex()}')
 
     # Generate sigstruct
     with open(args['sigfile'], 'wb') as file:
@@ -805,9 +804,9 @@ def make_depend(manifest, args):
         manifest_sgx = output
         if manifest_sgx.endswith('.d'):
             manifest_sgx = manifest_sgx[:-len('.d')]
-        file.write('%s %s:' % (manifest_sgx, args['sigfile']))
+        file.write(f'{manifest_sgx} {args["sigfile"]}:')
         for filename in dependencies:
-            file.write(' \\\n\t%s' % filename)
+            file.write(f' \\\n\t{filename}')
         file.write('\n')
 
     return 0
@@ -822,7 +821,7 @@ def main(args=None):
     try:
         manifest = read_manifest(manifest_path)
     except toml.TomlDecodeError as exc:
-        print('Parsing {} as TOML failed: {}'.format(manifest_path, exc), file=stderr)
+        print(f'Parsing {manifest_path} as TOML failed: {exc}', file=stderr)
         return 1
 
     if args.get('depend'):
