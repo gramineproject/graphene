@@ -26,16 +26,9 @@ int init_ns_pid(void) {
     return add_ipc_subrange(cur_thread->tid, g_process_ipc_info.vmid);
 }
 
-// TODO: for KILL_THREAD we don't know which process has a thread with given id
-int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int signum) {
+static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid, IDTYPE target,
+                             int sig) {
     int ret;
-
-    if (!signum) {
-        /* if sig is 0, then no signal is sent, but error checking on kill()
-         * is still performed (used to check for existence of processes) */
-        ret = 0;
-        goto out;
-    }
 
     IDTYPE dest;
     struct shim_ipc_port* port;
@@ -43,9 +36,10 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
         dest = 0;
         port = NULL;
     } else {
-        ret = connect_owner(target, &port, &dest);
-        if (ret < 0)
-            goto out;
+        ret = connect_owner(dest_pid, &port, &dest);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_pid_kill));
@@ -56,22 +50,36 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
     msgin->sender                   = sender;
     msgin->type                     = type;
     msgin->id                       = target;
-    msgin->signum                   = signum;
+    msgin->signum                   = sig;
 
     if (type == KILL_ALL) {
-        log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, target,
-                  signum);
+        log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, dest_pid, sig);
         ret = broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT,
                             /*exclude_port=*/NULL);
     } else {
         log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
-                  target, signum);
+                  dest_pid, sig);
         ret = send_ipc_message(msg, port);
         put_ipc_port(port);
     }
 
-out:
     return ret;
+}
+
+int ipc_kill_process(IDTYPE sender, IDTYPE target, int sig) {
+    return ipc_pid_kill_send(KILL_PROCESS, sender, target, target, sig);
+}
+
+int ipc_kill_thread(IDTYPE sender, IDTYPE dest_pid, IDTYPE target, int sig) {
+    return ipc_pid_kill_send(KILL_THREAD, sender, dest_pid, target, sig);
+}
+
+int ipc_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig) {
+    return ipc_pid_kill_send(KILL_PGROUP, sender, pgid, pgid, sig);
+}
+
+int ipc_kill_all(IDTYPE sender, int sig) {
+    return ipc_pid_kill_send(KILL_ALL, sender, /*dest_pid=*/0, /*target=*/0, sig);
 }
 
 int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
@@ -80,21 +88,27 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     log_debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", msg->src,
               msgin->sender, msgin->type, msgin->id, msgin->signum);
 
+    if (msgin->signum == 0) {
+        /* If signal number is 0, then no signal is sent, but process existence is still checked. */
+        return 0;
+    }
+
     int ret = 0;
 
     switch (msgin->type) {
         case KILL_THREAD:
-            ret = do_kill_thread(msgin->sender, 0, msgin->id, msgin->signum, /*use_ipc=*/true);
+            ret = do_kill_thread(msgin->sender, g_process.pid, msgin->id, msgin->signum);
             break;
         case KILL_PROCESS:
-            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
+            assert(g_process.pid == msgin->id);
+            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum);
             break;
         case KILL_PGROUP:
             ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum);
             break;
         case KILL_ALL:
             broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT, port);
-            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/false);
+            ret = do_kill_proc(msgin->sender, g_process.pid, msgin->signum);
             break;
     }
     return ret;

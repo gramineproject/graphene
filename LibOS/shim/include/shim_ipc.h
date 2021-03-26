@@ -212,7 +212,10 @@ struct shim_ipc_pid_kill {
     int signum;
 } __attribute__((packed));
 
-int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int signum);
+int ipc_kill_process(IDTYPE sender, IDTYPE target, int sig);
+int ipc_kill_thread(IDTYPE sender, IDTYPE dest_pid, IDTYPE target, int sig);
+int ipc_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig);
+int ipc_kill_all(IDTYPE sender, int sig);
 int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* PID_GETSTATUS: check if certain pid(s) exists */
