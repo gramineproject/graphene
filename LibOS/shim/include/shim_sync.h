@@ -84,8 +84,8 @@
  *
  * The server sends the following messages to the client:
  *
- * - UPGRADE(id, state, data_size, data): The server confirms upgrade of a handle to the
- *   server. This is a response to REQUEST_UPGRADE.
+ * - UPGRADE(id, state, data_size, data): The server confirms upgrade of a handle to the client, and
+ *   sends the last data associated with the handle. This is a response to REQUEST_UPGRADE.
  *
  * - REQUEST_DOWNGRADE(id, state, data_size, data): The server requests the client to downgrade its
  *   handle. The client will reply with DOWNGRADE when ready.

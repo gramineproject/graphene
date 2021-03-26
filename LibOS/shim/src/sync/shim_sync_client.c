@@ -197,6 +197,8 @@ void sync_lock(struct sync_handle* handle, int state) {
 
         handle->n_waiters++;
         unlock(&handle->prop_lock);
+        if (object_wait_with_retry(handle->event) < 0)
+            FATAL("waiting for event");
         DkSynchronizationObjectWait(handle->event, NO_TIMEOUT);
         lock(&handle->prop_lock);
         if (--handle->n_waiters == 0)
