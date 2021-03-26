@@ -46,6 +46,7 @@ c_executables = \
 	helloworld \
 	host_root_fs \
 	init_fail \
+	kill_all \
 	large_mmap \
 	large_dir_read \
 	madvise \

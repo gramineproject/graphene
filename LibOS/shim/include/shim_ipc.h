@@ -30,15 +30,11 @@
 enum {
     IPC_LISTENING,    /* listening port; processes connect to it to create connection ports */
     IPC_CONNECTION,   /* processes communicate on ports of this type */
-    IPC_DIRECTCHILD,  /* direct child: used to broadcast messages to children processes */
-    IPC_DIRECTPARENT, /* direct parent: used to broadcast messages to parent process */
 };
 
 enum {
     IPC_PORT_LISTENING    = 1 << IPC_LISTENING,
     IPC_PORT_CONNECTION   = 1 << IPC_CONNECTION,
-    IPC_PORT_DIRECTCHILD  = 1 << IPC_DIRECTCHILD,
-    IPC_PORT_DIRECTPARENT = 1 << IPC_DIRECTPARENT,
 };
 
 enum {
@@ -388,7 +384,7 @@ void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t s
 
 struct shim_ipc_msg_with_ack* pop_ipc_msg_with_ack(struct shim_ipc_port* port, unsigned long seq);
 
-int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_port* exclude_port);
+int broadcast_ipc(struct shim_ipc_msg* msg, struct shim_ipc_port* exclude_port);
 int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc_port* port,
                               unsigned long* seq, void* private_data);

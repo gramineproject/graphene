@@ -89,8 +89,7 @@ static int init_parent_ipc_port(void) {
     assert(g_process_ipc_info.parent && g_process_ipc_info.parent->vmid);
 
     add_ipc_port_by_id(g_process_ipc_info.parent->vmid, PAL_CB(parent_process),
-                       IPC_PORT_CONNECTION | IPC_PORT_DIRECTPARENT, /*fini=*/NULL,
-                       &g_process_ipc_info.parent->port);
+                       IPC_PORT_CONNECTION, /*fini=*/NULL, &g_process_ipc_info.parent->port);
 
     return 0;
 }
@@ -385,13 +384,12 @@ void del_all_ipc_ports(void) {
 
 #define PORTS_ON_STACK_CNT 32
 
-int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_port* exclude_port) {
+int broadcast_ipc(struct shim_ipc_msg* msg, struct shim_ipc_port* exclude_port) {
     int ret;
     struct shim_ipc_port* port;
     struct shim_ipc_port** target_ports;
     size_t target_ports_cnt = 0;
 
-    assert(target_type);
     lock(&ipc_helper_lock);
 
     /* Collect all ports with appropriate types. In common case, stack-allocated array of
@@ -401,7 +399,7 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
     LISTP_FOR_EACH_ENTRY(port, &port_list, list) {
         if (port == exclude_port)
             continue;
-        if (port->type & target_type) {
+        if (port->type & IPC_PORT_CONNECTION) {
             if (target_ports_cnt < PORTS_ON_STACK_CNT)
                 target_ports_stack[target_ports_cnt] = port;
             target_ports_cnt++;
@@ -424,8 +422,9 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
         LISTP_FOR_EACH_ENTRY(port, &port_list, list) {
             if (port == exclude_port)
                 continue;
-            if (port->type & target_type)
+            if (port->type & IPC_PORT_CONNECTION) {
                 target_ports_heap[cnt++] = port;
+            }
         }
         target_ports = target_ports_heap;
         assert(cnt == target_ports_cnt);
@@ -440,8 +439,8 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
     for (size_t i = 0; i < target_ports_cnt; i++) {
         port = target_ports[i];
 
-        log_debug("Broadcast to port %p (handle %p) for process %u (type %x, target %x)\n", port,
-                  port->pal_handle, port->vmid, port->type, target_type);
+        log_debug("Broadcast to port %p (handle %p) for process %u (type %x)\n", port,
+                  port->pal_handle, port->vmid, port->type);
 
         msg->dst = port->vmid;
         ret = send_ipc_message(msg, port);

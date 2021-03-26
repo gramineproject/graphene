@@ -68,6 +68,7 @@
 /host_root_fs
 /init_fail
 /init_fail2
+/kill_all
 /large_dir_read
 /large_mmap
 /madvise
