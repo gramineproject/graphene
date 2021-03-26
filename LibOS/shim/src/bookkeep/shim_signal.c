@@ -8,10 +8,6 @@
  * This file contains code for handling signals and exceptions passed from PAL.
  */
 
-#include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
-                     * We must include it ourselves before including linux/signal.h.
-                     */
-
 #include <asm/signal.h>
 #include <stdnoreturn.h>
 

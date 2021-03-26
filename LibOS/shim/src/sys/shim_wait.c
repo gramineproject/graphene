@@ -3,10 +3,6 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
-/* We need to include this to get size_t definition, which otherwise is missing in <linux/signal.h>
- * (at least on Ubuntu16.04) */
-#include <stddef.h>
-
 #include <linux/signal.h>
 #include <linux/wait.h>
 #include <stdbool.h>
