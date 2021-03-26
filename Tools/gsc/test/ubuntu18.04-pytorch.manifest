@@ -1,3 +1,10 @@
 sgx.enclave_size = "4G"
 sgx.thread_num = 32
 sys.stack.size = "2M"
+
+# Python's memory allocator by default creates a new arena for each thread, and each new arena
+# allocates 128MB of memory. By default, PyTorch creates as many threads as there are available CPU
+# cores, so this may quickly deplete available enclave memory (e.g. Python eats 2GB on a 16-core
+# platform). Let's restrict the number of created threads.
+loader.env.OMP_NUM_THREADS = "8"
+loader.env.MKL_NUM_THREADS = "8"
