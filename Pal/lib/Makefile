@@ -117,6 +117,7 @@ objs += \
 	graphene/path.o \
 	network/hton.o \
 	network/inet_pton.o \
+	stack_protector.o \
 	stdlib/printfmt.o \
 	string/atoi.o \
 	string/ctype.o \

@@ -15,8 +15,5 @@ int write_all(int fd, const void* buf, size_t size);
 
 int read_text_file_to_cstr(const char* path, char** out);
 
-/* called only from GCC-emitted code; declare here to suppress GCC warn "no previous prototype" */
-noreturn void __stack_chk_fail(void);
-
 #endif // _LINUX_UTILS_H
 

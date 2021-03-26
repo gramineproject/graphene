@@ -16,6 +16,7 @@
 
 void warn(const char* format, ...) __attribute__((format(printf, 1, 2)));
 noreturn void __abort(void);
+noreturn void __stack_chk_fail(void);
 
 /* TODO(mkow): We should actually use the standard `NDEBUG`, but that would require changes in the
  * build system.
