@@ -309,12 +309,9 @@ int kill_current_proc(siginfo_t* info) {
     return 0;
 }
 
-int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
-    if (g_process.pid != tgid) {
-        if (use_ipc) {
-            return ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig);
-        }
-        return -ESRCH;
+int do_kill_proc(IDTYPE sender, IDTYPE pid, int sig) {
+    if (g_process.pid != pid) {
+        return ipc_kill_process(g_process.pid, pid, sig);
     }
 
     siginfo_t info = {
@@ -331,7 +328,7 @@ int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig) {
         pgid = current_pgid;
     }
 
-    int ret = ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig);
+    int ret = ipc_kill_pgroup(sender, pgid, sig);
     if (ret < 0 && ret != -ESRCH) {
         return ret;
     }
@@ -360,12 +357,12 @@ long shim_do_kill(pid_t pid, int sig) {
 
     if (pid > 0) {
         /* If `pid` is positive, then signal is sent to the process with that pid. */
-        return do_kill_proc(g_process.pid, pid, sig, /*use_ipc=*/true);
+        return do_kill_proc(g_process.pid, pid, sig);
     } else if (pid == -1) {
         /* If `pid` equals -1, then signal is sent to every process for which the calling process
          * has permission to send, which means all processes in Graphene. NOTE: On Linux, kill(-1)
          * does not signal the calling process. */
-        return ipc_pid_kill_send(g_process.pid, /*target=*/0, KILL_ALL, sig);
+        return ipc_kill_all(g_process.pid, sig);
     } else if (pid == 0) {
         /* If `pid` equals 0, then signal is sent to every process in the process group of
          * the calling process. */
@@ -377,62 +374,56 @@ long shim_do_kill(pid_t pid, int sig) {
     }
 }
 
-int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc) {
+int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig) {
     if (sig < 0 || sig > NUM_SIGS)
         return -EINVAL;
 
-    if (!tgid || g_process.pid == tgid) {
-        struct shim_thread* thread = lookup_thread(tid);
-        if (!thread) {
-            goto maybe_try_ipc;
-        }
+    if (g_process.pid != tgid) {
+        return ipc_kill_thread(sender, tgid, tid, sig);
+    }
 
-        if (!sig) {
-            put_thread(thread);
-            return 0;
-        }
+    struct shim_thread* thread = lookup_thread(tid);
+    if (!thread) {
+        return -ESRCH;
+    }
 
-        siginfo_t info = {
-            .si_signo = sig,
-            .si_pid   = sender,
-            .si_code  = SI_TKILL,
-        };
-        int ret = append_signal(thread, &info);
-        if (ret < 0) {
-            put_thread(thread);
-            return ret;
-        }
-        if (thread != get_cur_thread()) {
-            thread_wakeup(thread);
-            ret = pal_to_unix_errno(DkThreadResume(thread->pal_handle));
-        }
+    if (!sig) {
+        put_thread(thread);
+        return 0;
+    }
 
+    siginfo_t info = {
+        .si_signo = sig,
+        .si_pid   = sender,
+        .si_code  = SI_TKILL,
+    };
+    int ret = append_signal(thread, &info);
+    if (ret < 0) {
         put_thread(thread);
         return ret;
     }
-
-maybe_try_ipc:
-    if (g_process.pid != tgid) {
-        if (use_ipc) {
-            return ipc_pid_kill_send(sender, tid, KILL_THREAD, sig);
-        }
+    if (thread != get_cur_thread()) {
+        thread_wakeup(thread);
+        ret = pal_to_unix_errno(DkThreadResume(thread->pal_handle));
     }
 
-    return -ESRCH;
+    put_thread(thread);
+    return ret;
 }
 
 long shim_do_tkill(pid_t tid, int sig) {
     if (tid <= 0)
         return -EINVAL;
 
-    return do_kill_thread(g_process.pid, 0, tid, sig, /*use_ipc=*/true);
+    /* `tkill` is obsolete, so we do not support using it to kill threads in different process. */
+    return do_kill_thread(g_process.pid, g_process.pid, tid, sig);
 }
 
 long shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
     if (tgid <= 0 || tid <= 0)
         return -EINVAL;
 
-    return do_kill_thread(g_process.pid, tgid, tid, sig, /*use_ipc=*/true);
+    return do_kill_thread(g_process.pid, tgid, tid, sig);
 }
 
 void fill_siginfo_code_and_status(siginfo_t* info, int signal, int exit_code) {

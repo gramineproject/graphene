@@ -140,8 +140,8 @@ void get_sig_mask(struct shim_thread* thread, __sigset_t* mask);
 void set_sig_mask(struct shim_thread* thread, const __sigset_t* new_set);
 
 int kill_current_proc(siginfo_t* info);
-int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc);
-int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc);
+int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig);
+int do_kill_proc(IDTYPE sender, IDTYPE pid, int sig);
 int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig);
 
 void fill_siginfo_code_and_status(siginfo_t* info, int signal, int exit_code);
