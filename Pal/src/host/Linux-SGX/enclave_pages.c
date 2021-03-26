@@ -224,25 +224,22 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
      *   (1) start from `vma_above` and iterate through VMAs with higher-addresses for merges
      *   (2) start from `vma_below` and iterate through VMAs with lower-addresses for merges.
      * Note that we never merge normal VMAs with pal-internal VMAs. */
-    int free_cnt = 0;
-    void* current_top = (vma_below) ? MAX(vma_below->top, vma->bottom) : vma->bottom;
+    int unallocated_cnt = 0;
+    void* unallocated_start_addr = (vma_below) ? MAX(vma_below->top, vma->bottom) : vma->bottom;
     while (vma_above && vma_above->bottom <= vma->top &&
            vma_above->is_pal_internal == vma->is_pal_internal) {
         /* newly created VMA grows into above VMA; expand newly created VMA and free above-VMA */
         freed += vma_above->top - vma_above->bottom;
         struct heap_vma* vma_above_above = LISTP_PREV_ENTRY(vma_above, &g_heap_vma_list, list);
 
-        /* Track free space between VMAs while merging `vma_above`. */
-        if (g_pal_sec.edmm_enable_heap && vma_above->bottom > current_top) {
-            size_t free_size = vma_above->bottom - current_top;
-            if (free_size) {
-                assert(free_cnt < EDMM_HEAP_RANGE_CNT);
-                heap_ranges_to_alloc[free_cnt].size = free_size;
-                heap_ranges_to_alloc[free_cnt].addr = current_top;
-                free_cnt++;
-                log_debug("%s: free region while merging vma_above, addr=%p size=0x%lx\n",
-                          __func__, current_top, free_size);
-            }
+        /* Track unallocated memory regions between VMAs while merging `vma_above`. */
+        if (g_pal_sec.edmm_enable_heap && vma_above->bottom > unallocated_start_addr) {
+            assert(unallocated_cnt < EDMM_HEAP_RANGE_CNT);
+            heap_ranges_to_alloc[unallocated_cnt].size = vma_above->bottom - unallocated_start_addr;
+            heap_ranges_to_alloc[unallocated_cnt].addr = unallocated_start_addr;
+            unallocated_cnt++;
+            log_debug("%s: free region while merging vma_above, addr=%p size=0x%lx\n",
+                      __func__, unallocated_start_addr, vma_above->bottom - unallocated_start_addr);
         }
 
         vma->bottom = MIN(vma_above->bottom, vma->bottom);
@@ -252,7 +249,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         /* Store vma_above->top to check for any free region between vma_above->top and
          * vma_above_above->bottom. */
         if (g_pal_sec.edmm_enable_heap)
-            current_top = vma_above->top;
+            unallocated_start_addr = vma_above->top;
 
         __free_vma(vma_above);
         vma_above = vma_above_above;
@@ -283,10 +280,10 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     assert(vma->top - vma->bottom >= (ptrdiff_t)freed);
     size_t allocated = vma->top - vma->bottom - freed;
 
-    /* No free space between VMAs found */
-    if (g_pal_sec.edmm_enable_heap && free_cnt == 0 && allocated > 0) {
+    /* No unallocated memory regions between VMAs found */
+    if (g_pal_sec.edmm_enable_heap && unallocated_cnt == 0 && allocated > 0) {
         heap_ranges_to_alloc[0].size = allocated;
-        heap_ranges_to_alloc[0].addr = addr;
+        heap_ranges_to_alloc[0].addr = unallocated_start_addr;
     }
 
     __atomic_add_fetch(&g_allocated_pages.counter, allocated / g_page_size, __ATOMIC_SEQ_CST);
@@ -360,11 +357,11 @@ out:
     /* In order to prevent already accepted pages from being accepted again, we track EPC pages that
      * aren't accepted yet (unallocated heap) and call EACCEPT only on those EPC pages. */
     if (g_pal_sec.edmm_enable_heap && ret != NULL) {
-        for (int cnt = 0; cnt < EDMM_HEAP_RANGE_CNT; cnt++) {
-            if (!heap_ranges_to_alloc[cnt].size)
+        for (int i = 0; i < EDMM_HEAP_RANGE_CNT; i++) {
+            if (!heap_ranges_to_alloc[i].size)
                 break;
-            int retval = get_edmm_page_range(heap_ranges_to_alloc[cnt].addr,
-                                             heap_ranges_to_alloc[cnt].size, 1);
+            int retval = get_edmm_page_range(heap_ranges_to_alloc[i].addr,
+                                             heap_ranges_to_alloc[i].size, /*executable=*/true);
             if (retval < 0) {
                 ret = NULL;
                 break;
@@ -378,8 +375,8 @@ out:
 int free_enclave_pages(void* addr, size_t size) {
     int ret = 0;
     /* TODO: Should we introduce a compiler switch for EDMM? */
-    struct edmm_heap_range edmm_free_heap[EDMM_HEAP_RANGE_CNT] = {0};
-    int edmm_free_cnt = 0;
+    struct edmm_heap_range heap_ranges_to_free[EDMM_HEAP_RANGE_CNT] = {0};
+    int free_cnt = 0;
 
     log_debug("%s: edmm free start_addr = %p, size = %lx\n", __func__, addr, size);
     if (!size)
@@ -424,21 +421,22 @@ int free_enclave_pages(void* addr, size_t size) {
             goto out;
         }
 
-        freed += MIN(vma->top, addr + size) - MAX(vma->bottom, addr);
+        void* free_heap_top = MIN(vma->top, addr + size);
+        void* free_heap_bottom = MAX(vma->bottom, addr);
+        size_t range = free_heap_top - free_heap_bottom;
+        freed += range;
         if (g_pal_sec.edmm_enable_heap) {
-            void* start_addr = MAX(vma->bottom, addr);
-            size_t range =  MIN(vma->top, addr + size) - MAX(vma->bottom, addr);
-
             /* if range is contiguous with previous entry, update addr, size accordinlgy*/
-            if (edmm_free_cnt > 0 && (start_addr + range) == edmm_free_heap[edmm_free_cnt-1].addr) {
-                edmm_free_heap[edmm_free_cnt-1].addr = start_addr;
-                edmm_free_heap[edmm_free_cnt-1].size += range;
+            if (free_cnt > 0 &&
+                (free_heap_bottom + range) == heap_ranges_to_free[free_cnt-1].addr) {
+                heap_ranges_to_free[free_cnt-1].addr = free_heap_bottom;
+                heap_ranges_to_free[free_cnt-1].size += range;
             } else {
-                assert(edmm_free_cnt < EDMM_HEAP_RANGE_CNT);
+                assert(free_cnt < EDMM_HEAP_RANGE_CNT);
                 /* found a new non-contiguous range */
-                edmm_free_heap[edmm_free_cnt].addr = start_addr;
-                edmm_free_heap[edmm_free_cnt].size = range;
-                edmm_free_cnt++;
+                heap_ranges_to_free[free_cnt].addr = free_heap_bottom;
+                heap_ranges_to_free[free_cnt].size = range;
+                free_cnt++;
             }
         }
 
@@ -475,12 +473,11 @@ int free_enclave_pages(void* addr, size_t size) {
 
 out:
     if (ret >=0 && g_pal_sec.edmm_enable_heap) {
-        for (int free_cnt = 0; free_cnt < edmm_free_cnt; free_cnt++) {
+        for (int i = 0; i < free_cnt; i++) {
             log_debug("%s: edmm actual free addr = %p, size = %lx\n", __func__,
-                       edmm_free_heap[free_cnt].addr, edmm_free_heap[free_cnt].size);
+                       heap_ranges_to_free[i].addr, heap_ranges_to_free[i].size);
 
-            ret = free_edmm_page_range(edmm_free_heap[free_cnt].addr,
-                                       edmm_free_heap[free_cnt].size);
+            ret = free_edmm_page_range(heap_ranges_to_free[i].addr, heap_ranges_to_free[i].size);
             if (ret < 0) {
                 ret = -PAL_ERROR_INVAL;
                 break;
