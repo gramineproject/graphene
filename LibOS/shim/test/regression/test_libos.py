@@ -520,6 +520,10 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['signal_multithread'])
         self.assertIn('TEST OK', stdout)
 
+    def test_095_kill_all(self):
+        stdout, _ = self.run_binary(['kill_all'])
+        self.assertIn('TEST OK', stdout)
+
     def test_100_get_set_groups(self):
         stdout, _ = self.run_binary(['groups'])
         self.assertIn('child OK', stdout)

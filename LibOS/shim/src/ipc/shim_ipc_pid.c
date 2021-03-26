@@ -30,11 +30,14 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
                              int sig) {
     int ret;
 
-    IDTYPE dest;
-    struct shim_ipc_port* port;
+    IDTYPE dest = 0;
+    struct shim_ipc_port* port = NULL;
     if (type == KILL_ALL) {
-        dest = 0;
-        port = NULL;
+        if (g_process_ipc_info.vmid != g_process_ipc_info.ns->vmid) {
+            port = g_process_ipc_info.ns->port;
+            get_ipc_port(port);
+            dest = g_process_ipc_info.ns->vmid;
+        }
     } else {
         ret = connect_owner(dest_pid, &port, &dest);
         if (ret < 0) {
@@ -52,17 +55,18 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     msgin->id                       = target;
     msgin->signum                   = sig;
 
-    if (type == KILL_ALL) {
+    if (type == KILL_ALL && g_process_ipc_info.vmid == g_process_ipc_info.ns->vmid) {
         log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, dest_pid, sig);
-        ret = broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT,
-                            /*exclude_port=*/NULL);
+        ret = broadcast_ipc(msg, /*exclude_port=*/NULL);
     } else {
         log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
                   dest_pid, sig);
         ret = send_ipc_message(msg, port);
-        put_ipc_port(port);
     }
 
+    if (port) {
+        put_ipc_port(port);
+    }
     return ret;
 }
 
@@ -107,7 +111,9 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum);
             break;
         case KILL_ALL:
-            broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT, port);
+            if (g_process_ipc_info.vmid == g_process_ipc_info.ns->vmid) {
+                broadcast_ipc(msg, port);
+            }
             ret = do_kill_proc(msgin->sender, g_process.pid, msgin->signum);
             break;
     }
