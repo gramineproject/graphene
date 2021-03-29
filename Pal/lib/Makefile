@@ -202,4 +202,5 @@ clean:
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls
 	$(RM) ../include/lib/uthash.h
-	$(RM) ../include/lib/toml.h toml.h toml.c toml.patched uthash.o uthash.patched
+	$(RM) ../include/lib/toml.h toml.h toml.c toml.patched ../include/lib/uthash.h uthash.h \
+		uthash.patched
