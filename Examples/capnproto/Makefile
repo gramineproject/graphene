@@ -55,9 +55,9 @@ $(SRCDIR)/addressbook: $(SRCDIR)/addressbook.c++ $(SRCDIR)/addressbook.capnp
 
 
 addressbook.manifest: addressbook.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
 	    $< >$@
 
 addressbook.manifest.sgx: addressbook.manifest addressbook
