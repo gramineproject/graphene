@@ -527,7 +527,7 @@ int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner) {
             goto out;
         }
 
-        add_ipc_port_by_id(range.owner, pal_handle, IPC_PORT_CONNECTION, NULL, &range.port);
+        add_ipc_port_by_id(range.owner, pal_handle, NULL, &range.port);
         assert(range.port);
     }
 
@@ -906,7 +906,7 @@ retry:
             }
 
             if (pal_handle)
-                add_ipc_port_by_id(owner, pal_handle, IPC_PORT_CONNECTION, NULL, &port);
+                add_ipc_port_by_id(owner, pal_handle, NULL, &port);
 
             lock(&range_map_lock);
             LISTP_FOR_EACH_ENTRY(r, list, list) {

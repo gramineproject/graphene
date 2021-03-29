@@ -624,8 +624,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     ipc_sublease_send(child_vmid, thread_description->tid);
 
     /* create new IPC port to communicate over pal_process channel with the child process */
-    add_ipc_port_by_id(child_vmid, pal_process, IPC_PORT_CONNECTION, &ipc_port_with_child_fini,
-                       NULL);
+    add_ipc_port_by_id(child_vmid, pal_process, &ipc_port_with_child_fini, NULL);
 
     ret = 0;
 out:
