@@ -100,7 +100,7 @@ def extract_environment_from_image_config(config):
             continue
         escaped_env_var = env_var.translate(str.maketrans({'\\': r'\\', '"': r'\"'}))
         env_var_name = escaped_env_var.split('=', maxsplit=1)[0]
-        if env_var_name == f'PATH' or env_var_name == f'LD_LIBRARY_PATH':
+        if env_var_name in ('PATH', 'LD_LIBRARY_PATH'):
             # PATH and LD_LIBRARY_PATH are already part of entrypoint.manifest.template.
             # Their values are provided in finalize_manifest.py, hence skipping here.
             continue
