@@ -315,4 +315,11 @@ void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)))
 #define log_debug(fmt...)    _log(PAL_LOG_DEBUG, fmt)
 #define log_trace(fmt...)    _log(PAL_LOG_TRACE, fmt)
 
+#define uthash_fatal(msg)                \
+    do {                                  \
+        log_error("uthash error: " msg);  \
+        DkProcessExit(PAL_ERROR_NOMEM);   \
+    } while (0)
+#include "uthash.h"
+
 #endif
