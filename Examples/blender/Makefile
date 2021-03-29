@@ -49,12 +49,12 @@ $(RUN_DIR):
 	mkdir -p $@
 
 blender.manifest: blender.manifest.template | $(RUN_DIR)
-	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
-	    -e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
-	    -e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Ddata_dir=$(DATA_DIR) \
+		-Dblender_dir=$(BLENDER_DIR) \
+		-Dblender_ver=$(BLENDER_VER) \
 	    $< >$@
 
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
