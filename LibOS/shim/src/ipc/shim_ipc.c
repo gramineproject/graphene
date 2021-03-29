@@ -87,13 +87,9 @@ struct shim_process_ipc_info* create_process_ipc_info(void) {
     if (!new_process_ipc_info)
         return NULL;
 
-    /* current process must have been initialized with info on its own IPC info */
-    assert(g_process_ipc_info.self);
-
     /* new process after clone/fork has new identity but inherits parent  */
-    new_process_ipc_info->vmid   = 0;
-    new_process_ipc_info->self   = NULL;
-    new_process_ipc_info->parent = create_ipc_info(g_process_ipc_info.self->vmid);
+    new_process_ipc_info->vmid = 0;
+    new_process_ipc_info->parent = create_ipc_info(g_process_ipc_info.vmid);
     if (!new_process_ipc_info->parent)
         goto fail;
 
@@ -110,8 +106,6 @@ fail:
 }
 
 void free_process_ipc_info(struct shim_process_ipc_info* process_ipc_info) {
-    if (process_ipc_info->self)
-        put_ipc_info(process_ipc_info->self);
     if (process_ipc_info->parent)
         put_ipc_info(process_ipc_info->parent);
     if (process_ipc_info->ns)
@@ -242,29 +236,6 @@ out:
     return ret;
 }
 
-struct shim_ipc_info* create_ipc_info_and_port(void) {
-    struct shim_ipc_info* info = create_ipc_info(g_process_ipc_info.vmid);
-    if (!info)
-        return NULL;
-
-    /* pipe for g_process_ipc_info.self is of format "pipe:<g_process_ipc_info.vmid>", others with
-     * random name */
-    char uri[PIPE_URI_SIZE];
-    PAL_HANDLE handle = NULL;
-    if (create_pipe(NULL, uri, sizeof(uri), &handle, NULL, /*use_vmid_for_name=*/true) < 0) {
-        put_ipc_info(info);
-        return NULL;
-    }
-
-    add_ipc_port_by_id(g_process_ipc_info.vmid, handle, IPC_PORT_LISTENING, NULL, &info->port);
-
-    if (!info->port) {
-        DkObjectClose(handle);
-    }
-
-    return info;
-}
-
 BEGIN_CP_FUNC(ipc_info) {
     __UNUSED(size);
     assert(size == sizeof(struct shim_ipc_info));
@@ -309,10 +280,8 @@ BEGIN_CP_FUNC(process_ipc_info) {
         new_process_ipc_info = (struct shim_process_ipc_info*)(base + off);
         *new_process_ipc_info = *process_ipc_info;
 
-        /* call ipc_info-specific checkpointing functions for new_process_ipc_info's self, parent
+        /* call ipc_info-specific checkpointing functions for new_process_ipc_info's parent
          * and ns infos */
-        if (process_ipc_info->self)
-            DO_CP_MEMBER(ipc_info, process_ipc_info, new_process_ipc_info, self);
         if (process_ipc_info->parent)
             DO_CP_MEMBER(ipc_info, process_ipc_info, new_process_ipc_info, parent);
         if (process_ipc_info->ns)
@@ -337,14 +306,9 @@ BEGIN_RS_FUNC(process_ipc_info) {
     /* forces to pick up new host-OS vmid */
     process_ipc_info->vmid = g_process_ipc_info.vmid;
 
-    CP_REBASE(process_ipc_info->self);
     CP_REBASE(process_ipc_info->parent);
     CP_REBASE(process_ipc_info->ns);
 
-    if (process_ipc_info->self) {
-        process_ipc_info->self->vmid = process_ipc_info->vmid;
-        get_ipc_info(process_ipc_info->self);
-    }
     if (process_ipc_info->parent)
         get_ipc_info(process_ipc_info->parent);
     if (process_ipc_info->ns)

@@ -702,7 +702,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
 
     if (client) {
         assert(sendreply);
-        add_ipc_port(client->port, client->vmid, IPC_PORT_CONNECTION, NULL);
+        add_ipc_port(client->port, client->vmid, NULL);
         get_ipc_port(client->port);
         sem_ops->client = *client;
         sem_ops         = NULL;

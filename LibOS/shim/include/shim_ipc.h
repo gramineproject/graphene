@@ -28,16 +28,6 @@
 #define MAX_IPC_PORT_FINI_CB 3
 
 enum {
-    IPC_LISTENING,    /* listening port; processes connect to it to create connection ports */
-    IPC_CONNECTION,   /* processes communicate on ports of this type */
-};
-
-enum {
-    IPC_PORT_LISTENING    = 1 << IPC_LISTENING,
-    IPC_PORT_CONNECTION   = 1 << IPC_CONNECTION,
-};
-
-enum {
     IPC_MSG_RESP = 0,
     IPC_MSG_CHILDEXIT,
     IPC_MSG_LEASE,
@@ -76,7 +66,6 @@ struct shim_ipc_info {
 
 struct shim_process_ipc_info {
     IDTYPE vmid;
-    struct shim_ipc_info* self;
     struct shim_ipc_info* parent;
     struct shim_ipc_info* ns;
 };
@@ -116,7 +105,6 @@ struct shim_ipc_port {
 
     port_fini fini[MAX_IPC_PORT_FINI_CB];
 
-    IDTYPE type;
     IDTYPE vmid;
 };
 
@@ -353,11 +341,9 @@ int init_ipc_helper(void);
 struct shim_process_ipc_info* create_process_ipc_info(void);
 void free_process_ipc_info(struct shim_process_ipc_info* process);
 
-struct shim_ipc_info* create_ipc_info_and_port(void);
-
-void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini,
+void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, port_fini fini,
                         struct shim_ipc_port** portptr);
-void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type, port_fini fini);
+void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, port_fini fini);
 void del_ipc_port_fini(struct shim_ipc_port* port);
 void get_ipc_port(struct shim_ipc_port* port);
 void put_ipc_port(struct shim_ipc_port* port);
