@@ -18,7 +18,8 @@ NGINX_SHA256 ?= f11c2a6dd1d3515736f0324857957db2de98be862461b5a542a3ac6188dbe32b
 
 # Mirrors for downloading the Nginx source code
 NGINX_MIRRORS ?= \
-	http://nginx.org/download/
+    http://nginx.org/download \
+    https://packages.grapheneproject.io/distfiles
 
 # Address and port for the Nginx server to listen
 LISTEN_HOST ?= 127.0.0.1
@@ -61,7 +62,8 @@ $(NGINX_SRC)/configure: $(NGINX_SRC).tar.gz
 	tar --touch -xzf $<
 
 $(NGINX_SRC).tar.gz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(NGINX_SHA256) $(foreach mirror,$(NGINX_MIRRORS),--url $(mirror)/$(NGINX_SRC).tar.gz)
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(NGINX_SHA256) \
+	    $(foreach mirror,$(NGINX_MIRRORS),--url $(mirror)/$(NGINX_SRC).tar.gz)
 
 nginx.manifest: nginx.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \

@@ -16,7 +16,11 @@ GRAPHENEDIR = ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src
-MEMCACHED_URL ?= https://memcached.org/files/memcached-1.5.21.tar.gz
+MEMCACHED_SRC ?= memcached-1.5.21.tar.gz
+MEMCACHED_MIRRORS ?= \
+    https://memcached.org/files \
+    https://packages.grapheneproject.io/distfiles
+
 MEMCACHED_SHA256 ?= e3d10c06db755b220f43d26d3b68d15ebf737a69c7663529b504ab047efe92f4
 
 UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --release)
@@ -48,8 +52,8 @@ include ../../Scripts/Makefile.configs
 # the final executable "src/memcached".
 
 $(SRCDIR)/configure:
-	$(GRAPHENEDIR)/Scripts/download --output memcached.tar.gz \
-		--sha256 $(MEMCACHED_SHA256) --url $(MEMCACHED_URL)
+	$(GRAPHENEDIR)/Scripts/download --output memcached.tar.gz --sha256 $(MEMCACHED_SHA256) \
+	    $(foreach mirror,$(MEMCACHED_MIRRORS),--url $(mirror)/$(MEMCACHED_SRC))
 	mkdir $(SRCDIR)
 	tar -C $(SRCDIR) --strip-components=1 -xf memcached.tar.gz
 

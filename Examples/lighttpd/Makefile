@@ -6,7 +6,8 @@ LIGHTTPD_SRC ?= $(THIS_DIR)lighttpd-1.4.54
 LIGHTTPD_HASH ?= 5151d38cb7c4c40effa13710e77ebdbef899f945b062cf32befc02d128ac424c
 
 LIGHTTPD_MIRRORS ?= \
-	https://download.lighttpd.net/lighttpd/releases-1.4.x/
+    https://download.lighttpd.net/lighttpd/releases-1.4.x \
+    https://packages.grapheneproject.io/distfiles
 
 # Host and port on which lighttpd listens
 HOST ?= 127.0.0.1
@@ -47,7 +48,8 @@ $(LIGHTTPD_SRC)/configure: $(LIGHTTPD_SRC).tar.gz
 	touch $(LIGHTTPD_SRC)/configure
 
 $(LIGHTTPD_SRC).tar.gz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LIGHTTPD_HASH) $(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LIGHTTPD_HASH) \
+	    $(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
 
 lighttpd.manifest: lighttpd.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \

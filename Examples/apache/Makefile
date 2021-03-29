@@ -18,10 +18,11 @@ HTTPD_CHECKSUM ?= 44b759ce932dc090c0e75c0210b4485ebf6983466fb8ca1b446c8168e1a1ae
 
 # Mirros for downloading the Apache source code
 HTTPD_MIRRORS ?= \
-	https://www-eu.apache.org/dist/ \
-	https://www-us.apache.org/dist/ \
-	https://ftp.fau.de/apache/ \
-	https://archive.apache.org/dist/
+    https://www-eu.apache.org/dist/httpd \
+    https://www-us.apache.org/dist/httpd \
+    https://ftp.fau.de/apache/httpd \
+    https://archive.apache.org/dist/httpd \
+    https://packages.grapheneproject.io/distfiles
 
 # Address and port for the Apache server to listen
 LISTEN_HOST ?= 127.0.0.1
@@ -62,7 +63,8 @@ $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
 	cd $(HTTPD_SRC) && patch -p1 -l < ../apache_makefile.patch
 
 $(HTTPD_SRC).tar.gz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) $(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)httpd/$(HTTPD_SRC).tar.gz)
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) \
+	    $(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)/$(HTTPD_SRC).tar.gz)
 
 $(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)/bin/httpd
 $(INSTALL_DIR)/conf/extra/httpd-ssl.conf: $(INSTALL_DIR)/bin/httpd

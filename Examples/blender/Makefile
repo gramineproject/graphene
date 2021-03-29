@@ -5,7 +5,10 @@ GRAPHENE_DIR = $(PWD)/../..
 SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 BLENDER_DIR = $(PWD)/blender_dir
-BLENDER_URL ?= https://ftp.nluug.nl/pub/graphics/blender/release/Blender2.82/blender-2.82-linux64.tar.xz
+BLENDER_SRC ?= blender-2.82-linux64.tar.xz
+BLENDER_MIRRORS ?= \
+    https://ftp.nluug.nl/pub/graphics/blender/release/Blender2.82 \
+    https://packages.grapheneproject.io/distfiles
 BLENDER_SHA256 ?= b13600fa2ca23ea1bba511e3a6599b6792acde80b180707c3ea75db592a9b916
 BLENDER_VER = 2.82
 
@@ -37,8 +40,8 @@ endif
 include ../../Scripts/Makefile.configs
 
 $(BLENDER_DIR)/blender:
-	$(GRAPHENE_DIR)/Scripts/download --output blender.tar.xz \
-		--sha256 $(BLENDER_SHA256) --url $(BLENDER_URL)
+	$(GRAPHENE_DIR)/Scripts/download --output blender.tar.xz --sha256 $(BLENDER_SHA256) \
+	    $(foreach mirror,$(BLENDER_MIRRORS),--url $(mirror)/$(BLENDER_SRC))
 	mkdir $(BLENDER_DIR)
 	tar -C $(BLENDER_DIR) --strip-components=1 -xf blender.tar.xz
 
