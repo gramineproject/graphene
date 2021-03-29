@@ -14,13 +14,13 @@ loader.insecure__use_cmdline_argv = 1
 # so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 
 # Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
-# that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the
+# that {{ log_level }} macro is expanded in the Makefile as part of the
 # building process: the default is "error" for non-debug builds, and "debug"
 # for debug builds.
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ log_level }}"
 
 ################################# ENV VARS  ###################################
 
@@ -33,8 +33,8 @@ loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 # In case of Busybox:
 # - /lib is searched for Glibc libraries (ld, libc, libresolv) provided by
 #   graphene,
-# - $(ARCH_LIBDIR) is searched for libcrypt, NSS libraries.
-loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR)"
+# - {{ arch_libdir }} is searched for libcrypt, NSS libraries.
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}"
 
 # Explicitly set some environment variables used by Busybox.
 loader.env.PATH = "/:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -57,12 +57,12 @@ loader.env.HOSTNAME = "test"
 # as 'path').
 fs.mount.lib1.type = "chroot"
 fs.mount.lib1.path = "/lib"
-fs.mount.lib1.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib1.uri = "file:{{ graphene.runtimedir() }}"
 
 # Mount host-OS directory contanining libcrypt and NSS libraries.
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libraries.
 fs.mount.etc.type = "chroot"
@@ -87,9 +87,9 @@ fs.mount.etc.uri = "file:/etc"
 # this happens on the client machine.
 
 sgx.trusted_files.busybox = "file:busybox"
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 # Trusted non-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure
