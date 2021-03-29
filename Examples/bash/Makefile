@@ -26,11 +26,11 @@ endif
 include ../../Scripts/Makefile.configs
 
 bash.manifest: manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(EXECDIR)|'"$(shell dirname $(shell which bash))"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Dexecdir=$(shell dirname $(shell which bash)) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		$< >$@
 
 # Generating the SGX-specific manifest (*.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
