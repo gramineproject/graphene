@@ -154,7 +154,7 @@ CFLAGS-signal_multithread += -pthread
 CFLAGS-pthread_set_get_affinity += -pthread
 CFLAGS-gettimeofday += -pthread
 
-CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
+CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/include \
                       -I$(PALDIR)/host/Linux-SGX \
                       -I$(PALDIR)/../include/pal
 LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.a

@@ -3,7 +3,6 @@ include ../../../../../../Scripts/Makefile.configs
 CFLAGS += -I../.. \
           -I../common \
           -I../../../../../lib/crypto/mbedtls/install/include \
-          -I../../../../../lib/crypto/mbedtls/crypto/include \
           -fPIC -fvisibility=hidden
 
 LDFLAGS += -L../../../../../lib/crypto/mbedtls/install/lib -Wl,-rpath,.

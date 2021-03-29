@@ -1,10 +1,10 @@
 # RA-TLS Minimal Example
 
 This directory contains the Makefile, the template server manifest, and the minimal server and
-client written against the mbedTLS 2.21.0 library.  This was tested on a machine with SGX v1 and
+client written against the mbedTLS 2.26.0 library.  This was tested on a machine with SGX v1 and
 Ubuntu 18.04.
 
-The server and client are based on `ssl_server.c` and `ssl_client.c` example programs shipped with
+The server and client are based on `ssl_server.c` and `ssl_client1.c` example programs shipped with
 mbedTLS. We modified them to allow using RA-TLS flows if the programs are given the command-line
 argument `epid`/`dcap`.  In particular, the server uses a self-signed RA-TLS cert with the SGX quote
 embedded in it via `ra_tls_create_key_and_crt()`. The client uses an RA-TLS verification callback to
@@ -91,6 +91,9 @@ kill %%
 - RA-TLS flows with SGX and with Graphene, ECDSA-based (DCAP) attestation:
 
 ```sh
+# make sure RA-TLS DCAP libraries are built in Graphene via:
+#   cd graphene/Pal/src/host/Linux-SGX/tools/ra-tls && make dcap
+
 # replace dummy values with your MRENCLAVE, MRSIGNER, etc!
 make clean
 make app dcap
