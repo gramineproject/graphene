@@ -28,6 +28,10 @@ CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls
 	                        -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
 endif
 
+# Forcefully disable _FORTIFY_SOURCE: causes conflicts when including glibc headers (e.g. defines
+# memcpy to use __memcpy_chk)
+CFLAGS += -Wp,-U_FORTIFY_SOURCE
+
 # Some of the code uses alignof on expressions, which is a GNU extension.
 # Silence Clang - it complains but does support it.
 CFLAGS += $(cc-option,-Wno-gnu-alignof-expression)

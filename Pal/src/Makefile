@@ -36,6 +36,10 @@ CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls
 	                        -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
 endif
 
+# Forcefully disable _FORTIFY_SOURCE: causes conflicts when including glibc headers (e.g. defines
+# memcpy to use __memcpy_chk)
+CFLAGS += -Wp,-U_FORTIFY_SOURCE
+
 PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
 # Build Targets:
