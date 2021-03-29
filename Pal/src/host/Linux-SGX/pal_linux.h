@@ -21,7 +21,15 @@
 #include "sgx_attest.h"
 #include "sgx_tls.h"
 #include "sysdep-arch.h"
-#include "uthash.h"
+
+#ifdef IN_ENCLAVE
+# define uthash_fatal(msg)              \
+    do {                                \
+        __UNUSED(msg);                  \
+        DkProcessExit(PAL_ERROR_NOMEM); \
+    } while (0)
+# include "uthash.h"
+#endif /* IN_ENCLAVE */
 
 #define IS_ERR_P    INTERNAL_SYSCALL_ERROR_P
 #define ERRNO_P     INTERNAL_SYSCALL_ERRNO_P
@@ -302,15 +310,6 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 #endif
 
 #endif /* IN_ENCLAVE */
-
-#ifdef IN_ENCLAVE
-#undef uthash_fatal
-#define uthash_fatal(msg)               \
-    do {                                \
-        __UNUSED(msg);                  \
-        DkProcessExit(PAL_ERROR_NOMEM); \
-    } while (0)
-#endif
 
 #ifndef IN_ENCLAVE
 int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void* __arg, ...);
