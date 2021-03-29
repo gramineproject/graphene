@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
         if (count < 100) {
             count++;
 
-            char count_arg[8];
-            snprintf(count_arg, 8, "%d", count);
+            char count_arg[12];
+            snprintf(count_arg, 12, "%d", count);
             const char* newargs[4] = {"Process4", count_arg, argv[2], NULL};
 
             PAL_HANDLE proc = NULL;

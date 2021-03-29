@@ -9,11 +9,6 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-noreturn void __abort(void) {
-    warn("ABORTED\n");
-    DkProcessExit(1);
-}
-
 #define EXIT_UNBALANCED()                                 \
     do {                                                  \
         pal_printf("Unbalanced tree at: %u\n", __LINE__); \

@@ -614,7 +614,11 @@ const char* const siglist[SIGRTMIN] = {
 #undef S
 };
 
-static const char* signal_name(int sig, char str[6]) {
+/* 6 bytes should be sufficient for "SIGxx", but gcc 7.5.0 (Ubuntu 18.04) warns that output can be
+ * truncated. */
+#define SIGNAL_NAME_SIZE 7
+
+static const char* signal_name(int sig, char str[SIGNAL_NAME_SIZE]) {
     if (sig <= 0 || sig > NUM_SIGS) {
         return "BAD SIGNAL";
     }
@@ -624,7 +628,7 @@ static const char* signal_name(int sig, char str[6]) {
 
     assert(sig <= 99);
     /* Cannot use `sizeof(buf)` here because `typeof(str)` is `char*`, thanks C! */
-    snprintf(str, 6, "SIG%02d", sig);
+    snprintf(str, SIGNAL_NAME_SIZE, "SIG%02d", sig);
     return str;
 }
 
@@ -757,7 +761,7 @@ static void parse_clone_flags(va_list* ap) {
     int exit_signal = flags & CLONE_SIGNAL_MASK;
     flags &= ~CLONE_SIGNAL_MASK;
     if (exit_signal) {
-        char str[6];
+        char str[SIGNAL_NAME_SIZE];
         PRINTF("|[%s]", signal_name(exit_signal, str));
     }
 
@@ -966,7 +970,7 @@ static void parse_pipe_fds(va_list* ap) {
 
 static void parse_signum(va_list* ap) {
     int signum = va_arg(*ap, int);
-    char str[6];
+    char str[SIGNAL_NAME_SIZE];
     PRINTF("[%s]", signal_name(signum, str));
 }
 
@@ -987,7 +991,7 @@ static void parse_sigmask(va_list* ap) {
 
     for (size_t signum = 1; signum <= sizeof(sigset) * 8; signum++)
         if (__sigismember(sigset, signum)) {
-            char str[6];
+            char str[SIGNAL_NAME_SIZE];
             PUTS(signal_name(signum, str));
             PUTS(",");
         }

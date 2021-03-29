@@ -1,7 +1,7 @@
 include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 
-CFLAGS	+= -Wp,-U_FORTIFY_SOURCE -fno-stack-protector -fno-builtin -nostdlib \
+CFLAGS	+= -fno-stack-protector -fno-builtin -nostdlib \
 	  -I../src \
 	  -I../include \
 	  -I../include/pal \
@@ -98,16 +98,18 @@ crt_init-recurse:
 CFLAGS-Pie = -fPIC -pie
 CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 
+abort.o: CFLAGS += -fPIC
+
 # workaround: File.manifest.template has strange reference
 # to ../regression/File
 ../regression/File: | File
 	@true
 
-LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib)
+LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib) abort.o
 $(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads)
 
-LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
+LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads) abort.o
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 
@@ -132,7 +134,7 @@ pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target))
 .PHONY: clean
 clean:
 	$(RM) -r $(executables) $(preloads) $(gen_manifests) *.tmp .lib *.cached *.sig .*.sig *.d .*.d \
-	         .output.* *.token .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache \
+	         *.o .output.* *.token .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache \
 	         pal-regression.xml pal_loader
 
 .PHONY: distclean

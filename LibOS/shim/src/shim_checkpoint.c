@@ -166,9 +166,9 @@ BEGIN_CP_FUNC(migratable) {
     __UNUSED(size);
     __UNUSED(objp);
 
-    size_t len = &__migratable_end - &__migratable;
+    size_t len = &__migratable_end - &__migratable[0];
     size_t off = ADD_CP_OFFSET(len);
-    memcpy((char*)base + off, &__migratable, len);
+    memcpy((char*)base + off, &__migratable[0], len);
     ADD_CP_FUNC_ENTRY(off);
 }
 END_CP_FUNC(migratable)
@@ -178,7 +178,7 @@ BEGIN_RS_FUNC(migratable) {
     __UNUSED(rebase);
 
     const char* data = (char*)base + GET_CP_FUNC_ENTRY();
-    memcpy(&__migratable, data, &__migratable_end - &__migratable);
+    memcpy(&__migratable[0], data, &__migratable_end - &__migratable[0]);
 }
 END_RS_FUNC(migratable)
 

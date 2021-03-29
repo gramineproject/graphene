@@ -122,7 +122,7 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
 
     size_t total_size = 0;
     for (int i = 0; i < totalcnt; i++) {
-        char ent_name[32];
+        char ent_name[42];
         snprintf(ent_name, sizeof(ent_name), "%s%d", filename, i);
         size_t name_size   = strlen(ent_name) + 1;
         size_t dirent_size = sizeof(struct shim_dirent) + name_size;
