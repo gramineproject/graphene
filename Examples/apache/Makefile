@@ -79,11 +79,11 @@ httpd-modules: $(INSTALL_DIR)/conf/httpd.conf
 	@echo $(INSTALL_DIR)/modules/mod_ssl.so        >> $@
 
 httpd.manifest: httpd.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
-	    -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Dinstall_dir=$(INSTALL_DIR) \
+		-Dinstall_dir_abspath=$(abspath $(INSTALL_DIR)) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
 	    $< > $@
 
 # Generating the SGX-specific manifest (httpd.manifest.sgx), the enclave signature,
