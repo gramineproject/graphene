@@ -808,7 +808,7 @@ int init_trusted_files(void) {
 
     if (preload_str) {
         int npreload = 0;
-        char key[10];
+        char key[20];
         const char* start;
         const char* end;
         size_t len = strlen(preload_str);
@@ -820,7 +820,7 @@ int init_trusted_files(void) {
                 char uri[end - start + 1];
                 memcpy(uri, start, end - start);
                 uri[end - start] = 0;
-                snprintf(key, 10, "preload%d", npreload++);
+                snprintf(key, 20, "preload%d", npreload++);
 
                 ret = init_trusted_file(key, uri);
                 if (ret < 0) {

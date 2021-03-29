@@ -6,6 +6,9 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "assert.h"
+
+#undef memset
 
 void* memset(void* dest, int ch, size_t count) {
     char* d = dest;
@@ -21,4 +24,12 @@ void* memset(void* dest, int ch, size_t count) {
         *d++ = ch;
 #endif
     return dest;
+}
+
+void* __memset_chk(void* dest, int ch, size_t count, size_t dest_count) {
+    if (count > dest_count) {
+        warn("memset() check failed\n");
+        __abort();
+    }
+    return memset(dest, ch, count);
 }

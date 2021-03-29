@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#define USE_STDLIB
 #include "api.h"
 #include "perm.h"
 #include "util.h"

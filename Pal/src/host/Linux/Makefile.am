@@ -1,5 +1,5 @@
 # Add host-specific compilation rules here
-CFLAGS += -fPIC -Wp,-U_FORTIFY_SOURCE -fno-builtin $(call cc-option,-Wtrampolines)
+CFLAGS += -fPIC -fno-builtin $(call cc-option,-Wtrampolines)
 
 CFLAGS += -Wextra $(call cc-option,-Wnull-dereference)
 

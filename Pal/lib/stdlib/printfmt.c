@@ -6,7 +6,11 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#include "assert.h"
 #include "api.h"
+
+#undef vsnprintf
+#undef snprintf
 
 // Print a number (base <= 16) in reverse order,
 // using specified fputch function and associated pointer put_data.
@@ -269,7 +273,34 @@ int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap) {
     return b.cnt;
 }
 
+int __vsnprintf_chk(char* buf, size_t n, int flag, size_t real_size, const char* fmt,
+                    va_list ap) {
+    __UNUSED(flag);
+    if (n > real_size) {
+        warn("vsnprintf() check failed\n");
+        __abort();
+    }
+    return vsnprintf(buf, n, fmt, ap);
+}
+
 int snprintf(char* buf, size_t n, const char* fmt, ...) {
+    va_list ap;
+    int rc;
+
+    va_start(ap, fmt);
+    rc = vsnprintf(buf, n, fmt, ap);
+    va_end(ap);
+
+    return rc;
+}
+
+int __snprintf_chk(char* buf, size_t n, int flag, size_t real_size, const char* fmt, ...) {
+    __UNUSED(flag);
+    if (n > real_size) {
+        warn("vsnprintf() check failed\n");
+        __abort();
+    }
+
     va_list ap;
     int rc;
 

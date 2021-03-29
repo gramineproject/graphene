@@ -6,7 +6,6 @@
 
 /* TODO: add regression tests for this */
 
-#include "api.h"
 #include "lru_cache.h"
 #include "list.h"
 

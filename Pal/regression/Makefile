@@ -1,7 +1,7 @@
 include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 
-CFLAGS	+= -Wp,-U_FORTIFY_SOURCE -fno-stack-protector -fno-builtin -nostdlib \
+CFLAGS	+= -fno-stack-protector -fno-builtin -nostdlib \
 	  -I../src \
 	  -I../include \
 	  -I../include/pal \
@@ -103,11 +103,11 @@ CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 ../regression/File: | File
 	@true
 
-LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib)
+LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib) abort.o
 $(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads)
 
-LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
+LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads) abort.o
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 

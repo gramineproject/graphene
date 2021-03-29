@@ -4,16 +4,18 @@
  * Copyright (C) 2011-2019 Intel Corporation
  */
 
-#include "api.h"
-#include "protected_files.h"
-#include "protected_files_format.h"
-#include "protected_files_internal.h"
-
 #ifndef IN_PAL
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define USE_STDLIB
 #endif
+
+#include "protected_files.h"
+#include "protected_files_format.h"
+#include "protected_files_internal.h"
+
+#include "api.h"
 
 /* Function for scrubbing sensitive memory buffers.
  * memset() can be optimized away and memset_s() is not available in PAL.

@@ -3,6 +3,10 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "assert.h"
+
+#undef memcpy
+#undef memmove
 
 void* memcpy(void* restrict dest, const void* restrict src, size_t count) {
     char* d = dest;
@@ -24,6 +28,14 @@ void* memcpy(void* restrict dest, const void* restrict src, size_t count) {
     return dest;
 }
 
+void* __memcpy_chk(void* restrict dest, const void* restrict src, size_t count, size_t dest_count) {
+    if (count > dest_count) {
+        warn("memcpy() check failed\n");
+        __abort();
+    }
+    return memcpy(dest, src, count);
+}
+
 void* memmove(void* dest, const void* src, size_t count) {
     char* d = dest;
     const char* s = src;
@@ -42,4 +54,12 @@ void* memmove(void* dest, const void* src, size_t count) {
             d[count] = s[count];
     }
     return dest;
+}
+
+void* __memmove_chk(void* restrict dest, const void* restrict src, size_t count, size_t dest_count) {
+    if (count > dest_count) {
+        warn("memmove() check failed\n");
+        __abort();
+    }
+    return memmove(dest, src, count);
 }
