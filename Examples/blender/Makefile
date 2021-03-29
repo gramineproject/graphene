@@ -14,13 +14,6 @@ RUN_DIR = $(PWD)/run_dir
 
 UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --release)
 
-ifeq ($(UBUNTU_VER), Ubuntu20.04)
-else ifeq ($(UBUNTU_VER), Ubuntu18.04)
-else ifeq ($(UBUNTU_VER), Ubuntu16.04)
-else
-$(error This example requires Ubuntu 16.04, 18.04 or 20.04)
-endif
-
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
 else

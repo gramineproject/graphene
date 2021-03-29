@@ -21,12 +21,6 @@ MEMCACHED_SHA256 ?= e3d10c06db755b220f43d26d3b68d15ebf737a69c7663529b504ab047efe
 
 UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --release)
 
-ifeq ($(UBUNTU_VER), Ubuntu18.04)
-else ifeq ($(UBUNTU_VER), Ubuntu16.04)
-else
-$(error This example requires Ubuntu 16.04 or 18.04)
-endif
-
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
 else
