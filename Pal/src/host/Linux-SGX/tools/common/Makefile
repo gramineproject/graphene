@@ -6,7 +6,6 @@ CFLAGS := $(filter-out -DIN_PAL, $(CFLAGS))
 CFLAGS += -I../.. \
           -I../../../../../include/lib \
           -I../../../../../lib/crypto/mbedtls/install/include \
-          -I../../../../../lib/crypto/mbedtls/crypto/include \
           -I../../protected-files \
           -DCRYPTO_USE_MBEDTLS \
           -D_POSIX_C_SOURCE=200809L \

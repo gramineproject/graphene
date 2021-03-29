@@ -3,7 +3,7 @@
 # - make          -- build SGX version with apps built in release mode and no logs
 # - make DEBUG=1  -- build SGX version with apps built in debug mode and with logs
 #
-# Any of these invocations clones mbedTLS' git repository (version 2.21.0) and
+# Any of these invocations clones mbedTLS' git repository (version 2.26.0) and
 # builds it in default configuration. Also, server and client programs are
 # built. See README for details.
 #
@@ -43,20 +43,12 @@ dcap: libs/.dcap_libs_copied client_dcap.manifest.sgx client_dcap.sig client_dca
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
-MBEDTLS_VERSION ?= 2.21.0
+MBEDTLS_VERSION ?= 2.26.0
 MBEDTLS_SRC ?= mbedtls-$(MBEDTLS_VERSION).tar.gz
 MBEDTLS_URI ?= \
 	https://github.com/ARMmbed/mbedtls/archive \
 	https://packages.grapheneproject.io/distfiles
-MBEDTLS_CHECKSUM ?= 320e930b7596ade650ae4fc9ba94b510d05e3a7d63520e121d8fdc7a21602db9
-
-# mbedTLS uses a submodule mbedcrypto, need to download it and move under mbedtls/crypto
-MBEDCRYPTO_VERSION ?= 3.1.0
-MBEDCRYPTO_SRC ?= mbedcrypto-$(MBEDCRYPTO_VERSION).tar.gz
-MBEDCRYPTO_URI ?= \
-	https://github.com/ARMmbed/mbed-crypto/archive \
-	https://packages.grapheneproject.io/distfiles
-MBEDCRYPTO_CHECKSUM ?= 7e171df03560031bc712489930831e70ae4b70ff521a609c6361f36bd5f8b76b
+MBEDTLS_CHECKSUM ?= 35d8d87509cd0d002bddbd5508b9d2b931c5e83747d087234cc7ad551d53fe05
 
 ifeq ($(DEBUG),1)
 MBED_BUILD_TYPE=Debug
@@ -67,17 +59,10 @@ endif
 $(MBEDTLS_SRC):
 	$(GRAPHENEDIR)/Scripts/download --output $@ $(foreach mirror,$(MBEDTLS_URI),--url $(mirror)/$(MBEDTLS_SRC)) --sha256 $(MBEDTLS_CHECKSUM)
 
-$(MBEDCRYPTO_SRC):
-	$(GRAPHENEDIR)/Scripts/download --output $@ $(foreach mirror,$(MBEDCRYPTO_URI),--url $(mirror)/$(MBEDCRYPTO_SRC)) --sha256 $(MBEDCRYPTO_CHECKSUM)
-
 .SECONDARY: mbedtls/.mbedtls_downloaded
-mbedtls/.mbedtls_downloaded: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
+mbedtls/.mbedtls_downloaded: $(MBEDTLS_SRC)
 	tar --touch -xzf $(MBEDTLS_SRC)
-	tar --touch -xzf $(MBEDCRYPTO_SRC)
 	mv mbedtls-mbedtls-$(MBEDTLS_VERSION) mbedtls
-	$(RM) -r mbedtls/crypto
-	mv mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls
-	mv mbedtls/mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls/crypto
 	touch $@
 
 .SECONDARY: mbedtls/.mbedtls_configured
@@ -93,7 +78,7 @@ mbedtls/.mbedtls_built: mbedtls/.mbedtls_configured
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include
+CFLAGS += -I./mbedtls/install/include
 # These flags are *NOT* for production, setting rpath is here only to simplify the test setup.
 LFLAGS += -Wl,-rpath-link,./libs/ -L./libs/ -ldl -lmbedcrypto -lmbedtls -lmbedx509
 

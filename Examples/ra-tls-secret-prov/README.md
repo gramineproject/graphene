@@ -82,6 +82,9 @@ kill %%
 - Secret Provisioning flows, ECDSA-based (DCAP) attestation:
 
 ```sh
+# make sure RA-TLS DCAP libraries are built in Graphene via:
+#   cd graphene/Pal/src/host/Linux-SGX/tools/ra-tls && make dcap
+
 make app dcap files/input.txt
 
 RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 ./secret_prov_server_dcap &

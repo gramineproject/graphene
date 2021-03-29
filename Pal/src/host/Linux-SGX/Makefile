@@ -12,7 +12,6 @@ CFLAGS += \
 	-I../../../include/host/Linux-common \
 	-I../../../include/lib \
 	-I../../../lib/crypto/mbedtls/include \
-	-I../../../lib/crypto/mbedtls/crypto/include \
 	-Iprotected-files
 
 # Some of the code uses alignof on expressions, which is a GNU extension.
