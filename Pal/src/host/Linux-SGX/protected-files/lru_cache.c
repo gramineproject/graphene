@@ -18,7 +18,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define uthash_fatal(msg) exit(-1)
+#define uthash_fatal(msg)                            \
+    do {                                             \
+        fprintf(stderr, "uthash error: %s\n", msg);  \
+        exit(-1);                                    \
+    } while(0)
 #include "uthash.h"
 #endif
 

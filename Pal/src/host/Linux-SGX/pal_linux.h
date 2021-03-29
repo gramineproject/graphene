@@ -14,6 +14,7 @@
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_defs.h"
+#include "pal_internal.h"
 #include "pal_linux_defs.h"
 #include "protected_files.h"
 #include "sgx_api.h"
@@ -21,15 +22,6 @@
 #include "sgx_attest.h"
 #include "sgx_tls.h"
 #include "sysdep-arch.h"
-
-#ifdef IN_ENCLAVE
-# define uthash_fatal(msg)              \
-    do {                                \
-        __UNUSED(msg);                  \
-        DkProcessExit(PAL_ERROR_NOMEM); \
-    } while (0)
-# include "uthash.h"
-#endif /* IN_ENCLAVE */
 
 #define IS_ERR_P    INTERNAL_SYSCALL_ERROR_P
 #define ERRNO_P     INTERNAL_SYSCALL_ERRNO_P
