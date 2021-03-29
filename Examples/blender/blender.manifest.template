@@ -6,47 +6,47 @@
 # Additionally, Blender scenes could allow for code execution (e.g. via bundled scripts), so
 # running untrusted scenes should not be allowed. This can be achieved for example by adding scenes
 # to trusted files or uploading them to a running and attested enclave via secured connection.
-sgx.allowed_files.blender_dir = "file:$(BLENDER_DIR)/$(BLENDER_VER)/"
-sgx.allowed_files.blender_input = "file:$(DATA_DIR)/scenes/"
-sgx.allowed_files.blender_output = "file:$(DATA_DIR)/images/"
+sgx.allowed_files.blender_dir = "file:{{ blender_dir }}/{{ blender_ver }}/"
+sgx.allowed_files.blender_input = "file:{{ data_dir }}/scenes/"
+sgx.allowed_files.blender_output = "file:{{ data_dir }}/images/"
 
 
-libos.entrypoint = "file:$(BLENDER_DIR)/blender"
+libos.entrypoint = "file:{{ blender_dir }}/blender"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
-loader.preload = "file:$(GRAPHENE_DIR)/Runtime/libsysdb.so"
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.preload = "file:{{ graphene.libos }}"
+loader.log_level = "{{ graphene_log_level }}"
 
-loader.env.LD_LIBRARY_PATH = "/graphene_lib:/blender_lib:/usr/$(ARCH_LIBDIR):$(ARCH_LIBDIR)"
+loader.env.LD_LIBRARY_PATH = "/graphene_lib:/blender_lib:/usr/{{ arch_libdir }}:{{ arch_libdir }}"
 loader.env.HOME = "/home/user"
 # Graphene implicitly copies host environment variables - overwriting troublesome one
 loader.env.PWD = ""
 
 fs.mount.graphene_lib.type = "chroot"
 fs.mount.graphene_lib.path = "/graphene_lib"
-fs.mount.graphene_lib.uri = "file:$(GRAPHENE_DIR)/Runtime"
+fs.mount.graphene_lib.uri = "file:{{ graphene.get_runtimedir() }}"
 
 fs.mount.blender_lib.type = "chroot"
 fs.mount.blender_lib.path = "/blender_lib"
-fs.mount.blender_lib.uri = "file:$(BLENDER_DIR)/lib"
+fs.mount.blender_lib.uri = "file:{{ blender_dir }}/lib"
 
 fs.mount.usr_lib.type = "chroot"
-fs.mount.usr_lib.path = "/usr/$(ARCH_LIBDIR)"
-fs.mount.usr_lib.uri = "file:/usr/$(ARCH_LIBDIR)"
+fs.mount.usr_lib.path = "/usr/{{ arch_libdir }}"
+fs.mount.usr_lib.uri = "file:/usr/{{ arch_libdir }}"
 
 fs.mount.lib.type = "chroot"
-fs.mount.lib.path = "$(ARCH_LIBDIR)"
-fs.mount.lib.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib.path = "{{ arch_libdir }}"
+fs.mount.lib.uri = "file:{{ arch_libdir }}"
 
 fs.mount.scenes.type = "chroot"
 fs.mount.scenes.path = "/data"
-fs.mount.scenes.uri = "file:$(DATA_DIR)"
+fs.mount.scenes.uri = "file:{{ data_dir }}"
 
 fs.mount.blender.type = "chroot"
 fs.mount.blender.path = "/blender"
-fs.mount.blender.uri = "file:$(BLENDER_DIR)"
+fs.mount.blender.uri = "file:{{ blender_dir }}"
 
 
 sys.stack.size = "8M"
@@ -55,8 +55,8 @@ sgx.enclave_size = "2048M"
 sgx.thread_num = 64
 sgx.nonpie_binary = 1
 
-sgx.trusted_files.blender = "file:$(BLENDER_DIR)/blender"
-sgx.trusted_files.libGL = "file:$(BLENDER_DIR)/lib/"
-sgx.trusted_files.runtime = "file:$(GRAPHENE_DIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
+sgx.trusted_files.blender = "file:{{ blender_dir }}/blender"
+sgx.trusted_files.libGL = "file:{{ blender_dir }}/lib/"
+sgx.trusted_files.runtime = "file:{{ graphene.get_runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
