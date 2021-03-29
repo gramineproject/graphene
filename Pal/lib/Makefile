@@ -146,7 +146,7 @@ objs += crypto/adapters/mbedtls_encoding.o
 endif
 
 .PHONY: all
-all: ../include/lib/uthash.h $(target)graphene-lib.a
+all: uthash.patched $(target)graphene-lib.a
 
 $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@mkdir -p $(dir $@)
@@ -165,8 +165,13 @@ UTHASH_URI ?= \
 	https://packages.grapheneproject.io/distfiles/uthash-2.1.0/src/uthash.h
 UTHASH_CHECKSUM ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c2ac
 
-../include/lib/uthash.h:
+uthash.h:
 	../../Scripts/download --output $@ --sha256 $(UTHASH_CHECKSUM) $(foreach mirror,$(UTHASH_URI),--url $(mirror))
+
+uthash.patched: uthash.h
+	patch -p2 < uthash.patch || exit 255
+	cp uthash.h ../include/lib/uthash.h
+	touch $@
 
 TOML_COMMIT ?= 5be06807ad5f2230cad99e15380c4f4076c9dd83
 TOML_H_URI ?= \
@@ -196,5 +201,5 @@ clean:
 .PHONY: distclean
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls
-	$(RM) ../include/lib/uthash.h
+	$(RM) ../include/lib/uthash.h uthash.h uthash.patched
 	$(RM) ../include/lib/toml.h toml.h toml.c toml.patched
