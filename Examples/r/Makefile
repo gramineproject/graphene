@@ -35,12 +35,12 @@ endif
 include ../../Scripts/Makefile.configs
 
 R.manifest: R.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(R_HOME)|'"$(R_HOME)"'|g' \
-	    -e 's|$$(R_EXEC)|'"$(R_EXEC)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dr_home=$(R_HOME) \
+		-Dr_exec=$(R_EXEC) \
+		$< >$@
 
 # R manifests for SGX:
 #   Generating the SGX-specific manifest (R.manifest.sgx), the enclave signature,

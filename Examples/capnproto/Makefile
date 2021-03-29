@@ -50,15 +50,15 @@ $(SRCDIR)/addressbook.capnp:
 
 $(SRCDIR)/addressbook: $(SRCDIR)/addressbook.c++ $(SRCDIR)/addressbook.capnp
 	cd $(SRCDIR) && capnp compile -oc++ addressbook.capnp
-	cd $(SRCDIR) && c++ -std=c++14 -Wall addressbook.c++ addressbook.capnp.c++ \
-	                    `pkg-config --cflags --libs capnp` -o addressbook
+	cd $(SRCDIR) && c++ -std=c++14 -Wall \
+		addressbook.c++ addressbook.capnp.c++ `pkg-config --cflags --libs capnp` -o addressbook
 
 
 addressbook.manifest: addressbook.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		$< >$@
 
 addressbook.manifest.sgx: addressbook.manifest addressbook
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \

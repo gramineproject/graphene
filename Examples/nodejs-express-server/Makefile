@@ -29,11 +29,11 @@ endif
 include ../../Scripts/Makefile.configs
 
 nodejs.manifest: nodejs.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(NODEJS_DIR)|'"$(NODEJS_DIR)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dnodejs_dir=$(NODEJS_DIR) \
+		$< >$@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 nodejs.manifest.sgx: nodejs.manifest helloworld.js

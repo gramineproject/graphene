@@ -6,19 +6,19 @@
 #
 # ./pal_loader ./lighttpd <script>
 
-libos.entrypoint = "file:$(INSTALL_DIR)/sbin/lighttpd"
+libos.entrypoint = "file:{{ install_dir }}/sbin/lighttpd"
 
 # Path to the library OS
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
 # Environment variables for lighttpd
-loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):$(INSTALL_DIR)/lib"
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:{{ install_dir }}/lib"
 
 # Allow for injecting SIGTERM signal from the host.
 sys.enable_sigterm_injection = 1
@@ -29,12 +29,12 @@ sys.enable_sigterm_injection = 1
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
 # Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the lighttpd executable
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 # Host-level directory (/usr) required by the lighttpd executable
 fs.mount.usr.type = "chroot"
@@ -43,8 +43,8 @@ fs.mount.usr.uri = "file:/usr"
 
 # Mount the current working directory
 fs.mount.cwd.type = "chroot"
-fs.mount.cwd.path = "$(INSTALL_DIR_ABSPATH)"
-fs.mount.cwd.uri = "file:$(INSTALL_DIR)"
+fs.mount.cwd.path = "{{ install_dir_abspath }}"
+fs.mount.cwd.uri = "file:{{ install_dir }}"
 
 # Mount lighttpd's default server.upload-dirs path
 fs.mount.var_tmp.type = "tmpfs"
@@ -70,10 +70,10 @@ sgx.nonpie_binary = 1
 
 # SGX trusted files
 
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.install_dir = "file:$(INSTALL_DIR)/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.install_dir = "file:{{ install_dir }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 # Trusted configuration files
 sgx.trusted_files.conf = "file:lighttpd.conf"
