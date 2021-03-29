@@ -166,6 +166,11 @@ void* memmove(void* dest, const void* src, size_t count);
 void* memset(void* dest, int ch, size_t count);
 int memcmp(const void* lhs, const void* rhs, size_t count);
 
+/* Used by _FORTIFY_SOURCE */
+void* __memcpy_chk(void* restrict dest, const void* restrict src, size_t count, size_t dest_count);
+void* __memmove_chk(void* dest, const void* src, size_t count, size_t dest_count);
+void* __memset_chk(void* dest, int ch, size_t count, size_t dest_count);
+
 bool strstartswith(const char* str, const char* prefix);
 bool strendswith(const char* str, const char* suffix);
 char* strdup(const char* str);
@@ -221,6 +226,11 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, cons
 int vsnprintf(char* buf, size_t buf_size, const char* fmt, va_list ap);
 int snprintf(char* buf, size_t buf_size, const char* fmt, ...)
     __attribute__((format(printf, 3, 4)));
+
+int __vsnprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt,
+                    va_list ap);
+int __snprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt, ...)
+    __attribute__((format(printf, 5, 6)));
 
 /* Miscelleneous */
 
@@ -335,5 +345,9 @@ static inline bool access_ok(const volatile void* addr, size_t size) {
 #else
 #error "Unsupported architecture"
 #endif /* __x86_64__ */
+
+#if !defined(USE_STDLIB) && __USE_FORTIFY_LEVEL > 0
+# include "api_fortified.h"
+#endif
 
 #endif /* API_H */

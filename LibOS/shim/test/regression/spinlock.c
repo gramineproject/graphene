@@ -1,9 +1,10 @@
 /* Poor man's spinlock test */
-#include "spinlock.h"
-
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define USE_STDLIB
+#include "spinlock.h"
 
 #define TEST_TIMES 1000
 
