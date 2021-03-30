@@ -14,20 +14,7 @@ MUSL_CFLAGS = -I$(abspath $(SHIM_DIR))/include -I$(abspath $(SHIM_DIR))/include/
 export MUSL_CFLAGS
 CLEAN_FILES +=
 MUSL_TARGETS = \
-	$(MUSL_BUILD_DIR)/lib/crt1.o \
-	$(MUSL_BUILD_DIR)/lib/crti.o \
-	$(MUSL_BUILD_DIR)/lib/crtn.o \
-	$(MUSL_BUILD_DIR)/lib/libcrypt.a \
-	$(MUSL_BUILD_DIR)/lib/libc.so \
-	$(MUSL_BUILD_DIR)/lib/libdl.a \
-	$(MUSL_BUILD_DIR)/lib/libm.a \
-	$(MUSL_BUILD_DIR)/lib/libpthread.a \
-	$(MUSL_BUILD_DIR)/lib/libresolv.a \
-	$(MUSL_BUILD_DIR)/lib/librt.a \
-	$(MUSL_BUILD_DIR)/lib/libutil.a \
-	$(MUSL_BUILD_DIR)/lib/libxnet.a \
-	$(MUSL_BUILD_DIR)/lib/rcrt1.o \
-	$(MUSL_BUILD_DIR)/lib/Scrt1.o
+	$(MUSL_BUILD_DIR)/lib/libc.so
 LIBC_LINK_TARGETS = \
 	$(MUSL_TARGETS) \
 	$(MUSL_BUILD_DIR)/lib/libc.so.6 \

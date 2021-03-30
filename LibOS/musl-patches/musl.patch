@@ -69,7 +69,7 @@ index 92d5c179217b25418e257b2fd1b563abeeff6f65..75eb4fe308c4eb95251571973b8f2727
  	return ret;
  }
 diff --git a/ldso/dynlink.c b/ldso/dynlink.c
-index 6b868c841476a34b0bb3eea98be9611052b7b3ef..15fa52105aac8a2f9ec1cf475e754261b11573c0 100644
+index 6b868c841476a34b0bb3eea98be9611052b7b3ef..f89427f86387fb612063ed3f9c8f48a2bd776b98 100644
 --- a/ldso/dynlink.c
 +++ b/ldso/dynlink.c
 @@ -24,6 +24,8 @@
@@ -90,14 +90,6 @@ index 6b868c841476a34b0bb3eea98be9611052b7b3ef..15fa52105aac8a2f9ec1cf475e754261
  	size_t dyn[DYN_CNT];
  	for (; p; p=p->next) {
  		if (p->relocated) continue;
-@@ -2134,6 +2138,7 @@ void *dlopen(const char *file, int mode)
- 	if (tls_cnt != orig_tls_cnt)
- 		install_new_tls();
- 	orig_tail = tail;
-+
- end:
- 	debug.state = RT_CONSISTENT;
- 	_dl_debug_state();
 diff --git a/src/process/x86_64/vfork.s b/src/process/x86_64/vfork.S
 similarity index 77%
 rename from src/process/x86_64/vfork.s

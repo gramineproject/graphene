@@ -14,7 +14,7 @@ Graphene consists of several components:
 - The Library OS itself (a shared library named ``libsysdb.so``, called the
   "shim" in our source code)
 - The Platform Adaptation Layer, or PAL (a shared library named ``libpal.so``)
-- A patched GNU C or musl library (a set of shared libraries ``libc.so``,
+- A patched glibc or musl library (a set of shared libraries ``libc.so``,
   ``libpthread.so``, ``libm.so``, etc.)
 
 The build of Graphene implies building at least the first two components. The

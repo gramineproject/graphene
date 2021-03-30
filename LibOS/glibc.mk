@@ -18,9 +18,6 @@ GLIBC_SRC = glibc-$(GLIBC_VERSION)
 GLIBC_HASH = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
 BUILD_DIR = glibc-build
 GLIBC_LIBS = \
-	csu/crt1.o \
-	csu/crti.o \
-	csu/crtn.o \
 	dlfcn/libdl.so.2 \
 	libc.so \
 	libc.so.6 \
@@ -53,7 +50,9 @@ DISTCLEAN_FILES += $(GLIBC_SRC).tar.gz $(GCC_SRC).tar.gz
 
 .SECONDARY: $(BUILD_DIR)/Build.success
 $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
-	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
+	@echo -n "Building glibc, may take a while to finish. Warning messages may show up. If this "
+	@echo -n "process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more "
+	@echo    "information."
 	CC=gcc CXX=g++ AS=gcc $(MAKE) -C $(BUILD_DIR) 2>&1 > build.log
 	touch $@
 
@@ -120,7 +119,9 @@ GCC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GCC_TARGET)))
 .SECONDARY: $(GCC_BUILD_DIR)/Build.success
 
 $(GCC_BUILD_DIR)/Build.success: $(GCC_BUILD_DIR)/Makefile
-	@echo "Building gcc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(GCC_BUILD_DIR)/gcc-build.log\" for more information."
+	@echo -n "Building gcc, may take a while to finish. Warning messages may show up. If this "
+	@echo -n "process terminates with failures, see \"$(GCC_BUILD_DIR)/gcc-build.log\" for more "
+	@echo    "information."
 	(unset CC CXX AS; $(MAKE) -C $(GCC_BUILD_DIR) 2>&1 > gcc-build.log) && touch $@
 
 $(GCC_TARGET): $(GCC_BUILD_DIR)/Build.success
