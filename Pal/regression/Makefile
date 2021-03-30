@@ -98,6 +98,8 @@ crt_init-recurse:
 CFLAGS-Pie = -fPIC -pie
 CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 
+abort.o: CFLAGS += -fPIC
+
 # workaround: File.manifest.template has strange reference
 # to ../regression/File
 ../regression/File: | File
