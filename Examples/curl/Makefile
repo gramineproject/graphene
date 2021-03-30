@@ -29,11 +29,11 @@ endif
 include ../../Scripts/Makefile.configs
 
 curl.manifest: curl.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(CURL_DIR)|'"$(CURL_DIR)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dcurl_dir=$(CURL_DIR) \
+		$< >$@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 curl.manifest.sgx: curl.manifest
