@@ -49,6 +49,7 @@ c_executables = \
 	kill_all \
 	large_mmap \
 	large_dir_read \
+	libunwind \
 	madvise \
 	mkfifo \
 	mmap_file \
@@ -92,6 +93,10 @@ c_executables = \
 	$(c_executables-$(ARCH))
 
 cxx_executables = bootstrap_cpp
+
+libunwind: libsharedcpp.so
+libsharedcpp.so: sharedcpp.cpp
+	@$(CXX) $(CXXFLAGS) -shared -fPIC -Wl,-soname,$@ -o $@ $^
 
 repo_manifests = \
 	argv_from_file.manifest \
@@ -161,6 +166,7 @@ LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.
 
 CFLAGS-fp_multithread += -pthread -fno-builtin  # see comment in the test's source
 LDLIBS-fp_multithread += -lm
+LDLIBS-libunwind += -L. -lsharedcpp
 
 %: %.c
 	$(call cmd,csingle)
@@ -178,4 +184,4 @@ libos-regression.xml: test_libos.py $(call expand_target_to_token,$(target))
 
 .PHONY: clean-tmp
 clean-tmp:
-	$(RM) -r *.tmp *.cached *.manifest.sgx *~ *.sig *.token .cache __pycache__ libos-regression.xml testfile tmp/*
+	$(RM) -r *.tmp *.cached *.manifest.sgx *~ *.sig *.token .cache __pycache__ libos-regression.xml testfile tmp/* libsharedcpp.so

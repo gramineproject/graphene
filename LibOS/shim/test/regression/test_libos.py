@@ -106,6 +106,10 @@ class TC_01_Bootstrap(RegressionTestCase):
         stdout, _ = self.run_binary(['bootstrap_cpp'])
         self.assertIn('User Program Started', stdout)
 
+    def test_120_libunwind_cpp(self):
+        stdout, _ = self.run_binary(['libunwind'])
+        self.assertIn('Exception \'test runtime error\' caught', stdout)
+
     def test_200_exec(self):
         stdout, _ = self.run_binary(['exec'])
 

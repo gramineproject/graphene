@@ -71,6 +71,7 @@
 /kill_all
 /large_dir_read
 /large_mmap
+/libunwind
 /madvise
 /mkfifo
 /mmap_file
