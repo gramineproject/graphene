@@ -415,3 +415,39 @@ long shim_do_madvise(unsigned long start, size_t len_in, int behavior) {
     }
     return -EINVAL;
 }
+
+long shim_do_msync(unsigned long start, size_t len_orig, int flags) {
+    if (flags & ~(MS_ASYNC | MS_SYNC | MS_INVALIDATE)) {
+        return -EINVAL;
+    }
+
+    if ((flags & MS_ASYNC) && (flags & MS_SYNC)) {
+        return -EINVAL;
+    }
+
+    if (!IS_ALIGNED_POW2(start, PAGE_SIZE)) {
+        return -EINVAL;
+    }
+
+    size_t len = ALIGN_UP_POW2(len_orig, PAGE_SIZE);
+    if (len < len_orig) {
+        return -ENOMEM;
+    }
+
+    if (!flags) {
+        /* Currently Linux treats empty flags with semantics equal to `MS_ASYNC`. */
+        flags = MS_ASYNC;
+    }
+
+    if (flags != MS_ASYNC) {
+        log_warning("Graphene does not support flags to msync other than MS_ASYNC\n");
+        return -ENOSYS;
+    }
+
+    if (test_user_memory((void*)start, len, /*write=*/false)) {
+        return -ENOMEM;
+    }
+
+    /* `MS_ASYNC` is a no-op on Linux. */
+    return 0;
+}
