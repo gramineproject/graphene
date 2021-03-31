@@ -60,9 +60,13 @@ Compiling with optimizations enabled
 ------------------------------------
 
 Building Graphene with ``DEBUG=1`` enables debug symbols and GDB integration,
-but disables optimizations. This usually improves the debugging experience, but
-might be undesirable: compiling without optimizations might significantly alter
-performance, and disables the ``_FORTIFY_SOURCE`` feature.
+but disables optimizations. This is usually the right thing to do: optimized
+builds are harder to debug, as they may cause GDB to display confusing
+tracebacks or garbage data.
 
-To build Graphene with debug symbols, but without optimizations, run ``make
-DEBUGOPT=1`` instead.
+However, in some cases an optimized debug build might be desirable: for example,
+``_FORTIFY_SOURCE`` runtime checks work only when optimizations are enabled, and
+profiling optimized code will give you more accurate results.
+
+To build Graphene with debug symbols, and with optimizations still enabled, run
+``make DEBUGOPT=1``.
