@@ -28,6 +28,7 @@ RUN apt-get update \
        libpcre3-dev \
        libprotobuf-c-dev \
        libssl-dev \
+       libunwind8 \
        libxfixes3 \
        libxi6 \
        libxml2-dev \
