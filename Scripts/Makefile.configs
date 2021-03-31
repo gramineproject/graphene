@@ -45,7 +45,15 @@ endif
 ARCH_LONG := $(SYS)
 
 DEBUG ?=
+OPTIMIZE ?= $(if $(DEBUG),,1)
+
+ifeq ($(DEBUGOPT),1)
+DEBUG = 1
+OPTIMIZE = 1
+endif
+
 export DEBUG
+export OPTIMIZE
 
 CFLAGS += -Wall -std=c11 -Wmissing-prototypes
 CXXFLAGS += -Wall -std=c++14
@@ -59,7 +67,7 @@ ASFLAGS += -DDEBUG
 CXXFLAGS += -DDEBUG
 endif
 
-ifeq ($(DEBUG),)
+ifeq ($(OPTIMIZE),1)
 CFLAGS += -O2
 CXXFLAGS += -O2
 endif
