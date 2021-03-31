@@ -134,7 +134,7 @@ pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target))
 .PHONY: clean
 clean:
 	$(RM) -r $(executables) $(preloads) $(gen_manifests) *.tmp .lib *.cached *.sig .*.sig *.d .*.d \
-	         .output.* *.token .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache \
+	         *.o .output.* *.token .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache \
 	         pal-regression.xml pal_loader
 
 .PHONY: distclean
