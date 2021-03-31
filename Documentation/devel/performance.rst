@@ -531,7 +531,10 @@ SGX profiling
 There is support for profiling the code inside the SGX enclave. Here is how to
 use it:
 
-#. Compile Graphene with ``SGX=1 DEBUG=1``.
+#. Compile Graphene with ``SGX=1 DEBUGOPT=1``.
+
+   You can also use ``SGX=1 DEBUG=1``, but ``DEBUGOPT=1`` (optimizations
+   enabled) makes Graphene performance more similar to release build.
 
 #. Add ``sgx.profile.enable = "main"`` to manifest (to collect data for the main
    process), or ``sgx.profile.enable = "all"`` (to collect data for all

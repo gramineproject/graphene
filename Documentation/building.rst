@@ -205,6 +205,9 @@ Additional build options
   in all Graphene components, builds them without optimizations, and enables
   detailed debug logs in Graphene.
 
+- To create a debug build that does not disable optimizations, run
+  :command:`make DEBUGOPT=1`.
+
 - To build with ``-Werror``, run :command:`make WERROR=1`.
 
 - To specify custom mirrors for downloading the Glibc source, use :command:`make

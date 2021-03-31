@@ -55,3 +55,14 @@ To run Graphene with GDB, use the Graphene loader (``pal_loader``) and specify
 ``GDB=1``::
 
     GDB=1 SGX=1 [Graphene Directory]/Runtime/pal_loader [application] [arguments]
+
+Compiling with optimizations enabled
+------------------------------------
+
+Building Graphene with ``DEBUG=1`` enables debug symbols and GDB integration,
+but disables optimizations. This usually improves the debugging experience, but
+might be undesirable: compiling without optimizations might significantly alter
+performance, and disables the ``_FORTIFY_SOURCE`` feature.
+
+To build Graphene with debug symbols, but without optimizations, run ``make
+DEBUGOPT=1`` instead.
