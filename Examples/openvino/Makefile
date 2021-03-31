@@ -63,12 +63,12 @@ $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_
 	$(MAKE) -C $(OPENVINO_DIR)/inference-engine/build
 
 object_detection_sample_ssd.manifest: object_detection_sample_ssd.manifest.template
-	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(OPENVINO_DIR)|'"$(abspath $(OPENVINO_DIR))"'|g' \
-	    -e 's|$$(MODEL_DIR)|'"$(MODEL_DIR)"'|g' \
-	    -e 's|$$(OPENVINO_BUILD)|'"$(OPENVINO_BUILD)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
+		-Dmodel_dir=$(MODEL_DIR) \
+		-Dopenvino_build=$(OPENVINO_BUILD) \
 	    $< > $@
 
 # Generating the SGX-specific manifest (object_detection_sample_ssd.manifest.sgx), the enclave signature,
