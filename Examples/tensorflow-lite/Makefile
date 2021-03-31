@@ -26,7 +26,7 @@ include ../../Scripts/Makefile.configs
 
 $(TF_DIR)/configure:
 	$(GRAPHENEDIR)/Scripts/download --output tensorflow.tar.gz --sha256 $(TAR_SHA256)\
-	       --url https://github.com/tensorflow/tensorflow/archive/$(GIT_COMMIT).tar.gz
+		--url https://github.com/tensorflow/tensorflow/archive/$(GIT_COMMIT).tar.gz
 	mkdir $(TF_DIR)
 	tar -C $(TF_DIR) --strip-components=1 -xf tensorflow.tar.gz
 
@@ -42,7 +42,7 @@ libtensorflow_framework.so: label_image
 INCEPTION_HASH=b1a1f91276e48a9ddf0cb0d854f044ebfbf985dc2c2cedceb52b3d668894299a
 inception_v3.tflite:
 	$(GRAPHENEDIR)/Scripts/download --output inception_v3_2018_04_27.tgz --sha256 $(INCEPTION_HASH)\
-	       --url https://storage.googleapis.com/download.tensorflow.org/models/tflite/model_zoo/upload_20180427/inception_v3_2018_04_27.tgz
+		--url https://storage.googleapis.com/download.tensorflow.org/models/tflite/model_zoo/upload_20180427/inception_v3_2018_04_27.tgz
 	tar xfz inception_v3_2018_04_27.tgz
 
 labels.txt: $(TF_DIR)/tensorflow/contrib/lite/java/ovic/src/testdata/labels.txt
@@ -59,8 +59,8 @@ $(GRAPHENEDIR)/Runtime/libstdc++.so.6:
 
 label_image.manifest: label_image.manifest.template libtensorflow_framework.so label_image \
                       inception_v3.tflite labels.txt image.bmp
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
 		$< > $@
 
 label_image.manifest.sgx: label_image.manifest inception_v3.tflite labels.txt
