@@ -19,7 +19,7 @@
 
 #define __attribute_migratable __attribute__((section(".migratable")))
 
-extern char __migratable;
+extern char __migratable[];
 extern char __migratable_end;
 
 /* FIXME: Checkpointing must be de-macroed and simplified */
