@@ -59,8 +59,8 @@ $(GRAPHENEDIR)/Runtime/libstdc++.so.6:
 
 label_image.manifest: label_image.manifest.template libtensorflow_framework.so label_image \
                       inception_v3.tflite labels.txt image.bmp
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
 		$< > $@
 
 label_image.manifest.sgx: label_image.manifest inception_v3.tflite labels.txt
