@@ -442,6 +442,24 @@ size precisely for each workload. EDMM does help to reduce the loading time of
 a large enclave application but can impact the runtime as there is a penalty
 for additional asynchronous enclave exits (AEXs) caused by #PFs.
 
+EDMM Batch Allocation (Experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.edmm_batch_allocation = [true|false]
+    (Default: false)
+
+SGX driver allocates EPC pages dynamically by faulting in pages one at a time.
+This incurs a huge overhead due to enclave exit for each page. This syntax enables
+use of a new IOCTL has been introduced in the SGX driver which can take the
+requested range and EAUG all the pages in one shot. Enclave then EACCEPTs all
+the pages requested.
+
+.. note ::
+   New SGX driver IOCTL is experimental and is not yet available as part of official
+   Intel SGX OOT driver release. This option is not yet ready for public usage.
+
 Optional CPU features (AVX, AVX512, MPX, PKRU)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

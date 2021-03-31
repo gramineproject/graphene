@@ -709,6 +709,7 @@ def read_manifest(path):
     sgx.setdefault('enable_stats', 0)
     sgx.setdefault('preheat_enclave_sz', '0')
     sgx.setdefault('edmm_enable_heap', 0)
+    sgx.setdefault('edmm_batch_allocation', 0)
 
 
     loader = manifest.setdefault('loader', {})
@@ -738,22 +739,24 @@ def main_sign(manifest, args):
     attr['day'] = today.day
     attr['preheat_enclave_sz'] = parse_size(manifest_sgx['preheat_enclave_sz'])
     attr['edmm_enable_heap'] = manifest_sgx['edmm_enable_heap']
+    attr['edmm_batch_allocation'] = manifest_sgx['edmm_batch_allocation']
 
     if attr['preheat_enclave_sz'] < 0:
         raise Exception("preheat_enclave_sz: {0} should be greater than or equal to 0!"
                         .format(attr['preheat_enclave_sz']))
 
     print('Attributes:')
-    print(f'    size:               {attr["enclave_size"]:#x}')
-    print(f'    thread_num:         {attr["thread_num"]}')
-    print(f'    isv_prod_id:        {attr["isv_prod_id"]}')
-    print(f'    isv_svn:            {attr["isv_svn"]}')
-    print(f'    attr.flags:         {attr["flags"].hex()}')
-    print(f'    attr.xfrm:          {attr["xfrms"].hex()}')
-    print(f'    misc_select:        {attr["misc_select"].hex()}')
-    print(f'    date:               {attr["year"]:04d}-{attr["month"]:02d}-{attr["day"]:02d}')
-    print(f'    edmm_enable_heap:   {attr["edmm_enable_heap"]}')
-    print(f'    preheat_enclave_sz: {attr["preheat_enclave_sz"]}')
+    print(f'    size:                  {attr["enclave_size"]:#x}')
+    print(f'    thread_num:            {attr["thread_num"]}')
+    print(f'    isv_prod_id:           {attr["isv_prod_id"]}')
+    print(f'    isv_svn:               {attr["isv_svn"]}')
+    print(f'    attr.flags:            {attr["flags"].hex()}')
+    print(f'    attr.xfrm:             {attr["xfrms"].hex()}')
+    print(f'    misc_select:           {attr["misc_select"].hex()}')
+    print(f'    date:                  {attr["year"]:04d}-{attr["month"]:02d}-{attr["day"]:02d}')
+    print(f'    edmm_enable_heap:      {attr["edmm_enable_heap"]}')
+    print(f'    preheat_enclave_sz:    {attr["preheat_enclave_sz"]}')
+    print(f'    edmm_batch_allocation: {attr["edmm_batch_allocation"]}')
 
     if manifest_sgx['remote_attestation']:
         spid = manifest_sgx.get('ra_client_spid', '')

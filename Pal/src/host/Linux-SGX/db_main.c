@@ -604,6 +604,12 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
             READ_ONCE(*(size_t*)i);
     }
 
+    /* EDMM batch allocation */
+    g_pal_sec.edmm_batch_alloc = sec_info.edmm_batch_alloc;
+
+    /* Extract the mmap'd region to share addr and number of EPC pages requested with driver. */
+    g_pal_sec.eaug_base = sec_info.eaug_base;
+
     /* For {p,u,g}ids we can at least do some minimal checking. */
 
     /* ppid should be positive when interpreted as signed. It's 0 if we don't

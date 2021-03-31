@@ -270,6 +270,8 @@ void free(void* mem);
 #error Unsupported compiler
 #endif
 
+PAL_IDX pal_get_cur_tid(void);
+
 int _DkInitDebugStream(const char* path);
 int _DkDebugLog(const void* buf, size_t size);
 

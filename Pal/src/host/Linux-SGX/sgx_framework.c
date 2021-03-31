@@ -429,6 +429,32 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
         return ret;
     }
 
+    /* create shared memory region to pass EPC range info */
+    if (g_pal_enclave.pal_sec.edmm_enable_heap && g_pal_enclave.pal_sec.edmm_batch_alloc) {
+        unsigned int num_threads = g_pal_enclave.thread_num;
+        unsigned long eaug_base = (unsigned long) INLINE_SYSCALL(mmap, 6, NULL,
+                                  sizeof(struct sgx_eaug_range_param) * num_threads,
+                                  PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+
+        if (IS_ERR_P(eaug_base)) {
+            log_error("Cannot mmap eaug_base %ld\n", ERRNO_P(eaug_base));
+            return -ENOMEM;
+        }
+
+        g_pal_enclave.pal_sec.eaug_base = eaug_base;
+
+        struct sgx_eaug_base_init init_param = {
+            .encl_addr      = enclave_valid_addr,
+            .eaug_info_base = eaug_base,
+            .num_threads    = num_threads,
+        };
+        int ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_EAUG_INFO_BASE, &init_param);
+        if (ret < 0) {
+            log_error("IOCTL to initialize shared eaug_base failed! (errno = %d)\n", ret);
+            return ret;
+        }
+    }
+
     return 0;
 }
 
