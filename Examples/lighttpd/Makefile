@@ -52,11 +52,11 @@ $(LIGHTTPD_SRC).tar.gz:
 	    $(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
 
 lighttpd.manifest: lighttpd.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
-	    -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dinstall_dir=$(INSTALL_DIR) \
+		-Dinstall_dir_abspath=$(abspath $(INSTALL_DIR)) \
 	    $< >$@
 
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
