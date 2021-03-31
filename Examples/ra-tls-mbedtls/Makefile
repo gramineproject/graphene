@@ -128,11 +128,11 @@ libs/.dcap_libs_copied:
 ############################### SERVER MANIFEST ###############################
 
 server.manifest: server.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		-e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
-		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dra_client_spid=$(RA_CLIENT_SPID) \
+		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
 		$< > $@
 
 server.manifest.sgx: server.manifest server mbedtls/.mbedtls_built libs/.epid_libs_copied
@@ -149,10 +149,10 @@ server.token: server.sig
 ########################### CLIENT (DCAP) MANIFEST ############################
 
 client_dcap.manifest: client.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		$< >$@
 
 client_dcap.manifest.sgx: client_dcap.manifest client mbedtls/.mbedtls_built libs/.dcap_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
@@ -169,10 +169,10 @@ client_dcap.token: client_dcap.sig
 ########################### CLIENT (EPID) MANIFEST ############################
 
 client_epid.manifest: client.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		$< >$@
 
 client_epid.manifest.sgx: client_epid.manifest client libs/.epid_libs_copied
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
@@ -237,7 +237,7 @@ check_dcap_fail: app dcap
 .PHONY: clean
 clean:
 	$(RM) -r *.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT \
-	         libs/
+		libs/
 
 .PHONY: distclean
 distclean: clean
