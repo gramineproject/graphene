@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include <arpa/inet.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -58,13 +59,17 @@ static void server(void) {
 
         char byte = 0;
 
-        ssize_t written = 0;
-        while (written == 0) {
+        ssize_t written = -1;
+        while (written < 0) {
             if ((written = write(pipefds[1], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
                 perror("write on pipe");
                 exit(1);
+            }
+            if (!written) {
+                /* technically impossible, but let's fail loudly if we ever hit this */
+                errx(EXIT_FAILURE, "write on pipe returned zero");
             }
         }
     }
@@ -96,6 +101,10 @@ static void server(void) {
                 continue;
             perror("sendto to client");
             exit(1);
+        }
+        if (!n) {
+            /* technically impossible, but let's fail loudly if we ever hit this */
+            errx(EXIT_FAILURE, "sendto to client returned zero");
         }
         written += n;
     }
@@ -144,12 +153,16 @@ static void client(void) {
 
         char byte = 0;
 
-        ssize_t received = 0;
-        while (received == 0) {
+        ssize_t received = -1;
+        while (received < 0) {
             if ((received = read(pipefds[0], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
                 perror("read on pipe");
+                exit(1);
+            }
+            if (!received) {
+                perror("read on pipe (EOF)");
                 exit(1);
             }
         }

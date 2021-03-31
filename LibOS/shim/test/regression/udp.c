@@ -1,6 +1,9 @@
 #define _GNU_SOURCE
 #include <arpa/inet.h>
+#include <err.h>
+#include <errno.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,150 +18,158 @@
 #define NPACK  10
 
 enum { SINGLE, PARALLEL } mode = PARALLEL;
-int do_fork                    = 0;
 
 int pipefds[2];
 
-static int server(void) {
+static void server(void) {
     struct sockaddr_in si_me, si_other;
-    int s, i;
     socklen_t slen = sizeof(si_other);
     char buf[BUFLEN];
 
-    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        fprintf(stderr, "socket() failed\n");
-        exit(1);
-    }
+    int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (s < 0)
+        err(EXIT_FAILURE, "server socket");
 
     memset((char*)&si_me, 0, sizeof(si_me));
     si_me.sin_family      = AF_INET;
     si_me.sin_port        = htons(PORT);
     si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if (bind(s, (struct sockaddr*)&si_me, sizeof(si_me)) == -1) {
-        fprintf(stderr, "bind() failed\n");
-        exit(1);
-    }
+    if (bind(s, (struct sockaddr*)&si_me, sizeof(si_me)) < 0)
+        err(EXIT_FAILURE, "server bind");
 
     if (mode == PARALLEL) {
-        close(pipefds[0]);
+        if (close(pipefds[0]) < 0)
+            err(EXIT_FAILURE, "server close of pipe");
+
         char byte = 0;
-        if (write(pipefds[1], &byte, 1) != 1) {
-            perror("write error");
-            return 1;
+        ssize_t written = -1;
+        while (written < 0) {
+            if ((written = write(pipefds[1], &byte, sizeof(byte))) < 0) {
+                if (errno == EINTR || errno == EAGAIN)
+                    continue;
+                err(EXIT_FAILURE, "server write on pipe");
+            }
+            if (!written) {
+                /* technically impossible, but let's fail loudly if we ever hit this */
+                errx(EXIT_FAILURE, "server write on pipe returned zero");
+            }
         }
     }
 
-    if (do_fork) {
-        if (fork() > 0) {
-            close(s);
-            wait(NULL);
-            return 0;
+    for (int i = 0; i < NPACK; i++) {
+        size_t read = 0;
+        while (read < BUFLEN) {
+            ssize_t n = recvfrom(s, buf + read, BUFLEN - read, /*flags=*/0,
+                                 (struct sockaddr*)&si_other, &slen);
+            if (n < 0) {
+                if (errno == EINTR || errno == EAGAIN)
+                    continue;
+                err(EXIT_FAILURE, "server recvfrom");
+            }
+            if (!n) {
+                /* socket closed prematurely, considered an error in this test */
+                err(EXIT_FAILURE, "server recvfrom (EOF)");
+            }
+            read += n;
         }
-    }
 
-    for (i = 0; i < NPACK; i++) {
-        if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr*)&si_other, &slen) == -1) {
-            fprintf(stderr, "recvfrom() failed\n");
-            exit(1);
-        }
-
-        printf("Received packet from %s:%d\nData: %s\n", inet_ntoa(si_other.sin_addr),
+        printf("Received packet from %s:%d ('%s')\n", inet_ntoa(si_other.sin_addr),
                ntohs(si_other.sin_port), buf);
     }
 
-    close(s);
-    if (do_fork)
-        exit(0);
-    return 0;
+    if (close(s) < 0)
+        err(EXIT_FAILURE, "server close");
 }
 
-static int client(void) {
+static void client(void) {
     struct sockaddr_in si_other;
-    int s, i;
     socklen_t slen   = sizeof(si_other);
     char buf[BUFLEN] = "hi";
-    int res;
 
     if (mode == PARALLEL) {
-        close(pipefds[1]);
+        if (close(pipefds[1]) < 0)
+            err(EXIT_FAILURE, "client close of pipe");
+
         char byte = 0;
-        if (read(pipefds[0], &byte, 1) != 1) {
-            perror("read error");
-            return 1;
+        ssize_t received = -1;
+        while (received < 0) {
+            if ((received = read(pipefds[0], &byte, sizeof(byte))) < 0) {
+                if (errno == EINTR || errno == EAGAIN)
+                    continue;
+                err(EXIT_FAILURE, "client read on pipe");
+            }
+            if (!received)
+                err(EXIT_FAILURE, "client read on pipe (EOF)");
         }
     }
 
-    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        fprintf(stderr, "socket() failed\n");
-        exit(1);
-    }
-
-    if (do_fork) {
-        if (fork() > 0) {
-            close(s);
-            wait(NULL);
-            return 0;
-        }
-    }
+    int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (s < 0)
+        err(EXIT_FAILURE, "client socket");
 
     memset((char*)&si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
     si_other.sin_port   = htons((PORT));
-    if (inet_aton(SRV_IP, &si_other.sin_addr) == 0) {
-        fprintf(stderr, "inet_aton() failed\n");
-        exit(1);
-    }
+    if (inet_aton(SRV_IP, &si_other.sin_addr) < 0)
+        err(EXIT_FAILURE, "client inet_aton");
 
-    for (i = 0; i < 10; i++) {
+    for (int i = 0; i < NPACK; i++) {
         printf("Sending packet %d\n", i);
         sprintf(buf, "This is packet %d", i);
-        if ((res = sendto(s, buf, BUFLEN, 0, (struct sockaddr*)&si_other, slen)) == -1) {
-            fprintf(stderr, "sendto() failed\n");
-            exit(1);
+
+        ssize_t written = 0;
+        while (written < BUFLEN) {
+            ssize_t n = sendto(s, buf + written, BUFLEN - written, /*flags=*/0,
+                               (struct sockaddr*)&si_other, slen);
+            if (n < 0) {
+                if (errno == EINTR || errno == EAGAIN)
+                    continue;
+                err(EXIT_FAILURE, "client sendto");
+            }
+            if (!n) {
+                /* technically impossible, but let's fail loudly if we ever hit this */
+                errx(EXIT_FAILURE, "client sendto returned zero");
+            }
+            written += n;
         }
     }
 
-    close(s);
-    if (do_fork)
-        exit(0);
-    return 0;
+    if (close(s) < 0)
+        err(EXIT_FAILURE, "client close");
 }
 
 int main(int argc, char** argv) {
     if (argc > 1) {
         if (strcmp(argv[1], "client") == 0) {
             mode = SINGLE;
-            return client();
+            client();
+            return 0;
         } else if (strcmp(argv[1], "server") == 0) {
             mode = SINGLE;
-            return server();
-        } else if (strcmp(argv[1], "fork") == 0) {
-            do_fork = 1;
+            server();
+            return 0;
         } else {
-            puts("Invalid option!");
-            return 1;
+            errx(EXIT_FAILURE, "Invalid option!");
         }
     }
 
-    if (pipe(pipefds) < 0) {
-        perror("pipe error");
-        return 1;
-    }
+    if (pipe(pipefds) < 0)
+        err(EXIT_FAILURE, "pipe");
 
     int pid = fork();
+    if (pid < 0)
+        err(EXIT_FAILURE, "fork");
 
-    if (pid < 0) {
-        perror("fork error");
-        return 1;
-    } else if (pid == 0) {
-        return client();
-    } else {
-        int ret = server();
-        if (waitpid(pid, NULL, 0) == -1) {
-            perror("waitpid error");
-            ret = 1;
-        }
-        return ret;
+    if (pid == 0) {
+        client();
+        return 0;
     }
+
+    server();
+
+    if (waitpid(pid, NULL, 0) < 0)
+        err(EXIT_FAILURE, "waitpid");
+
+    return 0;
 }
