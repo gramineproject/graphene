@@ -12,9 +12,6 @@
 
 include ../../Scripts/Makefile.configs
 
-# Python constants are declared in Makefile.python
-include ../../Scripts/Makefile.python
-
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -31,17 +28,11 @@ all: pytorch.manifest.sgx pytorch.sig pytorch.token
 endif
 
 %.manifest: %.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(PYTHONDISTHOME)|'"$(PYTHONDISTHOME)"'|g' \
-	    -e 's|$$(PYTHONHOME)|'"$(PYTHONHOME)"'|g' \
-	    -e 's|$$(PYTHONEXEC)|'"$(PYTHONEXEC)"'|g' \
-	    -e 's|$$(PYTHONSHORTVERSION)|'"$(PYTHONSHORTVERSION)"'|g' \
-	    -e 's|$$(PYTHONVERSION)|'"$(PYTHONVERSION)"'|g' \
-	    -e 's|$$(PYTHON_ARCH_LONG)|'"$(PYTHON_ARCH_LONG)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    -e 's|$$(HOME)|'"$(HOME)"'|g' \
-	    $< > $@
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
+		$< > $@
 
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
