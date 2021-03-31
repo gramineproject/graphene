@@ -411,7 +411,7 @@ ISV Product ID and SVN
 ::
 
     sgx.isvprodid = [NUM]
-    sgx.isnsvn    = [NUM]
+    sgx.isvsvn    = [NUM]
     (Default: 0)
 
 This syntax specifies the ISV Product ID and SVN to be added to the enclave
