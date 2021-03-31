@@ -1,10 +1,17 @@
 #include <iostream>
+#include <stdexcept>
 
 extern "C" void f2() {
     throw std::runtime_error("test runtime error");
 }
 
 extern "C" void f1();
+/*
+ * This function is written in asm to make sure that it saves a register on stack and has proper
+ * cfi. The reason is to force stack unwinding routines to touch memory (to get the previous
+ * register value), which can have unexpected side effects (e.g. libunwind uses `msync` syscall
+ * to check if the memory address is valid).
+ */
 __asm__ (
 ".global f1\n"
 ".type f1, @function\n"
