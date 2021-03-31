@@ -32,13 +32,12 @@ all: gcc.manifest.sgx gcc.sig gcc.token
 endif
 
 %.manifest: %.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(BINUTILS_VERSION)|'"$(BINUTILS_VERSION)"'|g' \
-	    -e 's|$$(GCC_MAJOR_VERSION)|'"$(GCC_MAJOR_VERSION)"'|g' \
-	    -e 's|$$(GCC_LIB_PATH)|'"$(GCC_LIB_PATH)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dgcc_lib_path=$(GCC_LIB_PATH) \
+		-Dgcc_major_version=$(GCC_MAJOR_VERSION) \
+		$< >$@
 
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
