@@ -182,6 +182,22 @@ static int get_edmm_page_range(void* start, size_t size, bool executable) {
     else
         size = non_overlapping_sz;
 
+    if (g_pal_sec.edmm_batch_alloc) {
+        /* Pass faulting address to the driver for EAUGing the range */
+        int tid = pal_get_cur_tid();
+        assert(tid);
+
+        struct sgx_eaug_range_param *eaug_range = (struct sgx_eaug_range_param*)g_pal_sec.eaug_base;
+        eaug_range[tid-1].fault_addr = (unsigned long)((char*)start + size -
+                                                       g_pal_state.alloc_align);
+        eaug_range[tid-1].mem_seg = HEAP;
+        eaug_range[tid-1].num_pages = size / g_pal_state.alloc_align;
+
+        log_debug("fault_addr = 0x%lx, mem_seg = %d, num_pages = %d\n",
+                  eaug_range[tid-1].fault_addr, eaug_range[tid-1].mem_seg,
+                  eaug_range[tid-1].num_pages);
+    }
+
     void* lo = start;
     void* addr = (void*)((char*)lo + size);
 
@@ -340,7 +356,6 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
     /* TODO: Should we introduce a compiler switch for EDMM? */
     struct edmm_heap_range heap_ranges_to_alloc[EDMM_HEAP_RANGE_CNT] = {0};
 
-    log_debug("%s: edmm alloc start_addr = %p, size = %lx\n", __func__, addr, size);
     if (!size)
         return NULL;
 
@@ -417,7 +432,6 @@ int free_enclave_pages(void* addr, size_t size) {
     struct edmm_heap_range heap_ranges_to_free[EDMM_HEAP_RANGE_CNT] = {0};
     int free_cnt = 0;
 
-    log_debug("%s: edmm free start_addr = %p, size = %lx\n", __func__, addr, size);
     if (!size)
         return -PAL_ERROR_NOMEM;
 

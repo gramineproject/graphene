@@ -28,12 +28,28 @@ static spinlock_t g_thread_list_lock = INIT_SPINLOCK_UNLOCKED;
 DEFINE_LISTP(pal_handle_thread);
 static LISTP_TYPE(pal_handle_thread) g_thread_list = LISTP_INIT;
 
+/* tid 1 is assigned to the first thread; see pal_linux_main() */
+static struct atomic_int g_tid = ATOMIC_INIT(1);
+
 struct thread_param {
     int (*callback)(void*);
     const void* param;
 };
 
 extern void* g_enclave_base;
+
+/* This function returns the current thread TID. Note: a TID of 0 is considered invalid in PAL as
+ * we start TID from 1. */
+PAL_IDX pal_get_cur_tid(void) {
+    uint32_t tid = 0;
+
+    struct pal_handle_thread *thread = NULL;
+    thread = GET_ENCLAVE_TLS(thread);
+    if (thread)
+        tid = thread->tid;
+
+    return tid;
+}
 
 /*
  * We do not currently handle tid counter wrap-around, and could, in
@@ -42,9 +58,7 @@ extern void* g_enclave_base;
  * ensure uniqueness if needed in the future
  */
 static PAL_IDX pal_assign_tid(void) {
-    /* tid 1 is assigned to the first thread; see pal_linux_main() */
-    static struct atomic_int tid = ATOMIC_INIT(1);
-    return __atomic_add_fetch(&tid.counter, 1, __ATOMIC_SEQ_CST);
+    return __atomic_add_fetch(&g_tid.counter, 1, __ATOMIC_SEQ_CST);
 }
 
 /* Initialization wrapper of a newly-created thread. This function finds a newly-created thread in
@@ -149,6 +163,9 @@ void _DkThreadYieldExecution(void) {
 /* _DkThreadExit for internal use: Thread exiting */
 noreturn void _DkThreadExit(int* clear_child_tid) {
     struct pal_handle_thread* exiting_thread = GET_ENCLAVE_TLS(thread);
+
+    /* Decrement global tid counter to prevent overflow and match the number of threads present */
+    __atomic_sub_fetch(&g_tid.counter, 1, __ATOMIC_SEQ_CST);
 
     /* thread is ready to exit, must inform LibOS by erasing clear_child_tid;
      * note that we don't do it now (because this thread still occupies SGX
