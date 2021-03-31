@@ -3,22 +3,19 @@
 # This manifest was prepared and tested on Ubuntu 16.04/18.04 and tested with
 # Python 3.5 and 3.6.
 
-libos.entrypoint = "file:$(PYTHONEXEC)"
+libos.entrypoint = "file:{{ entrypoint }}"
 
 # Path to the library OS
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ graphene_log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
 # Environment variables for Python
-loader.env.LD_LIBRARY_PATH = "$(PYTHONHOME)/lib:/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)"
-loader.env.PATH = "$(PYTHONHOME)/bin:/usr/bin:/bin"
-loader.env.PYTHONHOME = "$(PYTHONHOME)"
-loader.env.PYTHONPATH = "$(PYTHONHOME):$(PYTHONHOME)/plat-$(ARCH_LONG):$(PYTHONDISTHOME):$(PYTHONHOME)/lib-dynload"
+loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 loader.env.HOME = "/home/user"
 
 # Allow for injecting SIGTERM signal from the host.
@@ -30,12 +27,12 @@ sys.enable_sigterm_injection = 1
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib.uri = "file:{{ graphene.get_runtimedir() }}"
 
 # Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the Python executable
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 # Host-level directory (/usr) required by the Python executable
 fs.mount.usr.type = "chroot"
@@ -44,13 +41,13 @@ fs.mount.usr.uri = "file:/usr"
 
 # Mount $PYTHONHOME
 fs.mount.pyhome.type = "chroot"
-fs.mount.pyhome.path = "$(PYTHONHOME)"
-fs.mount.pyhome.uri = "file:$(PYTHONHOME)"
+fs.mount.pyhome.path = "{{ python.stdlib }}"
+fs.mount.pyhome.uri = "file:{{ python.stdlib }}"
 
 # Mount $PYTHONDISTHOME
 fs.mount.pydisthome.type = "chroot"
-fs.mount.pydisthome.path = "$(PYTHONDISTHOME)"
-fs.mount.pydisthome.uri = "file:$(PYTHONDISTHOME)"
+fs.mount.pydisthome.path = "{{ python.distlib }}"
+fs.mount.pydisthome.uri = "file:{{ python.distlib }}"
 
 # Mount /tmp
 fs.mount.tmp.type = "chroot"
@@ -81,13 +78,13 @@ sgx.nonpie_binary = 1
 
 # SGX trusted libraries
 
-sgx.trusted_files.python = "file:$(PYTHONEXEC)"
+sgx.trusted_files.python = "file:{{ entrypoint }}"
 
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
-sgx.trusted_files.python_dir = "file:$(PYTHONHOME)/"
-sgx.trusted_files.dist = "file:$(PYTHONDISTHOME)/"
+sgx.trusted_files.runtime = "file:{{ graphene.get_runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.python_dir = "file:{{ python.stdlib }}/"
+sgx.trusted_files.dist = "file:{{ python.distlib }}/"
 sgx.trusted_files.scripts = "file:scripts/"
 
 # etc files required by Python

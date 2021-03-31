@@ -9,9 +9,6 @@
 
 include ../../Scripts/Makefile.configs
 
-# Python constants are declared in Makefile.python
-include ../../Scripts/Makefile.python
-
 # Relative path to Graphene root
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
@@ -29,16 +26,11 @@ all: python.manifest.sgx python.sig python.token
 endif
 
 python.manifest: python.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(PYTHONDISTHOME)|'"$(PYTHONDISTHOME)"'|g' \
-	    -e 's|$$(PYTHONHOME)|'"$(PYTHONHOME)"'|g' \
-	    -e 's|$$(PYTHONEXEC)|'"$(PYTHONEXEC)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    -e 's|$$(PYTHONSHORTVERSION)|'"$(PYTHONSHORTVERSION)"'|g' \
-	    -e 's|$$(PYTHON_ARCH_LONG)|'"$(PYTHON_ARCH_LONG)"'|g' \
-	    -e 's|$$(SYS)|'"$(SYS)"'|g' \
-	    $< >$@
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
+		$< >$@
 
 # Python manifests for SGX:
 #   Generating the SGX-specific manifest (python.manifest.sgx), the enclave signature,
