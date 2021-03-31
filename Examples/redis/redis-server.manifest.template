@@ -8,14 +8,14 @@
 # so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "file:redis-server"
 
 # Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
 # that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the
 # building process: the default is "error" for non-debug builds, and "debug"
 # for debug builds.
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ graphene_log_level }}"
 
 ################################# ARGUMENTS ###################################
 
@@ -30,8 +30,8 @@ loader.insecure__use_cmdline_argv = 1
 #
 # In case of Redis:
 # - /lib is searched for Glibc libraries (ld, libc, libpthread)
-# - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
-loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
+# - {{ arch_libdir }} is searched for Name Service Switch (NSS) libraries
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
 ################################## SIGNALS ####################################
 
@@ -53,17 +53,17 @@ sys.enable_sigterm_injection = 1
 # of the build process.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib.uri = "file:{{ graphene.get_runtimedir() }}"
 
 # Mount host-OS directory to Name Service Switch (NSS) libraries (in 'uri')
 # into in-Graphene visible directory /lib/x86_64-linux-gnu (in 'path').
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 fs.mount.lib3.type = "chroot"
-fs.mount.lib3.path = "/usr/$(ARCH_LIBDIR)"
-fs.mount.lib3.uri = "file:/usr/$(ARCH_LIBDIR)"
+fs.mount.lib3.path = "/usr/{{ arch_libdir }}"
+fs.mount.lib3.uri = "file:/usr/{{ arch_libdir }}"
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
 # into in-Graphene visible directory /etc (in 'path').
@@ -111,9 +111,9 @@ sgx.thread_num = 8
 
 sgx.trusted_files.redis-server = "file:redis-server"
 
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
+sgx.trusted_files.runtime = "file:{{ graphene.get_runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 # Trusted no-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure
