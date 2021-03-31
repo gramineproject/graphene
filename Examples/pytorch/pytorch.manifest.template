@@ -2,13 +2,13 @@
 #
 # This manifest was tested on Ubuntu 16.04 and 18.04.
 
-libos.entrypoint = "file:$(PYTHONEXEC)"
+libos.entrypoint = "file:{{ entrypoint }}"
 
 # Path to the library OS
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
@@ -17,17 +17,17 @@ loader.insecure__use_cmdline_argv = 1
 loader.insecure__use_host_env = 1
 
 # Overwrite some environment variables
-loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
+loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime/"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}/"
 
 # More libraries required by PyTorch
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 fs.mount.usr.type = "chroot"
 fs.mount.usr.path = "/usr"
@@ -46,13 +46,13 @@ fs.mount.tmp.uri = "file:/tmp"
 # PyTorch loads its pre-trained models from here
 # Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
 # fs.mount.torch.type = "chroot"
-# fs.mount.torch.path = "$(HOME)/.cache/torch"
-# fs.mount.torch.uri = "file:$(HOME)/.cache/torch"
+# fs.mount.torch.path = "{{ env.HOME }}/.cache/torch"
+# fs.mount.torch.uri = "file:{{ env.HOME }}/.cache/torch"
 
 # When run as `pip install --user ...`, pip installs Python packages here
 fs.mount.pip.type = "chroot"
-fs.mount.pip.path = "$(HOME)/.local/lib"
-fs.mount.pip.uri = "file:$(HOME)/.local/lib"
+fs.mount.pip.path = "{{ env.HOME }}/.local/lib"
+fs.mount.pip.uri = "file:{{ env.HOME }}/.local/lib"
 
 # SGX general options
 
@@ -75,14 +75,15 @@ sgx.thread_num = 128
 
 # SGX trusted files
 
-sgx.trusted_files.python = "file:$(PYTHONEXEC)"
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
-sgx.trusted_files.python_dir = "file:$(PYTHONHOME)/"
-sgx.trusted_files.dist = "file:$(PYTHONDISTHOME)/"
-sgx.trusted_files.home_lib = "file:$(HOME)/.local/lib/"
-sgx.trusted_files.python_local_lib = "file:/usr/local/lib/$(PYTHONVERSION)"
+sgx.trusted_files.python = "file:{{ entrypoint }}"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.python_dir = "file:{{ python.stdlib }}/"
+sgx.trusted_files.dist = "file:{{ python.distlib }}/"
+sgx.trusted_files.home_lib = "file:{{ env.HOME }}/.local/lib/"
+sgx.trusted_files.python_local_lib = "file:{{
+    python.get_path('stdlib', vars={'prefix': '/usr/local'}) }}"
 
 sgx.trusted_files.script = "file:pytorchexample.py"
 sgx.trusted_files.classes = "file:classes.txt"
@@ -90,7 +91,7 @@ sgx.trusted_files.image = "file:input.jpg"
 
 # File containing the pre-trained model
 # Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
-# sgx.trusted_files.torch = "file:$(HOME)/.cache/torch/checkpoints/alexnet-owt-4df8aa71.pth"
+# sgx.trusted_files.torch = "file:{{ env.HOME }}/.cache/torch/checkpoints/alexnet-owt-4df8aa71.pth"
 
 # Pre-trained model saved as a file
 sgx.trusted_files.model = "file:alexnet-pretrained.pt"
