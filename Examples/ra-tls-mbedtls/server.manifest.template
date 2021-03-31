@@ -2,9 +2,9 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "file:server"
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ graphene_log_level }}"
 
 loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu:/libs"
 
@@ -18,12 +18,12 @@ sys.enable_sigterm_injection = 1
 sgx.remote_attestation = 1
 
 # Specify your SPID and linkable/unlinkable attestation policy
-sgx.ra_client_spid = "$(RA_CLIENT_SPID)"
-sgx.ra_client_linkable = $(RA_CLIENT_LINKABLE)
+sgx.ra_client_spid = "{{ ra_client_spid }}"
+sgx.ra_client_linkable = {{ ra_client_linkable }}
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib.uri = "file:{{ graphene.get_runtimedir() }}"
 
 fs.mount.lib2.type = "chroot"
 fs.mount.lib2.path = "/lib/x86_64-linux-gnu"
@@ -35,9 +35,9 @@ fs.mount.etc.uri = "file:/etc"
 
 sgx.trusted_files.server = "file:server"
 
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
+sgx.trusted_files.runtime = "file:{{ graphene.get_runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 sgx.trusted_files.libs = "file:./libs/"
 
 sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
