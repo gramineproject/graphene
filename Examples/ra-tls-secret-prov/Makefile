@@ -146,11 +146,11 @@ libs/.dcap_libs_copied: libs/.common_libs_copied
 ############################### CLIENT MANIFEST ###############################
 
 secret_prov_client.manifest: secret_prov_client.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    -e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
-	    -e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dra_client_spid=$(RA_CLIENT_SPID) \
+		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
 	    $< > $@
 
 secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client libs/.common_libs_copied
@@ -167,11 +167,11 @@ secret_prov_client.token: secret_prov_client.sig
 ############################# MIN CLIENT MANIFEST #############################
 
 secret_prov_min_client.manifest: secret_prov_min_client.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    -e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
-	    -e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dra_client_spid=$(RA_CLIENT_SPID) \
+		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
 	    $< > $@
 
 secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov_min_client libs/.common_libs_copied
@@ -193,11 +193,11 @@ files/input.txt: files/wrap-key files/plain.txt libs/.common_libs_copied
 ############################## PF CLIENT MANIFEST #############################
 
 secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-	    -e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
-	    -e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
+	../common_tools/graphene-manifest \
+		-Dgraphene_log_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dra_client_spid=$(RA_CLIENT_SPID) \
+		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
 	    $< > $@
 
 secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_pf_client libs/.common_libs_copied
