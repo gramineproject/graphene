@@ -2,19 +2,19 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-libos.entrypoint = "file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd"
+libos.entrypoint = "file:{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/object_detection_sample_ssd"
 
 # Path to the library OS
-loader.preload = "file:$(GRAPHENE_DIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ graphene_log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = "/lib:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
+loader.env.LD_LIBRARY_PATH = "/lib:{{ openvino_dir }}/inference-engine/temp/tbb/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -22,17 +22,17 @@ loader.env.LD_LIBRARY_PATH = "/lib:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib
 # Default glibc files, mounted from the Runtime directory in GRAPHENE_DIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENE_DIR)/Runtime"
+fs.mount.lib.uri = "file:{{ graphene.get_runtimedir() }}"
 
 # Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by OpenVINO.
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 # More host-level libraries (e.g., /usr/lib/x86_64-linux-gnu) required by OpenVINO.
 fs.mount.lib3.type = "chroot"
-fs.mount.lib3.path = "/usr/$(ARCH_LIBDIR)"
-fs.mount.lib3.uri = "file:/usr/$(ARCH_LIBDIR)"
+fs.mount.lib3.path = "/usr/{{ arch_libdir }}"
+fs.mount.lib3.uri = "file:/usr/{{ arch_libdir }}"
 
 # Host-level directory to NSS files required by Glibc + NSS libs.
 fs.mount.etc.type = "chroot"
@@ -41,8 +41,8 @@ fs.mount.etc.uri = "file:/etc"
 
 # Mount the current working directory
 fs.mount.cwd.type = "chroot"
-fs.mount.cwd.path = "$(OPENVINO_DIR)"
-fs.mount.cwd.uri = "file:$(OPENVINO_DIR)"
+fs.mount.cwd.path = "{{ openvino_dir }}"
+fs.mount.cwd.uri = "file:{{ openvino_dir }}"
 
 # SGX general options
 
@@ -63,15 +63,15 @@ sgx.thread_num = 16
 
 # SGX trusted files
 
-sgx.trusted_files.object_detection_sample_ssd = "file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd"
+sgx.trusted_files.object_detection_sample_ssd = "file:{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/object_detection_sample_ssd"
 
-sgx.trusted_files.runtime = "file:$(GRAPHENE_DIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
-sgx.trusted_files.openvino_libs = "file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/"
-sgx.trusted_files.opencv_libs = "file:$(OPENVINO_DIR)/inference-engine/temp/"
-sgx.trusted_files.modelxml = "file:$(MODEL_DIR)/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml"
-sgx.trusted_files.modelbin = "file:$(MODEL_DIR)/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.bin"
+sgx.trusted_files.runtime = "file:{{ graphene.get_runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.openvino_libs = "file:{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/"
+sgx.trusted_files.opencv_libs = "file:{{ openvino_dir }}/inference-engine/temp/"
+sgx.trusted_files.modelxml = "file:{{ model_dir }}/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml"
+sgx.trusted_files.modelbin = "file:{{ model_dir }}/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.bin"
 
 # OpenVINO images (allowed instead of trusted for simplicity, but insecure!)
 sgx.allowed_files.imagesdir = "file:images"
