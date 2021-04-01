@@ -3,10 +3,7 @@
  *               2020 Intel Labs
  */
 
-#include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
-                     * We must include it ourselves before including linux/signal.h.
-                     */
-
+#include <stddef.h> /* needed by <linux/signal.h> for size_t */
 #include <linux/signal.h>
 
 #include "sigset.h"
