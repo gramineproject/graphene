@@ -3,9 +3,7 @@
  * Copyright (C) 2020 Invisible Things Lab
  */
 
-#include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
-                     * We must include it ourselves before including linux/signal.h.
-                     */
+#include <stddef.h> /* needed by <linux/signal.h> for size_t */
 
 #include <linux/fcntl.h>
 #include <linux/mman.h>

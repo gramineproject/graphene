@@ -7,9 +7,7 @@
  * This file contains APIs to set up signal handlers.
  */
 
-#include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
-                     * We must include it ourselves before including linux/signal.h.
-                     */
+#include <stddef.h> /* needed by <linux/signal.h> for size_t */
 
 #include "sigset.h" /* FIXME: this include can't be sorted, otherwise we get:
                      * In file included from sgx_exception.c:19:0:

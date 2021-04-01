@@ -5,10 +5,7 @@
  * This file contains APIs to create, exit and yield a thread.
  */
 
-#include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
-                     * We must include it ourselves before including linux/signal.h.
-                     */
-
+#include <stddef.h> /* needed by <linux/signal.h> for size_t */
 #include <linux/mman.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
