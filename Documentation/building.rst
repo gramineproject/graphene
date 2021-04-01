@@ -22,11 +22,10 @@ build of the patched C library is optional but highly recommended for
 performance reasons. The patched C library is built by default.
 
 Graphene currently only works on the x86_64 architecture. Graphene is currently
-tested on Ubuntu 16.04 and 18.04 (both server and desktop version), along with
-Linux kernel versions 3.x/4.x/5.x. We recommend building and installing Graphene
-on the same host platform. If you find problems with Graphene on other Linux
-distributions, please contact us with a |~| detailed `bug report
-<https://github.com/oscarlab/graphene/issues/new>`__.
+tested on Ubuntu 18.04, along with Linux kernel versions 5.x. We recommend
+building and installing Graphene on the same host platform. If you find problems
+with Graphene on other Linux distributions, please contact us with
+a |~| detailed `bug report <https://github.com/oscarlab/graphene/issues/new>`__.
 
 Building without SGX support
 ----------------------------
@@ -63,14 +62,8 @@ Prerequisites
 Run the following commands on Ubuntu to install SGX-related dependencies::
 
     sudo apt-get install -y libprotobuf-c-dev protobuf-c-compiler \
-       libcurl4-openssl-dev python3-pip
+       libcurl4-openssl-dev python3-pip python3-protobuf
     python3 -m pip install toml>=0.10
-
-    # For Ubuntu 18.04
-    sudo apt-get install -y python3-protobuf
-
-    # For Ubuntu 16.04
-    sudo /usr/bin/pip3 install protobuf
 
 2a. Install the Linux kernel patched with FSGSBASE
 """"""""""""""""""""""""""""""""""""""""""""""""""
