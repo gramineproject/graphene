@@ -102,7 +102,7 @@ def add_globals_from_graphene(env):
     if _CONFIG_PKGLIBDIR.startswith('@'):
         # we're not installed
         env.globals['get_runtimedir'] = get_runtimedir_repo
-        env.globals['libos'] = get_runtimedir() / 'libsysdb.so'
+        env.globals['libos'] = get_runtimedir_repo() / 'libsysdb.so'
 
     else:
         pkglibdir = pathlib.Path(_CONFIG_PKGLIBDIR)
