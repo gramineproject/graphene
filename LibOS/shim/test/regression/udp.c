@@ -22,7 +22,6 @@ enum { SINGLE, PARALLEL } mode = PARALLEL;
 int pipefds[2];
 
 static void server(void) {
-    int ret;
     struct sockaddr_in si_me, si_other;
     socklen_t slen = sizeof(si_other);
     char buf[BUFLEN];
@@ -36,8 +35,7 @@ static void server(void) {
     si_me.sin_port        = htons(PORT);
     si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    ret = bind(s, (struct sockaddr*)&si_me, sizeof(si_me));
-    if (ret < 0)
+    if (bind(s, (struct sockaddr*)&si_me, sizeof(si_me)) < 0)
         err(EXIT_FAILURE, "server bind");
 
     if (mode == PARALLEL) {
@@ -46,7 +44,7 @@ static void server(void) {
 
         char byte = 0;
         ssize_t written = 0;
-        while (written == 0) {
+        while (written <= 0) {
             if ((written = write(pipefds[1], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
@@ -56,31 +54,30 @@ static void server(void) {
     }
 
     for (int i = 0; i < NPACK; i++) {
-        ssize_t read = 0;
-        while (true) {
+        size_t read = 0;
+        while (read < BUFLEN) {
             ssize_t n = recvfrom(s, buf + read, BUFLEN - read, /*flags=*/0,
                                  (struct sockaddr*)&si_other, &slen);
-            if (n < 0) {
+            if (!n) {
+                /* socket closed prematurely, considered an error in this test */
+                err(EXIT_FAILURE, "server recvfrom no data");
+            } else if (n < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
                 err(EXIT_FAILURE, "server recvfrom");
             }
             read += n;
-            if (read == BUFLEN || !n)
-                break;
         }
 
         printf("Received packet from %s:%d ('%s')\n", inet_ntoa(si_other.sin_addr),
                ntohs(si_other.sin_port), buf);
     }
 
-    ret = close(s);
-    if (ret < 0)
+    if (close(s) < 0)
         err(EXIT_FAILURE, "server close");
 }
 
 static void client(void) {
-    int ret;
     struct sockaddr_in si_other;
     socklen_t slen   = sizeof(si_other);
     char buf[BUFLEN] = "hi";
@@ -91,7 +88,7 @@ static void client(void) {
 
         char byte = 0;
         ssize_t received = 0;
-        while (received == 0) {
+        while (received <= 0) {
             if ((received = read(pipefds[0], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
@@ -127,8 +124,7 @@ static void client(void) {
         }
     }
 
-    ret = close(s);
-    if (ret < 0)
+    if (close(s) < 0)
         err(EXIT_FAILURE, "client close");
 }
 
@@ -143,8 +139,7 @@ int main(int argc, char** argv) {
             server();
             return 0;
         } else {
-            puts("Invalid option!");
-            return EXIT_FAILURE;
+            errx(EXIT_FAILURE, "Invalid option!");
         }
     }
 
