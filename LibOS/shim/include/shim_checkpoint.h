@@ -333,7 +333,7 @@ struct checkpoint_hdr {
 };
 
 typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_process*, struct shim_thread*,
-                              struct shim_process_ipc_info*, va_list);
+                              struct shim_ipc_cp_data*, va_list);
 
 /*!
  * \brief Create child process and migrate state to it.

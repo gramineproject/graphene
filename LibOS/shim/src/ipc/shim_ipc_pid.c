@@ -33,8 +33,8 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     IDTYPE dest = 0;
     struct shim_ipc_port* port = NULL;
     if (type == KILL_ALL) {
-        if (g_process_ipc_info.vmid != g_process_ipc_info.ns->vmid) {
-            port = g_process_ipc_info.ns->port;
+        if (g_process_ipc_info.ns) {
+            port = g_process_ipc_info.ns;
             get_ipc_port(port);
             dest = g_process_ipc_info.ns->vmid;
         }
@@ -55,7 +55,7 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     msgin->id                       = target;
     msgin->signum                   = sig;
 
-    if (type == KILL_ALL && g_process_ipc_info.vmid == g_process_ipc_info.ns->vmid) {
+    if (type == KILL_ALL && !g_process_ipc_info.ns) {
         log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, dest_pid, sig);
         ret = broadcast_ipc(msg, /*exclude_port=*/NULL);
     } else {
@@ -111,7 +111,7 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum);
             break;
         case KILL_ALL:
-            if (g_process_ipc_info.vmid == g_process_ipc_info.ns->vmid) {
+            if (!g_process_ipc_info.ns) {
                 broadcast_ipc(msg, port);
             }
             ret = do_kill_proc(msgin->sender, g_process.pid, msgin->signum);

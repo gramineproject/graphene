@@ -16,6 +16,12 @@
 
 #define INIT_RANGE_MAP_SIZE 32
 
+struct shim_ipc_info {
+    IDTYPE vmid;
+    struct shim_ipc_port* port;
+    REFTYPE ref_count;
+};
+
 struct idx_bitmap {
     unsigned char map[RANGE_SIZE / BITS];
 };
@@ -83,6 +89,33 @@ struct key {
 };
 DEFINE_LISTP(key);
 static LISTP_TYPE(key) key_map[KEY_HASH_NUM];
+
+static struct shim_ipc_info* create_ipc_info(IDTYPE vmid) {
+    struct shim_ipc_info* info = malloc(sizeof(*info));
+    if (!info) {
+        return NULL;
+    }
+
+    memset(info, 0, sizeof(*info));
+    info->vmid = vmid;
+    REF_SET(info->ref_count, 1);
+    return info;
+}
+
+static void get_ipc_info(struct shim_ipc_info* info) {
+    REF_INC(info->ref_count);
+}
+
+static void put_ipc_info(struct shim_ipc_info* info) {
+    int ref_count = REF_DEC(info->ref_count);
+
+    if (!ref_count) {
+        if (info->port) {
+            put_ipc_port(info->port);
+        }
+        free(info);
+    }
+}
 
 static int __extend_range_bitmap(IDTYPE expected) {
     assert(locked(&range_map_lock));
@@ -555,11 +588,11 @@ out:
 }
 
 int ipc_lease_send(void) {
-    IDTYPE leader = g_process_ipc_info.ns->vmid;
-
-    if (leader == g_process_ipc_info.vmid) {
+    if (!g_process_ipc_info.ns) {
         return alloc_ipc_range(g_process_ipc_info.vmid, NULL);
     }
+
+    IDTYPE leader = g_process_ipc_info.ns->vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(0);
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -567,7 +600,7 @@ int ipc_lease_send(void) {
 
     log_debug("ipc send to %u: IPC_MSG_LEASE\n", leader);
 
-    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns->port, NULL, NULL);
+    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns, NULL, NULL);
 }
 
 int ipc_lease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
@@ -631,11 +664,11 @@ out:
 }
 
 int ipc_sublease_send(IDTYPE tenant, IDTYPE idx) {
-    IDTYPE leader = g_process_ipc_info.ns->vmid;
-
-    if (leader == g_process_ipc_info.vmid) {
+    if (!g_process_ipc_info.ns) {
         return add_ipc_subrange(idx, tenant);
     }
+
+    IDTYPE leader = g_process_ipc_info.ns->vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sublease));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -647,7 +680,7 @@ int ipc_sublease_send(IDTYPE tenant, IDTYPE idx) {
 
     log_debug("ipc send to %u: IPC_MSG_SUBLEASE(%u, %u)\n", leader, tenant, idx);
 
-    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns->port, NULL, NULL);
+    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns, NULL, NULL);
 }
 
 int ipc_sublease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
@@ -664,15 +697,15 @@ int ipc_sublease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 
 int ipc_query_send(IDTYPE idx) {
     struct ipc_range range = { 0 };
-    IDTYPE leader = g_process_ipc_info.ns->vmid;
-
     if (!get_ipc_range(idx, &range, NULL)) {
         return 0;
     }
 
-    if (g_process_ipc_info.vmid == leader) {
+    if (!g_process_ipc_info.ns) {
         return -ESRCH;
     }
+
+    IDTYPE leader = g_process_ipc_info.ns->vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_query));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -683,7 +716,7 @@ int ipc_query_send(IDTYPE idx) {
 
     log_debug("ipc send to %u: IPC_MSG_QUERY(%u)\n", leader, idx);
 
-    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns->port, NULL, NULL);
+    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns, NULL, NULL);
 }
 
 static int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, size_t answers_cnt,
@@ -768,11 +801,11 @@ out:
 }
 
 int ipc_queryall_send(void) {
-    IDTYPE leader = g_process_ipc_info.ns->vmid;
-
-    if (g_process_ipc_info.vmid == leader) {
+    if (!g_process_ipc_info.ns) {
         return 0;
     }
+
+    IDTYPE leader = g_process_ipc_info.ns->vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(0);
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -780,7 +813,7 @@ int ipc_queryall_send(void) {
 
     log_debug("ipc send to %u: IPC_MSG_QUERYALL\n", leader);
 
-    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns->port, NULL, NULL);
+    return send_ipc_message_with_ack(msg, g_process_ipc_info.ns, NULL, NULL);
 }
 
 int ipc_queryall_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {

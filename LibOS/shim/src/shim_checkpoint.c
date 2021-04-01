@@ -507,7 +507,6 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     assert(child_process);
 
     int ret = 0;
-    struct shim_process_ipc_info* process_ipc_info = NULL;
 
     /* FIXME: Child process requires some time to initialize before starting to receive checkpoint
      * data. Parallelizing process creation and checkpointing could improve latency of forking. */
@@ -516,13 +515,6 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     ret = DkProcessCreate(exec_uri, /*args=*/NULL, &pal_process);
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
-        goto out;
-    }
-
-    /* Create IPC bookkeepings for the new process. */
-    process_ipc_info = create_process_ipc_info();
-    if (!process_ipc_info) {
-        ret = -EACCES;
         goto out;
     }
 
@@ -549,9 +541,13 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
         goto out;
     }
 
+    struct shim_ipc_cp_data process_ipc_data = {
+        .parent_vmid = g_process_ipc_info.vmid,
+        .ns_vmid = g_process_ipc_info.ns ? g_process_ipc_info.ns->vmid : g_process_ipc_info.vmid,
+    };
     va_list ap;
     va_start(ap, thread_description);
-    ret = (*migrate_func)(&cpstore, process_description, thread_description, process_ipc_info, ap);
+    ret = (*migrate_func)(&cpstore, process_description, thread_description, &process_ipc_data, ap);
     va_end(ap);
     if (ret < 0) {
         log_error("failed creating checkpoint (ret = %d)\n", ret);
@@ -628,9 +624,6 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
 
     ret = 0;
 out:
-    if (process_ipc_info)
-        free_process_ipc_info(process_ipc_info);
-
     if (ret < 0) {
         if (pal_process)
             DkObjectClose(pal_process);

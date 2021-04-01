@@ -58,16 +58,16 @@ enum pid_meta_code { PID_META_CRED, PID_META_EXEC, PID_META_CWD, PID_META_ROOT }
 
 enum sysv_type { SYSV_NONE, SYSV_MSGQ, SYSV_SEM, SYSV_SHM };
 
-struct shim_ipc_info {
-    IDTYPE vmid;
-    struct shim_ipc_port* port;
-    REFTYPE ref_count;
+struct shim_ipc_cp_data {
+    IDTYPE parent_vmid;
+    IDTYPE ns_vmid;
 };
 
 struct shim_process_ipc_info {
     IDTYPE vmid;
-    struct shim_ipc_info* parent;
-    struct shim_ipc_info* ns;
+    struct shim_ipc_cp_data ipc_cp_data;
+    struct shim_ipc_port* parent;
+    struct shim_ipc_port* ns;
 };
 
 extern struct shim_process_ipc_info g_process_ipc_info;
@@ -338,9 +338,6 @@ int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 int init_ipc(void);
 int init_ipc_helper(void);
 
-struct shim_process_ipc_info* create_process_ipc_info(void);
-void free_process_ipc_info(struct shim_process_ipc_info* process);
-
 void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, port_fini fini,
                         struct shim_ipc_port** portptr);
 void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, port_fini fini);
@@ -348,10 +345,6 @@ void del_ipc_port_fini(struct shim_ipc_port* port);
 void get_ipc_port(struct shim_ipc_port* port);
 void put_ipc_port(struct shim_ipc_port* port);
 void del_all_ipc_ports(void);
-
-struct shim_ipc_info* create_ipc_info(IDTYPE vmid);
-void get_ipc_info(struct shim_ipc_info* port);
-void put_ipc_info(struct shim_ipc_info* port);
 
 static inline size_t get_ipc_msg_size(size_t payload) {
     size_t size = sizeof(struct shim_ipc_msg) + payload;

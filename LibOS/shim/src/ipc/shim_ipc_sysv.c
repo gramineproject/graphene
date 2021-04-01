@@ -26,12 +26,12 @@ int ipc_sysv_findkey_send(struct sysv_key* key) {
     if (!ret)
         goto out;
 
-    IDTYPE dest = g_process_ipc_info.ns->vmid;
-
-    if (dest == g_process_ipc_info.vmid) {
+    if (!g_process_ipc_info.ns) {
         ret = -ENOENT;
         goto out;
     }
+
+    IDTYPE dest = g_process_ipc_info.ns->vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_findkey));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -43,7 +43,7 @@ int ipc_sysv_findkey_send(struct sysv_key* key) {
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_FINDKEY(%lu)\n", dest, key->key);
 
-    ret = send_ipc_message_with_ack(msg, g_process_ipc_info.ns->port, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, g_process_ipc_info.ns, NULL, NULL);
 
     if (!ret)
         ret = sysv_get_key(key, false);
@@ -73,11 +73,11 @@ int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_k
         if ((ret = sysv_add_key(key, id)) < 0)
             goto out;
 
-        dest = g_process_ipc_info.ns->vmid;
-        port = g_process_ipc_info.ns->port;
-
-        if (dest == g_process_ipc_info.vmid)
+        if (!g_process_ipc_info.ns)
             goto out;
+
+        dest = g_process_ipc_info.ns->vmid;
+        port = g_process_ipc_info.ns;
 
         owned = false;
     }

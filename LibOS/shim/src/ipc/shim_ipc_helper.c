@@ -112,13 +112,14 @@ static int init_self_ipc_port(void) {
 static int init_parent_ipc_port(void) {
     if (!PAL_CB(parent_process)) {
         /* no parent process, no sense in creating parent IPC port */
+        assert(!g_process_ipc_info.ipc_cp_data.parent_vmid);
         return 0;
     }
 
-    assert(g_process_ipc_info.parent && g_process_ipc_info.parent->vmid);
+    assert(g_process_ipc_info.ipc_cp_data.parent_vmid);
 
-    add_ipc_port_by_id(g_process_ipc_info.parent->vmid, PAL_CB(parent_process),
-                       /*fini=*/NULL, &g_process_ipc_info.parent->port);
+    add_ipc_port_by_id(g_process_ipc_info.ipc_cp_data.parent_vmid, PAL_CB(parent_process),
+                       /*fini=*/NULL, &g_process_ipc_info.parent);
 
     return 0;
 }
@@ -132,24 +133,17 @@ static void ipc_leader_disconnect_callback(struct shim_ipc_port* port, IDTYPE vm
 }
 
 static int init_ns_ipc_port(void) {
-    if (!g_process_ipc_info.ns) {
-        assert(!g_process_ipc_info.parent);
+    assert(!g_process_ipc_info.ns);
+    if (!g_process_ipc_info.ipc_cp_data.ns_vmid) {
+        assert(!g_process_ipc_info.ipc_cp_data.parent_vmid);
         assert(!PAL_CB(parent_process));
 
         /* We are the very first Graphene process, hence also IPC leader. */
-        assert(g_process_ipc_info.vmid);
-        g_process_ipc_info.ns = create_ipc_info(g_process_ipc_info.vmid);
-        if (!g_process_ipc_info.ns) {
-            return -ENOMEM;
-        }
-        assert(!g_process_ipc_info.ns->port);
         return 0;
     }
 
-    assert(!g_process_ipc_info.ns->port);
-
     char uri[PIPE_URI_SIZE];
-    if (vmid_to_uri(g_process_ipc_info.ns->vmid, uri, sizeof(uri)) < 0) {
+    if (vmid_to_uri(g_process_ipc_info.ipc_cp_data.ns_vmid, uri, sizeof(uri)) < 0) {
         log_error("buffer for IPC pipe URI too small\n");
         BUG();
     }
@@ -161,9 +155,9 @@ static int init_ns_ipc_port(void) {
         return pal_to_unix_errno(ret);
     }
 
-    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, handle, ipc_leader_disconnect_callback,
-                       &g_process_ipc_info.ns->port);
-    return 0;
+    add_ipc_port_by_id(g_process_ipc_info.ipc_cp_data.ns_vmid, handle,
+                       ipc_leader_disconnect_callback, &g_process_ipc_info.ns);
+    return g_process_ipc_info.ns ? 0 : -ENOMEM;
 }
 
 int init_ipc_ports(void) {
