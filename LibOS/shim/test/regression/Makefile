@@ -126,8 +126,8 @@ target = \
 clean-extra += clean-tmp
 
 extra_rules = \
-	-e 's:\$$(RA_CLIENT_SPID):$(if $(RA_CLIENT_SPID),$(RA_CLIENT_SPID),):g' \
-	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g'
+	-Dra_client_spid=$(if $(RA_CLIENT_SPID),$(RA_CLIENT_SPID),) \
+	-Dra_client_linkable=$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0)
 
 include ../../../../Scripts/manifest.mk
 include ../../../../Scripts/Makefile.Test
