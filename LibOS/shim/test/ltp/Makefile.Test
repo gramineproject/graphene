@@ -67,14 +67,14 @@ relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspa
 %.manifest: %.manifest.template
 	@echo [ $@ ]
 	RELDIR=$(filter-out ./,$(call relative-to,$(dir $@),$(shell pwd))/) && \
-	../../../../Examples/common_tools/graphene-manifest \
+	$(LTP_DIR)/../../../../Examples/common_tools/graphene-manifest \
 		-Dentrypoint=$* \
 		$(manifest_rules) \
 		$< > $@
 
 %.manifest: manifest.template
 	@echo [ $@ ]
-	../../../../Examples/common_tools/graphene-manifest \
+	$(LTP_DIR)/../../../../Examples/common_tools/graphene-manifest \
 		-Dentrypoint=$* \
 		$(manifest_rules) \
 		$< > $@
