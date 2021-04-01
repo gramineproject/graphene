@@ -23,3 +23,6 @@ env.WERROR = '1'
 env.MAKEOPTS = '-j8'
 
 env.RA_TLS_ALLOW_OUTDATED_TCB_INSECURE = '1'
+
+env.LC_ALL = 'C.UTF-8'
+env.LANG = env.LC_ALL
