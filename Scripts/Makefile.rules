@@ -154,10 +154,12 @@ quiet_cmd_sgx_get_token = [ Token: $(basename $*) ]
 quiet_cmd_sgx_sign_depend = [ $@ ]
       cmd_sgx_sign_depend = $(SGX_SIGN) -depend -output $@ -manifest $<
 
+GRAPHENE_MANIFEST := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../Examples/common_tools/graphene-manifest
+
 # manifest ($(2) - entrypoint, $(3) - replace rules)
 quiet_cmd_manifest = [ $@ ]
       cmd_manifest = \
-  $(if $(2),sed $(3) -e 's:\$$(ENTRYPOINT):$(2):g' $< > $@,cp -f $< $@)
+  $(if $(2),$(GRAPHENE_MANIFEST) $(3) -Dentrypoint=$(2) $< > $@,cp -f $< $@)
 
 quiet_cmd_pal_map = [ $@ ]
       cmd_pal_map = \
