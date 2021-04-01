@@ -1,4 +1,4 @@
-loader.preload = "file:../../src/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "file:openmp"
 loader.argv0_override = "openmp"
 
@@ -15,7 +15,7 @@ sgx.preheat_enclave = 1
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:../../../../Runtime"
+fs.mount.lib.uri = "file:{{ graphene.get_runtimedir() }}"
 
 fs.mount.bin.type = "chroot"
 fs.mount.bin.path = "/bin"
@@ -23,13 +23,13 @@ fs.mount.bin.uri = "file:/bin"
 
 fs.mount.usrlib.type = "chroot"
 fs.mount.usrlib.path = "/usrlib"
-fs.mount.usrlib.uri = "file:/usr/$(ARCH_LIBDIR)"
+fs.mount.usrlib.uri = "file:/usr/{{ arch_libdir }}"
 
 sgx.thread_num = 32
 
-sgx.trusted_files.runtime = "file:../../../../Runtime/"
+sgx.trusted_files.runtime = "file:{{ graphene.get_runtimedir() }}/"
 sgx.trusted_files.openmp = "file:openmp"
 
-sgx.trusted_files.libgomp_native = "file:/usr$(ARCH_LIBDIR)/libgomp.so.1"
+sgx.trusted_files.libgomp_native = "file:/usr{{ arch_libdir }}/libgomp.so.1"
 
 sgx.nonpie_binary = 1
