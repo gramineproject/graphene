@@ -83,7 +83,7 @@ sgx.trusted_files.python_dir = "file:{{ python_stdlib }}/"
 sgx.trusted_files.dist = "file:{{ python_distlib }}/"
 sgx.trusted_files.home_lib = "file:{{ env.HOME }}/.local/lib/"
 sgx.trusted_files.python_local_lib = "file:{{
-    python_get_paths(vars={'prefix': '/usr/local'})['stdlib'] }}"
+    python_get_path('stdlib', vars={'prefix': '/usr/local'}) }}"
 
 sgx.trusted_files.script = "file:pytorchexample.py"
 sgx.trusted_files.classes = "file:classes.txt"
