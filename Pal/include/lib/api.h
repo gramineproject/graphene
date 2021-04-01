@@ -135,16 +135,6 @@ typedef ptrdiff_t ssize_t;
 /* LibC functions */
 
 /* LibC string functions */
-
-/* Undefine macros for compatibility with glibc headers: glibc 2.23 string.h defines these names as
- * macros, and while we shouldn't mix this file with glibc headers, we still do that in a few places
- * (e.g. for standalone tools.) */
-#undef strchr
-#undef strstr
-#undef strspn
-#undef strcmp
-#undef strncmp
-
 size_t strnlen(const char* str, size_t maxlen);
 size_t strlen(const char* str);
 int strncmp(const char* lhs, const char* rhs, size_t maxlen);
