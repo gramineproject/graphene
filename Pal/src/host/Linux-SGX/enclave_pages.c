@@ -428,9 +428,10 @@ int free_enclave_pages(void* addr, size_t size) {
         if (g_pal_sec.edmm_enable_heap) {
             /* if range is contiguous with previous entry, update addr, size accordinlgy*/
             if (free_cnt > 0 &&
-                (free_heap_bottom + range) == heap_ranges_to_free[free_cnt-1].addr) {
+                free_heap_top == heap_ranges_to_free[free_cnt-1].addr) {
                 heap_ranges_to_free[free_cnt-1].addr = free_heap_bottom;
                 heap_ranges_to_free[free_cnt-1].size += range;
+                assert(0);
             } else {
                 assert(free_cnt < EDMM_HEAP_RANGE_CNT);
                 /* found a new non-contiguous range */
