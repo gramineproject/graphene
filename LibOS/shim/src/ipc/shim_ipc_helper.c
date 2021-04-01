@@ -381,7 +381,7 @@ void del_ipc_port_fini(struct shim_ipc_port* port) {
         }
 
     if (!PAL_CB(parent_process)) {
-        sync_server_handle_disconnect(port);
+        sync_server_disconnect_callback(port);
     }
 
     put_ipc_port(port);
@@ -415,6 +415,9 @@ int broadcast_ipc(struct shim_ipc_msg* msg, struct shim_ipc_port* exclude_port) 
     struct shim_ipc_port* target_ports_stack[PORTS_ON_STACK_CNT];
     LISTP_FOR_EACH_ENTRY(port, &port_list, list) {
         if (port == exclude_port)
+            continue;
+        /* Do not send messages to myself */
+        if (port->vmid == g_process_ipc_info.vmid)
             continue;
         if (port->type & IPC_PORT_CONNECTION) {
             if (target_ports_cnt < PORTS_ON_STACK_CNT)

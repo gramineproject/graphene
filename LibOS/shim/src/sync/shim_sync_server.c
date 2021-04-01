@@ -5,6 +5,9 @@
 
 /*
  * Server part of the sync engine.
+ *
+ * TODO (performance): All the server work is protected by a global lock, and happens in one thread
+ * (IPC helper). With high volume of requests, this might be a performance bottleneck.
  */
 
 #include "pal.h"
@@ -101,20 +104,20 @@ static struct server_handle_client* find_handle_client(struct server_handle* han
     return client;
 }
 
-static inline int confirm_upgrade(struct server_handle* handle, struct server_handle_client* client,
-                                  int state) {
+static inline int send_confirm_upgrade(struct server_handle* handle,
+                                       struct server_handle_client* client, int state) {
     return ipc_sync_server_send(client->port, IPC_MSG_SYNC_CONFIRM_UPGRADE, handle->id,
                                 state, handle->data_size, handle->data);
 }
 
-static inline int request_downgrade(struct server_handle* handle,
-                                    struct server_handle_client* client, int state) {
+static inline int send_request_downgrade(struct server_handle* handle,
+                                         struct server_handle_client* client, int state) {
     return ipc_sync_server_send(client->port, IPC_MSG_SYNC_REQUEST_DOWNGRADE, handle->id,
                                 state, /*data_size=*/0, /*data=*/NULL);
 }
 
-static inline int confirm_close(struct server_handle* handle,
-                                struct server_handle_client* client) {
+static inline int send_confirm_close(struct server_handle* handle,
+                                     struct server_handle_client* client) {
     return ipc_sync_server_send(client->port, IPC_MSG_SYNC_CONFIRM_CLOSE, handle->id,
                                 /*state=*/SYNC_STATE_CLOSED, /*data_size=*/0, /*data=*/NULL);
 }
@@ -143,7 +146,7 @@ static int process_handle(struct server_handle* handle) {
         if (client->client_req_state == SYNC_STATE_SHARED && n_exclusive == 0) {
             /* Upgrade from INVALID to SHARED */
             assert(client->cur_state == SYNC_STATE_INVALID);
-            if ((ret = confirm_upgrade(handle, client, SYNC_STATE_SHARED)) < 0)
+            if ((ret = send_confirm_upgrade(handle, client, SYNC_STATE_SHARED)) < 0)
                 return ret;
 
             client->cur_state = SYNC_STATE_SHARED;
@@ -154,7 +157,7 @@ static int process_handle(struct server_handle* handle) {
                    && n_shared == 0) {
             /* Upgrade from INVALID to EXCLUSIVE */
             assert(client->cur_state == SYNC_STATE_INVALID);
-            if ((ret = confirm_upgrade(handle, client, SYNC_STATE_EXCLUSIVE)) < 0)
+            if ((ret = send_confirm_upgrade(handle, client, SYNC_STATE_EXCLUSIVE)) < 0)
                 return ret;
 
             client->cur_state = SYNC_STATE_EXCLUSIVE;
@@ -164,7 +167,7 @@ static int process_handle(struct server_handle* handle) {
         } else if (client->client_req_state == SYNC_STATE_EXCLUSIVE && n_exclusive == 0
                    && n_shared == 1 && client->cur_state == SYNC_STATE_SHARED) {
             /* Upgrade from SHARED to EXCLUSIVE */
-            if ((ret = confirm_upgrade(handle, client, SYNC_STATE_EXCLUSIVE)) < 0)
+            if ((ret = send_confirm_upgrade(handle, client, SYNC_STATE_EXCLUSIVE)) < 0)
                 return ret;
 
             client->cur_state = SYNC_STATE_EXCLUSIVE;
@@ -182,7 +185,7 @@ static int process_handle(struct server_handle* handle) {
         LISTP_FOR_EACH_ENTRY(client, &handle->clients, list) {
             if ((client->cur_state == SYNC_STATE_SHARED || client->cur_state == SYNC_STATE_EXCLUSIVE)
                     && client->server_req_state != SYNC_STATE_INVALID) {
-                if ((ret = request_downgrade(handle, client, SYNC_STATE_INVALID)) < 0)
+                if ((ret = send_request_downgrade(handle, client, SYNC_STATE_INVALID)) < 0)
                     return ret;
                 client->server_req_state = SYNC_STATE_INVALID;
             }
@@ -193,7 +196,7 @@ static int process_handle(struct server_handle* handle) {
         LISTP_FOR_EACH_ENTRY(client, &handle->clients, list) {
             if (client->cur_state == SYNC_STATE_EXCLUSIVE && client->server_req_state != SYNC_STATE_SHARED
                     && client->server_req_state != SYNC_STATE_INVALID) {
-                if ((ret = request_downgrade(handle, client, SYNC_STATE_SHARED)) < 0)
+                if ((ret = send_request_downgrade(handle, client, SYNC_STATE_SHARED)) < 0)
                     return ret;
                 client->server_req_state = SYNC_STATE_SHARED;
             }
@@ -203,7 +206,7 @@ static int process_handle(struct server_handle* handle) {
     return 0;
 }
 
-static void handle_request_upgrade(struct shim_ipc_port* port, uint64_t id, int state) {
+static void do_request_upgrade(struct shim_ipc_port* port, uint64_t id, int state) {
     assert(state == SYNC_STATE_SHARED || state == SYNC_STATE_EXCLUSIVE);
 
     lock(&g_server_lock);
@@ -249,7 +252,7 @@ static void update_handle_data(struct server_handle* handle, size_t data_size, v
         memcpy(handle->data, data, data_size);
 }
 
-static void handle_confirm_downgrade(struct shim_ipc_port* port, uint64_t id, int state,
+static void do_confirm_downgrade(struct shim_ipc_port* port, uint64_t id, int state,
                                      size_t data_size, void* data) {
     assert(state == SYNC_STATE_INVALID || state == SYNC_STATE_SHARED);
 
@@ -276,7 +279,7 @@ static void handle_confirm_downgrade(struct shim_ipc_port* port, uint64_t id, in
     unlock(&g_server_lock);
 }
 
-static void handle_request_close(struct shim_ipc_port* port, uint64_t id, int cur_state,
+static void do_request_close(struct shim_ipc_port* port, uint64_t id, int cur_state,
                                  size_t data_size, void* data) {
     assert(cur_state == SYNC_STATE_INVALID || cur_state == SYNC_STATE_SHARED
            || cur_state == SYNC_STATE_EXCLUSIVE);
@@ -294,7 +297,7 @@ static void handle_request_close(struct shim_ipc_port* port, uint64_t id, int cu
         update_handle_data(handle, data_size, data);
     }
 
-    if (confirm_close(handle, client) < 0)
+    if (send_confirm_close(handle, client) < 0)
         FATAL("sending CONFIRM_CLOSE");
 
     LISTP_DEL(client, &handle->clients, list);
@@ -318,18 +321,18 @@ static void handle_request_close(struct shim_ipc_port* port, uint64_t id, int cu
 }
 
 
-void sync_server_handle_message(struct shim_ipc_port* port, int code, uint64_t id, int state,
-                                size_t data_size, void* data) {
+void sync_server_message_callback(struct shim_ipc_port* port, int code, uint64_t id, int state,
+                                  size_t data_size, void* data) {
     switch (code) {
         case IPC_MSG_SYNC_REQUEST_UPGRADE:
             assert(data_size == 0);
-            handle_request_upgrade(port, id, state);
+            do_request_upgrade(port, id, state);
             break;
         case IPC_MSG_SYNC_CONFIRM_DOWNGRADE:
-            handle_confirm_downgrade(port, id, state, data_size, data);
+            do_confirm_downgrade(port, id, state, data_size, data);
             break;
         case IPC_MSG_SYNC_REQUEST_CLOSE:
-            handle_request_close(port, id, state, data_size, data);
+            do_request_close(port, id, state, data_size, data);
             break;
         default:
             FATAL("unknown message: %d\n", code);
@@ -343,7 +346,7 @@ void sync_server_handle_message(struct shim_ipc_port* port, int code, uint64_t i
  * cleanup probably means unclean Graphene exit (host SIGKILL, or fatal error), and in the case of
  * EXCLUSIVE handles, continuing will result in data loss.
  */
-void sync_server_handle_disconnect(struct shim_ipc_port* port) {
+void sync_server_disconnect_callback(struct shim_ipc_port* port) {
     if (!lock_created(&g_server_lock))
         return;
 

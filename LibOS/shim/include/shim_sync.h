@@ -80,7 +80,7 @@
  *    - client: REQUEST_UPGRADE(id, state)
  *    - server: CONFIRM_UPGRADE(id, state, data)
  *
- *    The client requests access to a resource with given ID (in either SHARED or EXCLUSIVE)
+ *    The client requests access to a resource with given ID, in either SHARED or EXCLUSIVE
  *    mode. The server downgrades the handles for other clients (if that's necessary for fulfilling
  *    the request), and replies with CONFIRM_UPGRADE once the resource can be used (sending latest
  *    data associated with it).
@@ -89,7 +89,7 @@
  *    - server: REQUEST_DOWNGRADE(id, state)
  *    - client: CONFIRM_DOWNGRADE(id, state, data)
  *
- *    The server requests client to dongrade its handle. The client replies with CONFIRM_DOWNGRADE
+ *    The server requests client to downgrade its handle. The client replies with CONFIRM_DOWNGRADE
  *    once it's not used anymore (sending latest data associated with it).
  *
  * 3. Close:
@@ -97,14 +97,22 @@
  *    - server: CONFIRM_CLOSE(id)
  *
  *    The client informs that it has stopped using a handle, and (if the state was EXCLUSIVE) sends
- *    latest data. The server cancels any pending requests from the client, and replies with
- *    CONFIRM_CLOSE.
+ *    latest data. After REQUEST_CLOSE, the client will send no further messages regarding the
+ *    handle.
+ *
+ *    The server unregisters the handle for client, and replies with CONFIRM_CLOSE. After
+ *    CONFIRM_CLOSE, the server will send no further messages related to the handle, and so the
+ *    handle can be safely destroyed by client.
  *
  *    This is done by client for every handle it destroys, and should be done for all handles before
  *    process exit.
  *
- * Note that the request and confirmation aren't necessarily paired one-to-one: in principle,
- * multiple REQUESTs can be answered with one CONFIRM.
+ * Note that the request and confirmation aren't necessarily paired one-to-one. For example:
+ *
+ * - the client might send REQUEST_UPGRADE to SHARED state, then another one to EXCLUSIVE state,
+ *   before the server replies with CONFIRM_UPGRADE to EXCLUSIVE
+ * - the server might send REQUEST_DOWNGRADE to SHARED state, then another one to INVALID state,
+ *   before the client replies with CONFIRM_DOWNGRADE to INVALID
  *
  * Here is an example interaction:
  *
@@ -247,9 +255,9 @@ void sync_unlock(struct sync_handle* handle);
 
 struct shim_ipc_port;
 
-void sync_client_handle_message(int code, uint64_t id, int state, size_t data_size, void* data);
-void sync_server_handle_message(struct shim_ipc_port* port, int code, uint64_t id, int state,
+void sync_client_message_callback(int code, uint64_t id, int state, size_t data_size, void* data);
+void sync_server_message_callback(struct shim_ipc_port* port, int code, uint64_t id, int state,
                                 size_t data_size, void* data);
-void sync_server_handle_disconnect(struct shim_ipc_port* port);
+void sync_server_disconnect_callback(struct shim_ipc_port* port);
 
 #endif /* _SHIM_SYNC_H_ */

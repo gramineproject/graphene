@@ -69,8 +69,8 @@ int ipc_sync_client_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     __UNUSED(port);
 
     sync_log("sync client callback", msg->code, msgin->id, msgin->state);
-    sync_client_handle_message(msg->code, msgin->id, msgin->state, msgin->data_size,
-                               &msgin->data);
+    sync_client_message_callback(msg->code, msgin->id, msgin->state, msgin->data_size,
+                                 &msgin->data);
     return 0;
 }
 
@@ -78,7 +78,7 @@ int ipc_sync_server_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     struct shim_ipc_sync_msg* msgin = (void*)&msg->msg;
 
     sync_log("sync server callback", msg->code, msgin->id, msgin->state);
-    sync_server_handle_message(port, msg->code, msgin->id, msgin->state, msgin->data_size,
-                               &msgin->data);
+    sync_server_message_callback(port, msg->code, msgin->id, msgin->state, msgin->data_size,
+                                 &msgin->data);
     return 0;
 }

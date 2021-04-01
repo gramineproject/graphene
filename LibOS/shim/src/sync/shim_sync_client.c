@@ -179,6 +179,7 @@ err:
 void sync_destroy(struct sync_handle* handle) {
     assert(handle->id != 0);
 
+    lock(&handle->use_lock);
     lock(&handle->prop_lock);
 
     assert(!handle->used);
@@ -263,7 +264,7 @@ static struct sync_handle* find_handle(uint64_t id) {
     return handle;
 }
 
-static void handle_request_downgrade(uint64_t id, int state) {
+static void do_request_downgrade(uint64_t id, int state) {
     assert(g_sync_enabled);
 
     struct sync_handle* handle = find_handle(id);
@@ -277,7 +278,7 @@ static void handle_request_downgrade(uint64_t id, int state) {
     unlock(&handle->prop_lock);
 }
 
-static void handle_confirm_upgrade(uint64_t id, int state, size_t data_size, void* data) {
+static void do_confirm_upgrade(uint64_t id, int state, size_t data_size, void* data) {
     assert(g_sync_enabled);
 
     struct sync_handle* handle = find_handle(id);
@@ -296,7 +297,7 @@ static void handle_confirm_upgrade(uint64_t id, int state, size_t data_size, voi
     unlock(&handle->prop_lock);
 }
 
-static void handle_confirm_close(uint64_t id) {
+static void do_confirm_close(uint64_t id) {
     assert(g_sync_enabled);
 
     struct sync_handle* handle = find_handle(id);
@@ -308,18 +309,17 @@ static void handle_confirm_close(uint64_t id) {
     unlock(&handle->prop_lock);
 }
 
-void sync_client_handle_message(int code, uint64_t id, int state,
-                                size_t data_size, void* data) {
+void sync_client_message_callback(int code, uint64_t id, int state, size_t data_size, void* data) {
     switch (code) {
         case IPC_MSG_SYNC_REQUEST_DOWNGRADE:
             assert(data_size == 0);
-            handle_request_downgrade(id, state);
+            do_request_downgrade(id, state);
             break;
         case IPC_MSG_SYNC_CONFIRM_UPGRADE:
-            handle_confirm_upgrade(id, state, data_size, data);
+            do_confirm_upgrade(id, state, data_size, data);
             break;
         case IPC_MSG_SYNC_CONFIRM_CLOSE:
-            handle_confirm_close(id);
+            do_confirm_close(id);
             break;
         default:
             FATAL("unknown message: %d\n", code);
