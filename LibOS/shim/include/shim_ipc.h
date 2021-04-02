@@ -120,6 +120,7 @@ struct shim_ipc_port {
     LISTP_TYPE(shim_ipc_msg_with_ack) msgs;
     struct shim_lock msgs_lock;
 
+    /* Protected by global lock in shim_sync_server.c. */
     unsigned int num_sync_handles;
 
     port_fini fini[MAX_IPC_PORT_FINI_CB];

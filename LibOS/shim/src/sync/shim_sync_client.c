@@ -7,11 +7,9 @@
  * Client part of the sync engine.
  */
 
-#include <assert.h>
-
-#include "shim_ipc.h"
-#include "shim_lock.h"
+#include "assert.h"
 #include "shim_internal.h"
+#include "shim_ipc.h"
 #include "shim_lock.h"
 #include "shim_process.h"
 #include "shim_sync.h"
@@ -28,14 +26,14 @@ static struct sync_handle* g_client_handles = NULL;
 static uint32_t g_client_counter = 1;
 static struct shim_lock g_client_lock;
 
-static inline void lock_client(void) {
+static void lock_client(void) {
     /* Allow creating/using handles in a single-thread scenario before sync client is initialized
      * (i.e. when lock is not created yet). */
     if (lock_created(&g_client_lock))
         lock(&g_client_lock);
 }
 
-static inline void unlock_client(void) {
+static void unlock_client(void) {
     /* Allow creating/using handles in a single-thread scenario before sync client is initialized
      * (i.e. when lock is not created yet). */
     if (lock_created(&g_client_lock))
@@ -49,11 +47,17 @@ static uint64_t sync_new_id(void) {
 
     lock_client();
     uint64_t id = ((uint64_t)pid << 32) + g_client_counter++;
+    if (g_client_counter == 0)
+        FATAL("g_client_counter wrapped around\n");
     unlock_client();
     return id;
 }
 
+/* Wait for a notification on handle->event. This function expects handle->prop_lock to be held, and
+ * temporarily releases it. */
 static void sync_wait(struct sync_handle* handle) {
+    assert(locked(&handle->prop_lock));
+
     handle->n_waiters++;
     unlock(&handle->prop_lock);
     if (object_wait_with_retry(handle->event) < 0)
@@ -69,11 +73,19 @@ static void sync_notify(struct sync_handle* handle) {
 }
 
 static void sync_downgrade(struct sync_handle* handle) {
+    assert(locked(&handle->prop_lock));
     assert(!handle->used);
     assert(handle->server_req_state != SYNC_STATE_NONE);
     assert(handle->server_req_state < handle->cur_state);
+
+    size_t data_size;
+    if (handle->cur_state == SYNC_STATE_EXCLUSIVE) {
+        data_size = handle->data_size;
+    } else {
+        data_size = 0;
+    }
     if (ipc_sync_client_send(IPC_MSG_SYNC_CONFIRM_DOWNGRADE, handle->id, handle->server_req_state,
-                             handle->data_size, handle->buf) < 0)
+                             data_size, handle->buf) < 0)
         FATAL("sending CONFIRM_DOWNGRADE");
     handle->cur_state = handle->server_req_state;
     handle->server_req_state = SYNC_STATE_NONE;
@@ -106,6 +118,7 @@ int shutdown_sync_client(void) {
         sync_destroy(handle);
         lock_client();
     }
+    unlock_client();
     return 0;
 }
 

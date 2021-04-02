@@ -23,14 +23,13 @@
 #include "shim_ipc.h"
 #include "shim_lock.h"
 #include "shim_process.h"
+#include "shim_sync.h"
 #include "shim_table.h"
 #include "shim_tcb.h"
 #include "shim_thread.h"
 #include "shim_vdso.h"
 #include "shim_vma.h"
 #include "toml.h"
-
-#include "shim_sync.h"
 
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
               "shim_tcb_t does not fit into PAL_TCB; please increase PAL_LIBOS_TCB_SIZE");

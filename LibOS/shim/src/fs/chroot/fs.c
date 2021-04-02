@@ -666,6 +666,7 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
         goto out;
     }
 
+    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     ret = DkStreamRead(hdl->pal_handle, file->marker, &count, buf, NULL, 0);
@@ -679,6 +680,7 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
     }
 
     file_sync_unlock(file);
+    unlock(&hdl->lock);
 out:
     return ret;
 }
@@ -706,6 +708,7 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
         goto out;
     }
 
+    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     ret = DkStreamWrite(hdl->pal_handle, file->marker, &count, (void*)buf, NULL);
@@ -723,6 +726,7 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     }
 
     file_sync_unlock(file);
+    unlock(&hdl->lock);
 out:
     return ret;
 }
@@ -752,6 +756,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
         return ret;
 
     struct shim_file_handle* file = &hdl->info.file;
+    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     /* TODO: this function emulates lseek() completely inside the LibOS, but some device files
@@ -788,6 +793,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
 
 out:
     file_sync_unlock(file);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -801,6 +807,7 @@ static int chroot_truncate(struct shim_handle* hdl, off_t len) {
         return -EINVAL;
 
     struct shim_file_handle* file = &hdl->info.file;
+    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     file->size = len;
@@ -821,6 +828,7 @@ static int chroot_truncate(struct shim_handle* hdl, off_t len) {
 
 out:
     file_sync_unlock(file);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -966,6 +974,11 @@ out:
     return ret;
 }
 
+static void chroot_hput(struct shim_handle* hdl) {
+    if (sync_is_initialized(&hdl->info.file.sync))
+        sync_destroy(&hdl->info.file.sync);
+}
+
 static int chroot_checkout(struct shim_handle* hdl) {
     if (hdl->fs == &chroot_builtin_fs)
         hdl->fs = NULL;
@@ -987,6 +1000,14 @@ static int chroot_checkout(struct shim_handle* hdl) {
     }
 
     return 0;
+}
+
+static int chroot_checkin(struct shim_handle* hdl) {
+    /* Recreate the sync handle with the same ID. */
+    uint64_t id = hdl->info.file.sync.id;
+    size_t buf_size = hdl->info.file.sync.buf_size;
+    hdl->info.file.sync.id = 0;
+    return sync_init(&hdl->info.file.sync, id, buf_size);
 }
 
 static ssize_t chroot_checkpoint(void** checkpoint, void* mount_data) {
@@ -1058,6 +1079,7 @@ static off_t chroot_poll(struct shim_handle* hdl, int poll_type) {
         return size;
 
     struct shim_file_handle* file = &hdl->info.file;
+    lock(&hdl->lock);
     file_sync_lock(file, SYNC_STATE_EXCLUSIVE);
 
     if (check_version(hdl) && file->size < size)
@@ -1076,6 +1098,7 @@ static off_t chroot_poll(struct shim_handle* hdl, int poll_type) {
 
 out:
     file_sync_unlock(file);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -1156,7 +1179,9 @@ struct shim_fs_ops chroot_fs_ops = {
     .seek       = &chroot_seek,
     .hstat      = &chroot_hstat,
     .truncate   = &chroot_truncate,
+    .hput       = &chroot_hput,
     .checkout   = &chroot_checkout,
+    .checkin    = &chroot_checkin,
     .checkpoint = &chroot_checkpoint,
     .migrate    = &chroot_migrate,
     .poll       = &chroot_poll,

@@ -8,8 +8,6 @@
  * the actual logic to sync_server_* and sync_client_* functions.
  */
 
-#include <assert.h>
-
 #include "shim_internal.h"
 #include "shim_ipc.h"
 #include "shim_sync.h"

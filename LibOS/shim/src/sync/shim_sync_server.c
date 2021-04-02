@@ -24,9 +24,9 @@
     } while(0)
 
 
-DEFINE_LIST(server_handle_client);
-DEFINE_LISTP(server_handle_client);
-struct server_handle_client {
+DEFINE_LIST(sync_handle_client);
+DEFINE_LISTP(sync_handle_client);
+struct sync_handle_client {
     /* Client port */
     struct shim_ipc_port* port;
 
@@ -37,7 +37,7 @@ struct server_handle_client {
     /* Requested by server; always lower than cur_state, or NONE */
     int server_req_state;
 
-    LIST_TYPE(server_handle_client) list;
+    LIST_TYPE(sync_handle_client) list;
 };
 
 struct server_handle {
@@ -45,12 +45,12 @@ struct server_handle {
     size_t data_size;
     void* data;
 
-    LISTP_TYPE(server_handle_client) clients;
+    LISTP_TYPE(sync_handle_client) clients;
 
     UT_hash_handle hh;
 };
 
-static struct server_handle *g_server_handles = NULL;
+static struct server_handle* g_server_handles = NULL;
 static struct shim_lock g_server_lock;
 
 int init_sync_server(void) {
@@ -60,6 +60,8 @@ int init_sync_server(void) {
 }
 
 static struct server_handle* find_handle(uint64_t id, bool create) {
+    assert(locked(&g_server_lock));
+
     struct server_handle* handle = NULL;
     HASH_FIND(hh, g_server_handles, &id, sizeof(id), handle);
     if (!handle && create) {
@@ -76,10 +78,12 @@ static struct server_handle* find_handle(uint64_t id, bool create) {
     return handle;
 }
 
-static struct server_handle_client* find_handle_client(struct server_handle* handle,
-                                                       struct shim_ipc_port* port,
-                                                       bool create) {
-    struct server_handle_client* client;
+static struct sync_handle_client* find_handle_client(struct server_handle* handle,
+                                                     struct shim_ipc_port* port,
+                                                     bool create) {
+    assert(locked(&g_server_lock));
+
+    struct sync_handle_client* client;
     LISTP_FOR_EACH_ENTRY(client, &handle->clients, list) {
         if (client->port == port)
             return client;
@@ -104,29 +108,36 @@ static struct server_handle_client* find_handle_client(struct server_handle* han
     return client;
 }
 
-static inline int send_confirm_upgrade(struct server_handle* handle,
-                                       struct server_handle_client* client, int state) {
+static int send_confirm_upgrade(struct server_handle* handle, struct sync_handle_client* client,
+                                int state) {
+    assert(locked(&g_server_lock));
+
     return ipc_sync_server_send(client->port, IPC_MSG_SYNC_CONFIRM_UPGRADE, handle->id,
                                 state, handle->data_size, handle->data);
 }
 
-static inline int send_request_downgrade(struct server_handle* handle,
-                                         struct server_handle_client* client, int state) {
+static int send_request_downgrade(struct server_handle* handle, struct sync_handle_client* client,
+                                  int state) {
+    assert(locked(&g_server_lock));
+
     return ipc_sync_server_send(client->port, IPC_MSG_SYNC_REQUEST_DOWNGRADE, handle->id,
                                 state, /*data_size=*/0, /*data=*/NULL);
 }
 
-static inline int send_confirm_close(struct server_handle* handle,
-                                     struct server_handle_client* client) {
+static int send_confirm_close(struct server_handle* handle, struct sync_handle_client* client) {
+    assert(locked(&g_server_lock));
+
     return ipc_sync_server_send(client->port, IPC_MSG_SYNC_CONFIRM_CLOSE, handle->id,
                                 /*state=*/SYNC_STATE_CLOSED, /*data_size=*/0, /*data=*/NULL);
 }
 
 /* Process handle information after state change */
 static int process_handle(struct server_handle* handle) {
+    assert(locked(&g_server_lock));
+
     unsigned int n_shared = 0, n_exclusive = 0;
     unsigned int want_shared = 0, want_exclusive = 0;
-    struct server_handle_client* client;
+    struct sync_handle_client* client;
     int ret;
 
     LISTP_FOR_EACH_ENTRY(client, &handle->clients, list) {
@@ -190,8 +201,7 @@ static int process_handle(struct server_handle* handle) {
                 client->server_req_state = SYNC_STATE_INVALID;
             }
         }
-    }
-    else if (want_shared) {
+    } else if (want_shared) {
         /* Some clients wait for SHARED, try to downgrade EXCLUSIVE to SHARED */
         LISTP_FOR_EACH_ENTRY(client, &handle->clients, list) {
             if (client->cur_state == SYNC_STATE_EXCLUSIVE && client->server_req_state != SYNC_STATE_SHARED
@@ -215,30 +225,30 @@ static void do_request_upgrade(struct shim_ipc_port* port, uint64_t id, int stat
     if (!(handle = find_handle(id, /*create=*/true)))
         FATAL("Cannot create a new handle\n");
 
-    struct server_handle_client* client;
+    struct sync_handle_client* client;
     if ((!(client = find_handle_client(handle, port, /*create=*/true))))
         FATAL("Cannot create a new handle client\n");
 
-    if (client->cur_state < state) {
-        client->cur_state = SYNC_STATE_INVALID;
-        client->client_req_state = state;
+    assert(client->cur_state < state);
+    client->client_req_state = state;
 
-        /* Move the client to the end of the list, so that new requests are handled in FIFO
-         * order. */
-        if (LISTP_NEXT_ENTRY(client, &handle->clients, list) != NULL) {
-            LISTP_DEL(client, &handle->clients, list);
-            LISTP_ADD_TAIL(client, &handle->clients, list);
-        }
-
-        int ret;
-        if ((ret = process_handle(handle)) < 0)
-            FATAL("Error messaging clients: %d\n", ret);
+    /* Move the client to the end of the list, so that new requests are handled in FIFO
+     * order. */
+    if (LISTP_NEXT_ENTRY(client, &handle->clients, list) != NULL) {
+        LISTP_DEL(client, &handle->clients, list);
+        LISTP_ADD_TAIL(client, &handle->clients, list);
     }
+
+    int ret;
+    if ((ret = process_handle(handle)) < 0)
+        FATAL("Error messaging clients: %d\n", ret);
 
     unlock(&g_server_lock);
 }
 
 static void update_handle_data(struct server_handle* handle, size_t data_size, void* data) {
+    assert(locked(&g_server_lock));
+
     if (data_size != handle->data_size) {
         free(handle->data);
         handle->data = NULL;
@@ -253,7 +263,7 @@ static void update_handle_data(struct server_handle* handle, size_t data_size, v
 }
 
 static void do_confirm_downgrade(struct shim_ipc_port* port, uint64_t id, int state,
-                                     size_t data_size, void* data) {
+                                 size_t data_size, void* data) {
     assert(state == SYNC_STATE_INVALID || state == SYNC_STATE_SHARED);
 
     lock(&g_server_lock);
@@ -262,15 +272,22 @@ static void do_confirm_downgrade(struct shim_ipc_port* port, uint64_t id, int st
     if (!(handle = find_handle(id, /*create=*/true)))
         FATAL("Cannot create a new handle\n");
 
-    struct server_handle_client* client;
+    struct sync_handle_client* client;
     if ((!(client = find_handle_client(handle, port, /*create=*/true))))
         FATAL("Cannot create a new handle client\n");
+
+    assert(client->cur_state > state);
+
+    if (client->cur_state == SYNC_STATE_EXCLUSIVE) {
+        update_handle_data(handle, data_size, data);
+    } else {
+        assert(data_size == 0);
+    }
 
     client->cur_state = state;
     if (state <= client->server_req_state)
         client->server_req_state = SYNC_STATE_NONE;
 
-    update_handle_data(handle, data_size, data);
 
     int ret;
     if ((ret = process_handle(handle)) < 0)
@@ -280,7 +297,7 @@ static void do_confirm_downgrade(struct shim_ipc_port* port, uint64_t id, int st
 }
 
 static void do_request_close(struct shim_ipc_port* port, uint64_t id, int cur_state,
-                                 size_t data_size, void* data) {
+                             size_t data_size, void* data) {
     assert(cur_state == SYNC_STATE_INVALID || cur_state == SYNC_STATE_SHARED
            || cur_state == SYNC_STATE_EXCLUSIVE);
     lock(&g_server_lock);
@@ -289,12 +306,14 @@ static void do_request_close(struct shim_ipc_port* port, uint64_t id, int cur_st
     if (!(handle = find_handle(id, /*create=*/false)))
         FATAL("REQUEST_CLOSE for unknown handle\n");
 
-    struct server_handle_client* client;
+    struct sync_handle_client* client;
     if ((!(client = find_handle_client(handle, port, /*create=*/false))))
         FATAL("REQUEST_CLOSE for unknown client\n");
 
     if (cur_state == SYNC_STATE_EXCLUSIVE) {
         update_handle_data(handle, data_size, data);
+    } else {
+        assert(data_size == 0);
     }
 
     if (send_confirm_close(handle, client) < 0)
@@ -311,6 +330,8 @@ static void do_request_close(struct shim_ipc_port* port, uint64_t id, int cur_st
     if (LISTP_EMPTY(&handle->clients)) {
         log_trace("sync server: deleting unused handle: 0x%lx\n", id);
         HASH_DELETE(hh, g_server_handles, handle);
+        free(handle->data);
+        free(handle);
     } else {
         int ret;
         if ((ret = process_handle(handle)) < 0)

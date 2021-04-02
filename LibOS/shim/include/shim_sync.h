@@ -17,7 +17,7 @@
  * this will only happen when another process needs to modify the same resource, and locks its own
  * handle in EXCLUSIVE mode (which means that data held by other processes are about to become
  * invalid). Therefore, as long as the handle is uncontested, there is no communication overhead for
- * using it.
+ * using it repeatedly (only for first use and shutdown).
  *
  * Example usage (note that the "Lock" and "Unlock" parts should probably be extracted to helper
  * functions):
@@ -140,8 +140,8 @@
  *   fine-grained locking
  */
 
-#ifndef _SHIM_SYNC_H_
-#define _SHIM_SYNC_H_
+#ifndef SHIM_SYNC_H_
+#define SHIM_SYNC_H_
 
 #include <stdint.h>
 
@@ -159,7 +159,7 @@
 /* Describes a state of a client handle. */
 enum {
     /* No state, used for {client_server}_req_state */
-    SYNC_STATE_NONE = 0,
+    SYNC_STATE_NONE,
 
     /* Not registered with server, and invalid */
     SYNC_STATE_CLOSED,
@@ -188,10 +188,13 @@ struct sync_handle {
     size_t buf_size;
     void* buf;
 
-    /* Size of currently stored data. Should be always less than buf_size. */
+    /* Size of currently stored data. Should be always less or equal buf_size. */
     size_t data_size;
 
-    /* Internal properties lock. Protects all the following fields. */
+    /*
+     * Internal properties lock. Protects all the following fields. If used together with use_lock,
+     * then use_lock needs to be taken first.
+     */
     struct shim_lock prop_lock;
 
     /* Notification event for state changes. */
@@ -260,4 +263,4 @@ void sync_server_message_callback(struct shim_ipc_port* port, int code, uint64_t
                                 size_t data_size, void* data);
 void sync_server_disconnect_callback(struct shim_ipc_port* port);
 
-#endif /* _SHIM_SYNC_H_ */
+#endif /* SHIM_SYNC_H_ */
