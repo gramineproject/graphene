@@ -150,8 +150,8 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
 
     if (IS_ERR_P(addr)) {
         if (ERRNO_P(addr) == EPERM) {
-            pal_printf("Permission denied on mapping enclave. "
-                       "You may need to set sysctl vm.mmap_min_addr to zero\n");
+            urts_log_error("Permission denied on mapping enclave. "
+                           "You may need to set sysctl vm.mmap_min_addr to zero\n");
         }
 
         urts_log_error("ECREATE failed in allocating EPC memory (errno = %ld)\n", -ERRNO_P(addr));

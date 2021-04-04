@@ -10,7 +10,7 @@
 
 #include "pal.h"
 
-int pal_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+void pal_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 void warn(const char* format, ...);
 
 void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr);

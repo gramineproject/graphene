@@ -251,19 +251,19 @@ int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
                         PAL_NUM* quote_size);
 int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
 
-#define INIT_FAIL(exitcode, reason)                                                           \
-    do {                                                                                      \
-        printf("PAL failed at " __FILE__ ":%s:%u (exitcode = %u, reason=%s)\n", __FUNCTION__, \
-               (unsigned int)__LINE__, (unsigned int)(exitcode), reason);                     \
-        _DkProcessExit(exitcode);                                                             \
+#define INIT_FAIL(exitcode, reason)                                                              \
+    do {                                                                                         \
+        log_error("PAL failed at " __FILE__ ":%s:%u (exitcode = %u, reason=%s)\n", __FUNCTION__, \
+                  (unsigned int)__LINE__, (unsigned int)(exitcode), reason);                     \
+        _DkProcessExit(exitcode);                                                                \
     } while (0)
 
-#define INIT_FAIL_MANIFEST(exitcode, reason)                                                  \
-    do {                                                                                      \
-        printf("PAL failed at parsing the manifest: %s\n"                                     \
-               "  Graphene switched to the TOML format recently, please update the manifest\n"\
-               "  (in particular, string values must be put in double quotes)\n", reason);    \
-        _DkProcessExit(exitcode);                                                             \
+#define INIT_FAIL_MANIFEST(exitcode, reason)                                                     \
+    do {                                                                                         \
+        log_error("PAL failed at parsing the manifest: %s\n"                                     \
+                  "  Graphene switched to the TOML format recently, please update the manifest\n"\
+                  "  (in particular, string values must be put in double quotes)\n", reason);    \
+        _DkProcessExit(exitcode);                                                                \
     } while (0)
 
 /* Loading ELF binaries */
@@ -306,6 +306,8 @@ int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.
 void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+/* This function emits logs regardless of log_level setting and doesn't prefix the output. */
+void log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #define PAL_LOG_DEFAULT_LEVEL  PAL_LOG_ERROR
 #define PAL_LOG_DEFAULT_FD     2

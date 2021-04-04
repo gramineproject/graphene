@@ -25,10 +25,10 @@ static inline bool is_internal_tid(unsigned int tid) {
     return tid >= INTERNAL_TID_BASE;
 }
 
-struct debug_buf {
-    int start;
-    int end;
-    char buf[DEBUGBUF_SIZE];
+struct log_buf {
+    size_t start;
+    size_t end;
+    char buf[LOG_BUF_SIZE];
 };
 
 #include "pal.h"
@@ -39,14 +39,11 @@ extern int g_log_level;
 
 #include <stdarg.h>
 
-void debug_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-void debug_puts(const char* str);
-void debug_putch(int ch);
-void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
-
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.
 void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+/* This function emits logs regardless of log_level setting and doesn't prefix the output. */
+void log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
 #define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)

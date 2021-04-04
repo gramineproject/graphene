@@ -16,9 +16,7 @@
 
 #define CP_INIT_VMA_SIZE (64 * 1024 * 1024) /* 64MB */
 
-/* debug message printout */
-#define DEBUGBUF_SIZE  256
-#define DEBUGBUF_BREAK 0
+#define LOG_BUF_SIZE  256
 
 #define DEFAULT_VMA_COUNT 64
 

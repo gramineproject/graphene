@@ -221,9 +221,9 @@ static int _vma_bkeep_remove(uintptr_t begin, uintptr_t end, bool is_internal,
     while (vma && vma->begin < end) {
         if (!!(vma->flags & VMA_INTERNAL) != is_internal) {
             if (is_internal) {
-                log_warning("Warning: LibOS tried to free a user vma!\n");
+                log_warning("LibOS tried to free a user vma!\n");
             } else {
-                log_warning("Warning: user app tried to free an internal vma!\n");
+                log_warning("user app tried to free an internal vma!\n");
             }
             return -EACCES;
         }
@@ -236,7 +236,7 @@ static int _vma_bkeep_remove(uintptr_t begin, uintptr_t end, bool is_internal,
     if (vma->begin < begin) {
         if (end < vma->end) {
             if (!new_vma_ptr) {
-                log_warning("Warning: need an additional vma to free this range!\n");
+                log_warning("need an additional vma to free this range!\n");
                 return -ENOMEM;
             }
             struct shim_vma* new_vma = *new_vma_ptr;

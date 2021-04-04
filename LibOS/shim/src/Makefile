@@ -135,7 +135,7 @@ objs = \
 	sys/shim_uname.o \
 	sys/shim_wait.o \
 	sys/shim_wrappers.o \
-	utils/printf.o \
+	utils/log.o \
 	utils/strobjs.o \
 	vdso/vdso-data.o \
 	$(addprefix arch/$(ARCH)/,$(arch_objs))

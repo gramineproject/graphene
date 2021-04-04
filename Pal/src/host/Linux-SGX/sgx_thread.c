@@ -45,14 +45,14 @@ void update_and_print_stats(bool process_wide) {
 
     int tid = INLINE_SYSCALL(gettid, 0);
     assert(tid > 0);
-    pal_printf("----- SGX stats for thread %d -----\n"
-               "  # of EENTERs:        %lu\n"
-               "  # of EEXITs:         %lu\n"
-               "  # of AEXs:           %lu\n"
-               "  # of sync signals:   %lu\n"
-               "  # of async signals:  %lu\n",
-               tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt,
-               tcb->sync_signal_cnt, tcb->async_signal_cnt);
+    urts_log_always("----- SGX stats for thread %d -----\n"
+                    "  # of EENTERs:        %lu\n"
+                    "  # of EEXITs:         %lu\n"
+                    "  # of AEXs:           %lu\n"
+                    "  # of sync signals:   %lu\n"
+                    "  # of async signals:  %lu\n",
+                    tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt,
+                    tcb->sync_signal_cnt, tcb->async_signal_cnt);
 
     g_eenter_cnt       += tcb->eenter_cnt;
     g_eexit_cnt        += tcb->eexit_cnt;
@@ -63,15 +63,14 @@ void update_and_print_stats(bool process_wide) {
     if (process_wide) {
         int pid = INLINE_SYSCALL(getpid, 0);
         assert(pid > 0);
-
-        pal_printf("----- Total SGX stats for process %d -----\n"
-                   "  # of EENTERs:        %lu\n"
-                   "  # of EEXITs:         %lu\n"
-                   "  # of AEXs:           %lu\n"
-                   "  # of sync signals:   %lu\n"
-                   "  # of async signals:  %lu\n",
-                   pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt,
-                   g_sync_signal_cnt, g_async_signal_cnt);
+        urts_log_always("----- Total SGX stats for process %d -----\n"
+                        "  # of EENTERs:        %lu\n"
+                        "  # of EEXITs:         %lu\n"
+                        "  # of AEXs:           %lu\n"
+                        "  # of sync signals:   %lu\n"
+                        "  # of async signals:  %lu\n",
+                        pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt,
+                        g_sync_signal_cnt, g_async_signal_cnt);
     }
 }
 

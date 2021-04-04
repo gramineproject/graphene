@@ -28,11 +28,11 @@ void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
     __atomic_store_n(&g_handlers[event], handler, __ATOMIC_RELEASE);
 }
 
-/* This does not return */
 noreturn void __abort(void) {
     _DkProcessExit(ENOTRECOVERABLE);
 }
 
+// TODO: Remove this and always use log_*.
 void warn(const char* format, ...) {
     va_list args;
     va_start(args, format);

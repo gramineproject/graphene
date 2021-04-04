@@ -134,11 +134,12 @@ static struct link_map g_pal_map;
 
 noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
-    printf("USAGE:\n"
-           "\tFirst process: %s <path to libpal.so> init <application> args...\n"
-           "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
-           self, self);
-    printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
+    log_always("USAGE:\n"
+               "\tFirst process: %s <path to libpal.so> init <application> args...\n"
+               "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
+               self, self);
+    log_always("This is an internal interface. Use pal_loader to launch applications in "
+               "Graphene.\n");
     _DkProcessExit(1);
 }
 

@@ -1043,8 +1043,8 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
 
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
-            log_warning("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a write "
-                        "that unexpectedly blocks.\n");
+            log_warning("MSG_DONTWAIT on blocking socket is ignored, may lead to a write that "
+                        "unexpectedly blocks.\n");
         }
         flags &= ~MSG_DONTWAIT;
     }
@@ -1288,8 +1288,8 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
 
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
-            log_warning("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a read "
-                        "that unexpectedly blocks.\n");
+            log_warning("MSG_DONTWAIT on blocking socket is ignored, may lead to a read that "
+                        "unexpectedly blocks.\n");
         }
         flags &= ~MSG_DONTWAIT;
     }

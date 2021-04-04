@@ -17,7 +17,7 @@ struct shim_context {
     unsigned long tls; /* Used only in clone. */
 };
 
-struct debug_buf;
+struct log_buf;
 
 typedef struct shim_tcb shim_tcb_t;
 struct shim_tcb {
@@ -34,7 +34,7 @@ struct shim_tcb {
     /* Scratch space to temporarily store a register. On some architectures (e.g. x86_64 inside
      * an SGX enclave) we lack a way to restore all (or at least some) registers atomically. */
     void*               syscall_scratch_pc;
-    struct debug_buf*   debug_buf;
+    struct log_buf*     log_buf;
     void*               vma_cache;
 
     /* This record is for testing the memory of user inputs.

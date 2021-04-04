@@ -604,7 +604,7 @@ BEGIN_CP_FUNC(thread) {
             /* don't export stale pointers */
             new_tcb->self      = NULL;
             new_tcb->tp        = NULL;
-            new_tcb->debug_buf = NULL;
+            new_tcb->log_buf   = NULL;
             new_tcb->vma_cache = NULL;
 
             size_t roff = ADD_CP_OFFSET(sizeof(*thread->shim_tcb->context.regs));
@@ -676,7 +676,7 @@ BEGIN_RS_FUNC(thread) {
 
     set_cur_thread(thread);
 
-    ret = debug_setbuf(thread->shim_tcb, NULL);
+    ret = log_setbuf(thread->shim_tcb, NULL);
     if (ret < 0) {
         return ret;
     }
