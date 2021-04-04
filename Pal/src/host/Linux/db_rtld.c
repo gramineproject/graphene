@@ -34,13 +34,13 @@ bool is_in_vdso(uintptr_t addr) {
 void _DkDebugMapAdd(const char* name, void* addr) {
     int ret = debug_map_add(name, addr);
     if (ret < 0)
-        printf("debug_map_add(%s, %p) failed: %d\n", name, addr, ret);
+        log_error("debug_map_add(%s, %p) failed: %d\n", name, addr, ret);
 }
 
 void _DkDebugMapRemove(void* addr) {
     int ret = debug_map_remove(addr);
     if (ret < 0)
-        printf("debug_map_remove(%p) failed: %d\n", addr, ret);
+        log_error("debug_map_remove(%p) failed: %d\n", addr, ret);
 }
 
 void setup_pal_map(struct link_map* pal_map) {

@@ -483,7 +483,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         mmap, 6, DBGINFO_ADDR, sizeof(struct enclave_dbginfo), PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     if (IS_ERR_P(dbg)) {
-        urts_log_warning("Warning: Cannot allocate debug information (GDB will not work)\n");
+        urts_log_warning("Cannot allocate debug information (GDB will not work)\n");
     } else {
         dbg->pid            = INLINE_SYSCALL(getpid, 0);
         dbg->base           = enclave->baseaddr;
@@ -632,8 +632,8 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     enclave_info->thread_num = thread_num_int64;
 
     if (!enclave_info->thread_num) {
-        urts_log_warning("Warning: Number of enclave threads ('sgx.thread_num') is not specified; "
-                         "assumed to be 1\n");
+        urts_log_warning("Number of enclave threads ('sgx.thread_num') is not specified; assumed "
+                         "to be 1\n");
         enclave_info->thread_num = 1;
     }
 
@@ -938,8 +938,8 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
 
     /* TODO: correctly support offline cores */
     if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
-         printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
-                "which may lead to subpar performance\n");
+         urts_log_warning("some CPUs seem to be offline; Graphene doesn't take this into account "
+                          "which may lead to subpar performance\n");
     }
 
     int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
@@ -1071,10 +1071,12 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     end_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 
     if (g_sgx_enable_stats) {
-        /* this shows the time for Graphene + the Intel SGX driver to initialize the untrusted
-         * PAL and config and create the SGX enclave, add enclave pages, measure and init it */
-        pal_printf("----- SGX enclave loading time = %10lu microseconds -----\n",
-                   end_time - start_time);
+        /* This shows the time for Graphene + the Intel SGX driver to initialize the untrusted
+         * PAL, config and create the SGX enclave, add enclave pages, measure and init it.
+         * The user explicitly asked to print this, so we disregard the log level.
+         */
+        urts_log_always("----- SGX enclave loading time = %10lu microseconds -----\n",
+                        end_time - start_time);
     }
 
     /* start running trusted PAL */
@@ -1096,11 +1098,12 @@ static void force_linux_to_grow_stack(void) {
 
 noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
-    printf("USAGE:\n"
-           "\tFirst process: %s <path to libpal.so> init <application> args...\n"
-           "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
-           self, self);
-    printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
+    urts_log_always("USAGE:\n"
+                    "\tFirst process: %s <path to libpal.so> init <application> args...\n"
+                    "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
+                    self, self);
+    urts_log_always("This is an internal interface. Use pal_loader to launch applications in "
+                    "Graphene.\n");
     INLINE_SYSCALL(exit_group, 1, 1);
     die_or_inf_loop();
 }

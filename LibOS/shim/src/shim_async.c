@@ -147,8 +147,8 @@ static void shim_async_helper(void* arg) {
     shim_tcb_init();
     set_cur_thread(self);
 
-    struct debug_buf debug_buf;
-    (void)debug_setbuf(shim_get_tcb(), &debug_buf);
+    struct log_buf log_buf;
+    (void)log_setbuf(shim_get_tcb(), &log_buf);
 
     lock(&async_helper_lock);
     bool notme = (self != async_helper_thread);

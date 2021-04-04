@@ -118,7 +118,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
                 }
             } else {
 #ifdef DEBUG_MUTEX
-                printf("futex failed (err = %d)\n", ret);
+                log_error("futex failed (err = %d)\n", ret);
 #endif
                 ret = unix_to_pal_error(ret);
                 __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
@@ -138,7 +138,7 @@ out:
 
 #ifdef DEBUG_MUTEX
     if (ret < 0)
-        printf("mutex failed (%s, tid = %d)\n", PAL_STRERROR(ret), tid);
+        log_error("mutex failed (%s, tid = %d)\n", PAL_STRERROR(ret), tid);
 #endif
     return ret;
 }

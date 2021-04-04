@@ -100,7 +100,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     /* NOTREACHED */
 
 error:
-    log_error("execve: failed %d\n", ret);
+    log_error("execve failed with errno=%d\n", ret);
     process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
 }
 

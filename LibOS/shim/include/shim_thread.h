@@ -147,20 +147,20 @@ void put_signal_dispositions(struct shim_signal_dispositions* dispositions);
 void get_thread(struct shim_thread* thread);
 void put_thread(struct shim_thread* thread);
 
-void debug_setprefix(shim_tcb_t* tcb);
+void log_setprefix(shim_tcb_t* tcb);
 
-/* Set `debug_buf` for `tcb`. If `debug_buf` is `NULL`, then new one is allocated. If `debug_buf`
+/* Set `log_buf` for `tcb`. If `log_buf` is `NULL`, then new one is allocated. If `log_buf`
  * is not NULL, this function cannot fail. */
-static inline int debug_setbuf(shim_tcb_t* tcb, struct debug_buf* debug_buf) {
+static inline int log_setbuf(shim_tcb_t* tcb, struct log_buf* log_buf) {
     if (g_log_level <= PAL_LOG_NONE)
         return 0;
 
-    tcb->debug_buf = debug_buf ? debug_buf : malloc(sizeof(struct debug_buf));
-    if (!tcb->debug_buf) {
+    tcb->log_buf = log_buf ? log_buf : malloc(sizeof(struct log_buf));
+    if (!tcb->log_buf) {
         return -ENOMEM;
     }
 
-    debug_setprefix(tcb);
+    log_setprefix(tcb);
     return 0;
 }
 
@@ -194,8 +194,8 @@ static inline void set_cur_thread(struct shim_thread* thread) {
     tcb->libos_stack_bottom = thread->libos_stack_bottom;
     thread->shim_tcb = tcb;
 
-    if (tcb->debug_buf)
-        debug_setprefix(tcb);
+    if (tcb->log_buf)
+        log_setprefix(tcb);
 }
 
 static inline void thread_setwait(struct shim_thread** queue, struct shim_thread* thread) {

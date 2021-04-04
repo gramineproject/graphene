@@ -376,8 +376,8 @@ noreturn void* shim_init(int argc, void* args) {
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
 
-    struct debug_buf debug_buf;
-    (void)debug_setbuf(shim_get_tcb(), &debug_buf);
+    struct log_buf log_buf;
+    (void)log_setbuf(shim_get_tcb(), &log_buf);
 
     log_debug("Host: %s\n", PAL_CB(host_type));
 

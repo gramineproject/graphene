@@ -153,7 +153,7 @@ static int insert_envs_from_manifest(const char*** envpp) {
     return 0;
 }
 
-static void set_debug_type(void) {
+static void configure_logging(void) {
     int ret = 0;
     int log_level = PAL_LOG_DEFAULT_LEVEL;
 
@@ -334,8 +334,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (use_cmdline_argv) {
         /* Warn only in the first process. */
         if (!parent_process) {
-            log_error("WARNING: Using insecure argv source. Don't use this configuration in "
-                      "production!\n");
+            log_error("Using insecure argv source. Don't use this configuration in production!\n");
         }
     } else {
         char* argv_src_file = NULL;
@@ -373,8 +372,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (use_host_env) {
         /* Warn only in the first process. */
         if (!parent_process) {
-            log_error("WARNING: Forwarding host environment variables to the app is enabled. Don't "
-                      "use this configuration in production!\n");
+            log_error("Forwarding host environment variables to the app is enabled. Don't use this "
+                      "configuration in production!\n");
         }
     } else {
         environments = malloc(sizeof(*environments));
@@ -422,7 +421,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         exec_uri = entrypoint;
     }
 
-    set_debug_type();
+    configure_logging();
 
     g_pal_control.host_type       = XSTRINGIFY(HOST_TYPE);
     g_pal_control.process_id      = _DkGetProcessId();
