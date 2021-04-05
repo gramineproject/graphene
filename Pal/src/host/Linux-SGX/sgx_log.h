@@ -24,7 +24,7 @@ int urts_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 // pasting it here and making `inline`, but our current linker scripts prevent both.
 void _urts_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 /* This function emits logs regardless of log_level setting and doesn't prefix the output. It's
- * intended for outputs explicitly requested by the user. */
+ * intended for outputs explicitly requested by Graphene user. */
 void urts_log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #define urts_log_error(fmt...)    _urts_log(PAL_LOG_ERROR, fmt)

@@ -368,7 +368,6 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
                 goto out_free;
             }
 
-            /* The user explicitly asked to print this, so we disregard the log level. */
             log_always("Allowing access to an unknown file due to file_check_policy settings: %s\n",
                        uri);
         }

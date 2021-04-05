@@ -1073,7 +1073,6 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     if (g_sgx_enable_stats) {
         /* This shows the time for Graphene + the Intel SGX driver to initialize the untrusted
          * PAL, config and create the SGX enclave, add enclave pages, measure and init it.
-         * The user explicitly asked to print this, so we disregard the log level.
          */
         urts_log_always("----- SGX enclave loading time = %10lu microseconds -----\n",
                         end_time - start_time);
