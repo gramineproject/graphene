@@ -42,8 +42,7 @@ extern int g_log_level;
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.
 void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
-/* This function emits logs regardless of log_level setting and doesn't prefix the output. It's
- * intended for outputs explicitly requested by the Graphene user (e.g. in the manifest). */
+/* This function emits logs regardless of log_level setting and doesn't prefix the output. */
 void log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
