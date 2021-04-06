@@ -102,6 +102,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('Local Address in Executable: 0x', stdout)
         self.assertIn('argv[0] = bootstrap_pie', stdout)
 
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_110_basic_bootstrapping_cpp(self):
         stdout, _ = self.run_binary(['bootstrap_cpp'])
         self.assertIn('User Program Started', stdout)
