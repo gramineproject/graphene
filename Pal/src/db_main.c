@@ -334,7 +334,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (use_cmdline_argv) {
         /* Warn only in the first process. */
         if (!parent_process) {
-            log_error("Using insecure argv source. Don't use this configuration in production!\n");
+            log_error("Using insecure argv source. Graphene will continue application execution, "
+                      "but this configuration must not be used in production!\n");
         }
     } else {
         char* argv_src_file = NULL;
@@ -372,8 +373,9 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (use_host_env) {
         /* Warn only in the first process. */
         if (!parent_process) {
-            log_error("Forwarding host environment variables to the app is enabled. Don't use this "
-                      "configuration in production!\n");
+            log_error("Forwarding host environment variables to the app is enabled. Graphene will "
+                      "continue application execution, but this configuration must not be used in "
+                      "production!\n");
         }
     } else {
         environments = malloc(sizeof(*environments));
