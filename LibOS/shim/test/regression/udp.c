@@ -43,8 +43,8 @@ static void server(void) {
             err(EXIT_FAILURE, "server close of pipe");
 
         char byte = 0;
-        ssize_t written = 0;
-        while (written <= 0) {
+        ssize_t written = -1;
+        while (written < 0) {
             if ((written = write(pipefds[1], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
@@ -58,13 +58,14 @@ static void server(void) {
         while (read < BUFLEN) {
             ssize_t n = recvfrom(s, buf + read, BUFLEN - read, /*flags=*/0,
                                  (struct sockaddr*)&si_other, &slen);
-            if (!n) {
-                /* socket closed prematurely, considered an error in this test */
-                err(EXIT_FAILURE, "server recvfrom no data");
-            } else if (n < 0) {
+            if (n < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
                 err(EXIT_FAILURE, "server recvfrom");
+            }
+            if (!n) {
+                /* socket closed prematurely, considered an error in this test */
+                err(EXIT_FAILURE, "server recvfrom (EOF)");
             }
             read += n;
         }
@@ -87,13 +88,15 @@ static void client(void) {
             err(EXIT_FAILURE, "client close of pipe");
 
         char byte = 0;
-        ssize_t received = 0;
-        while (received <= 0) {
+        ssize_t received = -1;
+        while (received < 0) {
             if ((received = read(pipefds[0], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
                 err(EXIT_FAILURE, "client read on pipe");
             }
+            if (!received)
+                err(EXIT_FAILURE, "client read on pipe (EOF)");
         }
     }
 

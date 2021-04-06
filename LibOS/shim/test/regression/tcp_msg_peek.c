@@ -58,8 +58,8 @@ static void server(void) {
 
         char byte = 0;
 
-        ssize_t written = 0;
-        while (written <= 0) {
+        ssize_t written = -1;
+        while (written < 0) {
             if ((written = write(pipefds[1], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
@@ -144,12 +144,16 @@ static void client(void) {
 
         char byte = 0;
 
-        ssize_t received = 0;
-        while (received <= 0) {
+        ssize_t received = -1;
+        while (received < 0) {
             if ((received = read(pipefds[0], &byte, sizeof(byte))) < 0) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
                 perror("read on pipe");
+                exit(1);
+            }
+            if (!received) {
+                perror("read on pipe (EOF)");
                 exit(1);
             }
         }
