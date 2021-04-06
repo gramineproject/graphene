@@ -40,24 +40,19 @@
  *     // Lock. Use SYNC_STATE_SHARED for reading data, SYNC_STATE_EXCLUSIVE if you need to update
  *     // it. After locking, you can read latest data (if it's there: a newly created handle will
  *     // not have any data associated).
- *     sync_lock(&obj.sync, SYNC_STATE_EXCLUSIVE);
- *     if (obj.sync.data_size != 0) {
- *         struct obj_sync_data* read_data = obj.sync.buf;
- *         assert(obj.sync.data_size == sizeof(*read_data));
- *         obj.field_one = read_data->field_one;
- *         obj.field_two = read_data->field_two;
+ *     struct obj_sync_data data;
+ *     if (sync_lock(&obj.sync, SYNC_STATE_EXCLUSIVE, &data)) {
+ *         obj.field_one = data.field_one;
+ *         obj.field_two = data.field_two;
  *     }
  *
  *     // Use the object
  *     obj.field = ...;
  *
  *     // Unlock, writing the new data first
- *     struct obj_sync_data* write_data = obj.sync.buf;
- *     obj.sync.data_size = sizeof(*write_data);
- *     assert(obj.sync.data_size <= obj.sync.buf_size);
- *     write_data->field_one = obj.field_one;
- *     write_data->field_two = obj.field_two;
- *     sync_unlock(&file->sync);
+ *     data.field_one = obj.field_one;
+ *     data.field_two = obj.field_two;
+ *     sync_unlock(&file->sync, &data);
  *
  *     // Destroy the handle before destroying the object
  *     sync_destroy(&obj.sync);
@@ -156,15 +151,12 @@
     } while (0)
 #include "uthash.h"
 
-/* Describes a state of a client handle. */
+/* Describes a state of a client handle, as recognized by client and server. */
 enum {
     /* No state, used for {client_server}_req_state */
     SYNC_STATE_NONE,
 
-    /* Not registered with server, and invalid */
-    SYNC_STATE_CLOSED,
-
-    /* Registered with server, but still invalid: client doesn't have latest data */
+    /* Invalid: client doesn't have latest data */
     SYNC_STATE_INVALID,
 
     /* Client has the latest data, but cannot modify it */
@@ -176,6 +168,25 @@ enum {
     SYNC_STATE_NUM,
 };
 
+/* Lifecycle phase of a handle on client. */
+enum {
+    /* New handle, not registered on the server yet */
+    SYNC_PHASE_NEW,
+
+    /* Registered with server, reacts to messages normally */
+    SYNC_PHASE_OPEN,
+
+    /* After sending REQUEST_CLOSE: messages from server should be disregarded */
+    SYNC_PHASE_CLOSING,
+
+    /* After receiving CONFIRM_CLOSE: can be safely destroyed */
+    SYNC_PHASE_CLOSED,
+
+    /* During client shutdown: messages from server should be disregarded, and we shouldn't send any
+     * new ones */
+    SYNC_PHASE_SHUTDOWN,
+};
+
 struct sync_handle {
     uint64_t id;
 
@@ -184,18 +195,17 @@ struct sync_handle {
     /* Used by sync_lock .. sync_unlock. */
     struct shim_lock use_lock;
 
-    /* Buffer for synchronized data. */
-    size_t buf_size;
-    void* buf;
-
-    /* Size of currently stored data. Should be always less or equal buf_size. */
-    size_t data_size;
-
     /*
      * Internal properties lock. Protects all the following fields. If used together with use_lock,
      * then use_lock needs to be taken first.
      */
     struct shim_lock prop_lock;
+
+    /* Size of synchronized data. */
+    size_t data_size;
+
+    /* Current version of synchronized data (NULL if no data yet). */
+    void* data;
 
     /* Notification event for state changes. */
     PAL_HANDLE event;
@@ -203,6 +213,9 @@ struct sync_handle {
 
     /* Set to true if object is currently used (use_lock is locked). */
     bool used;
+
+    /* Lifecycle phase (SYNC_PHASE_*) */
+    int phase;
 
     /* Current state, lower or equal to server's cur_state */
     int cur_state;
@@ -226,7 +239,7 @@ int shutdown_sync_client(void);
 
 /* Initialize a sync handle. If `id` is 0, allocate a fresh handle ID.  Before calling sync_init()
  * on given handle, handle->id must be set to 0, for easier lifecycle tracking. */
-int sync_init(struct sync_handle* handle, uint64_t id, size_t buf_size);
+int sync_init(struct sync_handle* handle, uint64_t id, size_t data_size);
 
 /* Check if the handle has been initialized, to prevent sync_init()/sync_destroy() outside of
  * lifecycle */
@@ -239,20 +252,18 @@ static inline bool sync_is_initialized(struct sync_handle* handle) {
 void sync_destroy(struct sync_handle* handle);
 
 /*
- * Acquire a handle in a given state (or higher). Should be done before accessing handle.buf and
- * handle.buf_size.
+ * Acquire a handle in a given state (or higher). If the handle was updated, writes new data to
+ * `data` and returns true, otherwise returns false.
  *
  * Provides the following guarantees:
  * - only one thread is holding a lock in a given process
  * - if state is SYNC_STATE_SHARED, no other process is holding a lock in SYNC_STATE_EXCLUSIVE state
  * - if state is SYNC_STATE_EXCLUSIVE, no other process is holding a lock in any state
- * - handle->buf and handle->data_size can be accessed; however, they should be modified only in
- *   SYNC_STATE_EXCLUSIVE state
  */
-void sync_lock(struct sync_handle* handle, int state);
+bool sync_lock(struct sync_handle* handle, int state, void* data);
 
-/* Release a handle. */
-void sync_unlock(struct sync_handle* handle);
+/* Release a handle, updating data associated with it. */
+void sync_unlock(struct sync_handle* handle, void* data);
 
 /*** Message handlers (called from IPC, see ipc/shim_ipc_sync.c) ***/
 

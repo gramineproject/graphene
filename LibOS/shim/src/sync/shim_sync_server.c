@@ -128,7 +128,7 @@ static int send_confirm_close(struct server_handle* handle, struct sync_handle_c
     assert(locked(&g_server_lock));
 
     return ipc_sync_server_send(client->port, IPC_MSG_SYNC_CONFIRM_CLOSE, handle->id,
-                                /*state=*/SYNC_STATE_CLOSED, /*data_size=*/0, /*data=*/NULL);
+                                /*state=*/SYNC_STATE_INVALID, /*data_size=*/0, /*data=*/NULL);
 }
 
 /* Process handle information after state change */
@@ -317,7 +317,7 @@ static void do_request_close(struct shim_ipc_port* port, uint64_t id, int cur_st
     }
 
     if (send_confirm_close(handle, client) < 0)
-        FATAL("sending CONFIRM_CLOSE");
+        FATAL("sending CONFIRM_CLOSE\n");
 
     LISTP_DEL(client, &handle->clients, list);
 
