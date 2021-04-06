@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include <arpa/inet.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
