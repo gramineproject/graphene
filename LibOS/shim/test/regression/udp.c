@@ -50,6 +50,10 @@ static void server(void) {
                     continue;
                 err(EXIT_FAILURE, "server write on pipe");
             }
+            if (!written) {
+                /* technically impossible, but let's fail loudly if we ever hit this */
+                errx(EXIT_FAILURE, "server write on pipe returned zero");
+            }
         }
     }
 
@@ -122,6 +126,10 @@ static void client(void) {
                 if (errno == EINTR || errno == EAGAIN)
                     continue;
                 err(EXIT_FAILURE, "client sendto");
+            }
+            if (!n) {
+                /* technically impossible, but let's fail loudly if we ever hit this */
+                errx(EXIT_FAILURE, "client sendto returned zero");
             }
             written += n;
         }

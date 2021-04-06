@@ -66,6 +66,10 @@ static void server(void) {
                 perror("write on pipe");
                 exit(1);
             }
+            if (!written) {
+                /* technically impossible, but let's fail loudly if we ever hit this */
+                errx(EXIT_FAILURE, "write on pipe returned zero");
+            }
         }
     }
 
@@ -96,6 +100,10 @@ static void server(void) {
                 continue;
             perror("sendto to client");
             exit(1);
+        }
+        if (!n) {
+            /* technically impossible, but let's fail loudly if we ever hit this */
+            errx(EXIT_FAILURE, "sendto to client returned zero");
         }
         written += n;
     }
