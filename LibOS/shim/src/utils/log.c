@@ -34,7 +34,7 @@ void log_setprefix(shim_tcb_t* tcb) {
         if (*it == ':' || *it == '/')
             exec = it + 1;
 
-    uint32_t vmid = g_process_ipc_info.vmid;
+    uint32_t vmid = g_self_vmid;
     size_t total_len;
     if (tcb->tp) {
         if (!is_internal_tid(tcb->tp->tid)) {
@@ -46,7 +46,7 @@ void log_setprefix(shim_tcb_t* tcb) {
             total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:i%u:%s] ",
                                  vmid, tcb->tp->tid - INTERNAL_TID_BASE, exec);
         }
-    } else if (g_process_ipc_info.vmid) {
+    } else if (vmid) {
         /* unknown thread (happens on process init): show Process ID and exec name */
         total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:%s] ", vmid,
                              exec);
