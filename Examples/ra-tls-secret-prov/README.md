@@ -68,13 +68,13 @@ RA_TLS_EPID_API_KEY=12345678901234567890123456789012 \
 RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 ./secret_prov_server_epid &
 
 # test minimal client
-SGX=1 ./pal_loader ./secret_prov_min_client
+graphene-sgx ./secret_prov_min_client
 
 # test feature-rich client
-SGX=1 ./pal_loader ./secret_prov_client
+graphene-sgx ./secret_prov_client
 
 # test protected-files client
-SGX=1 ./pal_loader ./secret_prov_pf_client
+graphene-sgx ./secret_prov_pf_client
 
 kill %%
 ```
@@ -90,13 +90,13 @@ make app dcap files/input.txt
 RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 ./secret_prov_server_dcap &
 
 # test minimal client
-SGX=1 ./pal_loader ./secret_prov_min_client
+graphene-sgx ./secret_prov_min_client
 
 # test feature-rich client
-SGX=1 ./pal_loader ./secret_prov_client
+graphene-sgx ./secret_prov_client
 
 # test protected-files client
-SGX=1 ./pal_loader ./secret_prov_pf_client
+graphene-sgx ./secret_prov_pf_client
 
 kill %%
 ```

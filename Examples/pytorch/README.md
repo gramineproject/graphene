@@ -50,5 +50,5 @@ By default, `PYTHONPATH=/usr` and `PYTHONVERSION=python3.5`.
 Execute any one of the following commands to run the workload
 
 - natively: `python3 pytorchexample.py`
-- Graphene w/o SGX: `./pal_loader ./pytorch ./pytorchexample.py`
-- Graphene with SGX: `SGX=1 ./pal_loader ./pytorch ./pytorchexample.py`
+- Graphene w/o SGX: `graphene-direct ./pytorch ./pytorchexample.py`
+- Graphene with SGX: `graphene-sgx ./pytorch ./pytorchexample.py`

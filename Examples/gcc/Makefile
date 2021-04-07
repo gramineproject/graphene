@@ -26,13 +26,13 @@ GCC_MAJOR_VERSION ?= $(shell gcc -v 2>&1 | tail -n1 | awk '{print $$3}' | awk 'B
 GCC_LIB_PATH ?= /usr/lib/gcc/$(ARCH_LONG)
 
 .PHONY: all
-all: gcc.manifest test_files/bzip2.c test_files/gzip.c | pal_loader
+all: gcc.manifest test_files/bzip2.c test_files/gzip.c
 ifeq ($(SGX),1)
 all: gcc.manifest.sgx gcc.sig gcc.token
 endif
 
 %.manifest: %.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dgcc_lib_path=$(GCC_LIB_PATH) \
@@ -46,17 +46,13 @@ gcc.sig gcc.manifest.sgx: sgx_outputs
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: gcc.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest gcc.manifest \
-		-output gcc.manifest.sgx
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest gcc.manifest \
+		--output gcc.manifest.sgx
 
 %.token: %.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+	graphene-sgx-get-token --output $@ --sig $<
 
 test_files/bzip2.c:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(BZIP2_HASH) $(foreach mirror,$(BZIP2_MIRRORS),--url $(mirror))
@@ -68,16 +64,22 @@ test_files/gzip_broken.c:
 test_files/gzip.c: test_files/gzip_broken.c test_files/gzip.patch
 	patch test_files/gzip_broken.c -i test_files/gzip.patch -o $@
 
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
+
 .PHONY: check
 check: all
 	@echo "\n\nCompiling hello.c..."
-	./pal_loader gcc test_files/helloworld.c -o test_files/hello
+	$(GRAPHENE) gcc test_files/helloworld.c -o test_files/hello
 	@chmod 755 test_files/hello
 	-./test_files/hello
 	$(RM) test_files/hello
 
 	@echo "\n\nCompiling bzip2.c..."
-	./pal_loader gcc test_files/bzip2.c -o test_files/bzip2
+	$(GRAPHENE) gcc test_files/bzip2.c -o test_files/bzip2
 	@chmod 755 test_files/bzip2
 	$(RM) bzip2.tmp
 	@cp -f test_files/bzip2 test_files/bzip2.copy
@@ -87,7 +89,7 @@ check: all
 	$(RM) test_files/bzip2 test_file/bzip2.copy
 
 	@echo "\n\nCompiling gzip.c..."
-	./pal_loader gcc test_files/gzip.c -o test_files/gzip
+	$(GRAPHENE) gcc test_files/gzip.c -o test_files/gzip
 	@chmod 755 test_files/gzip
 	@cp -f test_files/gzip test_files/gzip.copy
 	./test_files/gzip test_files/gzip.copy
@@ -97,7 +99,7 @@ check: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.sig *.token pal_loader
+	$(RM) *.manifest *.manifest.sgx *.sig *.token
 	$(RM) test_files/gzip.copy test_files/bzip2.copy
 
 .PHONY: distclean

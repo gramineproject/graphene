@@ -75,7 +75,7 @@ kill %%
 make clean
 RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app epid
 
-SGX=1 ./pal_loader ./server epid &
+graphene-sgx ./server epid &
 
 RA_TLS_EPID_API_KEY=12345678901234567890123456789012 \
 RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 \
@@ -98,7 +98,7 @@ kill %%
 make clean
 make app dcap
 
-SGX=1 ./pal_loader ./server dcap &
+graphene-sgx ./server dcap &
 
 RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 \
 RA_TLS_MRENCLAVE=1234567890123456789012345678901234567890123456789012345678901234 \
@@ -117,7 +117,7 @@ kill %%
 make clean
 make app dcap
 
-SGX=1 ./pal_loader ./server dcap &
+graphene-sgx ./server dcap &
 
 # arguments are: MRENCLAVE in hex, MRSIGNER in hex, ISV_PROD_ID as dec, ISV_SVN as dec
 RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 ./client dcap \
@@ -135,7 +135,7 @@ kill %%
 make clean
 make app dcap
 
-SGX=1 ./pal_loader ./server dcap dummy-option &
+graphene-sgx ./server dcap dummy-option &
 ./client dcap
 
 # client will fail to verify the malicious SGX quote and will *not* connect to the server
@@ -152,9 +152,9 @@ and `RA_TLS_ISV_SVN`.
 make clean
 RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app client_epid.manifest.sgx
 
-SGX=1 ./pal_loader ./server epid &
+graphene-sgx ./server epid &
 
-RA_TLS_EPID_API_KEY=12345678901234567890123456789012 SGX=1 ./pal_loader ./client_epid epid
+RA_TLS_EPID_API_KEY=12345678901234567890123456789012 graphene-sgx ./client_epid epid
 
 # client will successfully connect to the server via RA-TLS/EPID flows
 kill %%
@@ -166,9 +166,9 @@ kill %%
 make clean
 make app client_dcap.manifest.sgx
 
-SGX=1 ./pal_loader ./server dcap &
+graphene-sgx ./server dcap &
 
-SGX=1 ./pal_loader ./client_dcap dcap
+graphene-sgx ./client_dcap dcap
 
 # client will successfully connect to the server via RA-TLS/DCAP flows
 kill %%

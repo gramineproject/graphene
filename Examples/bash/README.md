@@ -20,12 +20,12 @@ Here's an example of running Bash scripts under Graphene:
 
 Without SGX:
 ```
-./pal_loader ./bash -c "ls"
-./pal_loader ./bash -c "cd scripts && bash bash_test.sh 2"
+graphene-direct ./bash -c "ls"
+graphene-direct ./bash -c "cd scripts && bash bash_test.sh 2"
 ```
 
 With SGX:
 ```
-SGX=1 ./pal_loader ./bash -c "ls"
-SGX=1 ./pal_loader ./bash -c "cd scripts && bash bash_test.sh 2"
+graphene-sgx ./bash -c "ls"
+graphene-sgx ./bash -c "cd scripts && bash bash_test.sh 2"
 ```

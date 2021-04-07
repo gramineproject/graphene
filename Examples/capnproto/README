@@ -19,8 +19,8 @@ make SGX=1
 ./addressbook write
 
 # run Addressbook in non-SGX Graphene
-./pal_loader addressbook write
+graphene-direct addressbook write
 
 # run Addressbook in Graphene-SGX
-SGX=1 ./pal_loader addressbook write
+graphene-sgx addressbook write
 ```

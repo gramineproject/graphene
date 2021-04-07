@@ -20,12 +20,12 @@ src/src/redis-benchmark
 kill %%
 
 # run Redis in non-SGX Graphene against a benchmark
-./pal_loader redis-server --save '' --protected-mode no &
+graphene-direct redis-server --save '' --protected-mode no &
 src/src/redis-benchmark
 kill %%
 
 # run Redis in Graphene-SGX against a benchmark
-SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+graphene-sgx redis-server --save '' --protected-mode no &
 src/src/redis-benchmark
 kill %%
 ```

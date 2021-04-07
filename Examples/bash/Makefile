@@ -18,7 +18,7 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: bash.manifest | pal_loader
+all: bash.manifest
 ifeq ($(SGX),1)
 all: bash.manifest.sgx bash.sig bash.token
 endif
@@ -26,7 +26,7 @@ endif
 include ../../Scripts/Makefile.configs
 
 bash.manifest: manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Dexecdir=$(shell dirname $(shell which bash)) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
@@ -35,40 +35,42 @@ bash.manifest: manifest.template
 # Generating the SGX-specific manifest (*.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
 bash.manifest.sgx: bash.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest bash.manifest -output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest bash.manifest \
+		--output $@
 
 bash.sig: bash.manifest.sgx
 
 bash.token: bash.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output bash.token -sig bash.sig
+	graphene-sgx-get-token --output bash.token --sig bash.sig
 
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
 
 .PHONY: regression
 regression: all
 	@mkdir -p scripts/testdir
 
-	./pal_loader ./bash -c "ls" > OUTPUT
+	$(GRAPHENE) ./bash -c "ls" > OUTPUT
 	@grep -q "Makefile" OUTPUT && echo "[ Success 1/7 ]"
 	@rm OUTPUT
 
-	./pal_loader ./bash -c "cd scripts && bash bash_test.sh 1" > OUTPUT
+	$(GRAPHENE) ./bash -c "cd scripts && bash bash_test.sh 1" > OUTPUT
 	@grep -q "hello 1" OUTPUT      && echo "[ Success 2/7 ]"
 	@grep -q "createdfile" OUTPUT  && echo "[ Success 3/7 ]"
 	@grep -q "somefile" OUTPUT     && echo "[ Success 4/7 ]"
 	@grep -q "current date" OUTPUT && echo "[ Success 5/7 ]"
 	@rm OUTPUT
 
-	./pal_loader ./bash -c "cd scripts && bash bash_test.sh 3" > OUTPUT
+	$(GRAPHENE) ./bash -c "cd scripts && bash bash_test.sh 3" > OUTPUT
 	@grep -q "hello 3" OUTPUT      && echo "[ Success 6/7 ]"
 	@rm OUTPUT
 
-	./pal_loader ./bash -c "readlink /proc/self/exe" > OUTPUT
+	$(GRAPHENE) ./bash -c "readlink /proc/self/exe" > OUTPUT
 	@grep -qE "^(/usr)?/bin/readlink" OUTPUT && echo "[ Success 7/7 ]"
 	@rm OUTPUT
 
@@ -77,7 +79,7 @@ regression: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT scripts/testdir/*
+	$(RM) *.manifest *.manifest.sgx *.token *.sig OUTPUT scripts/testdir/*
 
 .PHONY: distclean
 distclean: clean

@@ -6,7 +6,7 @@
 
 # Memcached must be run with the --user=<existing-user-name> argument:
 #
-# ./pal_loader ./memcached --user=nobody
+# graphene-{direct|sgx} ./memcached --user=nobody
 #
 # User argument is required because Graphene currently emulates real/effective
 # user ID as 0 (root). This leads Memcached to believe it is run under root. For

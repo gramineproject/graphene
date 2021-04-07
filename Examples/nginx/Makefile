@@ -37,7 +37,7 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: $(INSTALL_DIR)/sbin/nginx nginx.manifest config testdata ssldata | pal_loader
+all: $(INSTALL_DIR)/sbin/nginx nginx.manifest config testdata ssldata
 ifeq ($(SGX),1)
 all: nginx.manifest.sgx nginx.sig nginx.token
 endif
@@ -66,7 +66,7 @@ $(NGINX_SRC).tar.gz:
 		$(foreach mirror,$(NGINX_MIRRORS),--url $(mirror)/$(NGINX_SRC).tar.gz)
 
 nginx.manifest: nginx.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dinstall_dir=$(INSTALL_DIR) \
@@ -79,18 +79,15 @@ nginx.manifest.sgx: nginx.manifest $(INSTALL_DIR)/sbin/nginx \
 		$(INSTALL_DIR)/conf/nginx-graphene.conf \
 		$(TEST_DATA) \
 		$(INSTALL_DIR)/conf/server.crt
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest $< \
+		--output $@
 
 nginx.sig: nginx.manifest.sgx
 
 nginx.token: nginx.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+	graphene-sgx-get-token --output $@ --sig $<
 
 # Nginx configuration and test data
 #
@@ -145,13 +142,19 @@ ssldata: $(INSTALL_DIR)/conf/server.crt
 start-native-server: all
 	$(INSTALL_DIR)/sbin/nginx -c conf/nginx-graphene.conf
 
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
+
 .PHONY: start-graphene-server
 start-graphene-server: all
-	./pal_loader ./nginx -c conf/nginx-graphene.conf
+	$(GRAPHENE) ./nginx -c conf/nginx-graphene.conf
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT result-* tmp
+	$(RM) *.manifest *.manifest.sgx *.token *.sig OUTPUT result-* tmp
 
 .PHONY: distclean
 distclean: clean

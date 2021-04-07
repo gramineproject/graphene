@@ -31,13 +31,13 @@ make SGX=1
 kill -SIGINT %%
 
 # run Nginx in non-SGX Graphene against HTTP and HTTPS benchmarks
-./pal_loader ./nginx -c conf/nginx-graphene.conf &
+graphene-direct ./nginx -c conf/nginx-graphene.conf &
 ../common_tools/benchmark-http.sh 127.0.0.1:8002
 ../common_tools/benchmark-http.sh https://127.0.0.1:8444
 kill -SIGINT %%
 
 # run Nginx in Graphene-SGX against HTTP and HTTPS benchmarks
-SGX=1 ./pal_loader ./nginx -c conf/nginx-graphene.conf &
+graphene-sgx ./nginx -c conf/nginx-graphene.conf &
 ../common_tools/benchmark-http.sh 127.0.0.1:8002
 ../common_tools/benchmark-http.sh https://127.0.0.1:8444
 kill -SIGINT %%

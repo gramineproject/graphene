@@ -2,9 +2,10 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 #
-# lighttpd must be run with the pal_loader:
+# lighttpd must be run with the graphene-direct or graphene-sgx:
 #
-# ./pal_loader ./lighttpd <script>
+# graphene-direct ./lighttpd <script>
+# graphene-sgx ./lighttpd <script>
 
 libos.entrypoint = "file:{{ install_dir }}/sbin/lighttpd"
 
