@@ -17,7 +17,6 @@
                          : ((type) == SYSV_SEM ? "SEM" : ((type) == SYSV_SHM ? "SHM" : "")))
 
 struct sysv_client {
-    struct shim_ipc_port* port;
     IDTYPE vmid;
     unsigned seq;
 };

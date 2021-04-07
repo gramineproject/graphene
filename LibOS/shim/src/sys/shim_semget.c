@@ -244,7 +244,7 @@ long shim_do_semget(key_t key, int nsems, int semflg) {
         } while (!semid);
 
         if (key != IPC_PRIVATE) {
-            if ((ret = ipc_sysv_tellkey_send(NULL, 0, &k, semid, 0)) < 0) {
+            if ((ret = ipc_sysv_tellkey_send(0, &k, semid, 0)) < 0) {
                 release_ipc_id(semid);
                 return ret;
             }
@@ -336,7 +336,7 @@ long shim_do_semctl(int semid, int semnum, int cmd, unsigned long arg) {
     switch (cmd) {
         case IPC_RMID: {
             if (!sem->owned) {
-                ret = ipc_sysv_delres_send(NULL, 0, semid, SYSV_SEM);
+                ret = ipc_sysv_delres_send(0, semid, SYSV_SEM);
                 if (ret < 0)
                     goto out;
             }
@@ -504,11 +504,9 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
             struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
             resp->retval               = sops->stat.completed ? 0 : -EAGAIN;
 
-            send_ipc_message(resp_msg, sops->client.port);
+            send_ipc_message(resp_msg, sops->client.vmid);
 
-            put_ipc_port(sops->client.port);
             sops->client.vmid = 0;
-            sops->client.port = NULL;
             sops->client.seq  = 0;
             free(sops);
         }
@@ -612,7 +610,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             goto out_locked;
         }
 
-        ret = ipc_sysv_delres_send(client->port, client->vmid, sem->semid, SYSV_SEM);
+        ret = ipc_sysv_delres_send(client->vmid, sem->semid, SYSV_SEM);
         goto out_locked;
     }
 
@@ -637,7 +635,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
         struct sem_ops* op;
 
         LISTP_FOR_EACH_ENTRY(op, &sem->migrated, progress) {
-            if (op->client.vmid == (client ? client->vmid : g_process_ipc_info.vmid) &&
+            if (op->client.vmid == (client ? client->vmid : g_self_vmid) &&
                 seq == op->client.seq) {
                 LISTP_DEL_INIT(op, &sem->migrated, progress);
                 sem_ops  = op;
@@ -661,7 +659,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
             resp->retval               = ret;
 
-            ret = send_ipc_message(resp_msg, client->port);
+            ret = send_ipc_message(resp_msg, client->vmid);
         }
         goto out_locked;
     }
@@ -676,7 +674,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             }
 
             sem_ops->client.vmid = 0;
-            sem_ops->client.port = NULL;
             sem_ops->client.seq  = 0;
             INIT_LIST_HEAD(sem_ops, progress);
             malloced = true;
@@ -685,7 +682,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
         if (!sem_ops) {
             sem_ops              = __alloca(sizeof(struct sem_ops) + sizeof(struct sembuf) * nsops);
             sem_ops->client.vmid = 0;
-            sem_ops->client.port = NULL;
             sem_ops->client.seq  = 0;
             INIT_LIST_HEAD(sem_ops, progress);
         }
@@ -704,8 +700,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
 
     if (client) {
         assert(sendreply);
-        add_ipc_port(client->port, client->vmid, NULL);
-        get_ipc_port(client->port);
         sem_ops->client = *client;
         sem_ops         = NULL;
         goto out_locked;
