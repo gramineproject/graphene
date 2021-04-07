@@ -31,7 +31,7 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: redis-server redis-server.manifest pal_loader
+all: redis-server redis-server.manifest
 ifeq ($(SGX),1)
 all: redis-server.manifest.sgx redis-server.sig redis-server.token
 endif
@@ -69,7 +69,7 @@ endif
 # non-SGX Graphene) by simply replacing variables in the template file via sed.
 
 redis-server.manifest: redis-server.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
@@ -91,41 +91,42 @@ redis-server.sig redis-server.manifest.sgx: sgx_outputs
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: redis-server.manifest $(SRCDIR)/src/redis-server
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest redis-server.manifest \
-		-output redis-server.manifest.sgx
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest redis-server.manifest \
+		--output redis-server.manifest.sgx
 
 redis-server.token: redis-server.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
 ########################### COPIES OF EXECUTABLES #############################
 
 # Redis build process creates the final executable as src/redis-server. For
 # simplicity, copy it into our root directory.
-# Also, create a link to pal_loader for simplicity.
 
 redis-server: $(SRCDIR)/src/redis-server
 	cp $< $@
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
 ############################## RUNNING TESTS ##################################
 .PHONY: start-native-server
 start-native-server: all
 	./redis-server --save '' --protected-mode no
 
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
+
 .PHONY: start-graphene-server
 start-graphene-server: all
-	./pal_loader redis-server --save '' --protected-mode no
+	$(GRAPHENE) redis-server --save '' --protected-mode no
 
 ################################## CLEANUP ####################################
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader redis-server *.rdb
+	$(RM) *.token *.sig *.manifest.sgx *.manifest redis-server *.rdb
 
 .PHONY: distclean
 distclean: clean

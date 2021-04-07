@@ -20,13 +20,13 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: python.manifest pal_loader
+all: python.manifest
 ifeq ($(SGX),1)
 all: python.manifest.sgx python.sig python.token
 endif
 
 python.manifest: python.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
@@ -37,19 +37,15 @@ python.manifest: python.manifest.template
 #   and the token for enclave initialization.
 
 python.manifest.sgx: python.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< \
-		-output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest $< \
+		--output $@
 
 python.sig: python.manifest.sgx
 
 python.token: python.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+	graphene-sgx-get-token --output $@ --sig $<
 
 .PHONY: check
 check: all
@@ -60,7 +56,7 @@ check: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT* *.PID TEST_STDOUT TEST_STDERR
+	$(RM) *.manifest *.manifest.sgx *.token *.sig OUTPUT* *.PID TEST_STDOUT TEST_STDERR
 	$(RM) -r scripts/__pycache__
 
 .PHONY: distclean

@@ -28,7 +28,7 @@ endif
 
 
 .PHONY: all
-all: busybox busybox.manifest pal_loader
+all: busybox busybox.manifest
 ifeq ($(SGX),1)
 all: busybox.manifest.sgx busybox.sig busybox.token
 endif
@@ -68,7 +68,7 @@ $(SRCDIR)/busybox: $(SRCDIR)/.config
 # non-SGX Graphene) by simply replacing variables in the template file via sed.
 
 busybox.manifest: busybox.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
@@ -85,30 +85,26 @@ busybox.manifest: busybox.manifest.template
 
 
 busybox.manifest.sgx: busybox.manifest busybox
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output busybox.token -sig busybox.sig
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest $< \
+		--output $@
+	graphene-sgx-get-token \
+		--output busybox.token --sig busybox.sig
 
 ########################### COPIES OF EXECUTABLES #############################
 
 # Busybox build process creates the final executable as "src/busybox".
-# Copy Busybox binary to our root directory and create a link to pal_loader for
-# simplicity.
+# Copy Busybox binary to our root directory for simplicity.
 
 busybox: $(SRCDIR)/busybox
 	cp $(SRCDIR)/busybox busybox
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
 ################################## CLEANUP ####################################
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader busybox
+	$(RM) *.token *.sig *.manifest.sgx *.manifest busybox
 
 .PHONY: distclean
 distclean: clean
