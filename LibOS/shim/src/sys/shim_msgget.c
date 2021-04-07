@@ -274,7 +274,7 @@ long shim_do_msgget(key_t key, int msgflg) {
         } while (!msgid);
 
         if (key != IPC_PRIVATE) {
-            if ((ret = ipc_sysv_tellkey_send(NULL, 0, &k, msgid, 0)) < 0) {
+            if ((ret = ipc_sysv_tellkey_send(0, &k, msgid, 0)) < 0) {
                 release_ipc_id(msgid);
                 return ret;
             }
@@ -398,7 +398,7 @@ long shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf) {
     switch (cmd) {
         case IPC_RMID:
             if (!msgq->owned) {
-                ret = ipc_sysv_delres_send(NULL, 0, msgq->msqid, SYSV_MSGQ);
+                ret = ipc_sysv_delres_send(0, msgq->msqid, SYSV_MSGQ);
                 if (ret < 0)
                     break;
             }
@@ -541,7 +541,7 @@ int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const voi
     if (!msgq->owned) {
         unlock(&hdl->lock);
         assert(src);
-        ret = ipc_sysv_msgsnd_send(src->port, src->vmid, msgq->msqid, type, data, size, src->seq);
+        ret = ipc_sysv_msgsnd_send(src->vmid, msgq->msqid, type, data, size, src->seq);
         goto out;
     }
 
@@ -573,8 +573,6 @@ static int __add_msg_req(struct shim_msg_handle* msgq, struct msg_type* mtype, i
     struct msg_req* req = __get_msg_qobj(msgq);
     if (!req)
         return -ENOMEM;
-
-    get_ipc_port(src->port);
 
     req->next  = NULL;
     req->size  = size;

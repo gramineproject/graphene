@@ -353,7 +353,6 @@ struct shim_handle {
 
     int flags; /* Linux' O_* flags */
     int acc_mode;
-    IDTYPE owner;
     struct shim_lock lock;
 };
 

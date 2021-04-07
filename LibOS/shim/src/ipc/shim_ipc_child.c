@@ -1,11 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2020 Intel Corporation
  *                    Borys Popławski <borysp@invisiblethingslab.com>
- */
-
-/*
- * This file contains functions and callbacks to handle IPC between parent processes and their
- * children.
+ * Copyright (C) 2021 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
 #include "api.h"
@@ -13,15 +10,7 @@
 #include "shim_ipc.h"
 #include "shim_process.h"
 
-/* IPC helper thread invokes this fini function when main IPC port for communication with child
- * process is disconnected/removed by host OS.
- */
-void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid) {
-    __UNUSED(port);
-
-    /* Message cannot come from our own process. */
-    assert(vmid != g_process_ipc_info.vmid);
-
+void ipc_child_disconnect_callback(IDTYPE vmid) {
     /*
      * NOTE: IPC port may be closed by the host OS because the child process exited on the host OS
      * (and so the host OS closed all its sockets). This may happen before arrival of the expected
@@ -42,12 +31,7 @@ int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal) {
         return 0;
     }
 
-    IDTYPE dest;
-    struct shim_ipc_port* port = NULL;
-    int ret = connect_owner(g_process.ppid, &port, &dest);
-    if (ret < 0) {
-        return ret;
-    }
+    IDTYPE dest = g_process_ipc_ids.parent_id;
 
     size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -65,30 +49,22 @@ int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal) {
     msgin->term_signal              = term_signal;
     msgin->uid                      = uid;
 
-    ret = send_ipc_message(msg, port);
-    put_ipc_port(port);
-    return ret;
+    return send_ipc_message(msg, dest);
 }
 
-/*
- * IPC helper thread invokes this callback on an IPC_MSG_CHILDEXIT message received from the exiting
- * child process with vmid msg->src. The exiting child process informs about its exit code in
- * msgin->exit_code and its terminating signal in msgin->term_signal.
- */
-int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
-    __UNUSED(port);
+int ipc_cld_exit_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
 
     log_debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", msg->src,
           msgin->ppid, msgin->pid, msgin->exitcode, msgin->term_signal);
 
-    /* Message cannot come from our own process. */
-    assert(msg->src != g_process_ipc_info.vmid);
+    assert(src == msg->src);
 
     if (mark_child_exited_by_pid(msgin->pid, msgin->uid, msgin->exitcode, msgin->term_signal)) {
         log_debug("Child process (pid: %u) died\n", msgin->pid);
     } else {
-        log_debug("Unknown process died, pid: %d\n", msgin->pid);
+        log_error("Unknown process sent a child-death notification: pid: %d, vmid: %u\n",
+                  msgin->pid, src);
     }
 
     return 0;

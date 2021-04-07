@@ -499,13 +499,13 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
         goto out;
     }
 
-    struct shim_ipc_cp_data process_ipc_data = {
-        .parent_vmid = g_process_ipc_info.vmid,
-        .ns_vmid = g_process_ipc_info.ns ? g_process_ipc_info.ns->vmid : g_process_ipc_info.vmid,
+    struct shim_ipc_ids process_ipc_ids = {
+        .parent_id = g_self_vmid,
+        .leader_id = g_process_ipc_ids.leader_id ?: g_self_vmid,
     };
     va_list ap;
     va_start(ap, thread_description);
-    ret = (*migrate_func)(&cpstore, process_description, thread_description, &process_ipc_data, ap);
+    ret = (*migrate_func)(&cpstore, process_description, thread_description, &process_ipc_ids, ap);
     va_end(ap);
     if (ret < 0) {
         log_error("failed creating checkpoint (ret = %d)\n", ret);
@@ -568,17 +568,24 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     }
 
     /* Child creation was successful, now we add it to the children list. This needs to be done
-     * before we start handling async IPC messages from this child (done below). */
+     * before we start handling async IPC messages from this child (it will connect to us after we
+     * acknowledge the creation). */
     child_process->vmid = child_vmid;
     add_child_process(child_process);
 
-    /* New process is an actual child process for this current process, so notify the leader
-     * regarding subleasing of TID (child must create self-pipe with convention of pipe:child-vmid)
-     */
-    ipc_sublease_send(child_vmid, thread_description->tid);
-
-    /* create new IPC port to communicate over pal_process channel with the child process */
-    add_ipc_port_by_id(child_vmid, pal_process, &ipc_port_with_child_fini, NULL);
+    char c = 42;
+    ret = write_exact(pal_process, &c, sizeof(c));
+    if (ret < 0) {
+        /*
+         * Child might have already been marked dead.
+         * Let's pretend the process creation was successful - we have no way to handle such failure
+         * here and it should be indistinguishable form host OS killing the child process right
+         * after we returns from this function.
+         */
+        (void)mark_child_exited_by_vmid(child_vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
+    } else {
+        ipc_sublease_send(child_vmid, thread_description->tid);
+    }
 
     ret = 0;
 out:

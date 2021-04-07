@@ -302,7 +302,7 @@ static inline int clear_event(AEVENTTYPE* e) {
 #define REF_GET(ref)        __atomic_load_n(&(ref).counter, __ATOMIC_SEQ_CST)
 #define REF_SET(ref, count) __atomic_store_n(&(ref).counter, count, __ATOMIC_SEQ_CST);
 
-static inline int __ref_inc(REFTYPE* ref) {
+static inline int64_t __ref_inc(REFTYPE* ref) {
     int64_t _c;
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
@@ -314,7 +314,7 @@ static inline int __ref_inc(REFTYPE* ref) {
 
 #define REF_INC(ref) __ref_inc(&(ref))
 
-static inline int __ref_dec(REFTYPE* ref) {
+static inline int64_t __ref_dec(REFTYPE* ref) {
     int64_t _c;
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
