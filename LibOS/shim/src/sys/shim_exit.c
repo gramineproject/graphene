@@ -34,18 +34,9 @@ static noreturn void libos_clean_and_exit(int exit_code) {
         put_thread(async_thread);
     }
 
-    struct shim_thread* ipc_thread = terminate_ipc_helper();
-    if (ipc_thread) {
-        /* TODO: wait for the thread to exit in host.
-         * This is tracked by the following issue.
-         * https://github.com/oscarlab/graphene/issues/440
-         */
-        put_thread(ipc_thread);
-    }
+    terminate_ipc_worker();
 
-    del_all_ipc_ports();
-
-    log_debug("process %u exited with status %d\n", g_process_ipc_info.vmid, exit_code);
+    log_debug("process %u exited with status %d\n", g_self_vmid, exit_code);
 
     /* TODO: We exit whole libos, but there are some objects that might need cleanup, e.g. we should
      * release this (last) thread pid. We should do a proper cleanup of everything. */

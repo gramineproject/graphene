@@ -225,7 +225,6 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
 
     hdl->type       = fifo_hdl->type;
     hdl->acc_mode   = fifo_hdl->acc_mode;
-    hdl->owner      = fifo_hdl->owner;
     hdl->info       = fifo_hdl->info;
     hdl->pal_handle = fifo_hdl->pal_handle;
     qstrcopy(&hdl->uri, &fifo_hdl->uri);

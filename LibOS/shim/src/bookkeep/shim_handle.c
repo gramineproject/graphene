@@ -280,7 +280,6 @@ struct shim_handle* get_new_handle(void) {
         free_mem_obj_to_mgr(handle_mgr, new_handle);
         return NULL;
     }
-    new_handle->owner = g_process_ipc_info.vmid;
     INIT_LISTP(&new_handle->epolls);
     return new_handle;
 }
