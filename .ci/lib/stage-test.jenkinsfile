@@ -10,11 +10,18 @@ stage('test') {
     timeout(time: 15, unit: 'MINUTES') {
         try {
             sh '''
-                cd Pal/regression
-                make ${MAKEOPTS} all
                 if test -n "$SGX"
                 then
-                    make ${MAKEOPTS} sgx-tokens
+                    graphene=sgx
+                else
+                    graphene=direct
+                fi
+
+                cd Pal/regression
+                make ${MAKEOPTS} all pal_lib="$GRAPHENE_PKGLIBDIR"/"$graphene"/libpal.so
+                if test -n "$SGX"
+                then
+                    make ${MAKEOPTS} sgx-tokens pal_lib="$GRAPHENE_PKGLIBDIR"/"$graphene"/libpal.so
                 fi
                 python3 -m pytest -v --junit-xml pal-regression.xml test_pal.py
             '''
@@ -48,10 +55,11 @@ stage('test') {
                 then
                     make ${MAKEOPTS} sgx-tokens
                 fi
-                python3 -m pytest -v --junit-xml fs.xml test_fs.py test_pf.py
+                make test
+#               python3 -m pytest -v --junit-xml fs.xml test_fs.py test_tmpfs.py test_pf.py
             '''
         } finally {
-            junit 'LibOS/shim/test/fs/fs.xml'
+            junit 'LibOS/shim/test/fs/*.xml'
         }
     }
 }

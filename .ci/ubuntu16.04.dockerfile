@@ -14,6 +14,7 @@ RUN apt-get update \
        gdb \
        gettext \
        git \
+       jq \
        libapr1-dev \
        libaprutil1-dev \
        libcurl4-openssl-dev \

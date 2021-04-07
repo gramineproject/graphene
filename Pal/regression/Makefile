@@ -77,12 +77,12 @@ target = \
 
 include ../../Scripts/manifest.mk
 graphene_lib = .lib/graphene-lib.a
-pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
+pal_lib ?= ../../Runtime/libpal-$(PAL_HOST).so
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 .PHONY: all
-all: pal_loader $(target) $(call expand_target_to_sig,$(target)) \
+all: $(target) $(call expand_target_to_sig,$(target)) \
      $(call expand_target_to_sgx,$(target)) $(preloads)
 
 .PHONY: sgx-tokens
@@ -113,9 +113,6 @@ LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(prelo
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 
-pal_loader:
-	ln -s ../../Runtime/pal_loader $@
-
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
 endif
@@ -135,7 +132,7 @@ pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target))
 clean:
 	$(RM) -r $(executables) $(preloads) $(gen_manifests) *.tmp .lib *.cached *.sig .*.sig *.d .*.d \
 	         *.o .output.* *.token .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache \
-	         pal-regression.xml pal_loader
+	         pal-regression.xml
 
 .PHONY: distclean
 distclean: clean
