@@ -23,4 +23,7 @@ stage('build') {
     ''').trim() + '/graphene'
 
     sh 'rm -rf build'
+
+    // prevent cheating and testing from repo
+    sh 'make ${MAKEOPTS} -C Runtime clean'
 }
