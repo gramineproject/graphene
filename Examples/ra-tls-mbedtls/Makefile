@@ -33,7 +33,7 @@ include ../../Scripts/Makefile.configs
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/.mbedtls_built server.manifest.sgx server.sig server.token client pal_loader
+app: mbedtls/.mbedtls_built server.manifest.sgx server.sig server.token client
 
 .PHONY: epid
 epid: libs/.epid_libs_copied client_epid.manifest.sgx client_epid.sig client_epid.token
@@ -90,9 +90,6 @@ client: src/client.c libs/.mbedtls_libs_copied
 
 ########################### COPIES FOR CONVENIENCE ############################
 
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/$@ .
-
 .SECONDARY: libs/.mbedtls_libs_copied
 libs/.mbedtls_libs_copied: mbedtls/.mbedtls_built
 	mkdir -p libs
@@ -128,7 +125,7 @@ libs/.dcap_libs_copied:
 ############################### SERVER MANIFEST ###############################
 
 server.manifest: server.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
@@ -136,61 +133,59 @@ server.manifest: server.manifest.template
 		$< > $@
 
 server.manifest.sgx: server.manifest server mbedtls/.mbedtls_built libs/.epid_libs_copied
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(GRAPHENEKEY) \
+		--manifest $< \
+		--output $@
 
 server.sig: server.manifest.sgx
 
 server.token: server.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
 ########################### CLIENT (DCAP) MANIFEST ############################
 
 client_dcap.manifest: client.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< >$@
 
 client_dcap.manifest.sgx: client_dcap.manifest client mbedtls/.mbedtls_built libs/.dcap_libs_copied
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
-		-manifest $< \
-		-output $@
+	graphene-sgx-sign \
+		--key $(GRAPHENEKEY) \
+		--manifest $< \
+		--output $@
 
 client_dcap.sig: client_dcap.manifest.sgx
 
 client_dcap.token: client_dcap.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
 ########################### CLIENT (EPID) MANIFEST ############################
 
 client_epid.manifest: client.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< >$@
 
 client_epid.manifest.sgx: client_epid.manifest client libs/.epid_libs_copied
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
-		-manifest $< \
-		-output $@
+	graphene-sgx-sign \
+		--key $(GRAPHENEKEY) \
+		--manifest $< \
+		--output $@
 
 client_epid.sig: client_epid.manifest.sgx
 
 client_epid.token: client_epid.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
 ############################### SGX CHECKS FOR CI #############################
 
 .PHONY: check_epid
 check_epid: app epid
-	SGX=1 ./pal_loader server epid >/dev/null & SERVER_ID=$$!; \
+	graphene-sgx server epid >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid > OUTPUT; \
@@ -204,7 +199,7 @@ check_epid: app epid
 
 .PHONY: check_epid_fail
 check_epid_fail: app epid
-	SGX=1 ./pal_loader server epid dummy-option >/dev/null & SERVER_ID=$$!; \
+	graphene-sgx server epid dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid && exit 1 || echo "[ Success 1/1 ]"; \
@@ -212,7 +207,7 @@ check_epid_fail: app epid
 
 .PHONY: check_dcap
 check_dcap: app dcap
-	SGX=1 ./pal_loader server dcap >/dev/null & SERVER_ID=$$!; \
+	graphene-sgx server dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap > OUTPUT; \
@@ -226,7 +221,7 @@ check_dcap: app dcap
 
 .PHONY: check_dcap_fail
 check_dcap_fail: app dcap
-	SGX=1 ./pal_loader server dcap dummy-option >/dev/null & SERVER_ID=$$!; \
+	graphene-sgx server dcap dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap && exit 1 || echo "[ Success 1/1 ]"; \
@@ -237,7 +232,7 @@ check_dcap_fail: app dcap
 .PHONY: clean
 clean:
 	$(RM) -r \
-		*.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT libs/
+		*.token *.sig *.manifest.sgx *.manifest server client *.so *.so.* OUTPUT libs/
 
 .PHONY: distclean
 distclean: clean
