@@ -19,63 +19,77 @@ Graphene Library OS with Intel SGX Support
 What is Graphene?
 =================
 
-Graphene is a |nbsp| lightweight guest OS, designed to run a |nbsp| single
+Graphene is a |nbsp| lightweight library OS, designed to run a single
 application with minimal host requirements. Graphene can run applications in an
 isolated environment with benefits comparable to running a |nbsp| complete OS in
 a |nbsp| virtual machine -- including guest customization, ease of porting to
 different OSes, and process migration.
 
-Graphene supports native, unmodified Linux applications on any platform.
-Currently, Graphene runs on Linux and Intel SGX enclaves on Linux platforms.
+Graphene supports native, unmodified Linux applications binaries on any
+platform. Currently, Graphene runs on Linux and Intel SGX enclaves on Linux
+platforms.
 
-With Intel SGX support, Graphene can secure a |nbsp| critical application in
-a |nbsp| hardware-encrypted memory region. Graphene can protect applications
-from a |nbsp| malicious system stack with minimal porting effort.
+In untrusted cloud and edge deployments, there is a |nbsp| strong desire to
+shield the whole application from rest of the infrastructure. Graphene supports
+this “lift and shift” paradigm for bringing unmodified applications into
+Confidential Computing with Intel SGX. Graphene can protect applications from a
+|nbsp| malicious system stack with minimal porting effort.
 
-Our papers describe the motivation, design choices, and measured performance of
-Graphene:
+Graphene is a growing project and we have a growing contributor and maintainer
+community. The code and overall direction of the project are determined by a
+diverse group of contributors, from universities, small and large companies, as
+well as individuals. Our goal is to continue this growth in both contributions
+and community adoption.
 
-- `EuroSys 2014 <http://www.cs.unc.edu/~porter/pubs/tsai14graphene.pdf>`__
-- `ATC 2017 <http://www.cs.unc.edu/~porter/pubs/graphene-sgx.pdf>`__
+Working towards production ready Graphene by Q2’21
+==================================================
 
-Graphene is *not a production-ready software* (yet)
-===================================================
+Graphene has evolved a |nbsp| lot since our last major release and at this point
+we have significantly reworked most of the research code towards building a
+|nbsp| production ready Graphene by end of Q2’21. We have a |nbsp| growing set
+of well tested applications including machine learning frameworks, databases,
+webservers, and programming language runtimes.
 
-Graphene is at a point where it is functionally ready for testing and development, but there are
-some known security issues that require more attention.  The effort to review and harden security of
-Graphene is ongoing.  Our roadmap is to address the remaining production blockers roughly by the fall
-of 2021.  Of course, with additional help from the community, we can meet these milestones sooner!
+Graphene also supports many features for deploying secure solutions with SGX.
+These include full SGX Attestation support (EPID/DCAP), protected files support,
+and multi-process support with encrypted IPC. Graphene also supports a |nbsp|
+number of performance optimizations for SGX including support for asynchronous
+system calls.
+
+Graphene is ready to be deployed in cloud environments with full support for
+automatic container integration.
+
+We have been actively developing, testing, and validating Graphene. The effort
+to review and harden security of Graphene is ongoing.
 
 The most important problems (which include major security issues) are tracked in
 `#1544 (Production blockers) <https://github.com/oscarlab/graphene/issues/1544>`__.
-You should read it before installing and using Graphene.
+Our roadmap is to address the majority of the remaining production blockers by
+Q2’21 and rest will follow in future releases.
 
-How to get Graphene?
-====================
+Graphene documentation
+======================
 
-The latest version of Graphene can be cloned from GitHub::
+The official Graphene documentation can be found at
+https://graphene.readthedocs.io. Below are quick links to some of the most
+important pages:
 
-   git clone https://github.com/oscarlab/graphene.git
+- `Quick start and how to run applications
+  <https://graphene.readthedocs.io/en/latest/quickstart.html>`__
+- `Complete building instructions
+  <https://graphene.readthedocs.io/en/latest/building.html>`__
+- `Graphene manifest file syntax
+  <https://graphene.readthedocs.io/en/latest/manifest-syntax.html>`__
+- `The Graphene Shielded Containers (GSC) tool
+  <https://graphene.readthedocs.io/en/latest/manpages/gsc.html>`__
+- `Performance tuning & analysis of applications in Graphene-SGX
+  <https://graphene.readthedocs.io/en/latest/devel/performance.html>`__
+- `Remote attestation in Graphene
+  <https://graphene.readthedocs.io/en/latest/attestation.html>`__
 
-At this time Graphene is available only as source code. `Building instructions
-are available <https://graphene.readthedocs.io/en/latest/building.html>`__.
-
-How to run an application in Graphene?
-======================================
-
-See our `quick start guide <https://graphene.readthedocs.io/en/latest/quickstart.html>`__.
-
-Automatically running applications via Graphene Shielded Containers (GSC)
--------------------------------------------------------------------------
-
-Applications deployed as Docker images may be graphenized via the `gsc tool
-<https://graphene.readthedocs.io/en/latest/manpages/gsc.html>`__.
 
 Getting help
 ============
-
-For the full documentation of the Graphene, see the `Graphene documentation
-<https://graphene.readthedocs.io/en/latest/>`__.
 
 For any questions, please send an email to support@graphene-project.io
 (`public archive <https://groups.google.com/forum/#!forum/graphene-support>`__).
