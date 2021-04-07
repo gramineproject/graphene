@@ -26,6 +26,7 @@
 #include "shim_table.h"
 #include "shim_tcb.h"
 #include "shim_thread.h"
+#include "shim_utils.h"
 #include "shim_vdso.h"
 #include "shim_vma.h"
 #include "toml.h"
@@ -394,7 +395,7 @@ noreturn void* shim_init(int argc, void* args) {
     assert(g_pal_control);
 
     g_log_level = g_pal_control->log_level;
-    g_process_ipc_info.vmid = (IDTYPE)g_pal_control->process_id;
+    g_self_vmid = (IDTYPE)g_pal_control->process_id;
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
@@ -433,14 +434,11 @@ noreturn void* shim_init(int argc, void* args) {
 
     if (g_pal_control->parent_process) {
         struct checkpoint_hdr hdr;
-        size_t hdr_size = sizeof(hdr);
 
-        int ret = DkStreamRead(g_pal_control->parent_process, 0, &hdr_size, &hdr, NULL, 0);
+        int ret = read_exact(g_pal_control->parent_process, &hdr, sizeof(hdr));
         if (ret < 0) {
-            DkProcessExit(pal_to_unix_errno(-ret));
-        } else if (hdr_size != sizeof(hdr)) {
-            log_debug("shim_init: failed to read the whole checkpoint header\n");
-            DkProcessExit(ENODATA);
+            log_error("shim_init: failed to read the whole checkpoint header: %d\n", ret);
+            DkProcessExit(1);
         }
 
         assert(hdr.size);
@@ -461,22 +459,34 @@ noreturn void* shim_init(int argc, void* args) {
 
     RUN_INIT(init_loader);
     RUN_INIT(init_signal_handling);
-    RUN_INIT(init_ipc_helper);
+    RUN_INIT(init_ipc_worker);
 
-    /* FIXME: `g_pal_control->parent_process` was handed over to IPC code above so we should't be
-     * using it here. */
     if (g_pal_control->parent_process) {
-        /* Notify the parent process */
-        IDTYPE child_vmid = g_process_ipc_info.vmid;
-        size_t child_vmid_size = sizeof(child_vmid);
-
-        int ret = DkStreamWrite(g_pal_control->parent_process, 0, &child_vmid_size, &child_vmid,
-                                NULL);
+        int ret = connect_to_process(g_process_ipc_ids.parent_vmid);
         if (ret < 0) {
-            DkProcessExit(pal_to_unix_errno(-ret));
-        } else if (child_vmid_size != sizeof(child_vmid)) {
-            log_debug("shim_init: failed to write child_vmid\n");
-            DkProcessExit(EPIPE);
+            log_error("shim_init: failed to establish IPC connection to parent: %d\n", ret);
+            DkProcessExit(1);
+        }
+        ret = request_leader_connect_back();
+        if (ret < 0) {
+            log_error("shim_init: failed to request an IPC connection from IPC leader: %d\n", ret);
+            DkProcessExit(1);
+        }
+
+        /* Notify the parent process */
+        IDTYPE child_vmid = g_self_vmid;
+        ret = write_exact(g_pal_control->parent_process, &child_vmid, sizeof(child_vmid));
+        if (ret < 0) {
+            log_error("shim_init: failed to write child_vmid: %d\n", ret);
+            DkProcessExit(1);
+        }
+
+        /* Wait for parent to settle its adult things. */
+        char dummy_c = 0;
+        ret = read_exact(g_pal_control->parent_process, &dummy_c, sizeof(dummy_c));
+        if (ret < 0) {
+            log_error("shim_init: failed to read parent's confirmation: %d\n", ret);
+            DkProcessExit(1);
         }
     }
 
@@ -538,7 +548,7 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
 
     while (true) {
         if (use_vmid_for_name) {
-            len = snprintf(pipename, sizeof(pipename), "%u", g_process_ipc_info.vmid);
+            len = snprintf(pipename, sizeof(pipename), "%u", g_self_vmid);
             if (len >= sizeof(pipename))
                 return -ERANGE;
         } else {
