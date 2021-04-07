@@ -15,10 +15,10 @@ and requirements for applications running under Graphene-SGX.
 make SGX=1
 
 # run Busybox shell in non-SGX Graphene
-./pal_loader busybox sh
+graphene-direct busybox sh
 
 # run Busybox shell in Graphene-SGX
-SGX=1 ./pal_loader busybox sh
+graphene-sgx busybox sh
 
 # now a shell session should be running e.g. typing:
 ls

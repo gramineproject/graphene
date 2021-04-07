@@ -26,7 +26,7 @@ endif
 CONF_FILES = lighttpd-server.conf lighttpd.conf
 
 .PHONY: all
-all: $(INSTALL_DIR)/sbin/lighttpd lighttpd.manifest $(CONF_FILES) testdata | pal_loader
+all: $(INSTALL_DIR)/sbin/lighttpd lighttpd.manifest $(CONF_FILES) testdata
 ifeq ($(SGX),1)
 all: lighttpd.manifest.sgx lighttpd.sig lighttpd.token
 endif
@@ -52,7 +52,7 @@ $(LIGHTTPD_SRC).tar.gz:
 		$(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
 
 lighttpd.manifest: lighttpd.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dinstall_dir=$(INSTALL_DIR) \
@@ -62,18 +62,15 @@ lighttpd.manifest: lighttpd.manifest.template
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
 # for enclave initialization.
 lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest lighttpd.manifest -output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest lighttpd.manifest \
+		--output $@
 
 lighttpd.sig: lighttpd.manifest.sgx
 
 lighttpd.token: lighttpd.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+	graphene-sgx-get-token --output $@ --sig $^
 
 # lighttpd configuration and test data
 
@@ -113,14 +110,20 @@ testdata: $(TEST_DATA)
 start-native-server: all
 	$(INSTALL_DIR)/sbin/lighttpd -D -m $(INSTALL_DIR)/lib -f lighttpd.conf
 
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
+
 .PHONY: start-graphene-server
 start-graphene-server: all
-	./pal_loader ./lighttpd -D -m $(INSTALL_DIR)/lib -f lighttpd.conf
+	$(GRAPHENE) ./lighttpd -D -m $(INSTALL_DIR)/lib -f lighttpd.conf
 
 .PHONY: clean
 clean:
 	$(RM) \
-		*.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT result-* $(CONF_FILES) pal_loader
+		*.manifest *.manifest.sgx *.token *.sig OUTPUT result-* $(CONF_FILES)
 
 .PHONY: distclean
 distclean: clean

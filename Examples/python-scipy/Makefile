@@ -20,13 +20,13 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: python.manifest pal_loader
+all: python.manifest
 ifeq ($(SGX),1)
 all: python.manifest.sgx python.sig python.token
 endif
 
 python.manifest: python.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
@@ -37,35 +37,37 @@ python.manifest: python.manifest.template
 #   and the token for enclave initialization.
 
 python.manifest.sgx: python.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest python.manifest \
-		-output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest python.manifest \
+		--output $@
 
 python.sig: python.manifest.sgx
 
 python.token: python.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
 
 .PHONY: check
 check: all
-	./pal_loader ./python scripts/test-numpy.py > OUTPUT 2> /dev/null
+	$(GRAPHENE) ./python scripts/test-numpy.py > OUTPUT 2> /dev/null
 	@sleep 1  # to make sure Bash child processes flush output under Graphene-SGX
 	@grep -q "dot: " OUTPUT && echo "[ Success 1/2 ]"
 	@rm OUTPUT
 
-	./pal_loader ./python scripts/test-scipy.py > OUTPUT 2> /dev/null
+	$(GRAPHENE) ./python scripts/test-scipy.py > OUTPUT 2> /dev/null
 	@sleep 1
 	@grep -q "cholesky: " OUTPUT && echo "[ Success 2/2 ]"
 	@rm OUTPUT
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT*
+	$(RM) *.manifest *.manifest.sgx *.token *.sig OUTPUT*
 	$(RM) -r scripts/__pycache__
 
 .PHONY: distclean
