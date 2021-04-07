@@ -38,7 +38,7 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: memcached memcached.manifest pal_loader
+all: memcached memcached.manifest
 ifeq ($(SGX),1)
 all: memcached.manifest.sgx memcached.sig memcached.token
 endif
@@ -68,7 +68,7 @@ $(SRCDIR)/memcached: $(SRCDIR)/configure
 # variables in the template file via sed.
 
 memcached.manifest: memcached.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
@@ -84,43 +84,45 @@ memcached.manifest: memcached.manifest.template
 # built.
 
 memcached.manifest.sgx: memcached.manifest memcached
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest $< \
+		--output $@
 
 memcached.sig: memcached.manifest.sgx
 
 memcached.token: memcached.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output memcached.token -sig memcached.sig
+	graphene-sgx-get-token \
+		--output memcached.token --sig memcached.sig
 
 ########################### COPIES OF EXECUTABLES #############################
 
 # Memcached build process creates the final executable as src/memcached. For
 # simplicity, copy it into our root directory.
-# Also, create a link to pal_loader for simplicity.
 
 memcached: $(SRCDIR)/memcached
 	cp $< $@
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
 ############################## RUNNING TESTS ##################################
 .PHONY: start-native-server
 start-native-server: all
 	./memcached
 
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
+
 .PHONY: start-graphene-server
 start-graphene-server: all
-	./pal_loader memcached -u nobody
+	$(GRAPHENE) memcached -u nobody
 
 ################################## CLEANUP ####################################
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader memcached .lck
+	$(RM) *.token *.sig *.manifest.sgx *.manifest memcached .lck
 
 .PHONY: distclean
 distclean: clean

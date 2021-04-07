@@ -22,13 +22,13 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: pytorch.manifest | pal_loader
+all: pytorch.manifest
 ifeq ($(SGX),1)
 all: pytorch.manifest.sgx pytorch.sig pytorch.token
 endif
 
 %.manifest: %.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
@@ -41,17 +41,13 @@ pytorch.sig pytorch.manifest.sgx: sgx_outputs
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: pytorch.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-output pytorch.manifest.sgx \
-		-manifest pytorch.manifest
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--output pytorch.manifest.sgx \
+		--manifest pytorch.manifest
 
 %.token: %.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
-
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+	graphene-sgx-get-token --output $@ --sig $<
 
 .PHONY: download_model
 download_model:
@@ -59,7 +55,7 @@ download_model:
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader
+	$(RM) *.token *.sig *.manifest.sgx *.manifest
 
 .PHONY: distclean
 distclean: clean

@@ -21,7 +21,7 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: nodejs.manifest | pal_loader
+all: nodejs.manifest
 ifeq ($(SGX),1)
 all: nodejs.manifest.sgx nodejs.sig nodejs.token
 endif
@@ -29,7 +29,7 @@ endif
 include ../../Scripts/Makefile.configs
 
 nodejs.manifest: nodejs.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dnodejs_dir=$(NODEJS_DIR) \
@@ -37,28 +37,31 @@ nodejs.manifest: nodejs.manifest.template
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 nodejs.manifest.sgx: nodejs.manifest helloworld.js
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest $< \
+		--output $@
 
 nodejs.sig: nodejs.manifest.sgx
 
 nodejs.token: nodejs.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
 
 .PHONY: check
 check: all
-	./pal_loader ./nodejs helloworld.js > OUTPUT
+	$(GRAPHENE) ./nodejs helloworld.js > OUTPUT
 	@grep -q "Hello World" OUTPUT && echo "[ Success 1/1 ]"
 	@rm OUTPUT
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT
+	$(RM) *.manifest *.manifest.sgx *.token *.sig OUTPUT
 
 .PHONY: distclean
 distclean: clean
