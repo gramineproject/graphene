@@ -33,7 +33,7 @@ include ../../Scripts/Makefile.configs
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/.mbedtls_built pal_loader \
+app: mbedtls/.mbedtls_built \
      secret_prov_min_client.manifest.sgx secret_prov_min_client.sig secret_prov_min_client.token \
      secret_prov_client.manifest.sgx     secret_prov_client.sig     secret_prov_client.token     \
      secret_prov_pf_client.manifest.sgx  secret_prov_pf_client.sig  secret_prov_pf_client.token
@@ -105,9 +105,6 @@ secret_prov_pf_client: src/secret_prov_pf_client.c libs/.mbedtls_libs_copied lib
 
 ########################### COPIES FOR CONVENIENCE ############################
 
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/$@ .
-
 .SECONDARY: libs/.mbedtls_libs_copied
 libs/.mbedtls_libs_copied: mbedtls/.mbedtls_built
 	mkdir -p libs
@@ -146,7 +143,7 @@ libs/.dcap_libs_copied: libs/.common_libs_copied
 ############################### CLIENT MANIFEST ###############################
 
 secret_prov_client.manifest: secret_prov_client.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
@@ -154,20 +151,20 @@ secret_prov_client.manifest: secret_prov_client.manifest.template
 		$< > $@
 
 secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client libs/.common_libs_copied
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(GRAPHENEKEY) \
+		--manifest $< \
+		--output $@
 
 secret_prov_client.sig: secret_prov_client.manifest.sgx
 
 secret_prov_client.token: secret_prov_client.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
 ############################# MIN CLIENT MANIFEST #############################
 
 secret_prov_min_client.manifest: secret_prov_min_client.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
@@ -175,15 +172,15 @@ secret_prov_min_client.manifest: secret_prov_min_client.manifest.template
 		$< > $@
 
 secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov_min_client libs/.common_libs_copied
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(GRAPHENEKEY) \
+		--manifest $< \
+		--output $@
 
 secret_prov_min_client.sig: secret_prov_min_client.manifest.sgx
 
 secret_prov_min_client.token: secret_prov_min_client.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
 ########################## PREPARE PROTECTED FILES ############################
 
@@ -193,7 +190,7 @@ files/input.txt: files/wrap-key files/plain.txt libs/.common_libs_copied
 ############################## PF CLIENT MANIFEST #############################
 
 secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
@@ -201,15 +198,15 @@ secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
 		$< > $@
 
 secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_pf_client libs/.common_libs_copied
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(GRAPHENEKEY) \
+		--manifest $< \
+		--output $@
 
 secret_prov_pf_client.sig: secret_prov_pf_client.manifest.sgx
 
 secret_prov_pf_client.token: secret_prov_pf_client.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+	graphene-sgx-get-token --output $@ --sig $<
 
 ############################# SGX CHECKS FOR CI ###############################
 
@@ -217,9 +214,9 @@ secret_prov_pf_client.token: secret_prov_pf_client.sig
 check_epid: app epid files/input.txt
 	LD_LIBRARY_PATH=./libs/ ./secret_prov_server_epid >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
-	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
-	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
-	SGX=1 ./pal_loader ./secret_prov_pf_client >> OUTPUT; \
+	graphene-sgx ./secret_prov_min_client > OUTPUT; \
+	graphene-sgx ./secret_prov_client >> OUTPUT; \
+	graphene-sgx ./secret_prov_pf_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
 	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/4 ]"
 	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/4 ]"
@@ -231,9 +228,9 @@ check_epid: app epid files/input.txt
 check_dcap: app dcap files/input.txt
 	LD_LIBRARY_PATH=./libs/ ./secret_prov_server_dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
-	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
-	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
-	SGX=1 ./pal_loader ./secret_prov_pf_client >> OUTPUT; \
+	graphene-sgx ./secret_prov_min_client > OUTPUT; \
+	graphene-sgx ./secret_prov_client >> OUTPUT; \
+	graphene-sgx ./secret_prov_pf_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
 	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/4 ]"
 	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/4 ]"
@@ -246,7 +243,7 @@ check_dcap: app dcap files/input.txt
 .PHONY: clean
 clean:
 	$(RM) -r \
-		*.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pal_loader pf_crypt \
+		*.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pf_crypt \
 		secret_prov_server_epid secret_prov_server_dcap \
 		secret_prov_client secret_prov_min_client secret_prov_pf_client libs/
 

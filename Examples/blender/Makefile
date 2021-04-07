@@ -25,7 +25,7 @@ endif
 
 
 .PHONY: all
-all: $(BLENDER_DIR)/blender blender.manifest | $(RUN_DIR)/pal_loader $(DATA_DIR)/images
+all: $(BLENDER_DIR)/blender blender.manifest | $(DATA_DIR)/images
 ifeq ($(SGX),1)
 all: blender.manifest.sgx blender.sig blender.token
 endif
@@ -42,7 +42,7 @@ $(RUN_DIR):
 	mkdir -p $@
 
 blender.manifest: blender.manifest.template | $(RUN_DIR)
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Ddata_dir=$(DATA_DIR) \
@@ -56,19 +56,14 @@ blender.sig blender.manifest.sgx: sgx_outputs
 	@:
 
 .INTERMEDIATE: sgx_outputs
-sgx_outputs: $(BLENDER_DIR)/blender blender.manifest \
-        $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so | $(RUN_DIR)
-	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-output blender.manifest.sgx \
-		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest blender.manifest
+sgx_outputs: $(BLENDER_DIR)/blender blender.manifest | $(RUN_DIR)
+	graphene-sgx-sign \
+		--output blender.manifest.sgx \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest blender.manifest
 
 blender.token: blender.sig
-	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
-
-$(RUN_DIR)/pal_loader: | $(RUN_DIR)
-	ln -s $(GRAPHENE_DIR)/Runtime/pal_loader $@
+	graphene-sgx-get-token --output $@ --sig $<
 
 $(DATA_DIR)/images:
 	mkdir -p $@

@@ -31,7 +31,7 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: addressbook addressbook.manifest pal_loader
+all: addressbook addressbook.manifest
 ifeq ($(SGX),1)
 all: addressbook.manifest.sgx addressbook.sig addressbook.token
 endif
@@ -55,31 +55,28 @@ $(SRCDIR)/addressbook: $(SRCDIR)/addressbook.c++ $(SRCDIR)/addressbook.capnp
 
 
 addressbook.manifest: addressbook.manifest.template
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< >$@
 
 addressbook.manifest.sgx: addressbook.manifest addressbook
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest $< \
+		--output $@
 
 addressbook.sig: addressbook.manifest.sgx
 
 addressbook.token: addressbook.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
+	graphene-sgx-get-token --output $@ --sig $^
 
 addressbook: $(SRCDIR)/addressbook
 	cp $< $@
 
-pal_loader:
-	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
-
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader addressbook
+	$(RM) *.token *.sig *.manifest.sgx *.manifest addressbook
 
 .PHONY: distclean
 distclean: clean

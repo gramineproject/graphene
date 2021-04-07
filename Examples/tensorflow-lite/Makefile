@@ -22,6 +22,12 @@ ifeq ($(SGX),1)
 all: label_image.manifest.sgx label_image.sig label_image.token
 endif
 
+ifeq ($(SGX),)
+GRAPHENE = graphene-direct
+else
+GRAPHENE = graphene-sgx
+endif
+
 include ../../Scripts/Makefile.configs
 
 $(TF_DIR)/configure:
@@ -59,21 +65,21 @@ $(GRAPHENEDIR)/Runtime/libstdc++.so.6:
 
 label_image.manifest: label_image.manifest.template libtensorflow_framework.so label_image \
                       inception_v3.tflite labels.txt image.bmp
-	../common_tools/graphene-manifest \
+	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		$< > $@
 
 label_image.manifest.sgx: label_image.manifest inception_v3.tflite labels.txt
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output label_image.token -sig label_image.sig
+	graphene-sgx-sign \
+		--key $(SGX_SIGNER_KEY) \
+		--manifest $< \
+		--output $@
+	graphene-sgx-get-token \
+		--output label_image.token --sig label_image.sig
 
 .PHONY: check
 check: all
-	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 4
+	$(GRAPHENE) ./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: run-native
 run-native: all
@@ -81,7 +87,7 @@ run-native: all
 
 .PHONY: run-graphene
 run-graphene: all
-	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 4
+	$(GRAPHENE) ./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: clean
 clean:
