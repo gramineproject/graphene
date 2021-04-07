@@ -24,7 +24,6 @@ static bool g_sync_enabled = false;
 
 static struct sync_handle* g_client_handles = NULL;
 static uint32_t g_client_counter = 1;
-static bool g_client_shutdown = false;
 static struct shim_lock g_client_lock;
 
 static void lock_client(void) {
@@ -156,11 +155,6 @@ int sync_init(struct sync_handle* handle, uint64_t id, size_t data_size) {
         goto err;
     }
 
-    /* We're shutting down, use SYNC_PHASE_SHUTDOWN so that we don't send any messages about the new
-     * handle */
-    if (g_client_shutdown)
-        handle->phase = SYNC_PHASE_SHUTDOWN;
-
     HASH_ADD(hh, g_client_handles, id, sizeof(id), handle);
 
     unlock_client();
@@ -240,24 +234,15 @@ bool sync_lock(struct sync_handle* handle, int state, void* data) {
 
     if (handle->cur_state < state) {
         do {
-            switch (handle->phase) {
-                case SYNC_PHASE_NEW:
-                case SYNC_PHASE_OPEN:
-                    if (handle->client_req_state < state && handle->cur_state ) {
-                        if (ipc_sync_client_send(IPC_MSG_SYNC_REQUEST_UPGRADE, handle->id, state,
-                                                 /*data_size=*/0, /*data=*/NULL) < 0)
-                            FATAL("sending REQUEST_UPGRADE\n");
-                        handle->client_req_state = state;
-                        handle->phase = SYNC_PHASE_OPEN;
-                    }
-                    break;
-                case SYNC_PHASE_CLOSING:
-                case SYNC_PHASE_CLOSED:
-                    FATAL("sync_lock() on a closing handle\n");
-                    break; /* unreachable */
-                case SYNC_PHASE_SHUTDOWN:
-                    /* We are shutting down. Just hang on sync_wait() until the process exits. */
-                    break;
+            if (handle->phase == SYNC_PHASE_CLOSING || handle->phase == SYNC_PHASE_CLOSED)
+                FATAL("sync_lock() on a closed handle\n");
+
+            if (handle->client_req_state < state && handle->cur_state ) {
+                if (ipc_sync_client_send(IPC_MSG_SYNC_REQUEST_UPGRADE, handle->id, state,
+                                         /*data_size=*/0, /*data=*/NULL) < 0)
+                    FATAL("sending REQUEST_UPGRADE\n");
+                handle->client_req_state = state;
+                handle->phase = SYNC_PHASE_OPEN;
             }
             sync_wait(handle);
         } while (handle->cur_state < state);
@@ -297,36 +282,57 @@ void sync_unlock(struct sync_handle* handle, void* data) {
 }
 
 int shutdown_sync_client(void) {
-    log_debug("Shutting down sync client\n");
     lock_client();
+
+    /* Send REQUEST_CLOSE for all open handles. At this point, no threads using the sync engine
+     * should be running (except for the IPC helper), so no handles will be created or upgraded. */
+    log_debug("sync client shutdown: closing handles\n");
     struct sync_handle* handle;
     struct sync_handle* tmp;
-    /* Send REQUEST_CLOSE for all open handles (we will not wait for confirmation), and mark them
-     * with SYNC_PHASE_SHUTDOWN so other threads will not attempt to send any further messages. */
     HASH_ITER(hh, g_client_handles, handle, tmp) {
         lock(&handle->prop_lock);
         if (g_sync_enabled && handle->phase == SYNC_PHASE_OPEN) {
             if (send_request_close(handle) < 0)
                 FATAL("sending REQUEST_CLOSE\n");
+            handle->phase = SYNC_PHASE_CLOSING;
+            handle->cur_state = SYNC_STATE_INVALID;
         }
-        handle->phase = SYNC_PHASE_SHUTDOWN;
-        handle->cur_state = SYNC_STATE_INVALID;
         unlock(&handle->prop_lock);
     }
 
-    g_client_shutdown = true;
+    /* Wait for server to confirm the handles are closed, and delete them. */
+    log_debug("sync client shutdown: waiting for confirmation and deleting handles\n");
+    while (g_client_handles) {
+        handle = g_client_handles;
+        unlock_client();
+
+        lock(&handle->prop_lock);
+        if (handle->phase == SYNC_PHASE_CLOSING) {
+            do {
+                sync_wait(handle);
+            } while (handle->phase != SYNC_PHASE_CLOSED);
+        }
+        unlock(&handle->prop_lock);
+
+        lock_client();
+        HASH_DELETE(hh, g_client_handles, handle);
+        __sync_destroy(handle);
+    }
     unlock_client();
+
+    log_debug("sync client shutdown: finished\n");
+
     return 0;
 }
 
 static struct sync_handle* find_handle(uint64_t id) {
-    lock(&g_client_lock);
+    lock_client();
     struct sync_handle* handle = NULL;
     HASH_FIND(hh, g_client_handles, &id, sizeof(id), handle);
 
     if (!handle)
         FATAL("message for unknown handle\n");
-    unlock(&g_client_lock);
+    unlock_client();
     return handle;
 }
 
@@ -373,7 +379,7 @@ static void do_confirm_close(uint64_t id) {
     struct sync_handle* handle = find_handle(id);
 
     lock(&handle->prop_lock);
-    if (handle->phase != SYNC_PHASE_SHUTDOWN && handle->phase != SYNC_PHASE_CLOSED) {
+    if (handle->phase != SYNC_PHASE_CLOSED) {
         handle->phase = SYNC_PHASE_CLOSED;
         sync_notify(handle);
     }

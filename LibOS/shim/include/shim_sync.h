@@ -181,10 +181,6 @@ enum {
 
     /* After receiving CONFIRM_CLOSE: can be safely destroyed */
     SYNC_PHASE_CLOSED,
-
-    /* During client shutdown: messages from server should be disregarded, and we shouldn't send any
-     * new ones */
-    SYNC_PHASE_SHUTDOWN,
 };
 
 struct sync_handle {
@@ -234,7 +230,8 @@ int init_sync_server(void);
  * and running. */
 int init_sync_client(void);
 
-/* Close and destroy all the handles. Has to be called before process exit. */
+/* Close and destroy all the handles. Has to be called after other user threads finish, but before
+ * we shut down the IPC helper. */
 int shutdown_sync_client(void);
 
 /* Initialize a sync handle. If `id` is 0, allocate a fresh handle ID.  Before calling sync_init()
