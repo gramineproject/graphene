@@ -79,6 +79,7 @@ second command should list the process status of :command:`aesm_service`.
 #. Build and run :program:`helloworld`::
 
       cd LibOS/shim/test/regression
+      make SGX=1
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
 

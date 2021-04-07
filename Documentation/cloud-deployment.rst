@@ -35,6 +35,10 @@ Graphene requires the kernel to support FSGSBASE x86 instructions. Older Azure
 Confidential Compute VMs may not contain the required kernel patches and need to
 be updated.
 
+To be able to run all tests also install::
+
+    sudo apt install -y libunwind8
+
 Building
 ^^^^^^^^
 
@@ -54,6 +58,7 @@ Building
 #. Build and run :program:`helloworld`::
 
        cd LibOS/shim/test/regression
+       make SGX=1
        make SGX=1 sgx-tokens
        SGX=1 ../../../../Runtime/pal_loader helloworld
 
