@@ -15,6 +15,7 @@
 #include <linux/shm.h>
 #include <linux/un.h>
 #include <stdalign.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "atomic.h"  // TODO: migrate to stdatomic.h
@@ -30,13 +31,12 @@ enum shim_handle_type {
     TYPE_DEV,
     TYPE_PIPE,
     TYPE_SOCK,
-    TYPE_SHM,
     TYPE_SEM,
     TYPE_MSG,
-    TYPE_FUTEX,
     TYPE_STR,
     TYPE_EPOLL,
-    TYPE_EVENTFD
+    TYPE_EVENTFD,
+    TYPE_PSEUDO,
 };
 
 struct shim_handle;
@@ -211,11 +211,6 @@ struct shim_dir_handle {
     struct shim_dentry** ptr;
 };
 
-struct shim_shm_handle {
-    /* XXX: need to implement */
-    void* __reserved;
-};
-
 struct msg_type;
 struct msg_item;
 struct msg_client;
@@ -330,16 +325,19 @@ struct shim_handle {
 
     PAL_HANDLE pal_handle;
 
+    /* Type-specific fields: when accessing, ensure that `type` field is appropriate first (at least
+     * by using assert())*/
     union {
-        struct shim_file_handle file;
-        struct shim_dev_handle dev;
-        struct shim_pipe_handle pipe;
-        struct shim_sock_handle sock;
-        struct shim_shm_handle shm;
-        struct shim_msg_handle msg;
-        struct shim_sem_handle sem;
-        struct shim_str_handle str;
-        struct shim_epoll_handle epoll;
+        struct shim_file_handle file;    /* TYPE_FILE */
+        struct shim_dev_handle dev;      /* TYPE_DEV */
+        struct shim_pipe_handle pipe;    /* TYPE_PIPE */
+        struct shim_sock_handle sock;    /* TYPE_SOCK */
+        struct shim_sem_handle sem;      /* TYPE_SEM */
+        struct shim_msg_handle msg;      /* TYPE_MSG */
+        struct shim_str_handle str;      /* TYPE_STR */
+        struct shim_epoll_handle epoll;  /* TYPE_EPOLL */
+        /* (no data) */                  /* TYPE_EVENTFD */
+        /* (no data) */                  /* TYPE_PSEUDO */
     } info;
 
     struct shim_dir_handle dir_info;

@@ -42,10 +42,10 @@ long shim_do_epoll_create1(int flags) {
     if (!hdl)
         return -ENOMEM;
 
-    struct shim_epoll_handle* epoll = &hdl->info.epoll;
-
     hdl->type = TYPE_EPOLL;
     set_handle_fs(hdl, &epoll_builtin_fs);
+
+    struct shim_epoll_handle* epoll = &hdl->info.epoll;
     epoll->fds_count = 0;
     __atomic_store_n(&epoll->waiter_cnt, 0, __ATOMIC_RELAXED);
     INIT_LISTP(&epoll->fds);
@@ -109,7 +109,8 @@ void delete_from_epoll_handles(struct shim_handle* handle) {
 
         /* second, get epoll to which this epoll-item belongs to, and remove epoll-item from
          * epoll's `fds` list */
-        struct shim_handle* hdl         = epoll_item->epoll;
+        struct shim_handle* hdl = epoll_item->epoll;
+        assert(hdl->type == TYPE_EPOLL);
         struct shim_epoll_handle* epoll = &hdl->info.epoll;
 
         lock(&hdl->lock);
@@ -146,6 +147,7 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
         return -EINVAL;
     }
 
+    assert(epoll_hdl->type == TYPE_EPOLL);
     struct shim_epoll_handle* epoll = &epoll_hdl->info.epoll;
     struct shim_epoll_item* epoll_item;
 
@@ -280,6 +282,7 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
         return -EINVAL;
     }
 
+    assert(epoll_hdl->type == TYPE_EPOLL);
     struct shim_epoll_handle* epoll = &epoll_hdl->info.epoll;
 
     lock(&epoll_hdl->lock);
@@ -423,6 +426,7 @@ long shim_do_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxe
 }
 
 static int epoll_close(struct shim_handle* epoll_hdl) {
+    assert(epoll_hdl->type == TYPE_EPOLL);
     struct shim_epoll_handle* epoll = &epoll_hdl->info.epoll;
     struct shim_epoll_item* epoll_item;
     struct shim_epoll_item* tmp_epoll_item;

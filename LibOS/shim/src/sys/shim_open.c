@@ -248,6 +248,7 @@ long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
 
     if (hdl->is_dir)
         goto out;
+
     int offset = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
     if (offset < 0) {
         ret = offset;

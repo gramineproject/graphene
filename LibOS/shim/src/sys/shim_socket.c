@@ -67,11 +67,12 @@ long shim_do_socket(int family, int type, int protocol) {
     if (!hdl)
         return -ENOMEM;
 
-    struct shim_sock_handle* sock = &hdl->info.sock;
-    hdl->type     = TYPE_SOCK;
+    hdl->type = TYPE_SOCK;
     set_handle_fs(hdl, &socket_builtin_fs);
-    hdl->flags    = type & SOCK_NONBLOCK ? O_NONBLOCK : 0;
+    hdl->flags = type & SOCK_NONBLOCK ? O_NONBLOCK : 0;
     hdl->acc_mode = 0;
+
+    struct shim_sock_handle* sock = &hdl->info.sock;
     sock->domain    = family;
     sock->sock_type = type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
     sock->protocol  = protocol;
@@ -377,6 +378,7 @@ static void inet_save_addr(int domain, struct addr_inet* addr, const struct sock
 }
 
 static int create_socket_uri(struct shim_handle* hdl) {
+    assert(hdl->type == TYPE_SOCK);
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (sock->domain == AF_UNIX) {
@@ -410,6 +412,7 @@ static int create_socket_uri(struct shim_handle* hdl) {
 static bool __socket_is_ipv6_v6only(struct shim_handle* hdl) {
     assert(locked(&hdl->lock));
 
+    assert(hdl->type == TYPE_SOCK);
     struct shim_sock_option* o = hdl->info.sock.pending_options;
     while (o) {
         if (o->level == IPPROTO_IPV6 && o->optname == IPV6_V6ONLY) {
@@ -926,14 +929,15 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
         goto out;
     }
 
-    struct shim_sock_handle* cli_sock = &cli->info.sock;
-    cli->type                         = TYPE_SOCK;
+
+    cli->type = TYPE_SOCK;
     set_handle_fs(cli, &socket_builtin_fs);
     cli->acc_mode   = MAY_READ | MAY_WRITE;
     cli->flags      = O_RDWR | flags;
     cli->pal_handle = accepted;
     accepted        = NULL;
 
+    struct shim_sock_handle* cli_sock = &cli->info.sock;
     cli_sock->domain     = sock->domain;
     cli_sock->sock_type  = sock->sock_type;
     cli_sock->protocol   = sock->protocol;
@@ -1565,7 +1569,6 @@ long shim_do_shutdown(int sockfd, int how) {
         return -EBADF;
 
     int ret = 0;
-    struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (hdl->type != TYPE_SOCK) {
         ret = -ENOTSOCK;
@@ -1574,6 +1577,7 @@ long shim_do_shutdown(int sockfd, int how) {
 
     lock(&hdl->lock);
 
+    struct shim_sock_handle* sock = &hdl->info.sock;
     if (sock->sock_state != SOCK_LISTENED && sock->sock_state != SOCK_ACCEPTED &&
         sock->sock_state != SOCK_CONNECTED && sock->sock_state != SOCK_BOUNDCONNECTED) {
         ret = -ENOTCONN;
@@ -1854,6 +1858,7 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
 }
 
 static int __process_pending_options(struct shim_handle* hdl) {
+    assert(hdl->type == TYPE_SOCK);
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (!sock->pending_options)

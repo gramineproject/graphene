@@ -67,6 +67,7 @@ static int dev_zero_open(struct shim_handle* hdl, const char* name, int flags) {
                                .stat     = &dev_zero_stat,
                                .hstat    = &dev_zero_hstat};
 
+    hdl->type = TYPE_DEV;
     hdl->info.dev.dev_ops = ops;
     return 0;
 }

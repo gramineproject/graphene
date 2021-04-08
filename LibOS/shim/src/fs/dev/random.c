@@ -64,6 +64,7 @@ static int dev_random_open(struct shim_handle* hdl, const char* name, int flags)
                                .stat  = &dev_random_stat,
                                .hstat = &dev_random_hstat};
 
+    hdl->type = TYPE_DEV;
     hdl->info.dev.dev_ops = ops;
     return 0;
 }
