@@ -81,10 +81,19 @@ static int proc_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
     return pseudo_follow_link(dent, link, &proc_root_ent);
 }
 
+static int proc_close(struct shim_handle* hdl) {
+    if (hdl->type == TYPE_PSEUDO) {
+        /* e.g. a directory */
+        return 0;
+    }
+    assert(hdl->type == TYPE_STR);
+    return str_close(hdl);
+}
+
 struct shim_fs_ops proc_fs_ops = {
     .mount   = &pseudo_mount,
     .unmount = &pseudo_unmount,
-    .close   = &str_close,
+    .close   = &proc_close,
     .read    = &str_read,
     .write   = &str_write,
     .seek    = &str_seek,

@@ -156,6 +156,11 @@ static int dev_close(struct shim_handle* hdl) {
         return str_close(hdl);
     }
 
+    if (hdl->type == TYPE_PSEUDO) {
+        /* e.g. a directory */
+        return 0;
+    }
+
     assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.close)
         return 0;

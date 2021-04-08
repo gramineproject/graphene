@@ -24,7 +24,7 @@
 /*
  * Implementation:
  *
- * The tmpfs file handles are TYPE_STR, and we delegate to str_* functions. This works because
+ * The tmpfs file handles are TYPE_STR, and we delegate work to str_* functions. This works because
  * shim_tmpfs_data structure (which is stored with dentries) begins with shim_str_data.
  */
 
