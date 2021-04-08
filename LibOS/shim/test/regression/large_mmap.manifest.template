@@ -1,4 +1,4 @@
-loader.preload = "file:../../src/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "file:large_mmap"
 loader.argv0_override = "large_mmap"
 
@@ -10,9 +10,9 @@ loader.insecure__disable_aslr = 1
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:../../../../Runtime"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-sgx.trusted_files.runtime = "file:../../../../Runtime/"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.large_mmap = "file:large_mmap"
 
 sgx.allowed_files.testfile = "file:testfile"
