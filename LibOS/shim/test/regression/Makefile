@@ -101,24 +101,15 @@ repo_manifests = \
 	env_from_host.manifest \
 	file_check_policy_allow_all_but_log.manifest \
 	file_check_policy_strict.manifest \
-	host_root_fs.manifest \
-	init_fail.manifest \
-	init_fail2.manifest \
-	large_mmap.manifest \
-	multi_pthread.manifest \
 	multi_pthread_exitless.manifest
 
-# Empty rule to prevent overriding them using "%.manifest: manifest.template" rule.
-$(repo_manifests): ;
-
-gen_manifests = $(filter-out $(repo_manifests),$(addsuffix .manifest,$(c_executables) $(cxx_executables-$(ARCH))))
+gen_manifests = $(addsuffix .manifest,$(c_executables) $(cxx_executables-$(ARCH)))
 all_manifests = $(repo_manifests) $(gen_manifests)
 
 exec_target = \
 	$(c_executables) \
 	$(cxx_executables-$(ARCH))
 
-# repo_manifests needs to be included here to generate .manifest.sgx on SGX also for them.
 target = \
 	$(exec_target) \
 	$(all_manifests)
@@ -180,6 +171,7 @@ libos-regression.xml: test_libos.py $(call expand_target_to_token,$(target))
 clean-tmp:
 	$(RM) -r \
 		*.cached \
+		*.manifest \
 		*.manifest.sgx \
 		*.sig \
 		*.tmp \
