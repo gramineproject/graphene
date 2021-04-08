@@ -422,6 +422,7 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
     }
 
     hdl->pal_handle        = palhdl;
+    hdl->type              = TYPE_FILE;
     hdl->info.file.type    = data->type;
     hdl->info.file.version = version;
     hdl->info.file.size    = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
@@ -446,6 +447,7 @@ static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
     if ((ret = __chroot_open(dent, NULL, flags, dent->mode, hdl, data)) < 0)
         return ret;
 
+    assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
     off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
@@ -473,6 +475,7 @@ static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct
     if (!hdl)
         return 0;
 
+    assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
     off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
@@ -526,6 +529,7 @@ static int chroot_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_
 static int chroot_recreate(struct shim_handle* hdl) {
     lock(&hdl->lock);
 
+    assert(hdl->type == TYPE_FILE);
     struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
     int ret = 0;
 
@@ -560,6 +564,7 @@ out:
 }
 
 static inline bool check_version(struct shim_handle* hdl) {
+    assert(hdl->type == TYPE_FILE);
     return __atomic_load_n(&FILE_HANDLE_DATA(hdl)->version.counter, __ATOMIC_SEQ_CST)
            == hdl->info.file.version;
 }
@@ -669,6 +674,7 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
         goto out;
     }
 
+    assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
 
     off_t dummy_off_t;
@@ -722,6 +728,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
 
+    assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
     lock(&hdl->lock);
 

@@ -166,6 +166,8 @@ static off_t dev_poll(struct shim_handle* hdl, int poll_type) {
     if (poll_type == FS_POLL_SZ)
         return 0;
 
+    assert(hdl->type == TYPE_DEV);
+
     off_t ret = 0;
     if ((poll_type & FS_POLL_RD) && hdl->info.dev.dev_ops.read)
         ret |= FS_POLL_RD;

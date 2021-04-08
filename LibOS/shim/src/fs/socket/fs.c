@@ -27,6 +27,7 @@ static int socket_close(struct shim_handle* hdl) {
 }
 
 static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
+    assert(hdl->type == TYPE_SOCK);
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     lock(&hdl->lock);
@@ -60,6 +61,7 @@ static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
 }
 
 static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    assert(hdl->type == TYPE_SOCK);
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     lock(&hdl->lock);
@@ -130,6 +132,7 @@ static int socket_checkout(struct shim_handle* hdl) {
 }
 
 static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
+    assert(hdl->type == TYPE_SOCK);
     struct shim_sock_handle* sock = &hdl->info.sock;
     off_t ret = 0;
 

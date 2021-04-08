@@ -527,6 +527,7 @@ static int tmpfs_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
 }
 
 static off_t tmpfs_poll(struct shim_handle* hdl, int poll_type) {
+    assert(hdl->type == TYPE_STR);
     struct shim_str_data* data = hdl->info.str.data;
     off_t size = data ? data->len : 0;
 

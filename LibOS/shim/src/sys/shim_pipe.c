@@ -186,13 +186,13 @@ long shim_do_socketpair(int domain, int type, int protocol, int* sv) {
         goto out;
     }
 
-    struct shim_sock_handle* sock1 = &hdl1->info.sock;
-    struct shim_sock_handle* sock2 = &hdl2->info.sock;
 
     hdl1->type = TYPE_SOCK;
     set_handle_fs(hdl1, &socket_builtin_fs);
     hdl1->flags       = O_RDONLY;
     hdl1->acc_mode    = MAY_READ | MAY_WRITE;
+
+    struct shim_sock_handle* sock1 = &hdl1->info.sock;
     sock1->domain     = domain;
     sock1->sock_type  = type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
     sock1->protocol   = protocol;
@@ -202,6 +202,8 @@ long shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     set_handle_fs(hdl2, &socket_builtin_fs);
     hdl2->flags       = O_WRONLY;
     hdl2->acc_mode    = MAY_READ | MAY_WRITE;
+
+    struct shim_sock_handle* sock2 = &hdl2->info.sock;
     sock2->domain     = domain;
     sock2->sock_type  = type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
     sock2->protocol   = protocol;

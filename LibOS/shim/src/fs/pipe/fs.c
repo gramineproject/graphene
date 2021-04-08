@@ -25,6 +25,7 @@
 #include "stat.h"
 
 static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
+    assert(hdl->type == TYPE_PIPE);
     if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
@@ -37,6 +38,7 @@ static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
 }
 
 static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    assert(hdl->type == TYPE_PIPE);
     if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
@@ -95,6 +97,7 @@ static int pipe_checkout(struct shim_handle* hdl) {
 static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     off_t ret = 0;
 
+    assert(hdl->type == TYPE_PIPE);
     if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
@@ -213,6 +216,8 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
     }
 
     /* rewire new hdl to contents of intermediate FIFO hdl */
+    assert(fifo_hdl->type == TYPE_PIPE);
+
     hdl->type       = fifo_hdl->type;
     hdl->acc_mode   = fifo_hdl->acc_mode;
     hdl->owner      = fifo_hdl->owner;

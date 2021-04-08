@@ -75,9 +75,10 @@ static int __add_msg_handle(unsigned long key, IDTYPE msqid, bool owned,
     if (!hdl)
         return -ENOMEM;
 
+    hdl->type = TYPE_MSG;
+
     struct shim_msg_handle* msgq = &hdl->info.msg;
 
-    hdl->type         = TYPE_MSG;
     msgq->msqkey      = key;
     msgq->msqid       = msqid;
     msgq->owned       = owned;
