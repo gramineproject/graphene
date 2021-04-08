@@ -21,6 +21,13 @@
 #include "shim_utils.h"
 #include "stat.h"
 
+/*
+ * Implementation:
+ *
+ * The tmpfs file handles are TYPE_STR, and we delegate to str_* functions. This works because
+ * shim_tmpfs_data structure (which is stored with dentries) begins with shim_str_data.
+ */
+
 struct shim_tmpfs_data {
     struct shim_str_data str_data;
     struct shim_lock lock;
@@ -152,13 +159,6 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
             ret = str_open(hdl, dent, flags);
             if (ret < 0)
                 goto out;
-            hdl->type          = TYPE_STR;
-            hdl->info.str.data = &data->str_data;
-            /* note that if file was just created, then `str` and `len` are guaranteed to be NULL
-             * and zero */
-            hdl->info.str.ptr = data->str_data.str;
-            if (flags & O_APPEND)
-                hdl->info.str.ptr += data->str_data.len;
             break;
         case FILE_DIR:
             if (flags & (O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND)) {
