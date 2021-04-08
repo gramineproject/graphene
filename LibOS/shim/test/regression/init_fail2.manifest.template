@@ -1,4 +1,4 @@
-loader.preload = "file:../../src/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "file:init_fail"
 loader.argv0_override = "init_fail"
 
@@ -6,9 +6,9 @@ loader.env.LD_LIBRARY_PATH = "/lib"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:../../../../Runtime"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-sgx.trusted_files.runtime = "file:../../../../Runtime/"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.init_fail = "file:init_fail"
 
 sgx.nonpie_binary = 1
