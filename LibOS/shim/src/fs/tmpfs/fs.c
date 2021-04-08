@@ -168,7 +168,7 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
             ret = str_open(hdl, dent, flags);
             if (ret < 0)
                 goto out;
-            hdl->type = TYPE_DIR;
+            hdl->is_dir = true;
             break;
         default:
             ret = -EACCES;

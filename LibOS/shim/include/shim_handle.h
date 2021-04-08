@@ -30,7 +30,6 @@ enum shim_handle_type {
     TYPE_DEV,
     TYPE_PIPE,
     TYPE_SOCK,
-    TYPE_DIR,
     TYPE_SHM,
     TYPE_SEM,
     TYPE_MSG,
@@ -313,6 +312,7 @@ struct shim_dentry;
  */
 struct shim_handle {
     enum shim_handle_type type;
+    bool is_dir;
 
     REFTYPE ref_count;
 

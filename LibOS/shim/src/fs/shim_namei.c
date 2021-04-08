@@ -622,7 +622,7 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     // XXX: Having a type on the handle seems a little redundant if we have a
     // dentry too.
     if (dent->state & DENTRY_ISDIRECTORY) {
-        hdl->type = TYPE_DIR;
+        hdl->is_dir = true;
         memcpy(hdl->fs_type, fs->type, sizeof(fs->type));
 
         // Set dot and dot dot for some reason
@@ -843,7 +843,7 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir) {
         return -EBADF;
     }
 
-    if (hdl->type != TYPE_DIR) {
+    if (!hdl->is_dir) {
         put_handle(hdl);
         return -ENOTDIR;
     }

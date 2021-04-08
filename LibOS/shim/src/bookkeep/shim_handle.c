@@ -420,7 +420,7 @@ void put_handle(struct shim_handle* hdl) {
     if (!ref_count) {
         delete_from_epoll_handles(hdl);
 
-        if (hdl->type == TYPE_DIR) {
+        if (hdl->is_dir) {
             struct shim_dir_handle* dir = &hdl->dir_info;
 
             if (dir->dot) {

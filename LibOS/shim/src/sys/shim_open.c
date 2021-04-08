@@ -32,7 +32,7 @@ int do_handle_read(struct shim_handle* hdl, void* buf, int count) {
     if (!fs->fs_ops->read)
         return -EBADF;
 
-    if (hdl->type == TYPE_DIR)
+    if (hdl->is_dir)
         return -EISDIR;
 
     return fs->fs_ops->read(hdl, buf, count);
@@ -67,7 +67,7 @@ int do_handle_write(struct shim_handle* hdl, const void* buf, int count) {
     if (!fs->fs_ops->write)
         return -EBADF;
 
-    if (hdl->type == TYPE_DIR)
+    if (hdl->is_dir)
         return -EISDIR;
 
     return fs->fs_ops->write(hdl, buf, count);
@@ -159,7 +159,7 @@ long shim_do_lseek(int fd, off_t offset, int origin) {
         goto out;
     }
 
-    if (hdl->type == TYPE_DIR) {
+    if (hdl->is_dir) {
         /* TODO: handle lseek'ing of directories */
         ret = -ENOSYS;
         goto out;
@@ -196,7 +196,7 @@ long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
     if (!fs->fs_ops->read)
         goto out;
 
-    if (hdl->type == TYPE_DIR)
+    if (hdl->is_dir)
         goto out;
 
     int offset = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
@@ -246,9 +246,8 @@ long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
     if (!fs->fs_ops->write)
         goto out;
 
-    if (hdl->type == TYPE_DIR)
+    if (hdl->is_dir)
         goto out;
-
     int offset = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
     if (offset < 0) {
         ret = offset;
@@ -302,7 +301,7 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
 
     int ret = -EACCES;
 
-    if (hdl->type != TYPE_DIR) {
+    if (!hdl->is_dir) {
         ret = -ENOTDIR;
         goto out_no_unlock;
     }
@@ -410,7 +409,7 @@ long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
 
     int ret = -EACCES;
 
-    if (hdl->type != TYPE_DIR) {
+    if (!hdl->is_dir) {
         ret = -ENOTDIR;
         goto out;
     }
@@ -509,7 +508,7 @@ long shim_do_fsync(int fd) {
     if (!fs || !fs->fs_ops)
         goto out;
 
-    if (hdl->type == TYPE_DIR)
+    if (!hdl->is_dir)
         goto out;
 
     if (!fs->fs_ops->flush) {
@@ -587,7 +586,7 @@ long shim_do_ftruncate(int fd, loff_t length) {
     if (!fs || !fs->fs_ops)
         goto out;
 
-    if (hdl->type == TYPE_DIR || !fs->fs_ops->truncate)
+    if (hdl->is_dir || !fs->fs_ops->truncate)
         goto out;
 
     ret = fs->fs_ops->truncate(hdl, length);
