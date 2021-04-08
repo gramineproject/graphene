@@ -67,11 +67,13 @@ static int __add_sem_handle(unsigned long key, IDTYPE semid, int nsems, bool own
     if (!hdl)
         return -ENOMEM;
 
-    tmp         = &hdl->info.sem;
-    hdl->type   = TYPE_SEM;
+    hdl->type = TYPE_SEM;
+    tmp = &hdl->info.sem;
+
     tmp->semkey = key;
     tmp->semid  = semid;
     tmp->owned  = owned;
+
     ret = DkNotificationEventCreate(PAL_FALSE, &tmp->event);
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);

@@ -88,6 +88,7 @@ static int dev_attestation_readwrite_stat(const char* name, struct stat* buf) {
  * global `g_user_report_data` struct on file close */
 static int user_report_data_modify(struct shim_handle* hdl) {
     assert(g_user_report_data_size);
+    assert(hdl->type == TYPE_STR);
     memcpy(&g_user_report_data, hdl->info.str.data->str, g_user_report_data_size);
     return 0;
 }
@@ -96,6 +97,7 @@ static int user_report_data_modify(struct shim_handle* hdl) {
  * `g_target_info` struct on file close */
 static int target_info_modify(struct shim_handle* hdl) {
     assert(g_target_info_size);
+    assert(hdl->type == TYPE_STR);
     memcpy(&g_target_info, hdl->info.str.data->str, g_target_info_size);
     return 0;
 }
@@ -431,6 +433,7 @@ out:
 /* callback for str FS; copies contents of `/dev/attestation/protected_files_key` file in the
  * global `g_pf_key_hex` string on file close and applies new PF key */
 static int pfkey_modify(struct shim_handle* hdl) {
+    assert(hdl->type == TYPE_STR);
     memcpy(&g_pf_key_hex, hdl->info.str.data->str, sizeof(g_pf_key_hex));
     g_pf_key_hex[sizeof(g_pf_key_hex) - 1] = '\0';
 

@@ -2,7 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * This file contains code for implementation of 'str' filesystem.
+ * This file contains code for implementation of 'str' filesystem. It is used by pseudo filesystems
+ * (/proc, /dev, /sys) and by tmpfs.
  */
 
 #include <asm/fcntl.h>
@@ -25,8 +26,17 @@ int str_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
 
     REF_INC(data->ref_count);
 
+    hdl->type = TYPE_STR;
+
+    /* note that if file was just created, then `str` and `len` are guaranteed to be NULL
+     * and zero */
+    hdl->info.str.data = data;
+    hdl->info.str.ptr = data->str;
+    if (flags & O_APPEND)
+        hdl->info.str.ptr += data->len;
+
     hdl->dentry = dent;
-    hdl->flags  = flags;
+    hdl->flags = flags;
 
     return 0;
 }
@@ -51,6 +61,8 @@ int str_dput(struct shim_dentry* dent) {
 }
 
 int str_close(struct shim_handle* hdl) {
+    assert(hdl->type == TYPE_STR);
+
     if (hdl->flags & (O_WRONLY | O_RDWR)) {
         int ret = str_flush(hdl);
 
@@ -77,6 +89,7 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
         goto out;
     }
 
+    assert(hdl->type == TYPE_STR);
     struct shim_str_handle* strhdl = &hdl->info.str;
 
     assert(hdl->dentry);

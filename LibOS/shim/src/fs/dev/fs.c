@@ -156,6 +156,11 @@ static int dev_close(struct shim_handle* hdl) {
         return str_close(hdl);
     }
 
+    if (hdl->type == TYPE_PSEUDO) {
+        /* e.g. a directory */
+        return 0;
+    }
+
     assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.close)
         return 0;
@@ -165,6 +170,8 @@ static int dev_close(struct shim_handle* hdl) {
 static off_t dev_poll(struct shim_handle* hdl, int poll_type) {
     if (poll_type == FS_POLL_SZ)
         return 0;
+
+    assert(hdl->type == TYPE_DEV);
 
     off_t ret = 0;
     if ((poll_type & FS_POLL_RD) && hdl->info.dev.dev_ops.read)

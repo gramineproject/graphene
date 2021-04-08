@@ -252,10 +252,19 @@ static int sys_hstat(struct shim_handle* hdl, struct stat* buf) {
     return pseudo_hstat(hdl, buf, &sys_root_ent);
 }
 
+static int sys_close(struct shim_handle* hdl) {
+    if (hdl->type == TYPE_PSEUDO) {
+        /* e.g. a directory */
+        return 0;
+    }
+    assert(hdl->type == TYPE_STR);
+    return str_close(hdl);
+}
+
 struct shim_fs_ops sys_fs_ops = {
     .mount   = &pseudo_mount,
     .unmount = &pseudo_unmount,
-    .close   = &str_close,
+    .close   = &sys_close,
     .read    = &str_read,
     .seek    = &str_seek,
     .hstat   = &sys_hstat,

@@ -420,7 +420,7 @@ void put_handle(struct shim_handle* hdl) {
     if (!ref_count) {
         delete_from_epoll_handles(hdl);
 
-        if (hdl->type == TYPE_DIR) {
+        if (hdl->is_dir) {
             struct shim_dir_handle* dir = &hdl->dir_info;
 
             if (dir->dot) {
@@ -440,14 +440,14 @@ void put_handle(struct shim_handle* hdl) {
                     *(dir->ptr++) = NULL;
                 }
             }
-        } else {
-            if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->close)
-                hdl->fs->fs_ops->close(hdl);
+        }
 
-            if (hdl->type == TYPE_SOCK && hdl->info.sock.peek_buffer) {
-                free(hdl->info.sock.peek_buffer);
-                hdl->info.sock.peek_buffer = NULL;
-            }
+        if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->close)
+            hdl->fs->fs_ops->close(hdl);
+
+        if (hdl->type == TYPE_SOCK && hdl->info.sock.peek_buffer) {
+            free(hdl->info.sock.peek_buffer);
+            hdl->info.sock.peek_buffer = NULL;
         }
 
         if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->hput)

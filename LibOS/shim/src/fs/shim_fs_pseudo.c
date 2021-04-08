@@ -173,8 +173,9 @@ int pseudo_dir_open(struct shim_handle* hdl, const char* name, int flags) {
     }
 
     if (*name == '\0') {
-        hdl->type     = TYPE_DIR;
-        hdl->flags    = flags & ~O_ACCMODE;
+        hdl->is_dir = true;
+        hdl->type = TYPE_PSEUDO;
+        hdl->flags = flags & ~O_ACCMODE;
         hdl->acc_mode = 0;
     }
 
@@ -240,8 +241,10 @@ int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
     if (!ent->fs_ops || !ent->fs_ops->open)
         return -EACCES;
 
-    hdl->type     = ent->dir ? TYPE_DIR : (ent->type == LINUX_DT_CHR ? TYPE_DEV : TYPE_FILE);
-    hdl->flags    = flags & ~O_ACCMODE;
+    hdl->is_dir = !!ent->dir;
+    /* Initialize as an empty TYPE_PSEUDO handle, fs_ops->open may override that */
+    hdl->type = TYPE_PSEUDO;
+    hdl->flags = flags & ~O_ACCMODE;
     hdl->acc_mode = ACC_MODE(flags & O_ACCMODE);
 
     return ent->fs_ops->open(hdl, rel_path, flags);
