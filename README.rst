@@ -25,9 +25,8 @@ isolated environment with benefits comparable to running a |nbsp| complete OS in
 a |nbsp| virtual machine -- including guest customization, ease of porting to
 different OSes, and process migration.
 
-Graphene supports native, unmodified Linux applications binaries on any
-platform. Currently, Graphene runs on Linux and Intel SGX enclaves on Linux
-platforms.
+Graphene supports native, unmodified Linux binaries on any platform. Currently,
+Graphene runs on Linux and Intel SGX enclaves on Linux platforms.
 
 In untrusted cloud and edge deployments, there is a |nbsp| strong desire to
 shield the whole application from rest of the infrastructure. Graphene supports
@@ -57,7 +56,7 @@ number of performance optimizations for SGX including support for asynchronous
 system calls.
 
 Graphene is ready to be deployed in cloud environments with full support for
-automatic container integration.
+automatic container integration, using Graphene Shielded Containers.
 
 We have been actively developing, testing, and validating Graphene. The effort
 to review and harden security of Graphene is ongoing.
