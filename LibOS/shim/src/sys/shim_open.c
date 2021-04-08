@@ -508,7 +508,7 @@ long shim_do_fsync(int fd) {
     if (!fs || !fs->fs_ops)
         goto out;
 
-    if (!hdl->is_dir)
+    if (hdl->is_dir)
         goto out;
 
     if (!fs->fs_ops->flush) {
