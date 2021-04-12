@@ -78,6 +78,7 @@ Table of Contents
    devel/benchmarks
    devel/performance
    devel/new-syscall
+   devel/packaging
 
 .. toctree::
    :caption: LibOS
