@@ -33,7 +33,7 @@ static int fputch(void* f, int ch, void* buf_) {
     struct printbuf* buf = buf_;
 
     buf->buf[buf->idx++] = ch;
-    if (buf->idx == PRINTBUF_SIZE - 1) {
+    if (ch == '\n' || buf->idx == PRINTBUF_SIZE - 1) {
         _DkPrintConsole(buf->buf, buf->idx);
         buf->idx = 0;
     }

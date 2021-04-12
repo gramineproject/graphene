@@ -55,7 +55,7 @@ static int output_char(void* f, int ch, void* buf_) {
     struct log_buf* buf = (struct log_buf*)buf_;
 
     buf->buf[buf->end++] = ch;
-    if (buf->end == LOG_BUF_SIZE) {
+    if (ch == '\n' || buf->end == LOG_BUF_SIZE) {
         ret = write_all(buf->fd, buf->buf, buf->end);
         buf->end = 0;
     }
