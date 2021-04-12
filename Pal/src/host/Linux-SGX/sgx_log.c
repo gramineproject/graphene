@@ -68,7 +68,6 @@ static void print_to_fd(int fd, const char* fmt, va_list ap) {
     buf.fd = fd;
     buf.end = 0;
     vfprintfmt(output_char, NULL, &buf, fmt, ap);
-    write_all(fd, buf.buf, buf.end);
     // No error handling, as `_urts_log` doesn't return errors anyways.
 }
 
