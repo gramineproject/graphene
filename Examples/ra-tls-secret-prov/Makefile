@@ -29,6 +29,9 @@ endif
 
 include ../../Scripts/Makefile.configs
 
+.PHONY: clients
+clients: secret_prov_min_client secret_prov_client secret_prov_pf_client
+
 .PHONY: all
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
