@@ -29,7 +29,7 @@ thread/process exit. Here is an example:
 
 ::
 
-   LibOS/shim/test/regression$ SGX=1 perf stat graphene/Runtime/pal_loader helloworld
+   LibOS/shim/test/regression$ perf stat graphene-sgx helloworld
    Hello world (helloworld)!
    ----- SGX stats for thread 87219 -----
    # of EENTERs:        224
@@ -44,7 +44,7 @@ thread/process exit. Here is an example:
    # of sync signals:   32
    # of async signals:  0
 
-   Performance counter stats for 'graphene/Runtime/pal_loader helloworld':
+   Performance counter stats for 'graphene-sgx helloworld':
         3,568,568,948      cycles
         1,072,072,581      instructions
           172,308,653      branches
@@ -202,12 +202,12 @@ Here is an example:
 ::
 
    # exitless disabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 0`
-   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+   Examples/redis$ graphene-sgx redis-server --save '' --protected-mode no &
    Examples/redis$ src/src/redis-benchmark -t set
    43010.75 requests per second
 
    # exitless enabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 8`
-   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+   Examples/redis$ graphene-sgx redis-server --save '' --protected-mode no &
    Examples/redis$ src/src/redis-benchmark -t set
    68119.89 requests per second
 
@@ -490,7 +490,7 @@ Recording samples with ``perf record``
 
 To record (saves ``perf.data``)::
 
-    perf record ./pal_loader application
+    perf record graphene-direct application
 
 To view the report for ``perf.data``::
 

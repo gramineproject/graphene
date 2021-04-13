@@ -28,7 +28,7 @@ Update and install the required packages for Graphene::
    sudo apt update
    sudo apt install -y \
        build-essential autoconf gawk bison wget python3 libcurl4-openssl-dev \
-       python3-protobuf libprotobuf-c-dev protobuf-c-compiler python3-pip
+       python3-protobuf libprotobuf-c-dev protobuf-c-compiler python3-pip meson
    python3 -m pip install toml>=0.10
 
 Graphene requires the kernel to support FSGSBASE x86 instructions. Older Azure
@@ -53,14 +53,17 @@ Building
 
 #. Build Graphene::
 
-       ISGX_DRIVER_PATH=/usr/src/linux-headers-`uname -r`/arch/x86/ make SGX=1
+       make ISGX_DRIVER_PATH=/usr/src/linux-headers-`uname -r`/arch/x86/ SGX=1
+       meson build -Dsgx=enabled -Ddirect=disabled
+       ninja -C build
+       sudo ninja -C install
 
 #. Build and run :program:`helloworld`::
 
        cd LibOS/shim/test/regression
        make SGX=1
        make SGX=1 sgx-tokens
-       SGX=1 ../../../../Runtime/pal_loader helloworld
+       graphene-sgx helloworld
 
 Azure Kubernetes Services (AKS)
 -------------------------------
