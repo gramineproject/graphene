@@ -302,6 +302,10 @@ SGX terminology
       enclaves to run). The MSR can also stay unlocked and then it can be
       modified at run-time by the VMM or the OS kernel.
 
+      Support for FLC can be detected using ``CPUID`` instruction, as
+      ``CPUID.07H:ECX.SGX_LC[bit 30]`` (SDM vol. 2A calls this "SGX Launch
+      Control").
+
       .. seealso::
 
          https://software.intel.com/en-us/blogs/2018/12/09/an-update-on-3rd-party-attestation
