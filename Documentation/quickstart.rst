@@ -15,12 +15,15 @@ Quick start without SGX support
       sudo apt-get install -y build-essential autoconf gawk bison wget python3
       cd graphene
       make
+      meson build -Ddirect=enabled -Dsgx=disabled
+      ninja -C build
+      sudo ninja -C build install
 
 #. Build and run :program:`helloworld`::
 
       cd LibOS/shim/test/regression
       make
-      ./pal_loader helloworld
+      graphene-direct helloworld
 
 #. For more complex examples, see :file:`Examples` directory.
 
@@ -67,7 +70,10 @@ second command should list the process status of :command:`aesm_service`.
          python3-protobuf libprotobuf-c-dev protobuf-c-compiler python3-pip
       python3 -m pip install toml>=0.10
       make
-      ISGX_DRIVER_PATH=<path-to-sgx-driver-sources> make SGX=1
+      make ISGX_DRIVER_PATH=<path-to-sgx-driver-sources> SGX=1
+      meson build -Ddirect=enabled -Dsgx=enabled
+      ninja -C build
+      sudo ninja -C build install
 
 #. Set ``vm.mmap_min_addr=0`` in the system (*only required for the legacy SGX
    driver and not needed for newer DCAP/in-kernel drivers*)::
@@ -81,7 +87,7 @@ second command should list the process status of :command:`aesm_service`.
       cd LibOS/shim/test/regression
       make SGX=1
       make SGX=1 sgx-tokens
-      SGX=1 ./pal_loader helloworld
+      graphene-sgx helloworld
 
 Running sample applications
 ---------------------------
