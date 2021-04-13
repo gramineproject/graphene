@@ -87,7 +87,8 @@ This syntax specifies an arbitrary string (typically the executable name) that
 will be passed as the first argument (``argv[0]``) to the executable.
 
 If the string is not specified in the manifest, the application will get
-``argv[0]`` from :program:`pal_loader` invocation.
+``argv[0]`` from :program:`graphene-direct` or :program:`graphens-sgx`
+invocation.
 
 ::
 
