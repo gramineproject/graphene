@@ -16,6 +16,9 @@ To build Graphene with debug symbols, the source code needs to be compiled with
 
     make clean
     make DEBUG=1
+    meson build -Ddirect=enabled
+    ninja -C build
+    sudo ninja -C build install
 
 GDB integration also requires pyelftools Python package::
 
@@ -23,7 +26,7 @@ GDB integration also requires pyelftools Python package::
 
 To run Graphene with GDB, use the following command to run your application::
 
-    GDB=1 [Graphene Directory]/Runtime/pal_loader [application] [arguments]
+    GDB=1 graphene-direct [application] [arguments]
 
 Debugging with SGX support
 --------------------------
@@ -38,6 +41,9 @@ To build Graphene with debug symbols, the source code needs to be compiled with
 
     make SGX=1 clean
     make SGX=1 DEBUG=1
+    meson build -Dsgx=enabled
+    ninja -C build
+    sudo ninja -C build install
 
 GDB integration also requires pyelftools Python package::
 
@@ -51,10 +57,10 @@ run the following commands::
     make SGX=1
     make SGX=1 sgx-tokens
 
-To run Graphene with GDB, use the Graphene loader (``pal_loader``) and specify
+To run Graphene with GDB, use the Graphene loader (``graphene-sgx``) and specify
 ``GDB=1``::
 
-    GDB=1 SGX=1 [Graphene Directory]/Runtime/pal_loader [application] [arguments]
+    GDB=1 graphene-sgx [application] [arguments]
 
 Compiling with optimizations enabled
 ------------------------------------

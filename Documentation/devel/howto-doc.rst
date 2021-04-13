@@ -64,7 +64,7 @@ The output is in the ``_build`` directory:
    firefox _build/html/index.html
 
    # example: view man output
-   man _build/man/pal_loader.1
+   man _build/man/graphene-manifest.1
 
 Preferred reST style
 --------------------
