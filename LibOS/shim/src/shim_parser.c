@@ -30,37 +30,37 @@
 #include "shim_vma.h"
 #include "stat.h"
 
-static void parse_open_flags(va_list*);
-static void parse_open_mode(va_list*);
-static void parse_access_mode(va_list*);
-static void parse_clone_flags(va_list*);
-static void parse_mmap_prot(va_list*);
-static void parse_mmap_flags(va_list*);
-static void parse_exec_args(va_list*);
-static void parse_exec_envp(va_list*);
-static void parse_pipe_fds(va_list*);
-static void parse_signum(va_list*);
-static void parse_sigmask(va_list*);
-static void parse_sigprocmask_how(va_list*);
-static void parse_madvise_behavior(va_list* ap);
-static void parse_timespec(va_list*);
-static void parse_sockaddr(va_list*);
-static void parse_domain(va_list*);
-static void parse_socktype(va_list*);
-static void parse_futexop(va_list*);
-static void parse_ioctlop(va_list*);
-static void parse_fcntlop(va_list*);
-static void parse_seek(va_list*);
-static void parse_at_fdcwd(va_list*);
-static void parse_wait_options(va_list*);
-static void parse_waitid_which(va_list*);
-static void parse_getrandom_flags(va_list*);
+static void parse_open_flags(struct print_buf*, va_list*);
+static void parse_open_mode(struct print_buf*, va_list*);
+static void parse_access_mode(struct print_buf*, va_list*);
+static void parse_clone_flags(struct print_buf*, va_list*);
+static void parse_mmap_prot(struct print_buf*, va_list*);
+static void parse_mmap_flags(struct print_buf*, va_list*);
+static void parse_exec_args(struct print_buf*, va_list*);
+static void parse_exec_envp(struct print_buf*, va_list*);
+static void parse_pipe_fds(struct print_buf*, va_list*);
+static void parse_signum(struct print_buf*, va_list*);
+static void parse_sigmask(struct print_buf*, va_list*);
+static void parse_sigprocmask_how(struct print_buf*, va_list*);
+static void parse_madvise_behavior(struct print_buf*, va_list* ap);
+static void parse_timespec(struct print_buf*, va_list*);
+static void parse_sockaddr(struct print_buf*, va_list*);
+static void parse_domain(struct print_buf*, va_list*);
+static void parse_socktype(struct print_buf*, va_list*);
+static void parse_futexop(struct print_buf*, va_list*);
+static void parse_ioctlop(struct print_buf*, va_list*);
+static void parse_fcntlop(struct print_buf*, va_list*);
+static void parse_seek(struct print_buf*, va_list*);
+static void parse_at_fdcwd(struct print_buf*, va_list*);
+static void parse_wait_options(struct print_buf*, va_list*);
+static void parse_waitid_which(struct print_buf*, va_list*);
+static void parse_getrandom_flags(struct print_buf*, va_list*);
 
-static void parse_string_arg(va_list* ap);
-static void parse_pointer_arg(va_list* ap);
-static void parse_long_arg(va_list* ap);
-static void parse_integer_arg(va_list* ap);
-static void parse_pointer_ret(va_list* ap);
+static void parse_string_arg(struct print_buf*, va_list* ap);
+static void parse_pointer_arg(struct print_buf*, va_list* ap);
+static void parse_long_arg(struct print_buf*, va_list* ap);
+static void parse_integer_arg(struct print_buf*, va_list* ap);
+static void parse_pointer_ret(struct print_buf*, va_list* ap);
 
 struct parser_table {
     /* True if this syscall can block (in such case debug info will be printed both before and after
@@ -70,7 +70,7 @@ struct parser_table {
     const char* name;
     /* Array of parsers; first for the return value, possibly followed by 6 for arguments. Parsing
      * stops at first `NULL` (or when all 6 argument parsers are used, whichever happens first). */
-    void (*parser[7])(va_list*);
+    void (*parser[7])(struct print_buf*, va_list*);
 } syscall_parser_table[LIBOS_SYSCALL_BOUND] = {
     [__NR_read] = {.slow = true, .name = "read", .parser = {parse_long_arg, parse_integer_arg,
                    parse_pointer_arg, parse_pointer_arg}},
@@ -632,99 +632,88 @@ static const char* signal_name(int sig, char str[SIGNAL_NAME_SIZE]) {
     return str;
 }
 
-#define PRINTF(fmt, ...)             \
-    do {                             \
-        log_trace(fmt, __VA_ARGS__); \
-    } while (0)
-#define PUTS(str)             \
-    do {                      \
-        log_trace("%s", str); \
-    } while (0)
-#define PUTCH(ch)            \
-    do {                     \
-        log_trace("%c", ch); \
-    } while (0)
-
 struct flag_table {
     const char *name;
     int flag;
 };
 
-static int parse_flags(int flags, const struct flag_table* all_flags, size_t count) {
+static int parse_flags(struct print_buf* buf, int flags, const struct flag_table* all_flags,
+                       size_t count) {
     if (!flags) {
-        PUTCH('0');
+        buf_putc(buf, '0');
         return 0;
     }
 
     bool first = true;
     for (size_t i = 0; i < count; i++)
         if (flags & all_flags[i].flag) {
-            if (first)
+            if (first) {
                 first = false;
-            else
-                PUTCH('|');
+            } else {
+                buf_putc(buf, '|');
+            }
 
-            PUTS(all_flags[i].name);
+            buf_puts(buf, all_flags[i].name);
             flags &= ~all_flags[i].flag;
         }
 
     return flags;
 }
 
-static void parse_open_flags(va_list* ap) {
+static void parse_open_flags(struct print_buf* buf, va_list* ap) {
     int flags = va_arg(*ap, int);
 
     if (flags & O_WRONLY) {
-        PUTS("O_WRONLY");
+        buf_puts(buf, "O_WRONLY");
         flags &= ~O_WRONLY;
     } else if (flags & O_RDWR) {
-        PUTS("O_RDWR");
+        buf_puts(buf, "O_RDWR");
         flags &= ~O_RDWR;
     } else {
-        PUTS("O_RDONLY");
+        buf_puts(buf, "O_RDONLY");
     }
 
     if (flags & O_APPEND) {
-        PUTS("|O_APPEND");
+        buf_puts(buf, "|O_APPEND");
         flags &= ~O_APPEND;
     }
     if (flags & O_CREAT) {
-        PUTS("|O_CREAT");
+        buf_puts(buf, "|O_CREAT");
         flags &= ~O_CREAT;
     }
     if (flags & O_TRUNC) {
-        PUTS("|O_TRUNC");
+        buf_puts(buf, "|O_TRUNC");
         flags &= ~O_TRUNC;
     }
     if (flags & O_EXCL) {
-        PUTS("|O_EXCL");
+        buf_puts(buf, "|O_EXCL");
         flags &= ~O_EXCL;
     }
 
     if (flags)
-        PRINTF("|0x%x", flags);
+        buf_printf(buf, "|0x%x", flags);
 }
 
-static void parse_open_mode(va_list* ap) {
-    PRINTF("%04o", va_arg(*ap, mode_t));
+static void parse_open_mode(struct print_buf* buf, va_list* ap) {
+    buf_printf(buf, "%04o", va_arg(*ap, mode_t));
 }
 
-static void parse_access_mode(va_list* ap) {
+static void parse_access_mode(struct print_buf* buf, va_list* ap) {
     int mode = va_arg(*ap, int);
 
-    PUTS("F_OK");
+    buf_puts(buf, "F_OK");
 
     if (mode) {
         if (mode & R_OK)
-            PUTS("|R_OK");
+            buf_puts(buf, "|R_OK");
         if (mode & W_OK)
-            PUTS("|W_OK");
+            buf_puts(buf, "|W_OK");
         if (mode & X_OK)
-            PUTS("|X_OK");
+            buf_puts(buf, "|X_OK");
     }
 }
 
-static void parse_clone_flags(va_list* ap) {
+static void parse_clone_flags(struct print_buf* buf, va_list* ap) {
     int flags = va_arg(*ap, int);
 
 #define FLG(n) \
@@ -755,361 +744,361 @@ static void parse_clone_flags(va_list* ap) {
     };
 #undef FLG
 
-    flags = parse_flags(flags, all_flags, ARRAY_SIZE(all_flags));
+    flags = parse_flags(buf, flags, all_flags, ARRAY_SIZE(all_flags));
 
 #define CLONE_SIGNAL_MASK 0xff
     int exit_signal = flags & CLONE_SIGNAL_MASK;
     flags &= ~CLONE_SIGNAL_MASK;
     if (exit_signal) {
         char str[SIGNAL_NAME_SIZE];
-        PRINTF("|[%s]", signal_name(exit_signal, str));
+        buf_printf(buf, "|[%s]", signal_name(exit_signal, str));
     }
 
     if (flags)
-        PRINTF("|0x%x", flags);
+        buf_printf(buf, "|0x%x", flags);
 }
 
-static void parse_mmap_prot(va_list* ap) {
+static void parse_mmap_prot(struct print_buf* buf, va_list* ap) {
     int prot   = va_arg(*ap, int);
     int nflags = 0;
 
     if (!(prot & (PROT_READ | PROT_WRITE | PROT_EXEC))) {
         nflags++;
-        PUTS("PROT_NONE");
+        buf_puts(buf, "PROT_NONE");
     }
 
     if (prot & PROT_READ) {
         if (nflags++)
-            PUTS("|");
-        PUTS("PROT_READ");
+            buf_puts(buf, "|");
+        buf_puts(buf, "PROT_READ");
     }
 
     if (prot & PROT_WRITE) {
         if (nflags++)
-            PUTS("|");
-        PUTS("PROT_WRITE");
+            buf_puts(buf, "|");
+        buf_puts(buf, "PROT_WRITE");
     }
 
     if (prot & PROT_EXEC) {
         if (nflags++)
-            PUTS("|");
+            buf_puts(buf, "|");
 
-        PUTS("PROT_EXEC");
+        buf_puts(buf, "PROT_EXEC");
     }
 
     if (prot & PROT_SEM) {
-        PUTS("|PROT_SEM");
+        buf_puts(buf, "|PROT_SEM");
     }
 
     if (prot & PROT_GROWSDOWN) {
-        PUTS("|PROT_GROWSDOWN");
+        buf_puts(buf, "|PROT_GROWSDOWN");
     }
 
     if (prot & PROT_GROWSUP) {
-        PUTS("|PROT_GROWSUP");
+        buf_puts(buf, "|PROT_GROWSUP");
     }
 }
 
-static void parse_mmap_flags(va_list* ap) {
+static void parse_mmap_flags(struct print_buf* buf, va_list* ap) {
     int flags = va_arg(*ap, int);
 
     if ((flags & MAP_SHARED_VALIDATE) == MAP_SHARED_VALIDATE) {
-        PUTS("MAP_SHARED_VALIDATE");
+        buf_puts(buf, "MAP_SHARED_VALIDATE");
         flags &= ~MAP_SHARED_VALIDATE;
     } else if (flags & MAP_SHARED) {
-        PUTS("MAP_SHARED");
+        buf_puts(buf, "MAP_SHARED");
         flags &= ~MAP_SHARED;
     } else {
         assert(flags & MAP_PRIVATE);
-        PUTS("MAP_PRIVATE");
+        buf_puts(buf, "MAP_PRIVATE");
         flags &= ~MAP_PRIVATE;
     }
 
     if (flags & MAP_ANONYMOUS) {
-        PUTS("|MAP_ANONYMOUS");
+        buf_puts(buf, "|MAP_ANONYMOUS");
         flags &= ~MAP_ANONYMOUS;
     }
 
     if (flags & MAP_FILE) {
-        PUTS("|MAP_FILE");
+        buf_puts(buf, "|MAP_FILE");
         flags &= ~MAP_FILE;
     }
 
     if (flags & MAP_FIXED) {
-        PUTS("|MAP_FIXED");
+        buf_puts(buf, "|MAP_FIXED");
         flags &= ~MAP_FIXED;
     }
 
 #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
     if (flags & MAP_UNINITIALIZED) {
-        PUTS("|MAP_UNINITIALIZED");
+        buf_puts(buf, "|MAP_UNINITIALIZED");
         flags &= ~MAP_UNINITIALIZED;
     }
 #endif
 
     if (flags & MAP_GROWSDOWN) {
-        PUTS("|MAP_GROWSDOWN");
+        buf_puts(buf, "|MAP_GROWSDOWN");
         flags &= ~MAP_GROWSDOWN;
     }
 
     if (flags & MAP_DENYWRITE) {
-        PUTS("|MAP_DENYWRITE");
+        buf_puts(buf, "|MAP_DENYWRITE");
         flags &= ~MAP_DENYWRITE;
     }
 
     if (flags & MAP_EXECUTABLE) {
-        PUTS("|MAP_EXECUTABLE");
+        buf_puts(buf, "|MAP_EXECUTABLE");
         flags &= ~MAP_EXECUTABLE;
     }
 
     if (flags & MAP_LOCKED) {
-        PUTS("|MAP_LOCKED");
+        buf_puts(buf, "|MAP_LOCKED");
         flags &= ~MAP_LOCKED;
     }
 
     if (flags & MAP_NORESERVE) {
-        PUTS("|MAP_NORESERVE");
+        buf_puts(buf, "|MAP_NORESERVE");
         flags &= ~MAP_NORESERVE;
     }
 
     if (flags & MAP_POPULATE) {
-        PUTS("|MAP_POPULATE");
+        buf_puts(buf, "|MAP_POPULATE");
         flags &= ~MAP_POPULATE;
     }
 
     if (flags & MAP_NONBLOCK) {
-        PUTS("|MAP_NONBLOCK");
+        buf_puts(buf, "|MAP_NONBLOCK");
         flags &= ~MAP_NONBLOCK;
     }
 
     if (flags & MAP_STACK) {
-        PUTS("|MAP_STACK");
+        buf_puts(buf, "|MAP_STACK");
         flags &= ~MAP_STACK;
     }
 
     if (flags & MAP_HUGETLB) {
-        PUTS("|MAP_HUGETLB");
+        buf_puts(buf, "|MAP_HUGETLB");
         flags &= ~MAP_HUGETLB;
     }
 
 #ifdef MAP_SYNC
     if (flags & MAP_SYNC) {
-        PUTS("|MAP_SYNC");
+        buf_puts(buf, "|MAP_SYNC");
         flags &= ~MAP_SYNC;
     }
 #endif
 
     if (flags)
-        PRINTF("|0x%x", flags);
+        buf_printf(buf, "|0x%x", flags);
 }
 
-static void parse_exec_args(va_list* ap) {
+static void parse_exec_args(struct print_buf* buf, va_list* ap) {
     const char** args = va_arg(*ap, const char**);
 
-    PUTS("[");
+    buf_puts(buf, "[");
 
     for (;; args++) {
         if (test_user_memory(args, sizeof(*args), false)) {
-            PRINTF("(invalid-argv %p)", args);
+            buf_printf(buf, "(invalid-argv %p)", args);
             break;
         }
         if (*args == NULL)
             break;
         if (test_user_string(*args)) {
-            PRINTF("(invalid-addr %p),", *args);
+            buf_printf(buf, "(invalid-addr %p),", *args);
             continue;
         }
-        PUTS(*args);
-        PUTS(",");
+        buf_puts(buf, *args);
+        buf_puts(buf, ",");
     }
 
-    PUTS("]");
+    buf_puts(buf, "]");
 }
 
-static void parse_exec_envp(va_list* ap) {
+static void parse_exec_envp(struct print_buf* buf, va_list* ap) {
     const char** envp = va_arg(*ap, const char**);
 
     if (!envp) {
-        PUTS("NULL");
+        buf_puts(buf, "NULL");
         return;
     }
 
-    PUTS("[");
+    buf_puts(buf, "[");
 
     int cnt = 0;
     for (; cnt < 2; cnt++, envp++) {
         if (test_user_memory(envp, sizeof(*envp), false)) {
-            PRINTF("(invalid-envp %p)", envp);
+            buf_printf(buf, "(invalid-envp %p)", envp);
             break;
         }
         if (*envp == NULL)
             break;
         if (test_user_string(*envp)) {
-            PRINTF("(invalid-addr %p),", *envp);
+            buf_printf(buf, "(invalid-addr %p),", *envp);
             continue;
         }
-        PUTS(*envp);
-        PUTS(",");
+        buf_puts(buf, *envp);
+        buf_puts(buf, ",");
     }
 
     if (cnt > 2)
-        PRINTF("(%d more)", cnt);
+        buf_printf(buf, "(%d more)", cnt);
 
-    PUTS("]");
+    buf_puts(buf, "]");
 }
 
-static void parse_pipe_fds(va_list* ap) {
+static void parse_pipe_fds(struct print_buf* buf, va_list* ap) {
     int* fds = va_arg(*ap, int*);
 
     if (test_user_memory(fds, 2 * sizeof(*fds), false)) {
-        PRINTF("[invalid-addr %p]", fds);
+        buf_printf(buf, "[invalid-addr %p]", fds);
         return;
     }
-    PRINTF("[%d, %d]", fds[0], fds[1]);
+    buf_printf(buf, "[%d, %d]", fds[0], fds[1]);
 }
 
-static void parse_signum(va_list* ap) {
+static void parse_signum(struct print_buf* buf, va_list* ap) {
     int signum = va_arg(*ap, int);
     char str[SIGNAL_NAME_SIZE];
-    PRINTF("[%s]", signal_name(signum, str));
+    buf_printf(buf, "[%s]", signal_name(signum, str));
 }
 
-static void parse_sigmask(va_list* ap) {
+static void parse_sigmask(struct print_buf* buf, va_list* ap) {
     __sigset_t* sigset = va_arg(*ap, __sigset_t*);
 
     if (!sigset) {
-        PUTS("NULL");
+        buf_puts(buf, "NULL");
         return;
     }
 
     if (test_user_memory(sigset, sizeof(*sigset), false)) {
-        PRINTF("(invalid-addr %p)", sigset);
+        buf_printf(buf, "(invalid-addr %p)", sigset);
         return;
     }
 
-    PUTS("[");
+    buf_puts(buf, "[");
 
     for (size_t signum = 1; signum <= sizeof(sigset) * 8; signum++)
         if (__sigismember(sigset, signum)) {
             char str[SIGNAL_NAME_SIZE];
-            PUTS(signal_name(signum, str));
-            PUTS(",");
+            buf_puts(buf, signal_name(signum, str));
+            buf_puts(buf, ",");
         }
 
-    PUTS("]");
+    buf_puts(buf, "]");
 }
 
-static void parse_sigprocmask_how(va_list* ap) {
+static void parse_sigprocmask_how(struct print_buf* buf, va_list* ap) {
     int how = va_arg(*ap, int);
 
     switch (how) {
         case SIG_BLOCK:
-            PUTS("BLOCK");
+            buf_puts(buf, "BLOCK");
             break;
         case SIG_UNBLOCK:
-            PUTS("UNBLOCK");
+            buf_puts(buf, "UNBLOCK");
             break;
         case SIG_SETMASK:
-            PUTS("SETMASK");
+            buf_puts(buf, "SETMASK");
             break;
         default:
-            PUTS("<unknown>");
+            buf_puts(buf, "<unknown>");
             break;
     }
 }
 
-static void parse_madvise_behavior(va_list* ap) {
+static void parse_madvise_behavior(struct print_buf* buf, va_list* ap) {
     int behavior = va_arg(*ap, int);
     switch (behavior) {
         case MADV_DOFORK:
-            PUTS("MADV_DOFORK");
+            buf_puts(buf, "MADV_DOFORK");
             break;
         case MADV_DONTFORK:
-            PUTS("MADV_DONTFORK");
+            buf_puts(buf, "MADV_DONTFORK");
             break;
         case MADV_NORMAL:
-            PUTS("MADV_NORMAL");
+            buf_puts(buf, "MADV_NORMAL");
             break;
         case MADV_SEQUENTIAL:
-            PUTS("MADV_SEQUENTIAL");
+            buf_puts(buf, "MADV_SEQUENTIAL");
             break;
         case MADV_RANDOM:
-            PUTS("MADV_RANDOM");
+            buf_puts(buf, "MADV_RANDOM");
             break;
         case MADV_REMOVE:
-            PUTS("MADV_REMOVE");
+            buf_puts(buf, "MADV_REMOVE");
             break;
         case MADV_WILLNEED:
-            PUTS("MADV_WILLNEED");
+            buf_puts(buf, "MADV_WILLNEED");
             break;
         case MADV_DONTNEED:
-            PUTS("MADV_DONTNEED");
+            buf_puts(buf, "MADV_DONTNEED");
             break;
         case MADV_FREE:
-            PUTS("MADV_FREE");
+            buf_puts(buf, "MADV_FREE");
             break;
         case MADV_MERGEABLE:
-            PUTS("MADV_MERGEABLE");
+            buf_puts(buf, "MADV_MERGEABLE");
             break;
         case MADV_UNMERGEABLE:
-            PUTS("MADV_UNMERGEABLE");
+            buf_puts(buf, "MADV_UNMERGEABLE");
             break;
         case MADV_HUGEPAGE:
-            PUTS("MADV_HUGEPAGE");
+            buf_puts(buf, "MADV_HUGEPAGE");
             break;
         case MADV_NOHUGEPAGE:
-            PUTS("MADV_NOHUGEPAGE");
+            buf_puts(buf, "MADV_NOHUGEPAGE");
             break;
         case MADV_DONTDUMP:
-            PUTS("MADV_DONTDUMP");
+            buf_puts(buf, "MADV_DONTDUMP");
             break;
         case MADV_DODUMP:
-            PUTS("MADV_DODUMP");
+            buf_puts(buf, "MADV_DODUMP");
             break;
         case MADV_WIPEONFORK:
-            PUTS("MADV_WIPEONFORK");
+            buf_puts(buf, "MADV_WIPEONFORK");
             break;
         case MADV_KEEPONFORK:
-            PUTS("MADV_KEEPONFORK");
+            buf_puts(buf, "MADV_KEEPONFORK");
             break;
         case MADV_SOFT_OFFLINE:
-            PUTS("MADV_SOFT_OFFLINE");
+            buf_puts(buf, "MADV_SOFT_OFFLINE");
             break;
         case MADV_HWPOISON:
-            PUTS("MADV_HWPOISON");
+            buf_puts(buf, "MADV_HWPOISON");
             break;
         default:
-            PRINTF("(unknown: %d)", behavior);
+            buf_printf(buf, "(unknown: %d)", behavior);
             break;
     }
 }
 
-static void parse_timespec(va_list* ap) {
+static void parse_timespec(struct print_buf* buf, va_list* ap) {
     const struct timespec* tv = va_arg(*ap, const struct timespec*);
 
     if (!tv) {
-        PUTS("NULL");
+        buf_puts(buf, "NULL");
         return;
     }
 
     if (test_user_memory((void*)tv, sizeof(*tv), false)) {
-        PRINTF("(invalid-addr %p)", tv);
+        buf_printf(buf, "(invalid-addr %p)", tv);
         return;
     }
 
-    PRINTF("[%ld,%ld]", tv->tv_sec, tv->tv_nsec);
+    buf_printf(buf, "[%ld,%ld]", tv->tv_sec, tv->tv_nsec);
 }
 
-static void parse_sockaddr(va_list* ap) {
+static void parse_sockaddr(struct print_buf* buf, va_list* ap) {
     const struct sockaddr* addr = va_arg(*ap, const struct sockaddr*);
 
     if (!addr) {
-        PUTS("NULL");
+        buf_puts(buf, "NULL");
         return;
     }
 
     if (test_user_memory((void*)addr, sizeof(*addr), false)) {
-        PRINTF("(invalid-addr %p)", addr);
+        buf_printf(buf, "(invalid-addr %p)", addr);
         return;
     }
 
@@ -1117,7 +1106,7 @@ static void parse_sockaddr(va_list* ap) {
         case AF_INET: {
             struct sockaddr_in* a = (void*)addr;
             unsigned char* ip     = (void*)&a->sin_addr.s_addr;
-            PRINTF("{family=INET,ip=%u.%u.%u.%u,port=htons(%u)}", ip[0], ip[1], ip[2], ip[3],
+            buf_printf(buf, "{family=INET,ip=%u.%u.%u.%u,port=htons(%u)}", ip[0], ip[1], ip[2], ip[3],
                    __ntohs(a->sin_port));
             break;
         }
@@ -1125,7 +1114,7 @@ static void parse_sockaddr(va_list* ap) {
         case AF_INET6: {
             struct sockaddr_in6* a = (void*)addr;
             unsigned short* ip     = (void*)&a->sin6_addr.s6_addr;
-            PRINTF(
+            buf_printf(buf,
                 "{family=INET,ip=[%x:%x:%x:%x:%x:%x:%x:%x],"
                 "port=htons(%u)}",
                 __ntohs(ip[0]), __ntohs(ip[1]), __ntohs(ip[2]), __ntohs(ip[3]), __ntohs(ip[4]),
@@ -1135,17 +1124,17 @@ static void parse_sockaddr(va_list* ap) {
 
         case AF_UNIX: {
             struct sockaddr_un* a = (void*)addr;
-            PRINTF("{family=UNIX,path=%s}", a->sun_path);
+            buf_printf(buf, "{family=UNIX,path=%s}", a->sun_path);
             break;
         }
 
         default:
-            PUTS("UNKNOWN");
+            buf_puts(buf, "UNKNOWN");
             break;
     }
 }
 
-static void parse_domain(va_list* ap) {
+static void parse_domain(struct print_buf* buf, va_list* ap) {
     int domain = va_arg(*ap, int);
 
 #define PF_UNSPEC    0  /* Unspecified.  */
@@ -1161,55 +1150,55 @@ static void parse_domain(va_list* ap) {
 
     switch (domain) {
         case PF_UNSPEC:
-            PUTS("UNSPEC");
+            buf_puts(buf, "UNSPEC");
             break;
         case PF_UNIX:
-            PUTS("UNIX");
+            buf_puts(buf, "UNIX");
             break;
         case PF_INET:
-            PUTS("INET");
+            buf_puts(buf, "INET");
             break;
         case PF_INET6:
-            PUTS("INET6");
+            buf_puts(buf, "INET6");
             break;
         case PF_IPX:
-            PUTS("IPX");
+            buf_puts(buf, "IPX");
             break;
         case PF_NETLINK:
-            PUTS("NETLINK");
+            buf_puts(buf, "NETLINK");
             break;
         case PF_X25:
-            PUTS("X25");
+            buf_puts(buf, "X25");
             break;
         case PF_AX25:
-            PUTS("AX25");
+            buf_puts(buf, "AX25");
             break;
         case PF_ATMPVC:
-            PUTS("ATMPVC");
+            buf_puts(buf, "ATMPVC");
             break;
         case PF_APPLETALK:
-            PUTS("APPLETALK");
+            buf_puts(buf, "APPLETALK");
             break;
         case PF_PACKET:
-            PUTS("PACKET");
+            buf_puts(buf, "PACKET");
             break;
         default:
-            PUTS("UNKNOWN");
+            buf_puts(buf, "UNKNOWN");
             break;
     }
 }
 
-static void parse_socktype(va_list* ap) {
+static void parse_socktype(struct print_buf* buf, va_list* ap) {
     int socktype = va_arg(*ap, int);
 
     if (socktype & SOCK_NONBLOCK) {
         socktype &= ~SOCK_NONBLOCK;
-        PUTS("SOCK_NONBLOCK|");
+        buf_puts(buf, "SOCK_NONBLOCK|");
     }
 
     if (socktype & SOCK_CLOEXEC) {
         socktype &= ~SOCK_CLOEXEC;
-        PUTS("SOCK_CLOEXEC|");
+        buf_puts(buf, "SOCK_CLOEXEC|");
     }
 
 #define SOCK_RAW       3  /* Raw protocol interface.  */
@@ -1220,42 +1209,42 @@ static void parse_socktype(va_list* ap) {
 
     switch (socktype) {
         case SOCK_STREAM:
-            PUTS("STREAM");
+            buf_puts(buf, "STREAM");
             break;
         case SOCK_DGRAM:
-            PUTS("DGRAM");
+            buf_puts(buf, "DGRAM");
             break;
         case SOCK_SEQPACKET:
-            PUTS("SEQPACKET");
+            buf_puts(buf, "SEQPACKET");
             break;
         case SOCK_RAW:
-            PUTS("RAW");
+            buf_puts(buf, "RAW");
             break;
         case SOCK_RDM:
-            PUTS("RDM");
+            buf_puts(buf, "RDM");
             break;
         case SOCK_PACKET:
-            PUTS("PACKET");
+            buf_puts(buf, "PACKET");
             break;
         default:
-            PUTS("UNKNOWN");
+            buf_puts(buf, "UNKNOWN");
             break;
     }
 }
 
-static void parse_futexop(va_list* ap) {
+static void parse_futexop(struct print_buf* buf, va_list* ap) {
     int op = va_arg(*ap, int);
 
 #ifdef FUTEX_PRIVATE_FLAG
     if (op & FUTEX_PRIVATE_FLAG) {
-        PUTS("FUTEX_PRIVATE|");
+        buf_puts(buf, "FUTEX_PRIVATE|");
         op &= ~FUTEX_PRIVATE_FLAG;
     }
 #endif
 
 #ifdef FUTEX_CLOCK_REALTIME
     if (op & FUTEX_CLOCK_REALTIME) {
-        PUTS("FUTEX_CLOCK_REALTIME|");
+        buf_puts(buf, "FUTEX_CLOCK_REALTIME|");
         op &= ~FUTEX_CLOCK_REALTIME;
     }
 #endif
@@ -1264,100 +1253,100 @@ static void parse_futexop(va_list* ap) {
 
     switch (op) {
         case FUTEX_WAIT:
-            PUTS("FUTEX_WAIT");
+            buf_puts(buf, "FUTEX_WAIT");
             break;
         case FUTEX_WAIT_BITSET:
-            PUTS("FUTEX_WAIT_BITSET");
+            buf_puts(buf, "FUTEX_WAIT_BITSET");
             break;
         case FUTEX_WAKE:
-            PUTS("FUTEX_WAKE");
+            buf_puts(buf, "FUTEX_WAKE");
             break;
         case FUTEX_WAKE_BITSET:
-            PUTS("FUTEX_WAKE_BITSET");
+            buf_puts(buf, "FUTEX_WAKE_BITSET");
             break;
         case FUTEX_FD:
-            PUTS("FUTEX_FD");
+            buf_puts(buf, "FUTEX_FD");
             break;
         case FUTEX_REQUEUE:
-            PUTS("FUTEX_REQUEUE");
+            buf_puts(buf, "FUTEX_REQUEUE");
             break;
         case FUTEX_CMP_REQUEUE:
-            PUTS("FUTEX_CMP_REQUEUE");
+            buf_puts(buf, "FUTEX_CMP_REQUEUE");
             break;
         case FUTEX_WAKE_OP:
-            PUTS("FUTEX_WAKE_OP");
+            buf_puts(buf, "FUTEX_WAKE_OP");
             break;
         default:
-            PRINTF("OP %d", op);
+            buf_printf(buf, "OP %d", op);
             break;
     }
 }
 
-static void parse_fcntlop(va_list* ap) {
+static void parse_fcntlop(struct print_buf* buf, va_list* ap) {
     int op = va_arg(*ap, int);
 
     switch (op) {
         case F_DUPFD:
-            PUTS("F_DUPFD");
+            buf_puts(buf, "F_DUPFD");
             break;
         case F_GETFD:
-            PUTS("F_GETFD");
+            buf_puts(buf, "F_GETFD");
             break;
         case F_SETFD:
-            PUTS("F_SETFD");
+            buf_puts(buf, "F_SETFD");
             break;
         case F_GETFL:
-            PUTS("F_GETFL");
+            buf_puts(buf, "F_GETFL");
             break;
         case F_SETFL:
-            PUTS("F_SETFL");
+            buf_puts(buf, "F_SETFL");
             break;
         case F_GETLK:
-            PUTS("F_GETLK");
+            buf_puts(buf, "F_GETLK");
             break;
         case F_SETLK:
-            PUTS("F_SETLK");
+            buf_puts(buf, "F_SETLK");
             break;
         case F_SETLKW:
-            PUTS("F_SETLKW");
+            buf_puts(buf, "F_SETLKW");
             break;
         case F_SETOWN:
-            PUTS("F_SETOWN");
+            buf_puts(buf, "F_SETOWN");
             break;
         case F_GETOWN:
-            PUTS("F_GETOWN");
+            buf_puts(buf, "F_GETOWN");
             break;
         case F_SETSIG:
-            PUTS("F_SETSIG");
+            buf_puts(buf, "F_SETSIG");
             break;
         case F_GETSIG:
-            PUTS("F_GETSIG");
+            buf_puts(buf, "F_GETSIG");
             break;
         case F_GETLK64:
-            PUTS("F_GETLK64");
+            buf_puts(buf, "F_GETLK64");
             break;
         case F_SETLK64:
-            PUTS("F_SETLK64");
+            buf_puts(buf, "F_SETLK64");
             break;
         case F_SETLKW64:
-            PUTS("F_SETLKW64");
+            buf_puts(buf, "F_SETLKW64");
             break;
         case F_SETOWN_EX:
-            PUTS("F_SETOWN_EX");
+            buf_puts(buf, "F_SETOWN_EX");
             break;
         case F_GETOWN_EX:
-            PUTS("F_GETOWN_EX");
+            buf_puts(buf, "F_GETOWN_EX");
             break;
         case F_GETOWNER_UIDS:
-            PUTS("F_GETOWNER_UIDS");
+            buf_puts(buf, "F_GETOWNER_UIDS");
             break;
         default:
-            PRINTF("OP %d", op);
+            buf_printf(buf, "OP %d", op);
             break;
     }
 }
 
-static void parse_ioctlop(va_list* ap) {
+static void parse_ioctlop(struct print_buf* buf, va_list* ap) {
     unsigned int op = va_arg(*ap, unsigned int);
 
     if (op >= TCGETS && op <= TIOCVHANGUP) {
@@ -1391,7 +1380,7 @@ static void parse_ioctlop(va_list* ap) {
             "TCSETXW",      /* 0x5435 */ "TIOCSIG",    /* 0x5436 */
             "TIOCVHANGUP",                             /* 0x5437 */
         };
-        PUTS(opnames[op - TCGETS]);
+        buf_puts(buf, opnames[op - TCGETS]);
         return;
     }
 
@@ -1404,49 +1393,49 @@ static void parse_ioctlop(va_list* ap) {
             "TIOCSERGSTRUCT",  /* 0x5458 */ "TIOCSERGETLSR",   /* 0x5459 */
             "TIOCSERGETMULTI", /* 0x545A */ "TIOCSERSETMULTI", /* 0x545B */
         };
-        PUTS(opnames[op - FIONCLEX]);
+        buf_puts(buf, opnames[op - FIONCLEX]);
         return;
     }
 
 #define TIOCMIWAIT  0x545C /* wait for a change on serial input line(s) */
 #define TIOCGICOUNT 0x545D /* read serial port __inline__ interrupt counts */
 
-    PRINTF("OP 0x%04x", op);
+    buf_printf(buf, "OP 0x%04x", op);
 }
 
-static void parse_seek(va_list* ap) {
+static void parse_seek(struct print_buf* buf, va_list* ap) {
     int seek = va_arg(*ap, int);
 
     switch (seek) {
         case SEEK_CUR:
-            PUTS("SEEK_CUR");
+            buf_puts(buf, "SEEK_CUR");
             break;
         case SEEK_SET:
-            PUTS("SEEK_SET");
+            buf_puts(buf, "SEEK_SET");
             break;
         case SEEK_END:
-            PUTS("SEEK_END");
+            buf_puts(buf, "SEEK_END");
             break;
         default:
-            PRINTF("%d", seek);
+            buf_printf(buf, "%d", seek);
             break;
     }
 }
 
-static void parse_at_fdcwd(va_list* ap) {
+static void parse_at_fdcwd(struct print_buf* buf, va_list* ap) {
     int fd = va_arg(*ap, int);
 
     switch (fd) {
         case AT_FDCWD:
-            PUTS("AT_FDCWD");
+            buf_puts(buf, "AT_FDCWD");
             break;
         default:
-            PRINTF("%d", fd);
+            buf_printf(buf, "%d", fd);
             break;
     }
 }
 
-static void parse_wait_options(va_list* ap) {
+static void parse_wait_options(struct print_buf* buf, va_list* ap) {
     int flags = va_arg(*ap, int);
 
 #define FLG(n) { #n, n }
@@ -1460,36 +1449,36 @@ static void parse_wait_options(va_list* ap) {
     };
 #undef FLG
 
-    flags = parse_flags(flags, all_flags, ARRAY_SIZE(all_flags));
+    flags = parse_flags(buf, flags, all_flags, ARRAY_SIZE(all_flags));
     if (flags)
-        PRINTF("|0x%x", flags);
+        buf_printf(buf, "|0x%x", flags);
 }
 
-static void parse_waitid_which(va_list* ap) {
+static void parse_waitid_which(struct print_buf* buf, va_list* ap) {
     int which = va_arg(*ap, int);
 
     switch (which) {
         case P_ALL:
-            PUTS("P_ALL");
+            buf_puts(buf, "P_ALL");
             break;
         case P_PID:
-            PUTS("P_PID");
+            buf_puts(buf, "P_PID");
             break;
         case P_PGID:
-            PUTS("P_PGID");
+            buf_puts(buf, "P_PGID");
             break;
 #ifdef P_PIDFD
         case P_PIDFD:
-            PUTS("P_PIDFD");
+            buf_puts(buf, "P_PIDFD");
             break;
 #endif
         default:
-            PRINTF("%d", which);
+            buf_printf(buf, "%d", which);
             break;
     }
 }
 
-static void parse_getrandom_flags(va_list* ap) {
+static void parse_getrandom_flags(struct print_buf* buf, va_list* ap) {
     unsigned int flags = va_arg(*ap, unsigned int);
 
 #define FLG(n) { #n, n }
@@ -1500,54 +1489,54 @@ static void parse_getrandom_flags(va_list* ap) {
     };
 #undef FLG
 
-    flags = parse_flags(flags, all_flags, ARRAY_SIZE(all_flags));
+    flags = parse_flags(buf, flags, all_flags, ARRAY_SIZE(all_flags));
     if (flags)
-        PRINTF("|0x%x", flags);
+        buf_printf(buf, "|0x%x", flags);
 }
 
-static void parse_string_arg(va_list* ap) {
+static void parse_string_arg(struct print_buf* buf, va_list* ap) {
     const char* arg = va_arg(*ap, const char*);
     if (!test_user_string(arg)) {
-        PRINTF("\"%s\"", arg);
+        buf_printf(buf, "\"%s\"", arg);
     } else {
         /* invalid memory region, print arg as ptr not string */
-        PRINTF("(invalid-addr %p)", arg);
+        buf_printf(buf, "(invalid-addr %p)", arg);
     }
 }
 
-static void parse_pointer_arg(va_list* ap) {
-    PRINTF("%p", va_arg(*ap, void*));
+static void parse_pointer_arg(struct print_buf* buf, va_list* ap) {
+    buf_printf(buf, "%p", va_arg(*ap, void*));
 }
 
-static void parse_long_arg(va_list* ap) {
+static void parse_long_arg(struct print_buf* buf, va_list* ap) {
     long x = va_arg(*ap, long);
     if (x >= 0) {
-        PRINTF("0x%lx", (unsigned long)x);
+        buf_printf(buf, "0x%lx", (unsigned long)x);
     } else {
-        PRINTF("%ld", x);
+        buf_printf(buf, "%ld", x);
     }
 }
 
-static void parse_integer_arg(va_list* ap) {
+static void parse_integer_arg(struct print_buf* buf, va_list* ap) {
     int x = va_arg(*ap, int);
-    PRINTF("%d", x);
+    buf_printf(buf, "%d", x);
 }
 
-static void parse_pointer_ret(va_list* ap) {
+static void parse_pointer_ret(struct print_buf* buf, va_list* ap) {
     void* ptr = va_arg(*ap, void*);
     if ((uintptr_t)ptr < (uintptr_t)-4095LL) {
-        PRINTF("%p", ptr);
+        buf_printf(buf, "%p", ptr);
     } else {
-        PRINTF("%ld", (intptr_t)ptr);
+        buf_printf(buf, "%ld", (intptr_t)ptr);
     }
 }
 
-static void print_syscall_name(const char* name, unsigned long sysno) {
-    PUTS("shim_");
+static void print_syscall_name(struct print_buf* buf, const char* name, unsigned long sysno) {
+    buf_puts(buf, "shim_");
     if (name) {
-        PRINTF("%s", name);
+        buf_printf(buf, "%s", name);
     } else {
-        PRINTF("syscall%lu", sysno);
+        buf_printf(buf, "syscall%lu", sysno);
     }
 }
 
@@ -1556,6 +1545,13 @@ void warn_unsupported_syscall(unsigned long sysno) {
         log_warning("Unsupported system call %s\n", syscall_parser_table[sysno].name);
     else
         log_warning("Unsupported system call %lu\n", sysno);
+}
+
+static int write_all(const char* str, size_t size, void* arg) {
+    __UNUSED(arg);
+
+    log_trace("%*s\n", (int)size, str);
+    return 0;
 }
 
 void debug_print_syscall_before(unsigned long sysno, ...) {
@@ -1567,27 +1563,29 @@ void debug_print_syscall_before(unsigned long sysno, ...) {
     if (!parser->slow)
         return;
 
+    struct print_buf buf = INIT_PRINT_BUF(write_all);
+
     va_list ap;
     va_start(ap, sysno);
 
-    PUTS("---- ");
-    print_syscall_name(parser->name, sysno);
-    PUTS("(");
+    buf_puts(&buf, "---- ");
+    print_syscall_name(&buf, parser->name, sysno);
+    buf_puts(&buf, "(");
 
     for (int i = 0; i < 6; i++) {
         if (parser->parser[i + 1]) {
             if (i)
-                PUTS(", ");
-            parser->parser[i + 1](&ap);
+                buf_puts(&buf, ", ");
+            parser->parser[i + 1](&buf, &ap);
         } else {
             break;
         }
     }
 
-    PUTS(") ...");
-    /* Apparently `PUTS` does not flush buffer if it's ended with '\n'. */
-    PUTCH('\n');
+    buf_puts(&buf, ") ...");
     va_end(ap);
+
+    buf_flush(&buf);
 }
 
 void debug_print_syscall_after(unsigned long sysno, ...) {
@@ -1596,6 +1594,8 @@ void debug_print_syscall_after(unsigned long sysno, ...) {
 
     struct parser_table* parser = &syscall_parser_table[sysno];
 
+    struct print_buf buf = INIT_PRINT_BUF(write_all);
+
     va_list ap;
     va_start(ap, sysno);
 
@@ -1603,19 +1603,19 @@ void debug_print_syscall_after(unsigned long sysno, ...) {
     va_arg(ap, long);
 
     if (parser->slow) {
-        PUTS("---- return from ");
-        print_syscall_name(parser->name, sysno);
-        PUTS("(...");
+        buf_puts(&buf, "---- return from ");
+        print_syscall_name(&buf, parser->name, sysno);
+        buf_puts(&buf, "(...");
     } else {
-        PUTS("---- ");
-        print_syscall_name(parser->name, sysno);
-        PUTS("(");
+        buf_puts(&buf, "---- ");
+        print_syscall_name(&buf, parser->name, sysno);
+        buf_puts(&buf, "(");
 
         for (int i = 0; i < 6; i++) {
             if (parser->parser[i + 1]) {
                 if (i)
-                    PUTS(", ");
-                parser->parser[i + 1](&ap);
+                    buf_puts(&buf, ", ");
+                parser->parser[i + 1](&buf, &ap);
             } else {
                 break;
             }
@@ -1624,13 +1624,14 @@ void debug_print_syscall_after(unsigned long sysno, ...) {
 
     va_end(ap);
 
-    PUTS(")");
+    buf_puts(&buf, ")");
     if (parser->parser[0]) {
-        PUTS(" = ");
+        buf_puts(&buf, " = ");
         /* Return value is passed as the first argument, restart the list. */
         va_start(ap, sysno);
-        parser->parser[0](&ap);
+        parser->parser[0](&buf, &ap);
         va_end(ap);
     }
-    PUTCH('\n');
+
+    buf_flush(&buf);
 }

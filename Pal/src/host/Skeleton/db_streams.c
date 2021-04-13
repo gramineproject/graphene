@@ -12,10 +12,6 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-void _DkPrintConsole(const void* buf, size_t size) {
-    /* needs to be implemented */
-}
-
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
 int _DkStreamUnmap(void* addr, uint64_t size) {
