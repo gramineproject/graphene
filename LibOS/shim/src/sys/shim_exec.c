@@ -290,7 +290,7 @@ reopen:
         } while (!ended);
 
         if (!started) {
-            log_warning("file not recognized as ELF or shebang");
+            log_warning("file not recognized as ELF or shebang\n");
             put_dentry(dent);
             put_handle(exec);
             return -ENOEXEC;

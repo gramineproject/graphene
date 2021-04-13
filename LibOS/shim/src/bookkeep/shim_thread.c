@@ -604,8 +604,9 @@ BEGIN_CP_FUNC(thread) {
             /* don't export stale pointers */
             new_tcb->self      = NULL;
             new_tcb->tp        = NULL;
-            new_tcb->log_buf   = NULL;
             new_tcb->vma_cache = NULL;
+
+            new_tcb->log_prefix[0] = '\0';
 
             size_t roff = ADD_CP_OFFSET(sizeof(*thread->shim_tcb->context.regs));
             new_thread->shim_tcb->context.regs = (void*)(base + roff);
@@ -675,10 +676,6 @@ BEGIN_RS_FUNC(thread) {
     thread->pal_handle = PAL_CB(first_thread);
 
     set_cur_thread(thread);
-
-    ret = log_setbuf(thread->shim_tcb, NULL);
-    if (ret < 0) {
-        return ret;
-    }
+    log_setprefix(thread->shim_tcb);
 }
 END_RS_FUNC(thread)
