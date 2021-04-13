@@ -223,11 +223,18 @@ int vfprintfmt(int (*_fputc)(char c, void* arg), void* arg, const char* fmt, va_
                     return ret;
                 break;
 
+            // '%' at the end of string - just print the %
+            case '\0':
+                if ((ret = _fputc('%', arg)) < 0)
+                    return ret;
+                return 0;
+
             // unrecognized escape sequence - just print it literally
             default:
                 if ((ret = _fputc('%', arg)) < 0)
                     return ret;
-                fmt--;
+                if ((ret = _fputc(ch, arg)) < 0)
+                    return ret;
                 break;
         }
     }
@@ -337,7 +344,7 @@ static int __buf_putc(char c, void* arg) {
 int buf_flush(struct print_buf* buf) {
     int ret;
     if (buf->pos > 0) {
-        if ((ret = buf->write_all(&buf->data[0], buf->pos, buf->arg)) < 0)
+        if ((ret = buf->buf_write_all(&buf->data[0], buf->pos, buf->arg)) < 0)
             return ret;
     }
     return 0;

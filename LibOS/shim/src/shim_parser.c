@@ -1547,7 +1547,7 @@ void warn_unsupported_syscall(unsigned long sysno) {
         log_warning("Unsupported system call %lu\n", sysno);
 }
 
-static int write_all(const char* str, size_t size, void* arg) {
+static int buf_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
 
     log_trace("%*s\n", (int)size, str);
@@ -1563,7 +1563,7 @@ void debug_print_syscall_before(unsigned long sysno, ...) {
     if (!parser->slow)
         return;
 
-    struct print_buf buf = INIT_PRINT_BUF(write_all);
+    struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
 
     va_list ap;
     va_start(ap, sysno);

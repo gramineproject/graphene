@@ -54,7 +54,7 @@ void log_setprefix(shim_tcb_t* tcb) {
     }
 }
 
-static int write_all(const char* str, size_t size, void* arg) {
+static int buf_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
     DkDebugLog((PAL_PTR)str, size);
     return 0;
@@ -62,7 +62,7 @@ static int write_all(const char* str, size_t size, void* arg) {
 
 void _log(int level, const char* fmt, ...) {
     if (level <= g_log_level) {
-        struct print_buf buf = INIT_PRINT_BUF(write_all);
+        struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
 
         buf_puts(&buf, shim_get_tcb()->log_prefix);
         buf_puts(&buf, log_level_to_prefix[level]);
@@ -77,7 +77,7 @@ void _log(int level, const char* fmt, ...) {
 }
 
 void log_always(const char* fmt, ...) {
-    struct print_buf buf = INIT_PRINT_BUF(write_all);
+    struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
 
     buf_puts(&buf, shim_get_tcb()->log_prefix);
 

@@ -19,6 +19,7 @@ static const char* log_level_to_prefix[] = {
     [PAL_LOG_DEBUG]   = "debug: ",
     [PAL_LOG_TRACE]   = "trace: ",
     [PAL_LOG_ALL]     = "", // same as for PAL_LOG_NONE
+};
 
 int g_urts_log_level = PAL_LOG_DEFAULT_LEVEL;
 int g_urts_log_fd = PAL_LOG_DEFAULT_FD;
@@ -40,13 +41,13 @@ int urts_log_init(const char* path) {
     return 0;
 }
 
-static int write_all(const char* str, size_t size, void* arg) {
+static int buf_write_all(const char* str, size_t size, void* arg) {
     int fd = *(int*)arg;
     return write_all(fd, str, size);
 }
 
 static void print_to_fd(int fd, const char* fmt, va_list ap) {
-    struct print_buf buf = INIT_PRINT_BUF_ARG(write_all, &fd);
+    struct print_buf buf = INIT_PRINT_BUF_ARG(buf_write_all, &fd);
 
     buf_vprintf(&buf, fmt, ap);
     buf_flush(&buf);

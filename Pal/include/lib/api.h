@@ -249,9 +249,9 @@ int __snprintf_chk(char* str, size_t size, int flag, size_t real_size, const cha
  * Buffered printing. The print_buf structure holds PRINT_BUF_SIZE characters, and outputs them
  * (using `write_all` callback) when `buf_flush()` is called, or when the buffer overflows.
  *
- *     static int write_all(const char* str, size_t size, void* arg) { ... }
+ *     static int buf_write_all(const char* str, size_t size, void* arg) { ... }
  *
- *     struct print_buf buf = INIT_PRINT_BUF(write_all);
+ *     struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
  *     buf_puts(&buf, str);
  *     buf_printf(&buf, fmt, ...);
  *     buf_flush(&buf);
@@ -266,11 +266,13 @@ struct print_buf {
     char data[PRINT_BUF_SIZE];
     size_t pos;
     void* arg;
-    int (*write_all)(const char* str, size_t size, void* arg);
+    int (*buf_write_all)(const char* str, size_t size, void* arg);
 };
 
-#define INIT_PRINT_BUF_ARG(_write_all, arg) { .pos = 0, .arg = (arg), .write_all = (_write_all) }
-#define INIT_PRINT_BUF(_write_all) { .pos = 0, .arg = NULL, .write_all = (_write_all) }
+#define INIT_PRINT_BUF_ARG(_buf_write_all, _arg) \
+    { .pos = 0, .arg = (_arg), .buf_write_all = (_buf_write_all) }
+#define INIT_PRINT_BUF(_buf_write_all) \
+    { .pos = 0, .arg = NULL, .buf_write_all = (_buf_write_all) }
 
 int buf_vprintf(struct print_buf* buf, const char* fmt, va_list ap)
     __attribute__((format(printf, 2, 0)));
