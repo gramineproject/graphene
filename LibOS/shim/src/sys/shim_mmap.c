@@ -131,6 +131,18 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
         flags &= ~MAP_32BIT;
 #endif
 
+    /* mmap on shared anonymous memory under SGX is special: pass-through (will be allocated in
+     * untrusted memory by Linux-SGX PAL) and not reflected in VMA metadata */
+    if (!strcmp(PAL_CB(host_type), "Linux-SGX") &&
+            (flags & (MAP_ANONYMOUS | MAP_SHARED)) == (MAP_ANONYMOUS | MAP_SHARED)) {
+        /* we abuse PAL_ALLOC_RESERVE as a magic hint to PAL that this is shared anon memory */
+        ret = DkVirtualMemoryAlloc(&addr, length, /*alloc_type=*/PAL_ALLOC_RESERVE,
+                                   LINUX_PROT_TO_PAL(prot, flags));
+        if (ret < 0)
+            ret = pal_to_unix_errno(ret);
+        goto out_handle;
+    }
+
     /* mmap on devices under SGX is special: pass-through and not reflected in VMA metadata */
     if (!strcmp(PAL_CB(host_type), "Linux-SGX") && hdl && hdl->type == TYPE_FILE &&
             hdl->info.file.type == FILE_DEV) {
