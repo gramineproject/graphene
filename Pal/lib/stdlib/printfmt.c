@@ -345,6 +345,7 @@ int buf_flush(struct print_buf* buf) {
     if (buf->pos > 0) {
         if ((ret = buf->buf_write_all(&buf->data[0], buf->pos, buf->arg)) < 0)
             return ret;
+        buf->pos = 0;
     }
     return 0;
 }

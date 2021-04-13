@@ -1550,7 +1550,7 @@ void warn_unsupported_syscall(unsigned long sysno) {
 static int buf_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
 
-    log_trace("%*s\n", (int)size, str);
+    log_trace("%.*s\n", (int)size, str);
     return 0;
 }
 
