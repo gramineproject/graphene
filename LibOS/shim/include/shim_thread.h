@@ -149,21 +149,6 @@ void put_thread(struct shim_thread* thread);
 
 void log_setprefix(shim_tcb_t* tcb);
 
-/* Set `log_buf` for `tcb`. If `log_buf` is `NULL`, then new one is allocated. If `log_buf`
- * is not NULL, this function cannot fail. */
-static inline int log_setbuf(shim_tcb_t* tcb, struct log_buf* log_buf) {
-    if (g_log_level <= PAL_LOG_NONE)
-        return 0;
-
-    tcb->log_buf = log_buf ? log_buf : malloc(sizeof(struct log_buf));
-    if (!tcb->log_buf) {
-        return -ENOMEM;
-    }
-
-    log_setprefix(tcb);
-    return 0;
-}
-
 static inline struct shim_thread* get_cur_thread(void) {
     return SHIM_TCB_GET(tp);
 }
@@ -194,8 +179,7 @@ static inline void set_cur_thread(struct shim_thread* thread) {
     tcb->libos_stack_bottom = thread->libos_stack_bottom;
     thread->shim_tcb = tcb;
 
-    if (tcb->log_buf)
-        log_setprefix(tcb);
+    log_setprefix(tcb);
 }
 
 static inline void thread_setwait(struct shim_thread** queue, struct shim_thread* thread) {

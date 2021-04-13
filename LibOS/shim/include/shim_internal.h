@@ -25,12 +25,6 @@ static inline bool is_internal_tid(unsigned int tid) {
     return tid >= INTERNAL_TID_BASE;
 }
 
-struct log_buf {
-    size_t start;
-    size_t end;
-    char buf[LOG_BUF_SIZE];
-};
-
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_error.h"

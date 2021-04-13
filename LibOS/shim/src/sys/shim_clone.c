@@ -67,8 +67,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     shim_tcb_t* tcb = my_thread->shim_tcb;
 
-    struct log_buf log_buf;
-    (void)log_setbuf(tcb, &log_buf);
+    log_setprefix(tcb);
 
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;

@@ -289,19 +289,8 @@ void free(void* mem);
 #error Unsupported compiler
 #endif
 
-#define ALIAS_STR(name) #name
-#ifdef __GNUC__
-# define EXTERN_ALIAS(name) \
-    extern __typeof(name) pal_##name __attribute ((alias (ALIAS_STR(name))))
-#else
-#define EXTERN_ALIAS(name)
-#endif
-
 int _DkInitDebugStream(const char* path);
 int _DkDebugLog(const void* buf, size_t size);
-void _DkPrintConsole(const void* buf, size_t size);
-int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.

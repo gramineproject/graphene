@@ -226,22 +226,62 @@ void* calloc(size_t nmemb, size_t size);
 
 #define WRITE_ONCE(x, y) do { *(volatile __typeof__(x)*)&(x) = (y); } while (0)
 
-/* Libc printf functions. stdio.h/stdarg.h. */
-void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const char* fmt, ...)
-    __attribute__((format(printf, 4, 5)));
+/* Printf family of functions. */
 
-void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* put_data, const char* fmt,
-                va_list ap) __attribute__((format(printf, 4, 0)));
+/* Generic function, taking an "output single character" callback. Returns 0 or negative error
+ * code (from the `_fputc` callback). */
+int vfprintfmt(int (*_fputc)(char c, void* arg), void* arg, const char* fmt, va_list ap)
+    __attribute__((format(printf, 3, 0)));
 
-int vsnprintf(char* buf, size_t buf_size, const char* fmt, va_list ap);
-int snprintf(char* buf, size_t buf_size, const char* fmt, ...)
+int vsnprintf(char* str, size_t size, const char* fmt, va_list ap)
+    __attribute__((format(printf, 3, 0)));
+int snprintf(char* str, size_t size, const char* fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
 /* Used by _FORTIFY_SOURCE */
-int __vsnprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt,
-                    va_list ap);
-int __snprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt, ...)
+int __vsnprintf_chk(char* str, size_t size, int flag, size_t real_size, const char* fmt,
+                    va_list ap)
+    __attribute__((format(printf, 5, 0)));
+int __snprintf_chk(char* str, size_t size, int flag, size_t real_size, const char* fmt, ...)
     __attribute__((format(printf, 5, 6)));
+
+/*
+ * Buffered printing. The print_buf structure holds PRINT_BUF_SIZE characters, and outputs them
+ * (using `buf_write_all` callback) when `buf_flush()` is called, or when the buffer overflows.
+ *
+ *     static int buf_write_all(const char* str, size_t size, void* arg) { ... }
+ *
+ *     struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
+ *     buf_puts(&buf, str);
+ *     buf_printf(&buf, fmt, ...);
+ *     buf_flush(&buf);
+ *
+ * The `buf_*` functions always return 0, or a negative error code (if one was returned from the
+ * `write_all` callback).
+ */
+
+#define PRINT_BUF_SIZE 256
+
+struct print_buf {
+    char data[PRINT_BUF_SIZE];
+    size_t pos;
+    void* arg;
+    int (*buf_write_all)(const char* str, size_t size, void* arg);
+};
+
+#define INIT_PRINT_BUF_ARG(_buf_write_all, _arg) \
+    { .pos = 0, .arg = (_arg), .buf_write_all = (_buf_write_all) }
+#define INIT_PRINT_BUF(_buf_write_all) \
+    { .pos = 0, .arg = NULL, .buf_write_all = (_buf_write_all) }
+
+int buf_vprintf(struct print_buf* buf, const char* fmt, va_list ap)
+    __attribute__((format(printf, 2, 0)));
+int buf_printf(struct print_buf* buf, const char* fmt, ...)
+    __attribute__((format(printf, 2, 3)));
+
+int buf_puts(struct print_buf* buf, const char* str);
+int buf_putc(struct print_buf* buf, char c);
+int buf_flush(struct print_buf* buf);
 
 /* Miscelleneous */
 

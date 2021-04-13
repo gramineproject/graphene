@@ -83,7 +83,7 @@ int sys_match_resource_num(const char* pathname) {
         }
         totalcnt = pal_control.topo_info.num_cache_index;
     } else {
-        log_debug("Invalid resource %s in file %s!", token, pathname);
+        log_debug("Invalid resource %s in file %s!\n", token, pathname);
         ret = 0;
         goto out;
     }

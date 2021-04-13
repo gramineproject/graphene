@@ -73,10 +73,6 @@ out:
     return (mode & acc);
 }
 
-void _DkPrintConsole(const void* buf, size_t size) {
-    ocall_write(2 /*stderr*/, buf, size);
-}
-
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
 int _DkStreamUnmap(void* addr, uint64_t size) {
