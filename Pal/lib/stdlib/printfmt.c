@@ -326,13 +326,12 @@ int buf_puts(struct print_buf* buf, const char* str) {
 }
 
 int buf_putc(struct print_buf* buf, char c) {
-    assert(buf->pos <= ARRAY_SIZE(buf->data));
-
     if (buf->pos == ARRAY_SIZE(buf->data)) {
         int ret;
         if ((ret = buf_flush(buf)) < 0)
             return ret;
     }
+    assert(buf->pos < ARRAY_SIZE(buf->data));
     buf->data[buf->pos++] = c;
     return 0;
 }
