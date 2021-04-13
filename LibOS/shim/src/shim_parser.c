@@ -1594,7 +1594,7 @@ void debug_print_syscall_after(unsigned long sysno, ...) {
 
     struct parser_table* parser = &syscall_parser_table[sysno];
 
-    struct print_buf buf = INIT_PRINT_BUF(write_all);
+    struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
 
     va_list ap;
     va_start(ap, sysno);

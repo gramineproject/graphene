@@ -15,14 +15,14 @@ static const char* log_level_to_prefix[] = {
     [PAL_LOG_ALL]     = "", // same as for PAL_LOG_NONE
 };
 
-static int write_all(const char* str, size_t size, void* arg) {
+static int buf_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
     _DkDebugLog(str, size);
     return 0;
 }
 
 static void log_vprintf(const char* prefix, const char* fmt, va_list ap) {
-    struct print_buf buf = INIT_PRINT_BUF(write_all);
+    struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
 
     if (prefix)
         buf_puts(&buf, prefix);
