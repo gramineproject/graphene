@@ -65,6 +65,7 @@ objs = \
 	shim_parser.o \
 	shim_rtld.o \
 	shim_syscalls.o \
+	shim_utils.o \
 	bookkeep/shim_handle.o \
 	bookkeep/shim_process.o \
 	bookkeep/shim_signal.o \

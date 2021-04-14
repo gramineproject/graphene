@@ -167,4 +167,7 @@ struct shim_thread* terminate_async_helper(void);
 
 extern toml_table_t* g_manifest_root;
 
+int read_exact(PAL_HANDLE handle, void* buf, size_t size);
+int write_exact(PAL_HANDLE handle, void* buf, size_t size);
+
 #endif /* _SHIM_UTILS_H */
