@@ -247,7 +247,7 @@ int __snprintf_chk(char* str, size_t size, int flag, size_t real_size, const cha
 
 /*
  * Buffered printing. The print_buf structure holds PRINT_BUF_SIZE characters, and outputs them
- * (using `write_all` callback) when `buf_flush()` is called, or when the buffer overflows.
+ * (using `buf_write_all` callback) when `buf_flush()` is called, or when the buffer overflows.
  *
  *     static int buf_write_all(const char* str, size_t size, void* arg) { ... }
  *

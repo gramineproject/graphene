@@ -43,7 +43,7 @@ void log_setprefix(shim_tcb_t* tcb) {
         } else {
             /* internal LibOS thread: show Process ID, Internal-thread ID, and exec name */
             snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:i%u:%s] ", vmid,
-                      tcb->tp->tid - INTERNAL_TID_BASE, exec);
+                     tcb->tp->tid - INTERNAL_TID_BASE, exec);
         }
     } else if (g_process_ipc_info.vmid) {
         /* unknown thread (happens on process init): show Process ID and exec name */
