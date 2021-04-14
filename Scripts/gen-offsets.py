@@ -28,7 +28,7 @@ regex = re.compile(r'''
     (?P<name>\w+) \s+
     \$?(?P<offset>\d+)
     \s*"
-    .*
+    \s*
 ''', re.VERBOSE)
 
 class AbstractOutput(metaclass=abc.ABCMeta):
