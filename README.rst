@@ -15,6 +15,10 @@ Graphene Library OS with Intel SGX Support
 
 .. highlight:: sh
 
+**NOTE:** we are in the middle of transitioning buildsystem to meson, and the
+build procedures are changing. See `Building instructions
+<https://graphene.readthedocs.io/en/latest/building.html>`__ for an up-to-date
+build tutorial.
 
 What is Graphene?
 =================

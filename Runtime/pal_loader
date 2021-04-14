@@ -17,6 +17,12 @@ IN_GIT=@IN_GIT@
 
 if test -n "$IN_GIT"
 then
+    echo >&2
+    echo WARNING: running from repository is untested and unsupported.>&2
+    echo Please install Graphene using meson. >&2
+    echo See https://graphene.readthedocs.io/en/latest/building.html for details. >&2
+    echo >&2
+
     while :
     do
         case "$1" in

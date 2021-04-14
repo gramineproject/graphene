@@ -15,3 +15,8 @@ $(targets):
 	$(MAKE) -C LibOS $@
 	$(MAKE) -C Runtime $@
 	$(MAKE) -C Tools $@
+	@echo
+	@echo NOTE: We arere in the middle of transision to meson build system.
+	@echo You have sucessfully built Graphene, now please install Graphene using meson.
+	@echo See https://graphene.readthedocs.io/en/latest/building.html for more details.
+	@echo
