@@ -27,9 +27,14 @@ if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimi
     add_project_arguments('-DDEBUG', language: 'c')
 endif
 
+cc = meson.get_compiler('c')
+objcopy = find_program('objcopy')
+
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
 python3 = python3mod.find_python()
+
+subdir('Scripts')
 
 subdir('LibOS')
 subdir('Runtime')
