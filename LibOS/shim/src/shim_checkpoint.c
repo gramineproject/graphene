@@ -213,48 +213,6 @@ BEGIN_RS_FUNC(qstr) {
 }
 END_RS_FUNC(qstr)
 
-static int read_exact(PAL_HANDLE handle, void* buf, size_t size) {
-    size_t bytes = 0;
-
-    while (bytes < size) {
-        PAL_NUM x = size - bytes;
-        int ret = DkStreamRead(handle, 0, &x, (char*)buf + bytes, NULL, 0);
-        if (ret < 0) {
-            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
-                continue;
-            }
-            return pal_to_unix_errno(ret);
-        } else if (x == 0) {
-            return -ENODATA;
-        }
-
-        bytes += x;
-    }
-
-    return 0;
-}
-
-static int write_exact(PAL_HANDLE handle, void* buf, size_t size) {
-    size_t bytes = 0;
-
-    while (bytes < size) {
-        size_t x = size - bytes;
-        int ret = DkStreamWrite(handle, 0, &x, (char*)buf + bytes, NULL);
-        if (ret < 0) {
-            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
-                continue;
-            }
-            return pal_to_unix_errno(ret);
-        } else if (x == 0) {
-            return -EINVAL;
-        }
-
-        bytes += x;
-    }
-
-    return 0;
-}
-
 static int send_memory_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
     int ret = 0;
 
