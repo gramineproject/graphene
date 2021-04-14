@@ -1,3 +1,7 @@
+#
+# Project configuration, options, modules, scripts
+#
+
 project(
     'graphene', 'c',
     version: '1.0',
@@ -14,6 +18,11 @@ project(
     # https://wiki.ubuntu.com/Releases
     # https://wiki.debian.org/DebianReleases#Production_Releases
     meson_version: '>=0.45',
+
+    default_options: [
+        'c_std=c11',
+        'werror=true',
+    ],
 )
 
 prefix = get_option('prefix')
@@ -23,15 +32,54 @@ pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
 
-if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
-    add_project_arguments('-DDEBUG', language: 'c')
-endif
+cc = meson.get_compiler('c')
+objcopy = find_program('objcopy')
 
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
 python3 = python3mod.find_python()
 
+add_project_arguments(
+    '-Wall',
+    '-Wextra',
+
+    '-Wmissing-prototypes',
+    '-Wstrict-prototypes',
+    '-Wwrite-strings',
+
+    cc.get_supported_arguments(
+        '-Wtrampoline',
+        '-Wnull-dereference',
+    ),
+
+    language: 'c')
+
+if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
+    add_project_arguments('-DDEBUG', language: 'c')
+endif
+
 subdir('Scripts')
+
+#
+# Common checks and flags
+#
+
+# Not all compilers support mstack-protector-guard, so use stack protector only if supported.
+# Graphene-custom stack protector uses the canary stored in the TCB (same for both in LibOS and PAL)
+# at offset 0x8.
+cflags_stack_protector = [
+    '-fstack-protector-strong',
+    '-mstack-protector-guard=tls',
+    '-mstack-protector-guard-reg=%gs',
+    '-mstack-protector-guard-offset=8',
+]
+if not cc.has_multi_arguments(cflags_stack_protector)
+    cflags_stack_protector = '-fno-stack-protector'
+endif
+
+#
+# The compilation
+#
 
 subdir('LibOS')
 subdir('Runtime')
