@@ -26,12 +26,12 @@ int ipc_sysv_findkey_send(struct sysv_key* key) {
     if (!ret)
         goto out;
 
-    if (!g_process_ipc_info.ns) {
+    if (!g_process_ipc_ids.leader_id) {
         ret = -ENOENT;
         goto out;
     }
 
-    IDTYPE dest = g_process_ipc_info.ns->vmid;
+    IDTYPE dest = g_process_ipc_ids.leader_id;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_findkey));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -43,7 +43,7 @@ int ipc_sysv_findkey_send(struct sysv_key* key) {
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_FINDKEY(%lu)\n", dest, key->key);
 
-    ret = send_ipc_message_with_ack(msg, g_process_ipc_info.ns, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, dest, NULL);
 
     if (!ret)
         ret = sysv_get_key(key, false);
@@ -51,7 +51,8 @@ out:
     return ret;
 }
 
-int ipc_sysv_findkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+int ipc_sysv_findkey_callback(struct shim_ipc_msg* msg, IDTYPE src) {
+    __UNUSED(src);
     int ret = 0;
     struct shim_ipc_sysv_findkey* msgin = (void*)&msg->msg;
 
@@ -61,11 +62,11 @@ int ipc_sysv_findkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* po
     if (ret < 0)
         return ret;
 
-    return ipc_sysv_tellkey_send(port, msg->src, &msgin->key, ret, msg->seq);
+    assert(src == msg->src);
+    return ipc_sysv_tellkey_send(msg->src, &msgin->key, ret, msg->seq);
 }
 
-int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_key* key, IDTYPE id,
-                          unsigned long seq) {
+int ipc_sysv_tellkey_send(IDTYPE dest, struct sysv_key* key, IDTYPE id, unsigned long seq) {
     bool owned = true;
     int ret = 0;
 
@@ -73,11 +74,10 @@ int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_k
         if ((ret = sysv_add_key(key, id)) < 0)
             goto out;
 
-        if (!g_process_ipc_info.ns)
+        if (!g_process_ipc_ids.leader_id)
             goto out;
 
-        dest = g_process_ipc_info.ns->vmid;
-        port = g_process_ipc_info.ns;
+        dest = g_process_ipc_ids.leader_id;
 
         owned = false;
     }
@@ -95,7 +95,7 @@ int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_k
 
         log_debug("ipc send to %u: IPC_MSG_SYSV_TELLKEY(%lu, %u)\n", dest, key->key, id);
 
-        ret = send_ipc_message(msg, port);
+        ret = send_ipc_message(msg, dest);
         goto out;
     }
 
@@ -110,12 +110,22 @@ int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_k
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_TELLKEY(%lu, %u)\n", dest, key->key, id);
 
-    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, dest, NULL);
 out:
     return ret;
 }
 
-int ipc_sysv_tellkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+static void tellkey_callback(struct shim_ipc_msg_with_ack* req_msg, void* args) {
+    if (!req_msg) {
+        *(int*)args = RESPONSE_CALLBACK;
+        return;
+    }
+
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
+}
+
+int ipc_sysv_tellkey_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     int ret = 0;
     struct shim_ipc_sysv_tellkey* msgin = (void*)&msg->msg;
 
@@ -124,26 +134,17 @@ int ipc_sysv_tellkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* po
 
     ret = sysv_add_key(&msgin->key, msgin->id);
 
-    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
-    if (!obj) {
-        ret = RESPONSE_CALLBACK;
-        goto out;
-    }
+    ipc_msg_response_handle(src, msg->seq, tellkey_callback, &ret);
 
-    if (obj->thread)
-        thread_wakeup(obj->thread);
-
-out:
     return ret;
 }
 
-int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
-                         enum sysv_type type) {
+int ipc_sysv_delres_send(IDTYPE dest, IDTYPE resid, enum sysv_type type) {
     int ret = 0;
     bool owned = false;
 
-    if (!port) {
-        if ((ret = connect_owner(resid, &port, &dest)) < 0)
+    if (!dest) {
+        if ((ret = find_owner(resid, &dest)) < 0)
             goto out;
 
         owned = true;
@@ -161,7 +162,7 @@ int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
         log_debug("ipc send to %u: IPC_MSG_SYSV_DELRES(%u, %s)\n", dest, resid,
                   SYSV_TYPE_STR(type));
 
-        ret = send_ipc_message(msg, port);
+        ret = send_ipc_message(msg, dest);
         goto out;
     }
 
@@ -176,14 +177,13 @@ int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
     log_debug("ipc send to %u: IPC_MSG_SYSV_DELRES(%u, %s)\n", dest, resid,
               SYSV_TYPE_STR(type));
 
-    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
-    put_ipc_port(port);
+    ret = send_ipc_message_with_ack(msg, dest, NULL);
 out:
     return ret;
 }
 
-int ipc_sysv_delres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
-    __UNUSED(port);
+int ipc_sysv_delres_callback(struct shim_ipc_msg* msg, IDTYPE src) {
+    __UNUSED(src);
 
     int ret = 0;
     struct shim_ipc_sysv_delres* msgin = (struct shim_ipc_sysv_delres*)&msg->msg;
@@ -221,16 +221,13 @@ out:
     return ret;
 }
 
-int ipc_sysv_msgsnd_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, long msgtype,
-                         const void* buf, size_t size, unsigned long seq) {
+int ipc_sysv_msgsnd_send(IDTYPE dest, IDTYPE msgid, long msgtype, const void* buf, size_t size,
+                         unsigned long seq) {
     int ret = 0;
-    bool owned = true;
 
     if (!dest) {
-        if ((ret = connect_owner(msgid, &port, &dest)) < 0)
+        if ((ret = find_owner(msgid, &dest)) < 0)
             goto out;
-
-        owned = false;
     }
 
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_msgsnd) + size);
@@ -244,15 +241,40 @@ int ipc_sysv_msgsnd_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, 
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_MSGSND(%u, %ld)\n", dest, msgid, msgtype);
 
-    ret = send_ipc_message(msg, port);
-
-    if (!owned)
-        put_ipc_port(port);
+    ret = send_ipc_message(msg, dest);
 out:
     return ret;
 }
 
-int ipc_sysv_msgsnd_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+struct msgsnd_callback_args {
+    size_t size;
+    void* msg;
+    bool handled;
+};
+
+static void msgsnd_callback(struct shim_ipc_msg_with_ack* req_msg, void* _args) {
+    if (!req_msg || !req_msg->private) {
+        return;
+    }
+
+    struct msgsnd_callback_args* args = _args;
+    size_t size = args->size;
+    struct shim_ipc_sysv_msgrcv* rcv = (struct shim_ipc_sysv_msgrcv*)req_msg->msg.msg;
+
+    if (size > rcv->size) {
+        size = rcv->size;
+    }
+
+    memcpy(req_msg->private, args->msg, size);
+    req_msg->retval = size;
+
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
+
+    args->handled = true;
+}
+
+int ipc_sysv_msgsnd_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     int ret = 0;
     struct shim_ipc_sysv_msgsnd* msgin = (struct shim_ipc_sysv_msgsnd*)&msg->msg;
 
@@ -262,19 +284,13 @@ int ipc_sysv_msgsnd_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     size_t size = msg->size - sizeof(*msg) - sizeof(*msgin);
 
     if (msg->seq) {
-        struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
-        void* priv = obj ? obj->private : NULL;
-
-        if (priv) {
-            struct shim_ipc_sysv_msgrcv* rcv = (struct shim_ipc_sysv_msgrcv*)obj->msg.msg;
-
-            if (size > rcv->size)
-                size = rcv->size;
-
-            memcpy(priv, msgin->msg, size);
-            obj->retval = size;
-            if (obj->thread)
-                thread_wakeup(obj->thread);
+        struct msgsnd_callback_args args = {
+            .size = size,
+            .msg = msgin->msg,
+            .handled = false,
+        };
+        ipc_msg_response_handle(src, msg->seq, msgsnd_callback, &args);
+        if (args.handled) {
             goto out;
         }
     }
@@ -288,11 +304,12 @@ int ipc_sysv_msgsnd_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     if (msg->seq) {
         ret = add_sysv_msg(msgq, msgin->msgtype, size, msgin->msg, NULL);
     } else {
-        struct sysv_client src;
-        src.port = port;
-        src.vmid = msg->src;
-        src.seq  = msg->seq;
-        ret = add_sysv_msg(msgq, msgin->msgtype, size, msgin->msg, &src);
+        assert(src == msg->src);
+        struct sysv_client client = {
+            .vmid = msg->src,
+            .seq  = msg->seq,
+        };
+        ret = add_sysv_msg(msgq, msgin->msgtype, size, msgin->msg, &client);
     }
 
 out:
@@ -301,22 +318,20 @@ out:
 
 int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_t size) {
     IDTYPE owner;
-    struct shim_ipc_port* port = NULL;
     int ret = 0;
 
-    if ((ret = connect_owner(msgid, &port, &owner)) < 0)
+    if ((ret = find_owner(msgid, &owner)) < 0)
         goto out;
 
-    if (owner == g_process_ipc_info.vmid) {
+    if (owner == g_self_vmid) {
         ret = -EAGAIN;
         goto out;
     }
 
-    assert(port);
-
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_msgrcv));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
     init_ipc_msg_with_ack(msg, IPC_MSG_SYSV_MSGRCV, total_msg_size, owner);
+    msg->private = buf;
 
     struct shim_ipc_sysv_msgrcv* msgin = (struct shim_ipc_sysv_msgrcv*)&msg->msg.msg;
     msgin->msgid                       = msgid;
@@ -326,13 +341,13 @@ int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_MSGRCV(%u, %ld)\n", owner, msgid, msgtype);
 
-    ret = send_ipc_message_with_ack(msg, port, NULL, buf);
-    put_ipc_port(port);
+    ret = send_ipc_message_with_ack(msg, owner, NULL);
 out:
     return ret;
 }
 
-int ipc_sysv_msgrcv_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+int ipc_sysv_msgrcv_callback(struct shim_ipc_msg* msg, IDTYPE src) {
+    __UNUSED(src);
     int ret = 0;
     struct shim_ipc_sysv_msgrcv* msgin = (struct shim_ipc_sysv_msgrcv*)&msg->msg;
 
@@ -347,17 +362,17 @@ int ipc_sysv_msgrcv_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     }
 
     void* buf = __alloca(msgin->size);
-    struct sysv_client src;
-    src.port = port;
-    src.vmid = msg->src;
-    src.seq  = msg->seq;
+    assert(src == msg->src);
+    struct sysv_client client = {
+        .vmid = msg->src,
+        .seq  = msg->seq,
+    };
 
-    ret = get_sysv_msg(msgq, msgin->msgtype, msgin->size, buf, msgin->flags, &src);
+    ret = get_sysv_msg(msgq, msgin->msgtype, msgin->size, buf, msgin->flags, &client);
 
     if (ret > 0) {
         size_t size = ret;
-        ret =
-            ipc_sysv_msgsnd_send(port, msg->src, msgin->msgid, msgin->msgtype, buf, size, msg->seq);
+        ret = ipc_sysv_msgsnd_send(msg->src, msgin->msgid, msgin->msgtype, buf, size, msg->seq);
     }
 
     put_msg_handle(msgq);
@@ -368,7 +383,6 @@ out:
 int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned long timeout,
                         unsigned long* seq) {
     IDTYPE owner;
-    struct shim_ipc_port* port = NULL;
     int ret = 0;
     bool waitforreply = false;
 
@@ -378,15 +392,13 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
             break;
         }
 
-    if ((ret = connect_owner(semid, &port, &owner)) < 0)
+    if ((ret = find_owner(semid, &owner)) < 0)
         goto out;
 
-    if (owner == g_process_ipc_info.vmid) {
+    if (owner == g_self_vmid) {
         ret = -EAGAIN;
         goto out;
     }
-
-    assert(port);
 
     if (!waitforreply) {
         size_t total_msg_size =
@@ -404,8 +416,7 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
         log_debug("ipc send to %u: IPC_MSG_SYSV_SEMOP(%u, %ld, %u)\n", owner, semid, timeout,
                   nsops);
 
-        ret = send_ipc_message(msg, port);
-        put_ipc_port(port);
+        ret = send_ipc_message(msg, owner);
         goto out;
     }
 
@@ -423,13 +434,13 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_SEMOP(%u, %ld, %u)\n", owner, semid, timeout, nsops);
 
-    ret = send_ipc_message_with_ack(msg, port, seq, NULL);
-    put_ipc_port(port);
+    ret = send_ipc_message_with_ack(msg, owner, seq);
 out:
     return ret;
 }
 
-int ipc_sysv_semop_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+int ipc_sysv_semop_callback(struct shim_ipc_msg* msg, IDTYPE src) {
+    __UNUSED(src);
     int ret = 0;
     struct shim_ipc_sysv_semop* msgin = (struct shim_ipc_sysv_semop*)&msg->msg;
 
@@ -443,7 +454,6 @@ int ipc_sysv_semop_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port
     }
 
     struct sysv_client client;
-    client.port = port;
     client.vmid = msg->src;
     client.seq  = msg->seq;
     ret = submit_sysv_sem(sem, msgin->sops, msgin->nsops, msgin->timeout, &client);
@@ -454,10 +464,9 @@ out:
 
 int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t valsize) {
     IDTYPE owner;
-    struct shim_ipc_port* port = NULL;
     int ret = 0;
 
-    if ((ret = connect_owner(semid, &port, &owner)) < 0)
+    if ((ret = find_owner(semid, &owner)) < 0)
         goto out;
 
     int ctlvalsize = (cmd == SETALL || cmd == SETVAL) ? valsize : 0;
@@ -466,6 +475,7 @@ int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t v
         get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_semctl) + ctlvalsize);
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
     init_ipc_msg_with_ack(msg, IPC_MSG_SYSV_SEMCTL, total_msg_size, owner);
+    msg->private = vals;
 
     struct shim_ipc_sysv_semctl* msgin = (struct shim_ipc_sysv_semctl*)&msg->msg.msg;
     msgin->semid                       = semid;
@@ -477,13 +487,13 @@ int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t v
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_SEMCTL(%u, %d, %d)\n", owner, semid, semnum, cmd);
 
-    ret = send_ipc_message_with_ack(msg, port, NULL, vals);
-    put_ipc_port(port);
+    ret = send_ipc_message_with_ack(msg, owner, NULL);
 out:
     return ret;
 }
 
-int ipc_sysv_semctl_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+int ipc_sysv_semctl_callback(struct shim_ipc_msg* msg, IDTYPE src) {
+    __UNUSED(src);
     int ret = 0;
     struct shim_ipc_sysv_semctl* msgin = (struct shim_ipc_sysv_semctl*)&msg->msg;
 
@@ -566,13 +576,13 @@ int ipc_sysv_semctl_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     put_sem_handle(sem);
     goto out;
 semret:
-    ret = ipc_sysv_semret_send(port, msg->src, vals, valsize, msg->seq);
+    assert(src == msg->src);
+    ret = ipc_sysv_semret_send(msg->src, vals, valsize, msg->seq);
 out:
     return ret;
 }
 
-int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, size_t valsize,
-                         unsigned long seq) {
+int ipc_sysv_semret_send(IDTYPE dest, void* vals, size_t valsize, unsigned long seq) {
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_semret) + valsize);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_MSG_SYSV_SEMRET, total_msg_size, dest);
@@ -584,39 +594,45 @@ int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, si
 
     log_debug("ipc send to %u: IPC_MSG_SYSV_SEMRET\n", dest);
 
-    return send_ipc_message(msg, port);
+    return send_ipc_message(msg, dest);
 }
 
-int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+static void semret_callback(struct shim_ipc_msg_with_ack* req_msg, void* _args) {
+    if (!req_msg) {
+        return;
+    }
+
+    struct shim_ipc_sysv_semret* semret = _args;
+    struct shim_ipc_sysv_semctl* semctl = (struct shim_ipc_sysv_semctl*)&req_msg->msg.msg;
+
+    void* vals = req_msg->private;
+
+    if (vals) {
+        switch (semctl->cmd) {
+            case GETALL:
+            case GETNCNT:
+            case GETPID:
+            case GETVAL:
+            case GETZCNT: {
+                size_t retvalsize = semret->valsize;
+                if (retvalsize > semctl->valsize)
+                    retvalsize = semctl->valsize;
+                memcpy(vals, semret->vals, retvalsize);
+                break;
+            }
+        }
+    }
+
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
+}
+
+int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     struct shim_ipc_sysv_semret* semret = (struct shim_ipc_sysv_semret*)&msg->msg;
 
     log_debug("ipc callback from %u: IPC_MSG_SYSV_SEMRET\n", msg->src);
 
-    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
-    if (obj) {
-        struct shim_ipc_sysv_semctl* semctl = (struct shim_ipc_sysv_semctl*)&obj->msg.msg;
-
-        void* vals = obj->private;
-
-        if (vals) {
-            switch (semctl->cmd) {
-                case GETALL:
-                case GETNCNT:
-                case GETPID:
-                case GETVAL:
-                case GETZCNT: {
-                    size_t retvalsize = semret->valsize;
-                    if (retvalsize > semctl->valsize)
-                        retvalsize = semctl->valsize;
-                    memcpy(vals, semret->vals, retvalsize);
-                    break;
-                }
-            }
-        }
-
-        if (obj->thread)
-            thread_wakeup(obj->thread);
-    }
+    ipc_msg_response_handle(src, msg->seq, semret_callback, semret);
 
     return 0;
 }

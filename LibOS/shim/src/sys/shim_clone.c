@@ -105,8 +105,8 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
 static BEGIN_MIGRATION_DEF(fork, struct shim_process* process_description,
                            struct shim_thread* thread_description,
-                           struct shim_ipc_cp_data* process_ipc_data) {
-    DEFINE_MIGRATE(process_ipc_data, process_ipc_data, sizeof(*process_ipc_data));
+                           struct shim_ipc_ids* process_ipc_ids) {
+    DEFINE_MIGRATE(process_ipc_ids, process_ipc_ids, sizeof(*process_ipc_ids));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(all_vmas, NULL, 0);
     DEFINE_MIGRATE(process_description, process_description, sizeof(*process_description));
@@ -122,9 +122,9 @@ END_MIGRATION_DEF(fork)
 
 static int migrate_fork(struct shim_cp_store* store, struct shim_process* process_description,
                         struct shim_thread* thread_description,
-                        struct shim_ipc_cp_data* process_ipc_data, va_list ap) {
+                        struct shim_ipc_ids* process_ipc_ids, va_list ap) {
     __UNUSED(ap);
-    return START_MIGRATE(store, fork, process_description, thread_description, process_ipc_data);
+    return START_MIGRATE(store, fork, process_description, thread_description, process_ipc_ids);
 }
 
 static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long tls,
