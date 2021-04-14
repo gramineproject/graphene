@@ -14,6 +14,10 @@ project(
     # https://wiki.ubuntu.com/Releases
     # https://wiki.debian.org/DebianReleases#Production_Releases
     meson_version: '>=0.45',
+
+    default_options: [
+        'c_std=c11',
+    ],
 )
 
 prefix = get_option('prefix')
@@ -26,6 +30,9 @@ sgx = get_option('sgx') == 'enabled'
 if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
     add_project_arguments('-DDEBUG', language: 'c')
 endif
+
+cc = meson.get_compiler('c')
+objcopy = find_program('objcopy')
 
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
