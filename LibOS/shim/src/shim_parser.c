@@ -1550,6 +1550,9 @@ void warn_unsupported_syscall(unsigned long sysno) {
 static int buf_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
 
+    /* Pass the buffer contents to log_trace(). Usually, that will be the whole message. However, if
+     * the message is longer than the buffer, we will be called multiple times and the message will
+     * be split across multiple log lines. */
     log_trace("%.*s\n", (int)size, str);
     return 0;
 }
