@@ -82,7 +82,6 @@ c_executables = \
 	sigprocmask_pending \
 	spinlock \
 	stat_invalid_args \
-	str_close_leak \
 	syscall \
 	sysfs_common \
 	tcp_ipv6_v6only \

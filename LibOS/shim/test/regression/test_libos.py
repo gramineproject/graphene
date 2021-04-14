@@ -615,11 +615,7 @@ class TC_40_FileSystem(RegressionTestCase):
         stdout, _ = self.run_binary(['fdleak'], timeout=10)
         self.assertIn("Test succeeded.", stdout)
 
-    def test_040_str_close_leak(self):
-        stdout, _ = self.run_binary(['str_close_leak'], timeout=60)
-        self.assertIn("Success", stdout)
-
-    def test_050_sysfs(self):
+    def test_040_sysfs(self):
         stdout, _ = self.run_binary(['sysfs_common'])
         self.assertIn('TEST OK', stdout)
 
