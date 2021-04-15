@@ -152,13 +152,16 @@ static int ipc_connect_back_callback(struct shim_ipc_msg* orig_msg, IDTYPE src) 
 #define READAHEAD_SIZE (IPC_MSG_MINIMAL_SIZE + 0x20)
 static int receive_ipc_messages(struct shim_ipc_connection* conn) {
     size_t size = 0;
-    alignas(struct shim_ipc_msg) char buf[IPC_MSG_MINIMAL_SIZE + READAHEAD_SIZE];
+    union {
+        struct shim_ipc_msg msg_header;
+        char buf[IPC_MSG_MINIMAL_SIZE + READAHEAD_SIZE];
+    } buf;
 
     do {
         /* Receive at least the message header. */
         while (size < IPC_MSG_MINIMAL_SIZE) {
             size_t tmp_size = sizeof(buf) - size;
-            int ret = DkStreamRead(conn->handle, /*offset=*/0, &tmp_size, buf + size, NULL, 0);
+            int ret = DkStreamRead(conn->handle, /*offset=*/0, &tmp_size, buf.buf + size, NULL, 0);
             if (ret < 0) {
                 if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
                     continue;
@@ -176,10 +179,7 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
             size += tmp_size;
         }
 
-        size_t msg_size = 0;
-        /* Strict aliasing rules rock. */
-        static_assert(SAME_TYPE(msg_size, ((struct shim_ipc_msg*)buf)->size), "sizes differ");
-        memcpy(&msg_size, &((struct shim_ipc_msg*)buf)->size, sizeof(msg_size));
+        size_t msg_size = buf.msg_header.size;
         struct shim_ipc_msg* msg = malloc(msg_size);
         if (!msg) {
             return -ENOMEM;
@@ -187,12 +187,12 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
 
         if (msg_size <= size) {
             /* Already got the whole message (and possibly part of the next one). */
-            memcpy(msg, buf, msg_size);
-            memmove(buf, buf + msg_size, size - msg_size);
+            memcpy(msg, buf.buf, msg_size);
+            memmove(buf.buf, buf.buf + msg_size, size - msg_size);
             size -= msg_size;
         } else {
             /* Need to get rest of the message. */
-            memcpy(msg, buf, size);
+            memcpy(msg, buf.buf, size);
             int ret = read_exact(conn->handle, (char*)msg + size, msg_size - size);
             if (ret < 0) {
                 free(msg);
