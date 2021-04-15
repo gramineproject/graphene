@@ -114,11 +114,8 @@ static int ipc_connect(IDTYPE dest, struct shim_ipc_connection** conn_ptr) {
             ret = pal_to_unix_errno(ret);
             goto out;
         }
-        // TODO: add global wrappers for read/write _exact
-        size_t size = sizeof(g_self_vmid);
-        ret = DkStreamWrite(conn->handle, /*offset=*/0, &size, &g_self_vmid, NULL);
-        if (ret < 0 || size != sizeof(g_self_vmid)) {
-            ret = pal_to_unix_errno(ret);
+        ret = write_exact(conn->handle, &g_self_vmid, sizeof(g_self_vmid));
+        if (ret < 0) {
             goto out;
         }
 
@@ -185,23 +182,12 @@ static int send_ipc_message_to_conn(struct shim_ipc_msg* msg, struct shim_ipc_co
 
     lock(&conn->lock);
 
-    size_t size = 0;
-    size_t total_size = msg->size;
-    while (size < total_size) {
-        size_t tmp_size = total_size - size;
-        int ret = DkStreamWrite(conn->handle, /*offset=*/0, &tmp_size, (char*)msg + size, NULL);
-        ret = !ret && !tmp_size ? -EPIPE : pal_to_unix_errno(ret);
-        if (ret < 0) {
-            if (ret == -EINTR) {
-                continue;
-            }
-            log_error("Failed to send IPC msg to %u: %d\n", conn->vmid, ret);
-            unlock(&conn->lock);
-            remove_ipc_connection(conn);
-            return ret;
-        }
-
-        size += tmp_size;
+    int ret = write_exact(conn->handle, msg,  msg->size);
+    if (ret < 0) {
+        log_error("Failed to send IPC msg to %u: %d\n", conn->vmid, ret);
+        unlock(&conn->lock);
+        remove_ipc_connection(conn);
+        return ret;
     }
 
     unlock(&conn->lock);

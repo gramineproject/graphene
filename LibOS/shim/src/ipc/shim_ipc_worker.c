@@ -176,7 +176,10 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
             size += tmp_size;
         }
 
-        size_t msg_size = ((struct shim_ipc_msg*)buf)->size;
+        size_t msg_size = 0;
+        /* Strict aliasing rules rock. */
+        static_assert(SAME_TYPE(msg_size, ((struct shim_ipc_msg*)buf)->size), "sizes differ");
+        memcpy(&msg_size, &((struct shim_ipc_msg*)buf)->size, sizeof(msg_size));
         struct shim_ipc_msg* msg = malloc(msg_size);
         if (!msg) {
             return -ENOMEM;
