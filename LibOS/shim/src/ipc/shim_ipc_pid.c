@@ -229,9 +229,8 @@ static void set_msg_retstatus(struct shim_ipc_msg_with_ack* req_msg, void* _data
         data->status = NULL;
     }
 
-    if (req_msg->thread) {
-        thread_wakeup(req_msg->thread);
-    }
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
 }
 
 int ipc_pid_retstatus_callback(struct shim_ipc_msg* msg, IDTYPE src) {
@@ -406,9 +405,8 @@ static void set_msg_retmeta(struct shim_ipc_msg_with_ack* req_msg, void* _args) 
     }
     req_msg->retval = args->retval;
 
-    if (req_msg->thread) {
-        thread_wakeup(req_msg->thread);
-    }
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
 }
 
 int ipc_pid_retmeta_callback(struct shim_ipc_msg* msg, IDTYPE src) {

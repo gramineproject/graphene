@@ -567,14 +567,14 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
         goto out;
     }
 
-    /* Child creation was successful, now we add it to the children list. This needs to be done
-     * before we start handling async IPC messages from this child (it will connect to us after we
-     * acknowledge the creation). */
+    /* Child creation was successful, now we add it to the children list. Child process should have
+     * already conencted to us, but is waiting for an acknowledgement, so it will not send any IPC
+     * messages yet. */
     child_process->vmid = child_vmid;
     add_child_process(child_process);
 
-    char c = 42;
-    ret = write_exact(pal_process, &c, sizeof(c));
+    char dummy_c = 0;
+    ret = write_exact(pal_process, &dummy_c, sizeof(dummy_c));
     if (ret < 0) {
         /*
          * Child might have already been marked dead.
@@ -582,6 +582,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
          * here and it should be indistinguishable form host OS killing the child process right
          * after we returns from this function.
          */
+        log_error("failed to send process creation ack to the child: %d\n", ret);
         (void)mark_child_exited_by_vmid(child_vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
     } else {
         ipc_sublease_send(child_vmid, thread_description->tid);

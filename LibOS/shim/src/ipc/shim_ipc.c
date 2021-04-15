@@ -4,6 +4,11 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
+/*
+ * This file provides functions for dealing with outgoing IPC connections, mainly sending IPC
+ * messages (`shim_ipc_msg` and `shim_ipc_msg_with_ack`).
+ */
+
 #include <stdbool.h>
 
 #include "assert.h"
@@ -34,6 +39,7 @@ static bool ipc_connection_cmp(struct avl_tree_node* _a, struct avl_tree_node* _
 }
 
 /* TODO: hashmap will probably be better as we only need insert, delete and find exact. */
+/* Tree of outgoing IPC connections, to be accessed only with `g_ipc_connections_lock` taken. */
 static struct avl_tree g_ipc_connections = { .cmp = ipc_connection_cmp };
 static struct shim_lock g_ipc_connections_lock;
 
@@ -280,14 +286,15 @@ int request_leader_connect_back(void) {
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
     init_ipc_msg_with_ack(msg, IPC_MSG_CONNBACK, total_msg_size, leader);
 
-    log_debug("sent IPC_MSG_CONNBACK message to %u\n", leader);
+    log_debug("sending IPC_MSG_CONNBACK message to %u\n", leader);
 
     return send_ipc_message_with_ack(msg, leader, NULL);
 }
 
 void wake_req_msg_thread(struct shim_ipc_msg_with_ack* req_msg, void* data) {
     __UNUSED(data);
-    if (req_msg && req_msg->thread) {
+    if (req_msg) {
+        assert(req_msg->thread);
         thread_wakeup(req_msg->thread);
     }
 }

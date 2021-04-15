@@ -28,8 +28,8 @@
 
 enum {
     IPC_MSG_RESP = 0,
-    IPC_MSG_CONNBACK,
-    IPC_MSG_DUMMY,
+    IPC_MSG_CONNBACK,      /*!< Request for establishing a connection to the sender. */
+    IPC_MSG_DUMMY,         /*!< Dummy callback, wakes up the thread waiting for this response. */
     IPC_MSG_CHILDEXIT,
     IPC_MSG_LEASE,
     IPC_MSG_OFFER,

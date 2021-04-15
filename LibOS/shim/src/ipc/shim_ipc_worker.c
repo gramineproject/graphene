@@ -29,12 +29,15 @@ struct shim_ipc_connection {
     IDTYPE vmid;
 };
 
+/* List of incoming IPC connections, fully managed by this IPC worker thread (hence no locking
+ * needed). */
 static LISTP_TYPE(shim_ipc_connection) g_ipc_connections;
 static size_t g_ipc_connections_cnt = 0;
 
 static struct shim_thread* g_worker_thread = NULL;
-static AEVENTTYPE interrupt_event;
-static int g_time_to_exit = 0;
+static AEVENTTYPE exit_notification_event;
+/* Used by `DkThreadExit` to indicate that the thread really exited and is not using any resources
+ * (e.g. stack) anymore. Awaited to be `0` (thread exited) in `terminate_ipc_worker()`. */
 static int g_clear_on_worker_exit = 1;
 static PAL_HANDLE g_self_ipc_handle = NULL;
 
@@ -68,10 +71,11 @@ static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_SYSV_SEMRET]   = ipc_sysv_semret_callback,
 };
 
-static noreturn void ipc_leader_died_callback(void) {
-    // TODO maybe just ignore it? this triggers often if parent does wait+exit
-    log_error("IPC leader died\n");
-    DkProcessExit(1);
+static void ipc_leader_died_callback(void) {
+    /* This might happen legitimately e.g. if IPC leader is also our parent and does `wait` + `exit`
+     * If this is an erroneous disconnect it will be noticed when trying to communicate with
+     * the leader. */
+    log_debug("IPC leader disconnected\n");
 }
 
 static void disconnect_callbacks(struct shim_ipc_connection* conn) {
@@ -80,7 +84,7 @@ static void disconnect_callbacks(struct shim_ipc_connection* conn) {
     }
     ipc_child_disconnect_callback(conn->vmid);
 
-    // TODO: ipc_disconnect_msg_with_ack_callback(conn->vmid);
+    // TODO: ipc_msg_with_ack_disconnect_callback(conn->vmid);
 }
 
 static int add_ipc_connection(PAL_HANDLE handle, IDTYPE id) {
@@ -140,6 +144,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     return 0;
 }
 
+/* Another thread requested that we connect to it. */
 static int ipc_connect_back_callback(struct shim_ipc_msg* orig_msg, IDTYPE src) {
     size_t total_msg_size = get_ipc_msg_size(0);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -218,6 +223,8 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                     return ret;
                 }
             }
+        } else {
+            log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg->code);
         }
 
         free(msg);
@@ -236,25 +243,7 @@ static noreturn void ipc_worker_main(void) {
     size_t prev_items_cnt = 0;
 
     while (1) {
-        if (__atomic_load_n(&g_time_to_exit, __ATOMIC_ACQUIRE)) {
-            log_debug(LOG_PREFIX "exiting worker thread\n");
-
-            free(connections);
-            free(handles);
-            free(events);
-            free(ret_events);
-
-            struct shim_thread* cur_thread = get_cur_thread();
-            assert(g_worker_thread == cur_thread);
-            assert(cur_thread->shim_tcb->tp == cur_thread);
-            cur_thread->shim_tcb->tp = NULL;
-            put_thread(cur_thread);
-
-            DkThreadExit(&g_clear_on_worker_exit);
-            /* Unreachable. */
-        }
-
-        /* Reserve 2 slots for `interrupt_event` and ``. */
+        /* Reserve 2 slots for `exit_notification_event` and `g_self_ipc_handle`. */
         const size_t reserved_slots = 2;
         size_t items_cnt = g_ipc_connections_cnt + reserved_slots;
         if (items_cnt != prev_items_cnt) {
@@ -278,7 +267,7 @@ static noreturn void ipc_worker_main(void) {
         memset(ret_events, 0, items_cnt * sizeof(*ret_events));
 
         connections[0] = NULL;
-        handles[0] = event_handle(&interrupt_event);
+        handles[0] = event_handle(&exit_notification_event);
         events[0] = PAL_WAIT_READ;
         connections[1] = NULL;
         handles[1] = g_self_ipc_handle;
@@ -307,14 +296,26 @@ static noreturn void ipc_worker_main(void) {
         }
 
         if (ret_events[0]) {
-            /* `interrupt_event`. */
+            /* `exit_notification_event`. */
             if (ret_events[0] & ~PAL_WAIT_READ) {
-                log_error(LOG_PREFIX "unexpected event (%d) on interrupt handle\n", ret_events[0]);
+                log_error(LOG_PREFIX "unexpected event (%d) on exit handle\n", ret_events[0]);
                 goto out_die;
             }
-            log_debug(LOG_PREFIX "interrupt requested\n");
-            /* XXX: Currently `interrupt_event` is used only for exit notification, no need to
-             * actually clear it. */
+            log_debug(LOG_PREFIX "exiting worker thread\n");
+
+            free(connections);
+            free(handles);
+            free(events);
+            free(ret_events);
+
+            struct shim_thread* cur_thread = get_cur_thread();
+            assert(g_worker_thread == cur_thread);
+            assert(cur_thread->shim_tcb->tp == cur_thread);
+            cur_thread->shim_tcb->tp = NULL;
+            put_thread(cur_thread);
+
+            DkThreadExit(&g_clear_on_worker_exit);
+            /* Unreachable. */
         }
 
         if (ret_events[1]) {
@@ -348,10 +349,17 @@ static noreturn void ipc_worker_main(void) {
         for (i = reserved_slots; i < items_cnt; i++) {
             conn = connections[i];
             if (ret_events[i] & PAL_WAIT_READ) {
-                // TODO: what to do on errors? die or just delete connection?
-                receive_ipc_messages(conn);
+                ret = receive_ipc_messages(conn);
+                if (ret < 0) {
+                    log_error(LOG_PREFIX "failed to receive an IPC message from %u: %d\n",
+                              conn->vmid, ret);
+                    /* Let the code below handle this error. */
+                    ret_events[i] = PAL_WAIT_ERROR;
+                }
             }
-            if (ret_events[i] & PAL_WAIT_ERROR) {
+            /* If there was something else other than error reported, let the loop spin at least one
+             * more time - in case there is a messages left to be read. */
+            if (ret_events[i] == PAL_WAIT_ERROR) {
                 disconnect_callbacks(conn);
                 del_ipc_connection(conn);
             }
@@ -409,7 +417,7 @@ static int create_ipc_worker(void) {
 }
 
 int init_ipc_worker(void) {
-    int ret = create_event(&interrupt_event);
+    int ret = create_event(&exit_notification_event);
     if (ret < 0) {
         return ret;
     }
@@ -419,8 +427,7 @@ int init_ipc_worker(void) {
 }
 
 void terminate_ipc_worker(void) {
-    __atomic_store_n(&g_time_to_exit, 1, __ATOMIC_SEQ_CST);
-    set_event(&interrupt_event, 1);
+    set_event(&exit_notification_event, 1);
 
     while (__atomic_load_n(&g_clear_on_worker_exit, __ATOMIC_RELAXED)) {
         CPU_RELAX();

@@ -121,9 +121,8 @@ static void tellkey_callback(struct shim_ipc_msg_with_ack* req_msg, void* args) 
         return;
     }
 
-    if (req_msg->thread) {
-        thread_wakeup(req_msg->thread);
-    }
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
 }
 
 int ipc_sysv_tellkey_callback(struct shim_ipc_msg* msg, IDTYPE src) {
@@ -254,11 +253,7 @@ struct msgsnd_callback_args {
 };
 
 static void msgsnd_callback(struct shim_ipc_msg_with_ack* req_msg, void* _args) {
-    if (!req_msg) {
-        return;
-    }
-
-    if (!req_msg->private) {
+    if (!req_msg || !req_msg->private) {
         return;
     }
 
@@ -273,9 +268,8 @@ static void msgsnd_callback(struct shim_ipc_msg_with_ack* req_msg, void* _args) 
     memcpy(req_msg->private, args->msg, size);
     req_msg->retval = size;
 
-    if (req_msg->thread) {
-        thread_wakeup(req_msg->thread);
-    }
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
 
     args->handled = true;
 }
@@ -629,9 +623,8 @@ static void semret_callback(struct shim_ipc_msg_with_ack* req_msg, void* _args) 
         }
     }
 
-    if (req_msg->thread) {
-        thread_wakeup(req_msg->thread);
-    }
+    assert(req_msg->thread);
+    thread_wakeup(req_msg->thread);
 }
 
 int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, IDTYPE src) {

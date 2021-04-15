@@ -553,7 +553,8 @@ static void msg_add_range(struct shim_ipc_msg_with_ack* req_msg, void* _args) {
             BUG();
     }
 
-    if (req_msg && req_msg->thread) {
+    if (req_msg) {
+        assert(req_msg->thread);
         thread_wakeup(req_msg->thread);
     }
 }
@@ -563,13 +564,8 @@ int ipc_offer_callback(struct shim_ipc_msg* msg, IDTYPE src) {
 
     log_debug("ipc callback from %u: IPC_MSG_OFFER(%u, %u)\n", msg->src, msgin->base, msgin->size);
 
-    switch (msgin->size) {
-        case RANGE_SIZE:
-        case 1:
-            ipc_msg_response_handle(src, msg->seq, msg_add_range, msgin);
-            break;
-        default:
-            break;
+    if (msgin->size == RANGE_SIZE || msgin->size == 1) {
+        ipc_msg_response_handle(src, msg->seq, msg_add_range, msgin);
     }
     return 0;
 }

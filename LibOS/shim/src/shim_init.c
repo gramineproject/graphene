@@ -460,13 +460,12 @@ noreturn void* shim_init(int argc, void* args) {
         }
 
         /* Wait for parent to settle its adult things. */
-        char c = 0;
-        ret = read_exact(PAL_CB(parent_process), &c, sizeof(c));
+        char dummy_c = 0;
+        ret = read_exact(PAL_CB(parent_process), &dummy_c, sizeof(dummy_c));
         if (ret < 0) {
             log_error("shim_init: failed to read parent's confirmation: %d\n", ret);
             DkProcessExit(1);
         }
-        assert(c == 42);
     }
 
     log_debug("Shim process initialized\n");
