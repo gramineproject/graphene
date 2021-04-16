@@ -18,7 +18,7 @@ sgx.nonpie_binary = 1
 # !! INSECURE !! Allow passing command-line arguments from the host without validation.
 # Most Docker images rely on runtime arguments and hence, a more general technique is required.
 # The issue is documented at https://github.com/oscarlab/graphene/issues/1520.
-loader.arg0_override = "{{binary}}"
+loader.argv0_override = "{{binary}}"
 loader.insecure__use_cmdline_argv = 1
 {% else %}
 loader.argv_src_file = "file:/trusted_argv"
