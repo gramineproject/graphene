@@ -163,7 +163,7 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
 int init_async(void);
 int64_t install_async_event(PAL_HANDLE object, unsigned long time,
                             void (*callback)(IDTYPE caller, void* arg), void* arg);
-struct shim_thread* terminate_async_helper(void);
+struct shim_thread* terminate_async_worker(void);
 
 extern toml_table_t* g_manifest_root;
 

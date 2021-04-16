@@ -28,15 +28,15 @@ struct async_event {
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
 
-/* Should be accessed with async_helper_lock held. */
-static enum { HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
+/* Should be accessed with async_worker_lock held. */
+static enum { WORKER_NOTALIVE, WORKER_ALIVE } async_worker_state;
 
-static struct shim_thread* async_helper_thread;
-static struct shim_lock async_helper_lock;
+static struct shim_thread* async_worker_thread;
+static struct shim_lock async_worker_lock;
 
 static AEVENTTYPE install_new_event;
 
-static int create_async_helper(void);
+static int create_async_worker(void);
 
 /* Threads register async events like alarm(), setitimer(), ioctl(FIOASYNC)
  * using this function. These events are enqueued in async_list and delivered
@@ -77,7 +77,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
     event->object      = object;
     event->expire_time = time ? now + time : 0;
 
-    lock(&async_helper_lock);
+    lock(&async_worker_lock);
 
     if (callback != &cleanup_thread && !object) {
         /* This is alarm() or setitimer() emulation, treat both according to
@@ -99,7 +99,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
             /* This is alarm(0), we cancelled all pending alarms/timers
              * and user doesn't want to set a new alarm: we are done. */
             free(event);
-            unlock(&async_helper_lock);
+            unlock(&async_worker_lock);
             return max_prev_expire_time - now;
         }
     }
@@ -107,15 +107,15 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
     INIT_LIST_HEAD(event, list);
     LISTP_ADD_TAIL(event, &async_list, list);
 
-    if (async_helper_state == HELPER_NOTALIVE) {
-        int ret = create_async_helper();
+    if (async_worker_state == WORKER_NOTALIVE) {
+        int ret = create_async_worker();
         if (ret < 0) {
-            unlock(&async_helper_lock);
+            unlock(&async_worker_lock);
             return ret;
         }
     }
 
-    unlock(&async_helper_lock);
+    unlock(&async_worker_lock);
 
     log_debug("Installed async event at %lu\n", now);
     set_event(&install_new_event, 1);
@@ -124,8 +124,8 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
 
 int init_async(void) {
     /* early enough in init, can write global vars without the lock */
-    async_helper_state = HELPER_NOTALIVE;
-    if (!create_lock(&async_helper_lock)) {
+    async_worker_state = WORKER_NOTALIVE;
+    if (!create_lock(&async_worker_lock)) {
         return -ENOMEM;
     }
     int ret = create_event(&install_new_event);
@@ -139,7 +139,7 @@ int init_async(void) {
     return 0;
 }
 
-static void shim_async_helper(void* arg) {
+static void shim_async_worker(void* arg) {
     struct shim_thread* self = (struct shim_thread*)arg;
     if (!arg)
         return;
@@ -149,9 +149,9 @@ static void shim_async_helper(void* arg) {
 
     log_setprefix(shim_get_tcb());
 
-    lock(&async_helper_lock);
-    bool notme = (self != async_helper_thread);
-    unlock(&async_helper_lock);
+    lock(&async_worker_lock);
+    bool notme = (self != async_worker_thread);
+    unlock(&async_worker_lock);
 
     if (notme) {
         put_thread(self);
@@ -159,12 +159,12 @@ static void shim_async_helper(void* arg) {
         /* UNREACHABLE */
     }
 
-    /* Assume async helper thread will not drain the stack that PAL provides,
+    /* Assume async worker thread will not drain the stack that PAL provides,
      * so for efficiency we don't swap the stack. */
-    log_debug("Async helper thread started\n");
+    log_debug("Async worker thread started\n");
 
     /* Simple heuristic to not burn cycles when no async events are installed:
-     * async helper thread sleeps IDLE_SLEEP_TIME for MAX_IDLE_CYCLES and
+     * async worker thread sleeps IDLE_SLEEP_TIME for MAX_IDLE_CYCLES and
      * if nothing happens, dies. It will be re-spawned if some thread wants
      * to install a new event. */
     uint64_t idle_cycles = 0;
@@ -199,10 +199,10 @@ static void shim_async_helper(void* arg) {
             goto out_err;
         }
 
-        lock(&async_helper_lock);
-        if (async_helper_state != HELPER_ALIVE) {
-            async_helper_thread = NULL;
-            unlock(&async_helper_lock);
+        lock(&async_worker_lock);
+        if (async_worker_state != WORKER_ALIVE) {
+            async_worker_thread = NULL;
+            unlock(&async_worker_lock);
             break;
         }
 
@@ -275,19 +275,19 @@ static void shim_async_helper(void* arg) {
         }
 
         if (idle_cycles == MAX_IDLE_CYCLES) {
-            async_helper_state  = HELPER_NOTALIVE;
-            async_helper_thread = NULL;
-            unlock(&async_helper_lock);
-            log_debug("Async helper thread has been idle for some time; stopping it\n");
+            async_worker_state  = WORKER_NOTALIVE;
+            async_worker_thread = NULL;
+            unlock(&async_worker_lock);
+            log_debug("Async worker thread has been idle for some time; stopping it\n");
             break;
         }
-        unlock(&async_helper_lock);
+        unlock(&async_worker_lock);
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
         ret = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
         if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             ret = pal_to_unix_errno(ret);
-            debug("Async helper: DkStreamsWaitEvents failed: %d\n", ret);
+            debug("Async worker: DkStreamsWaitEvents failed: %d\n", ret);
             goto out_err;
         }
         PAL_BOL polled = ret == 0;
@@ -303,7 +303,7 @@ static void shim_async_helper(void* arg) {
         INIT_LISTP(&triggered);
 
         /* acquire lock because we read/modify async_list below */
-        lock(&async_helper_lock);
+        lock(&async_worker_lock);
 
         for (size_t i = 0; polled && i < pals_cnt + 1; i++) {
             if (ret_events[i]) {
@@ -338,7 +338,7 @@ static void shim_async_helper(void* arg) {
             }
         }
 
-        unlock(&async_helper_lock);
+        unlock(&async_worker_lock);
 
         /* call callbacks for all triggered events */
         if (!LISTP_EMPTY(&triggered)) {
@@ -354,7 +354,7 @@ static void shim_async_helper(void* arg) {
     }
 
     put_thread(self);
-    log_debug("Async helper thread terminated\n");
+    log_debug("Async worker thread terminated\n");
 
     free(pals);
     free(pal_events);
@@ -363,33 +363,33 @@ static void shim_async_helper(void* arg) {
     /* UNREACHABLE */
 
 out_err_unlock:
-    unlock(&async_helper_lock);
+    unlock(&async_worker_lock);
 out_err:
-    log_error("Terminating the process due to a fatal error in async helper\n");
+    log_error("Terminating the process due to a fatal error in async worker\n");
     put_thread(self);
     DkProcessExit(1);
 }
 
-/* this should be called with the async_helper_lock held */
-static int create_async_helper(void) {
-    assert(locked(&async_helper_lock));
+/* this should be called with the async_worker_lock held */
+static int create_async_worker(void) {
+    assert(locked(&async_worker_lock));
 
-    if (async_helper_state == HELPER_ALIVE)
+    if (async_worker_state == WORKER_ALIVE)
         return 0;
 
     struct shim_thread* new = get_new_internal_thread();
     if (!new)
         return -ENOMEM;
 
-    async_helper_thread = new;
-    async_helper_state  = HELPER_ALIVE;
+    async_worker_thread = new;
+    async_worker_state  = WORKER_ALIVE;
 
     PAL_HANDLE handle = NULL;
-    int ret = DkThreadCreate(shim_async_helper, new, &handle);
+    int ret = DkThreadCreate(shim_async_worker, new, &handle);
 
     if (ret < 0) {
-        async_helper_thread = NULL;
-        async_helper_state  = HELPER_NOTALIVE;
+        async_worker_thread = NULL;
+        async_worker_state  = WORKER_NOTALIVE;
         put_thread(new);
         return pal_to_unix_errno(ret);
     }
@@ -398,26 +398,26 @@ static int create_async_helper(void) {
     return 0;
 }
 
-/* On success, the reference to async helper thread is returned with refcount
- * incremented. It is the responsibility of caller to wait for async helper's
+/* On success, the reference to async worker thread is returned with refcount
+ * incremented. It is the responsibility of caller to wait for async worker's
  * exit and then release the final reference to free related resources (it is
  * problematic for the thread itself to release its own resources e.g. stack).
  */
-struct shim_thread* terminate_async_helper(void) {
-    lock(&async_helper_lock);
+struct shim_thread* terminate_async_worker(void) {
+    lock(&async_worker_lock);
 
-    if (async_helper_state != HELPER_ALIVE) {
-        unlock(&async_helper_lock);
+    if (async_worker_state != WORKER_ALIVE) {
+        unlock(&async_worker_lock);
         return NULL;
     }
 
-    struct shim_thread* ret = async_helper_thread;
+    struct shim_thread* ret = async_worker_thread;
     if (ret)
         get_thread(ret);
-    async_helper_state = HELPER_NOTALIVE;
-    unlock(&async_helper_lock);
+    async_worker_state = WORKER_NOTALIVE;
+    unlock(&async_worker_lock);
 
-    /* force wake up of async helper thread so that it exits */
+    /* force wake up of async worker thread so that it exits */
     set_event(&install_new_event, 1);
     return ret;
 }

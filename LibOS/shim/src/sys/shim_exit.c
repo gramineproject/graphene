@@ -25,7 +25,7 @@ static noreturn void libos_clean_and_exit(int exit_code) {
      * 2) wait for them to exit here, before we terminate the IPC helper
      */
 
-    struct shim_thread* async_thread = terminate_async_helper();
+    struct shim_thread* async_thread = terminate_async_worker();
     if (async_thread) {
         /* TODO: wait for the thread to exit in host.
          * This is tracked by the following issue.
