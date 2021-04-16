@@ -460,8 +460,8 @@ bool check_last_thread(bool mark_self_dead) {
     return ret;
 }
 
-/* This function is called by Async Helper thread to wait on thread->clear_child_tid_pal to be
- * zeroed (PAL does it when thread finally exits). Since it is a callback to Async Helper thread,
+/* This function is called by async worker thread to wait on thread->clear_child_tid_pal to be
+ * zeroed (PAL does it when thread finally exits). Since it is a callback to async worker thread,
  * this function must follow the `void (*callback) (IDTYPE caller, void* arg)` signature. */
 void cleanup_thread(IDTYPE caller, void* arg) {
     __UNUSED(caller);

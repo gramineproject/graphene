@@ -159,10 +159,10 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
                 bool use_vmid_for_name);
 
 /* Asynchronous event support */
-int init_async(void);
+int init_async_worker(void);
 int64_t install_async_event(PAL_HANDLE object, unsigned long time,
                             void (*callback)(IDTYPE caller, void* arg), void* arg);
-struct shim_thread* terminate_async_helper(void);
+struct shim_thread* terminate_async_worker(void);
 
 extern const toml_table_t* g_manifest_root;
 

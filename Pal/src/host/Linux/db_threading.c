@@ -246,7 +246,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
     /* To make sure the compiler doesn't touch the stack after it was freed, need inline asm:
      *   1. Unlock g_thread_stack_lock (so that other threads can start re-using this stack)
      *   2. Set *clear_child_tid = 0 if clear_child_tid != NULL
-     *      (we thus inform LibOS, where async helper thread is waiting on this to wake up parent)
+     *      (we thus inform LibOS, where async worker thread is waiting on this to wake up parent)
      *   3. Exit thread */
     static_assert(sizeof(g_thread_stack_lock.lock) == 4,
                   "unexpected g_thread_stack_lock.lock size");

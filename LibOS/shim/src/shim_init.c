@@ -451,7 +451,7 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_threading);
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
-    RUN_INIT(init_async);
+    RUN_INIT(init_async_worker);
 
     const char** new_argp;
     elf_auxv_t* new_auxv;
