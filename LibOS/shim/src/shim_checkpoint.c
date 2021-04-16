@@ -568,7 +568,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     }
 
     /* Child creation was successful, now we add it to the children list. Child process should have
-     * already conencted to us, but is waiting for an acknowledgement, so it will not send any IPC
+     * already connected to us, but is waiting for an acknowledgement, so it will not send any IPC
      * messages yet. */
     child_process->vmid = child_vmid;
     add_child_process(child_process);

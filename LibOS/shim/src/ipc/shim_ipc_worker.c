@@ -144,7 +144,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     return 0;
 }
 
-/* Another thread requested that we connect to it. */
+/* Another process requested that we connect to it. */
 static int ipc_connect_back_callback(struct shim_ipc_msg* orig_msg, IDTYPE src) {
     size_t total_msg_size = get_ipc_msg_size(0);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -334,7 +334,6 @@ static noreturn void ipc_worker_main(void) {
             IDTYPE new_id = 0;
             ret = read_exact(new_handle, &new_id, sizeof(new_id));
             if (ret < 0) {
-                // TODO: maybe just die here?
                 log_error(LOG_PREFIX "receiving id failed: %d\n", ret);
                 DkObjectClose(new_handle);
             } else {
@@ -378,8 +377,6 @@ static void ipc_worker_wrapper(void* arg) {
     set_cur_thread(g_worker_thread);
 
     log_setprefix(shim_get_tcb());
-
-    // TODO; curently we have PAL provided stack = 64 pages
 
     log_debug("IPC worker started\n");
     ipc_worker_main();
