@@ -902,13 +902,13 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
         }
     }
 
-    log_debug("Signal %d queue of ", info->si_signo);
     if (thread) {
-        log_debug("thread %u", thread->tid);
+        log_debug("Signal %d queue of thread %u is full, dropping incoming signal\n",
+                  info->si_signo, thread->tid);
     } else {
-        log_debug("process");
+        log_debug("Signal %d queue of process is full, dropping incoming signal\n",
+                  info->si_signo);
     }
-    log_debug(" is full, dropping the incoming signal\n");
     /* This is counter-intuitive, but we report success here: after all signal was successfully
      * delivered, just the queue was full. */
 out:

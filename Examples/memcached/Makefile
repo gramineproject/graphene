@@ -53,7 +53,7 @@ include ../../Scripts/Makefile.configs
 
 $(SRCDIR)/configure:
 	$(GRAPHENEDIR)/Scripts/download --output memcached.tar.gz --sha256 $(MEMCACHED_SHA256) \
-	    $(foreach mirror,$(MEMCACHED_MIRRORS),--url $(mirror)/$(MEMCACHED_SRC))
+		$(foreach mirror,$(MEMCACHED_MIRRORS),--url $(mirror)/$(MEMCACHED_SRC))
 	mkdir $(SRCDIR)
 	tar -C $(SRCDIR) --strip-components=1 -xf memcached.tar.gz
 
@@ -68,10 +68,9 @@ $(SRCDIR)/memcached: $(SRCDIR)/configure
 # variables in the template file via sed.
 
 memcached.manifest: memcached.manifest.template
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		-e 's|# \['"$(UBUNTU_VER)"'\] ||g' \
+	../common_tools/graphene-manifest \
+		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This procedure measures all

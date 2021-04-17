@@ -1,7 +1,7 @@
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
-loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)"
+loader.preload = "file:{{ graphene.libos }}"
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 loader.env.PATH = "/bin:/usr/bin"
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ log_level }}"
 libos.entrypoint = "file:/usr/bin/gcc"
 
 # Read application arguments directly from the command line. Don't use this on production!
@@ -9,11 +9,11 @@ loader.insecure__use_cmdline_argv = 1
 
 fs.mount.lib1.type = "chroot"
 fs.mount.lib1.path = "/lib"
-fs.mount.lib1.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib1.uri = "file:{{ graphene.runtimedir() }}"
 
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 fs.mount.usr.type = "chroot"
 fs.mount.usr.path = "/usr"
@@ -30,11 +30,11 @@ sgx.trusted_files.gcc = "file:/usr/bin/gcc"
 sgx.trusted_files.as = "file:/usr/bin/as"
 sgx.trusted_files.ld_ = "file:/usr/bin/ld"
 
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
-sgx.trusted_files.gcc_data = "file:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/"
-sgx.trusted_files.hostdebug = "file:/usr/lib/debug/usr/$(ARCH_LIBDIR)"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.gcc_data = "file:{{ gcc_lib_path }}/{{ gcc_major_version }}/"
+sgx.trusted_files.hostdebug = "file:/usr/lib/debug/usr/{{ arch_libdir }}"
 
 sgx.allowed_files.tmp = "file:/tmp"
 sgx.allowed_files.test_files = "file:test_files"

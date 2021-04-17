@@ -12,8 +12,6 @@
 #include "perm.h"
 #include "sgx_log.h"
 
-#define LOG_BUF_SIZE 256
-
 static const char* log_level_to_prefix[] = {
     [PAL_LOG_NONE]    = "", // not a valid entry actually (no public wrapper uses this log level)
     [PAL_LOG_ERROR]   = "error: ",
@@ -21,12 +19,6 @@ static const char* log_level_to_prefix[] = {
     [PAL_LOG_DEBUG]   = "debug: ",
     [PAL_LOG_TRACE]   = "trace: ",
     [PAL_LOG_ALL]     = "", // same as for PAL_LOG_NONE
-};
-
-struct log_buf {
-    int fd;
-    size_t end;
-    char buf[LOG_BUF_SIZE];
 };
 
 int g_urts_log_level = PAL_LOG_DEFAULT_LEVEL;
@@ -49,26 +41,18 @@ int urts_log_init(const char* path) {
     return 0;
 }
 
-static int output_char(void* f, int ch, void* buf_) {
-    __UNUSED(f);
-    int ret = 0;
-    struct log_buf* buf = (struct log_buf*)buf_;
-
-    buf->buf[buf->end++] = ch;
-    if (buf->end == LOG_BUF_SIZE) {
-        ret = write_all(buf->fd, buf->buf, buf->end);
-        buf->end = 0;
-    }
-    return ret;
+static int buf_write_all(const char* str, size_t size, void* arg) {
+    int fd = *(int*)arg;
+    return write_all(fd, str, size);
 }
 
-static void print_to_fd(int fd, const char* fmt, va_list ap) {
-    struct log_buf buf;
+static void print_to_fd(int fd, const char* prefix, const char* fmt, va_list ap) {
+    struct print_buf buf = INIT_PRINT_BUF_ARG(buf_write_all, &fd);
 
-    buf.fd = fd;
-    buf.end = 0;
-    vfprintfmt(output_char, NULL, &buf, fmt, ap);
-    write_all(fd, buf.buf, buf.end);
+    if (prefix)
+        buf_puts(&buf, prefix);
+    buf_vprintf(&buf, fmt, ap);
+    buf_flush(&buf);
     // No error handling, as `_urts_log` doesn't return errors anyways.
 }
 
@@ -77,18 +61,16 @@ void pal_printf(const char* fmt, ...) {
     va_list ap;
 
     va_start(ap, fmt);
-    print_to_fd(g_urts_log_fd, fmt, ap);
+    print_to_fd(g_urts_log_fd, /*prefix=*/NULL, fmt, ap);
     va_end(ap);
 }
-
 
 void _urts_log(int level, const char* fmt, ...) {
     if (level <= g_urts_log_level) {
         va_list ap;
         va_start(ap, fmt);
         assert(0 <= level && (size_t)level < ARRAY_SIZE(log_level_to_prefix));
-        urts_log_always("%s", log_level_to_prefix[level]);
-        print_to_fd(g_urts_log_fd, fmt, ap);
+        print_to_fd(g_urts_log_fd, log_level_to_prefix[level], fmt, ap);
         va_end(ap);
     }
 }
@@ -96,6 +78,6 @@ void _urts_log(int level, const char* fmt, ...) {
 void urts_log_always(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    print_to_fd(g_urts_log_fd, fmt, ap);
+    print_to_fd(g_urts_log_fd, /*prefix=*/NULL, fmt, ap);
     va_end(ap);
 }

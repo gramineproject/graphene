@@ -16,8 +16,6 @@
 
 #define CP_INIT_VMA_SIZE (64 * 1024 * 1024) /* 64MB */
 
-#define LOG_BUF_SIZE  256
-
 #define DEFAULT_VMA_COUNT 64
 
 /* ELF aux vectors  */

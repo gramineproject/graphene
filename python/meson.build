@@ -1,5 +1,9 @@
 subdir('graphenelibos')
 
+install_data([
+    'graphene-manifest',
+], install_dir: get_option('bindir'))
+
 if sgx
     install_data([
         'graphene-sgx-get-token',

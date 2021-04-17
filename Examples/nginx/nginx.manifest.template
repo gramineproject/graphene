@@ -2,19 +2,19 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-libos.entrypoint = "file:$(INSTALL_DIR)/sbin/nginx"
+libos.entrypoint = "file:{{ install_dir }}/sbin/nginx"
 
 # Path to the library OS
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/local/lib:/usr/lib:/usr/$(ARCH_LIBDIR)"
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/local/lib:/usr/lib:/usr/{{ arch_libdir }}"
 
 # Allow for injecting SIGTERM signal from the host.
 sys.enable_sigterm_injection = 1
@@ -25,17 +25,17 @@ sys.enable_sigterm_injection = 1
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
 # Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by Nginx.
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 # Host-level libraries (e.g., /usr/lib/x86_64-linux-gnu) required by Nginx with SSL.
 fs.mount.lib3.type = "chroot"
-fs.mount.lib3.path = "/usr$(ARCH_LIBDIR)"
-fs.mount.lib3.uri = "file:/usr$(ARCH_LIBDIR)"
+fs.mount.lib3.path = "/usr{{ arch_libdir }}"
+fs.mount.lib3.uri = "file:/usr{{ arch_libdir }}"
 
 # Host-level libraries required by Nginx with SSL.
 fs.mount.lib4.type = "chroot"
@@ -49,8 +49,8 @@ fs.mount.etc.uri = "file:/etc"
 
 # Mount the current working directory
 fs.mount.cwd.type = "chroot"
-fs.mount.cwd.path = "$(INSTALL_DIR_ABSPATH)"
-fs.mount.cwd.uri = "file:$(INSTALL_DIR)"
+fs.mount.cwd.path = "{{ install_dir_abspath }}"
+fs.mount.cwd.uri = "file:{{ install_dir }}"
 
 # SGX general options
 
@@ -76,16 +76,16 @@ sgx.thread_num = 4
 
 # SGX trusted files
 
-sgx.trusted_files.nginx = "file:$(INSTALL_DIR)/sbin/nginx"
-sgx.trusted_files.conf_dir = "file:$(INSTALL_DIR)/conf/"
-sgx.trusted_files.html_dir = "file:$(INSTALL_DIR)/html/"
+sgx.trusted_files.nginx = "file:{{ install_dir }}/sbin/nginx"
+sgx.trusted_files.conf_dir = "file:{{ install_dir }}/conf/"
+sgx.trusted_files.html_dir = "file:{{ install_dir }}/html/"
 
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 # Nginx logs directory (untrusted and allowed, since log files are not security-critical)
-sgx.allowed_files.logs = "file:$(INSTALL_DIR)/logs"
+sgx.allowed_files.logs = "file:{{ install_dir }}/logs"
 
 # Name Service Switch (NSS) files (Glibc reads these files)
 sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"

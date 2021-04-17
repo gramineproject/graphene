@@ -2,17 +2,17 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
-libos.entrypoint = "file:$(INSTALL_DIR)/bin/httpd"
+loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "file:{{ install_dir }}/bin/httpd"
 loader.argv0_override = "httpd"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
-loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
+loader.log_level = "{{ log_level }}"
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)"
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 
 # Allow for injecting SIGTERM signal from the host.
 sys.enable_sigterm_injection = 1
@@ -23,12 +23,12 @@ sys.enable_sigterm_injection = 1
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
-fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
 # Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by Apache
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "$(ARCH_LIBDIR)"
-fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
 # Host-level directory (/usr) required by Apache (needed for libaprutil-1.so)
 fs.mount.usr.type = "chroot"
@@ -42,8 +42,8 @@ fs.mount.etc.uri = "file:/etc"
 
 # Mount the current working directory
 fs.mount.cwd.type = "chroot"
-fs.mount.cwd.path = "$(INSTALL_DIR_ABSPATH)"
-fs.mount.cwd.uri = "file:$(INSTALL_DIR)"
+fs.mount.cwd.path = "{{ install_dir_abspath }}"
+fs.mount.cwd.uri = "file:{{ install_dir }}"
 
 # SGX general options
 
@@ -67,20 +67,20 @@ sgx.thread_num = 32
 
 # SGX trusted files
 
-sgx.trusted_files.httpd = "file:$(INSTALL_DIR)/bin/httpd"
-sgx.trusted_files.runtime = "file:$(GRAPHENEDIR)/Runtime/"
+sgx.trusted_files.httpd = "file:{{ install_dir }}/bin/httpd"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}"
 
 # Other libraries required by Apache
-sgx.trusted_files.arch_libdir = "file:$(ARCH_LIBDIR)/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/$(ARCH_LIBDIR)/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 # Apache data (trusted)
-sgx.trusted_files.conf = "file:$(INSTALL_DIR)/conf"
-sgx.trusted_files.htdocs = "file:$(INSTALL_DIR)/htdocs"
-sgx.trusted_files.modules = "file:$(INSTALL_DIR)/modules"
+sgx.trusted_files.conf = "file:{{ install_dir }}/conf"
+sgx.trusted_files.htdocs = "file:{{ install_dir }}/htdocs"
+sgx.trusted_files.modules = "file:{{ install_dir }}/modules"
 
 # Apache logs directory (untrusted and allowed, since log files are not security-critical)
-sgx.allowed_files.logs = "file:$(INSTALL_DIR)/logs"
+sgx.allowed_files.logs = "file:{{ install_dir }}/logs"
 
 # Name Service Switch (NSS) files, see 'man nsswitch.conf'
 sgx.allowed_files.nsswitch  = "file:/etc/nsswitch.conf"

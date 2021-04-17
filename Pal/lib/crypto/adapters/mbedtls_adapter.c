@@ -113,14 +113,6 @@ int mbedtls_to_pal_error(int error) {
 /* This is declared in pal_internal.h, but that can't be included here. */
 int _DkRandomBitsRead(void* buffer, size_t size);
 
-/* Wrapper to provide mbedtls the RNG interface it expects. It passes an
- * extra context parameter, and expects a return value of 0 for success
- * and nonzero for failure. */
-static int RandomWrapper(void* private, unsigned char* data, size_t size) {
-    __UNUSED(private);
-    return _DkRandomBitsRead(data, size);
-}
-
 #define BITS_PER_BYTE 8
 
 int lib_SHA256Init(LIB_SHA256_CONTEXT* context) {
@@ -276,82 +268,6 @@ int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT* context, uint8_t* mac, size_t mac_siz
 exit:
     mbedtls_cipher_free(&context->ctx);
     return ret;
-}
-
-int lib_RSAInitKey(LIB_RSA_KEY* key) {
-    /* For now, we only need PKCS_V15 type padding. If we need to support
-     * multiple padding types, I guess we'll need to add the padding type
-     * to this API. We might need to add a wrapper type around the crypto
-     * library's key/context type, since not all crypto providers store this
-     * in the conext, and instead require you to pass it on each call. */
-
-    /* Last parameter here is the hash type, which is only used for
-     * PKCS padding type 2.0. */
-    mbedtls_rsa_init(key, MBEDTLS_RSA_PKCS_V15, 0);
-    return 0;
-}
-
-int lib_RSAGenerateKey(LIB_RSA_KEY* key, uint64_t length_in_bits, uint64_t exponent) {
-    if (length_in_bits > UINT_MAX)
-        return -PAL_ERROR_INVAL;
-
-    if (exponent > UINT_MAX || (int)exponent < 0)
-        return -PAL_ERROR_INVAL;
-
-    int ret = mbedtls_rsa_gen_key(key, RandomWrapper, NULL, length_in_bits, exponent);
-    return mbedtls_to_pal_error(ret);
-}
-
-int lib_RSAExportPublicKey(LIB_RSA_KEY* key, uint8_t* e, size_t* e_size, uint8_t* n,
-                           size_t* n_size) {
-    /* Public exponent. */
-    int ret = mbedtls_mpi_write_binary(&key->E, e, *e_size);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
-
-    /* Modulus. */
-    ret = mbedtls_mpi_write_binary(&key->N, n, *n_size);
-    return mbedtls_to_pal_error(ret);
-}
-
-int lib_RSAImportPublicKey(LIB_RSA_KEY* key, const uint8_t* e, size_t e_size, const uint8_t* n,
-                           size_t n_size) {
-    int ret;
-
-    /* Public exponent. */
-    ret = mbedtls_mpi_read_binary(&key->E, e, e_size);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
-
-    /* Modulus. */
-    ret = mbedtls_mpi_read_binary(&key->N, n, n_size);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
-
-    /* This length is in bytes. */
-    key->len = (mbedtls_mpi_bitlen(&key->N) + 7) >> 3;
-
-    return 0;
-}
-
-int lib_RSAVerifySHA256(LIB_RSA_KEY* key, const uint8_t* hash, size_t hash_size,
-                        const uint8_t* signature, size_t signature_size) {
-    /* The mbedtls decrypt API assumes that you have a memory buffer that
-     * is as large as the key size and take the length as a parameter. We
-     * check, so that in the event the caller makes a mistake, you'll get
-     * an error instead of reading off the end of the buffer. */
-    if (signature_size != key->len)
-        return -PAL_ERROR_INVAL;
-
-    int ret = mbedtls_rsa_pkcs1_verify(key, NULL, NULL, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256,
-                                       hash_size, hash, signature);
-
-    return mbedtls_to_pal_error(ret);
-}
-
-int lib_RSAFreeKey(LIB_RSA_KEY* key) {
-    mbedtls_rsa_free(key);
-    return 0;
 }
 
 int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t* olen) {

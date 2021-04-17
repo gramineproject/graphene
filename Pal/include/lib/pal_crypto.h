@@ -16,32 +16,29 @@
 #include <unistd.h>
 
 #define SHA256_DIGEST_LEN 32
+#define DH_SIZE           256 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c */
 
 #ifdef CRYPTO_USE_MBEDTLS
 #define CRYPTO_PROVIDER_SPECIFIED
 
 #include "mbedtls/cmac.h"
-typedef struct AES LIB_AES_CONTEXT;
-
+#include "mbedtls/ctr_drbg.h"
 #include "mbedtls/dhm.h"
+#include "mbedtls/entropy.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha256.h"
+#include "mbedtls/ssl.h"
+
+typedef struct AES LIB_AES_CONTEXT;
 
 typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
-/* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
-#define DH_SIZE 256
-#include "mbedtls/dhm.h"
 typedef mbedtls_dhm_context LIB_DH_CONTEXT;
-typedef mbedtls_rsa_context LIB_RSA_KEY;
 typedef struct {
     mbedtls_cipher_type_t cipher;
     mbedtls_cipher_context_t ctx;
 } LIB_AESCMAC_CONTEXT;
 
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/entropy.h"
-#include "mbedtls/ssl.h"
 typedef struct {
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
@@ -94,30 +91,6 @@ int lib_AESGCMDecrypt(const uint8_t* key, size_t key_size, const uint8_t* iv, co
 int lib_AESCMACInit(LIB_AESCMAC_CONTEXT* context, const uint8_t* key, size_t key_size);
 int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT* context, const uint8_t* input, size_t input_size);
 int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT* context, uint8_t* mac, size_t mac_size);
-
-/* RSA. Limited functionality. */
-// Initializes the key structure
-int lib_RSAInitKey(LIB_RSA_KEY* key);
-// Must call lib_RSAInitKey first
-int lib_RSAGenerateKey(LIB_RSA_KEY* key, uint64_t length_in_bits, uint64_t exponent);
-
-int lib_RSAExportPublicKey(LIB_RSA_KEY* key, uint8_t* e, size_t* e_size, uint8_t* n,
-                           size_t* n_size);
-
-int lib_RSAImportPublicKey(LIB_RSA_KEY* key, const uint8_t* e, size_t e_size, const uint8_t* n,
-                           size_t n_size);
-
-// Sign and verify signatures.
-
-// This function must implement RSA signature verification using PKCS#1 v1.5
-// padding, with SHA256 as the hash mechanism. These signatures are generated
-// by the Graphene filesystem build (so outside of a running Graphene
-// application), but are verified within the Graphene application.
-int lib_RSAVerifySHA256(LIB_RSA_KEY* key, const uint8_t* hash, size_t hash_size,
-                        const uint8_t* signature, size_t signature_size);
-
-// Frees memory allocated in lib_RSAInitKey.
-int lib_RSAFreeKey(LIB_RSA_KEY* key);
 
 // Encode and decode Base64 messages.
 // These two functions can be used to query encode and decode sizes if dst is given NULL

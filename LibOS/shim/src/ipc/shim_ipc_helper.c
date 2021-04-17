@@ -800,8 +800,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     shim_tcb_init();
     set_cur_thread(self);
 
-    struct log_buf log_buf;
-    (void)log_setbuf(shim_get_tcb(), &log_buf);
+    log_setprefix(shim_get_tcb());
 
 #ifdef DEBUG
     lock(&ipc_helper_lock);

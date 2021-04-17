@@ -28,7 +28,6 @@ sgx-tokens:
 .PHONY: format
 format:
 	clang-format -i $(shell find . -path ./lib/crypto/mbedtls -prune -o \
-	                               -path ./lib/crypto/udivmodti4.c -prune -o \
 	                               -path ./src/host/Linux-SGX/tools/common/cJSON.c -prune -o \
 	                               -path ./src/host/Linux-SGX/tools/common/cJSON.h -prune -o \
 	                               -path ./src/host/Linux-SGX/tools/common/cJSON-*/cJSON.c -prune -o \

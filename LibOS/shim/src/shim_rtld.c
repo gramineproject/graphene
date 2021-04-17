@@ -919,7 +919,7 @@ int register_library(const char* name, unsigned long load_address) {
 noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
-        log_error("Could not initialize vDSO (error code = %d)", ret);
+        log_error("Could not initialize vDSO (error code = %d)\n", ret);
         process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
     }
 

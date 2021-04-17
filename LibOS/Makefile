@@ -77,6 +77,7 @@ $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 	CFLAGS=$$GLIBC_CFLAGS CPPFLAGS=$$GLIBC_CPPFLAGS \
 	../$(GLIBC_SRC)/configure --prefix=$(RUNTIME_DIR) \
 		--with-tls \
+		--without-gd \
 		--without-selinux \
 		--disable-test \
 		--disable-nscd \
