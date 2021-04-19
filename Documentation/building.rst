@@ -177,7 +177,7 @@ Building
 To build Graphene, in the root directory of Graphene repo, run the following
 commands::
 
-   # if you build graphene-direct
+   # if you build graphene-direct (note that "direct" means non-SGX version)
    make
 
    # if you build graphene-sgx
@@ -193,7 +193,7 @@ Running :command:`make SGX=1 sgx-tokens` in the test or regression directory
 will automatically generate the required manifest signatures (``.sig`` files)
 and EINITTOKENs (``.token`` files).
 
-Then install graphene (note that "direct" means non-SGX version)::
+Then install graphene (recall that "direct" means non-SGX version)::
 
    meson build -Ddirect=enabled -Dsgx=enabled
    ninja -C build
