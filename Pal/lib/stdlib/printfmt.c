@@ -269,8 +269,10 @@ int vsnprintf(char* buf, size_t buf_size, const char* fmt, va_list ap) {
 
     vfprintfmt(sprintputch, &b, fmt, ap);
 
-    assert(b.str_end < buf_size);
-    b.buf[b.str_end] = '\0';
+    if (buf_size > 0) {
+        assert(b.str_end < buf_size);
+        b.buf[b.str_end] = '\0';
+    }
 
     return b.cnt;
 }
