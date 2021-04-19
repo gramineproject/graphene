@@ -223,16 +223,16 @@ void* calloc(size_t nmemb, size_t size);
 int vfprintfmt(int (*_fputc)(char c, void* arg), void* arg, const char* fmt, va_list ap)
     __attribute__((format(printf, 3, 0)));
 
-int vsnprintf(char* str, size_t size, const char* fmt, va_list ap)
+int vsnprintf(char* buf, size_t buf_size, const char* fmt, va_list ap)
     __attribute__((format(printf, 3, 0)));
-int snprintf(char* str, size_t size, const char* fmt, ...)
+int snprintf(char* buf, size_t buf_size, const char* fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
 /* Used by _FORTIFY_SOURCE */
-int __vsnprintf_chk(char* str, size_t size, int flag, size_t real_size, const char* fmt,
+int __vsnprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt,
                     va_list ap)
     __attribute__((format(printf, 5, 0)));
-int __snprintf_chk(char* str, size_t size, int flag, size_t real_size, const char* fmt, ...)
+int __snprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt, ...)
     __attribute__((format(printf, 5, 6)));
 
 /*

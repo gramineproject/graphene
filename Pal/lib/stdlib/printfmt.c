@@ -243,64 +243,64 @@ int vfprintfmt(int (*_fputc)(char c, void* arg), void* arg, const char* fmt, va_
 
 struct sprintbuf {
     size_t cnt;
-    size_t max;
+    size_t str_end;
+    size_t buf_size;
     char* buf;
 };
 
 static int sprintputch(char ch, void* arg) {
     struct sprintbuf* buf = arg;
 
-    if (buf->cnt >= buf->max)
-        return -1;
-
-    buf->buf[buf->cnt++] = ch;
+    if (buf->cnt + 1 < buf->buf_size) { // leave one byte for the null terminator
+        buf->buf[buf->cnt] = ch;
+        buf->str_end = buf->cnt + 1;
+    }
+    buf->cnt++;
     return 0;
 }
 
-int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap) {
+int vsnprintf(char* buf, size_t buf_size, const char* fmt, va_list ap) {
     struct sprintbuf b = {
         .cnt = 0,
-        .max = n,
+        .str_end = 0,
+        .buf_size = buf_size,
         .buf = buf,
     };
 
-    if (!buf || n < 1)
-        return 0;
-
-    // print the string to the buffer
     vfprintfmt(sprintputch, &b, fmt, ap);
 
-    // null terminate the buffer
-    if (b.cnt < n)
-        b.buf[b.cnt] = '\0';
+    if (buf_size > 0) {
+        assert(b.str_end < buf_size);
+        b.buf[b.str_end] = '\0';
+    }
 
     return b.cnt;
 }
 
-int __vsnprintf_chk(char* buf, size_t n, int flag, size_t real_size, const char* fmt,
+int __vsnprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt,
                     va_list ap) {
     __UNUSED(flag);
-    if (n > real_size) {
+    if (buf_size > real_size) {
         warn("vsnprintf() check failed\n");
         __abort();
     }
-    return vsnprintf(buf, n, fmt, ap);
+    return vsnprintf(buf, buf_size, fmt, ap);
 }
 
-int snprintf(char* buf, size_t n, const char* fmt, ...) {
+int snprintf(char* buf, size_t buf_size, const char* fmt, ...) {
     va_list ap;
     int rc;
 
     va_start(ap, fmt);
-    rc = vsnprintf(buf, n, fmt, ap);
+    rc = vsnprintf(buf, buf_size, fmt, ap);
     va_end(ap);
 
     return rc;
 }
 
-int __snprintf_chk(char* buf, size_t n, int flag, size_t real_size, const char* fmt, ...) {
+int __snprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt, ...) {
     __UNUSED(flag);
-    if (n > real_size) {
+    if (buf_size > real_size) {
         warn("vsnprintf() check failed\n");
         __abort();
     }
@@ -309,7 +309,7 @@ int __snprintf_chk(char* buf, size_t n, int flag, size_t real_size, const char* 
     int rc;
 
     va_start(ap, fmt);
-    rc = vsnprintf(buf, n, fmt, ap);
+    rc = vsnprintf(buf, buf_size, fmt, ap);
     va_end(ap);
 
     return rc;
