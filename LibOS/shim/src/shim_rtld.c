@@ -865,9 +865,9 @@ int init_loader(void) {
         ret = load_elf_object(exec);
         if (ret < 0) {
             // TODO: Actually verify that the non-PIE-ness was the real cause of loading failure.
-            log_error("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, "
-                      "in which case Graphene requires a specially-crafted memory layout. You can "
-                      "enable it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
+            log_error("Failed to load %s. This may be caused by the binary being non-PIE, in which "
+                      "case Graphene requires a specially-crafted memory layout. You can enable it "
+                      "by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
                       qstrgetstr(&exec->path));
             goto out;
         }
