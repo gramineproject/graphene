@@ -276,6 +276,8 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
             if (!pal_entrypoint)
                 INIT_FAIL(PAL_ERROR_INVAL,
                           "'libos.entrypoint' must be specified in the manifest\n");
+        } else if (!strstartswith(exec_uri, URI_PREFIX_FILE)) {
+            INIT_FAIL(PAL_ERROR_INVAL, "'libos.entrypoint' is missing 'file:' prefix\n");
         }
     }
 

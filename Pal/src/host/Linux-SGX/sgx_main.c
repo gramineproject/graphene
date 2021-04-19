@@ -597,6 +597,10 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
             ret = -EINVAL;
             goto out;
         }
+    } else if (!strstartswith(entrypoint, URI_PREFIX_FILE)) {
+        urts_log_error("'libos.entrypoint' is missing 'file:' prefix\n");
+        ret = -EINVAL;
+        goto out;
     }
     enclave_info->entrypoint_uri = entrypoint;
 
