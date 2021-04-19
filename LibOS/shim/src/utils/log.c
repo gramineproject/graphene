@@ -52,6 +52,12 @@ void log_setprefix(shim_tcb_t* tcb) {
         /* unknown process (must never happen): show exec name */
         snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[%s] ", exec);
     }
+    if (strlen(tcb->log_prefix) == ARRAY_SIZE(tcb->log_prefix) - 1) {
+        /* exec name too long, snip it */
+        const char* snip = "...] ";
+        size_t snip_size = strlen(snip) + 1;
+        memcpy(tcb->log_prefix + ARRAY_SIZE(tcb->log_prefix) - snip_size, snip, snip_size);
+    }
 }
 
 static int buf_write_all(const char* str, size_t size, void* arg) {
