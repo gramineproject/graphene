@@ -35,22 +35,30 @@ void log_setprefix(shim_tcb_t* tcb) {
             exec = it + 1;
 
     uint32_t vmid = g_process_ipc_info.vmid;
+    size_t total_len;
     if (tcb->tp) {
         if (!is_internal_tid(tcb->tp->tid)) {
             /* normal app thread: show Process ID, Thread ID, and exec name */
-            snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:T%u:%s] ", vmid,
-                     tcb->tp->tid, exec);
+            total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:T%u:%s] ",
+                                 vmid, tcb->tp->tid, exec);
         } else {
             /* internal LibOS thread: show Process ID, Internal-thread ID, and exec name */
-            snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:i%u:%s] ", vmid,
-                     tcb->tp->tid - INTERNAL_TID_BASE, exec);
+            total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:i%u:%s] ",
+                                 vmid, tcb->tp->tid - INTERNAL_TID_BASE, exec);
         }
     } else if (g_process_ipc_info.vmid) {
         /* unknown thread (happens on process init): show Process ID and exec name */
-        snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:%s] ", vmid, exec);
+        total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:%s] ", vmid,
+                             exec);
     } else {
         /* unknown process (must never happen): show exec name */
-        snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[%s] ", exec);
+        total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[%s] ", exec);
+    }
+    if (total_len > ARRAY_SIZE(tcb->log_prefix) - 1) {
+        /* exec name too long, snip it */
+        const char* snip = "...] ";
+        size_t snip_size = strlen(snip) + 1;
+        memcpy(tcb->log_prefix + ARRAY_SIZE(tcb->log_prefix) - snip_size, snip, snip_size);
     }
 }
 
