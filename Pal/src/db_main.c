@@ -419,7 +419,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'");
     if (entrypoint) {
         if (!strstartswith(entrypoint, URI_PREFIX_FILE))
-            INIT_FAIL(-PAL_ERROR_INVAL, "'pal.entrypoint' is missing 'file:' prefix\n");
+            INIT_FAIL(PAL_ERROR_INVAL, "'pal.entrypoint' is missing 'file:' prefix\n");
         // Temporary hack: Assume we're in PAL regression test suite and load the test binary
         // directly, without LibOS.
         exec_uri = entrypoint;
