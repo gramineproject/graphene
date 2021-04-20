@@ -80,13 +80,13 @@ int init_ipc_worker(void);
 void terminate_ipc_worker(void);
 
 /*!
- * \brief Establish an ipc connection to another process
+ * \brief Establish a one-way ipc connection to another process
  *
  * \param dest vmid of the destination process to connect to
  */
 int connect_to_process(IDTYPE dest);
 /*!
- * \brief Request the ipc leader to connect to this process
+ * \brief Request the ipc leader to open a one-way connection to this process
  *
  * This makes sure that the ipc leader has an open connection to this process and includes it in all
  * broadcast ipc messages.
@@ -143,9 +143,9 @@ int send_ipc_message(struct shim_ipc_msg* msg, IDTYPE dest);
  * \param dest vmid of the destination process
  * \param[out] seq upon return contains sequence number of this message
  *
- * This functions sends a ipc message to the \p dest process and awaits for a response.
- * An unique number is assigned before sending the message and this thread will wait for a response
- * ipc message, which contains the same sequence number.
+ * Ssend a ipc message to the \p dest process and await for a response. An unique number is assigned
+ * before sending the message and this thread will wait for a response ipc message, which contains
+ * the same sequence number.
  */
 int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dest, unsigned long* seq);
 /*!
@@ -166,7 +166,7 @@ int broadcast_ipc(struct shim_ipc_msg* msg, IDTYPE exclude_vmid);
 int ipc_dummy_callback(struct shim_ipc_msg* msg, IDTYPE src);
 
 /*!
- * \brief Handle a response to previousle sent message
+ * \brief Handle a response to a previously sent message
  *
  * \param src vmid of the process which sent a response
  * \param seq sequence number of the original message
@@ -183,7 +183,7 @@ void ipc_msg_response_handle(IDTYPE src, unsigned long seq,
  * \brief Wake up the thread awaiting for a response to \p req_msg
  *
  * \param req_msg original message which got the response
- * \param data unused (just to confrom #ipc_msg_response_handle callbacks interface)
+ * \param data unused (just to confrom to #ipc_msg_response_handle callbacks interface)
  */
 void wake_req_msg_thread(struct shim_ipc_msg_with_ack* req_msg, void* data);
 

@@ -38,7 +38,6 @@ static bool ipc_connection_cmp(struct avl_tree_node* _a, struct avl_tree_node* _
     return a->vmid <= b->vmid;
 }
 
-/* TODO: hashmap will probably be better as we only need insert, delete and find exact. */
 /* Tree of outgoing IPC connections, to be accessed only with `g_ipc_connections_lock` taken. */
 static struct avl_tree g_ipc_connections = { .cmp = ipc_connection_cmp };
 static struct shim_lock g_ipc_connections_lock;
