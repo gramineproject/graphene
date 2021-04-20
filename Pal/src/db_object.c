@@ -63,10 +63,6 @@ int DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us) {
  * error code otherwise. */
 int DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
                         PAL_FLG* ret_events, PAL_NUM timeout_us) {
-    if (!count || !handle_array || !events || !ret_events) {
-        return -PAL_ERROR_INVAL;
-    }
-
     for (PAL_NUM i = 0; i < count; i++) {
         if (UNKNOWN_HANDLE(handle_array[i])) {
             return -PAL_ERROR_INVAL;
