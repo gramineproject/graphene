@@ -440,7 +440,7 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_ipc_worker);
 
     if (PAL_CB(parent_process)) {
-        int ret = connect_to_process(g_process_ipc_ids.parent_id);
+        int ret = connect_to_process(g_process_ipc_ids.parent_vmid);
         if (ret < 0) {
             log_error("shim_init: failed to establish IPC connection to parent: %d\n", ret);
             DkProcessExit(1);

@@ -26,12 +26,12 @@ int ipc_sysv_findkey_send(struct sysv_key* key) {
     if (!ret)
         goto out;
 
-    if (!g_process_ipc_ids.leader_id) {
+    if (!g_process_ipc_ids.leader_vmid) {
         ret = -ENOENT;
         goto out;
     }
 
-    IDTYPE dest = g_process_ipc_ids.leader_id;
+    IDTYPE dest = g_process_ipc_ids.leader_vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_findkey));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -74,10 +74,10 @@ int ipc_sysv_tellkey_send(IDTYPE dest, struct sysv_key* key, IDTYPE id, unsigned
         if ((ret = sysv_add_key(key, id)) < 0)
             goto out;
 
-        if (!g_process_ipc_ids.leader_id)
+        if (!g_process_ipc_ids.leader_vmid)
             goto out;
 
-        dest = g_process_ipc_ids.leader_id;
+        dest = g_process_ipc_ids.leader_vmid;
 
         owned = false;
     }

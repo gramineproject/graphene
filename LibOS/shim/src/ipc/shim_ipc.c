@@ -279,7 +279,7 @@ out:
 }
 
 int request_leader_connect_back(void) {
-    IDTYPE leader = g_process_ipc_ids.leader_id;
+    IDTYPE leader = g_process_ipc_ids.leader_vmid;
     assert(leader);
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(0);

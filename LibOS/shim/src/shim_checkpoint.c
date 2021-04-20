@@ -500,8 +500,8 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     }
 
     struct shim_ipc_ids process_ipc_ids = {
-        .parent_id = g_self_vmid,
-        .leader_id = g_process_ipc_ids.leader_id ?: g_self_vmid,
+        .parent_vmid = g_self_vmid,
+        .leader_vmid = g_process_ipc_ids.leader_vmid ?: g_self_vmid,
     };
     va_list ap;
     va_start(ap, thread_description);

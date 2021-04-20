@@ -488,11 +488,11 @@ out:
 }
 
 int ipc_lease_send(void) {
-    if (!g_process_ipc_ids.leader_id) {
+    if (!g_process_ipc_ids.leader_vmid) {
         return alloc_ipc_range(g_self_vmid, NULL);
     }
 
-    IDTYPE leader = g_process_ipc_ids.leader_id;
+    IDTYPE leader = g_process_ipc_ids.leader_vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(0);
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -571,11 +571,11 @@ int ipc_offer_callback(struct shim_ipc_msg* msg, IDTYPE src) {
 }
 
 int ipc_sublease_send(IDTYPE tenant, IDTYPE idx) {
-    if (!g_process_ipc_ids.leader_id) {
+    if (!g_process_ipc_ids.leader_vmid) {
         return add_ipc_subrange(idx, tenant);
     }
 
-    IDTYPE leader = g_process_ipc_ids.leader_id;
+    IDTYPE leader = g_process_ipc_ids.leader_vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sublease));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -612,11 +612,11 @@ int ipc_query_send(IDTYPE idx) {
         return 0;
     }
 
-    if (!g_process_ipc_ids.leader_id) {
+    if (!g_process_ipc_ids.leader_vmid) {
         return -ESRCH;
     }
 
-    IDTYPE leader = g_process_ipc_ids.leader_id;
+    IDTYPE leader = g_process_ipc_ids.leader_vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_query));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
@@ -712,11 +712,11 @@ out:
 }
 
 int ipc_queryall_send(void) {
-    if (!g_process_ipc_ids.leader_id) {
+    if (!g_process_ipc_ids.leader_vmid) {
         return 0;
     }
 
-    IDTYPE leader = g_process_ipc_ids.leader_id;
+    IDTYPE leader = g_process_ipc_ids.leader_vmid;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(0);
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);

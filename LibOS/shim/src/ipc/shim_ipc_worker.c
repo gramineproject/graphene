@@ -79,7 +79,7 @@ static void ipc_leader_died_callback(void) {
 }
 
 static void disconnect_callbacks(struct shim_ipc_connection* conn) {
-    if (g_process_ipc_ids.leader_id == conn->vmid) {
+    if (g_process_ipc_ids.leader_vmid == conn->vmid) {
         ipc_leader_died_callback();
     }
     ipc_child_disconnect_callback(conn->vmid);
@@ -357,7 +357,7 @@ static noreturn void ipc_worker_main(void) {
                 }
             }
             /* If there was something else other than error reported, let the loop spin at least one
-             * more time - in case there is a messages left to be read. */
+             * more time - in case there are messages left to be read. */
             if (ret_events[i] == PAL_WAIT_ERROR) {
                 disconnect_callbacks(conn);
                 del_ipc_connection(conn);

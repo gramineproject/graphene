@@ -35,8 +35,8 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
 
     IDTYPE dest = 0;
     if (type == KILL_ALL) {
-        if (g_process_ipc_ids.leader_id) {
-            dest = g_process_ipc_ids.leader_id;
+        if (g_process_ipc_ids.leader_vmid) {
+            dest = g_process_ipc_ids.leader_vmid;
         }
     } else {
         ret = find_owner(dest_pid, &dest);
@@ -55,7 +55,7 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     msgin->id                       = target;
     msgin->signum                   = sig;
 
-    if (type == KILL_ALL && !g_process_ipc_ids.leader_id) {
+    if (type == KILL_ALL && !g_process_ipc_ids.leader_vmid) {
         log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, dest_pid, sig);
         ret = broadcast_ipc(msg, /*exclude_id=*/0);
     } else {
@@ -108,7 +108,7 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, IDTYPE src) {
             ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum);
             break;
         case KILL_ALL:
-            if (!g_process_ipc_ids.leader_id) {
+            if (!g_process_ipc_ids.leader_vmid) {
                 ret = broadcast_ipc(msg, src);
                 if (ret < 0) {
                     break;

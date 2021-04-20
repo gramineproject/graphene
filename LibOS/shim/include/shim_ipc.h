@@ -20,11 +20,9 @@
 #define RESPONSE_CALLBACK 1
 
 #define RANGE_SIZE 32
-#define LEASE_TIME 1000
 
 #define IPC_MSG_MINIMAL_SIZE 48
 #define IPC_SEM_NOTIMEOUT    ((unsigned long)-1)
-#define MAX_IPC_PORT_FINI_CB 3
 
 enum {
     IPC_MSG_RESP = 0,
@@ -60,12 +58,40 @@ enum pid_meta_code { PID_META_CRED, PID_META_EXEC, PID_META_CWD, PID_META_ROOT }
 enum sysv_type { SYSV_NONE, SYSV_MSGQ, SYSV_SEM, SYSV_SHM };
 
 struct shim_ipc_ids {
-    IDTYPE parent_id;
-    IDTYPE leader_id;
+    IDTYPE parent_vmid;
+    IDTYPE leader_vmid;
 };
 
 extern IDTYPE g_self_vmid;
 extern struct shim_ipc_ids g_process_ipc_ids;
+
+int init_ipc(void);
+int init_ns_ranges(void);
+int init_ns_pid(void);
+int init_ns_sysv(void);
+
+/*!
+ * \brief Initialize the ipc worker thread
+ */
+int init_ipc_worker(void);
+/*!
+ * \brief Terminate the ipc worker thread
+ */
+void terminate_ipc_worker(void);
+
+/*!
+ * \brief Establish an ipc connection to another process
+ *
+ * \param dest vmid of the destination process to connect to
+ */
+int connect_to_process(IDTYPE dest);
+/*!
+ * \brief Request the ipc leader to connect to this process
+ *
+ * This makes sure that the ipc leader has an open connection to this process and includes it in all
+ * broadcast ipc messages.
+ */
+int request_leader_connect_back(void);
 
 struct shim_ipc_msg {
     unsigned char code;
@@ -85,26 +111,94 @@ struct shim_ipc_msg_with_ack {
     struct shim_ipc_msg msg;
 };
 
+struct shim_ipc_resp {
+    int retval;
+} __attribute__((packed));
+
+static inline size_t _get_ipc_msg_size(size_t base_size, size_t payload) {
+    size_t size = base_size + payload;
+    return (size > IPC_MSG_MINIMAL_SIZE) ? size : IPC_MSG_MINIMAL_SIZE;
+}
+static inline size_t get_ipc_msg_size(size_t payload) {
+    return _get_ipc_msg_size(sizeof(struct shim_ipc_msg), payload);
+}
+static inline size_t get_ipc_msg_with_ack_size(size_t payload) {
+    return _get_ipc_msg_size(sizeof(struct shim_ipc_msg_with_ack), payload);
+}
+
+void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest);
+void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t size, IDTYPE dest);
+
+/*!
+ * \brief Send an ipc message
+ *
+ * \param msg message to send
+ * \param dest vmid of the destination process
+ */
+int send_ipc_message(struct shim_ipc_msg* msg, IDTYPE dest);
+/*!
+ * \brief Send an ipc message and wait for response
+ *
+ * \param msg message to send
+ * \param dest vmid of the destination process
+ * \param[out] seq upon return contains sequence number of this message
+ *
+ * This functions sends a ipc message to the \p dest process and awaits for a response.
+ * An unique number is assigned before sending the message and this thread will wait for a response
+ * ipc message, which contains the same sequence number.
+ */
+int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dest, unsigned long* seq);
+/*!
+ * \brief Broadcast a ipc message
+ *
+ * \param msg message to send
+ * \param exclude_vmid vmid of process to be excluded
+ *
+ * Send an ipc message \p msg to all known (connected) processes except for \p exclude_vmid.
+ */
+int broadcast_ipc(struct shim_ipc_msg* msg, IDTYPE exclude_vmid);
+/*!
+ * \brief Callback for a dummy message, just wakes the waiting thread
+ *
+ * \param msg received message
+ * \param src vmid of the process which sent \p msg
+ */
+int ipc_dummy_callback(struct shim_ipc_msg* msg, IDTYPE src);
+
+/*!
+ * \brief Handle a response to previousle sent message
+ *
+ * \param src vmid of the process which sent a response
+ * \param seq sequence number of the original message
+ * \param callback callback to be called on the original message
+ * \param data passed as the second argument to \p callback
+ *
+ * Searches for a `shim_ipc_msg_with_ack` sent previously to \p src, which has \p seq sequential
+ * number. Then calls \p callback with the found message (or `NULL` if no message was found) as
+ * the first argument and \p data as the second.
+ */
+void ipc_msg_response_handle(IDTYPE src, unsigned long seq,
+                             void (*callback)(struct shim_ipc_msg_with_ack*, void*), void* data);
+/*!
+ * \brief Wake up the thread awaiting for a response to \p req_msg
+ *
+ * \param req_msg original message which got the response
+ * \param data unused (just to confrom #ipc_msg_response_handle callbacks interface)
+ */
+void wake_req_msg_thread(struct shim_ipc_msg_with_ack* req_msg, void* data);
+
 /* common functions for pid & sysv namespaces */
 int add_ipc_subrange(IDTYPE idx, IDTYPE owner);
 IDTYPE allocate_ipc_id(IDTYPE min, IDTYPE max);
 void release_ipc_id(IDTYPE idx);
 
+/*!
+ * \brief Find owner of a given id
+ *
+ * \param idx id to find owner of
+ * \parami[out] owner contains vmid of the process owning \p idx.
+ */
 int find_owner(IDTYPE idx, IDTYPE* owner);
-
-/* sysv namespace */
-struct sysv_key {
-    unsigned long key;
-    enum sysv_type type;
-};
-
-int sysv_add_key(struct sysv_key* key, IDTYPE id);
-int sysv_get_key(struct sysv_key* key, bool delete);
-
-/* common message structs */
-struct shim_ipc_resp {
-    int retval;
-} __attribute__((packed));
 
 struct ipc_ns_offered {
     IDTYPE base;
@@ -203,6 +297,8 @@ struct shim_ipc_pid_retstatus {
 int ipc_pid_retstatus_send(IDTYPE dest, int nstatus, struct pid_status* status, unsigned long seq);
 int ipc_pid_retstatus_callback(struct shim_ipc_msg* msg, IDTYPE src);
 
+int get_all_pid_status(struct pid_status** status);
+
 /* PID_GETMETA: get metadata of certain pid */
 struct shim_ipc_pid_getmeta {
     IDTYPE pid;
@@ -223,6 +319,15 @@ struct shim_ipc_pid_retmeta {
 int ipc_pid_retmeta_send(IDTYPE dest, IDTYPE pid, enum pid_meta_code code, const void* data,
                          int datasize, unsigned long seq);
 int ipc_pid_retmeta_callback(struct shim_ipc_msg* msg, IDTYPE src);
+
+/* sysv namespace */
+struct sysv_key {
+    unsigned long key;
+    enum sysv_type type;
+};
+
+int sysv_add_key(struct sysv_key* key, IDTYPE id);
+int sysv_get_key(struct sysv_key* key, bool delete);
 
 /* SYSV_FINDKEY */
 struct shim_ipc_sysv_findkey {
@@ -304,44 +409,5 @@ struct shim_ipc_sysv_semret {
 
 int ipc_sysv_semret_send(IDTYPE dest, void* vals, size_t valsize, unsigned long seq);
 int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, IDTYPE src);
-
-int init_ipc(void);
-
-static inline size_t get_ipc_msg_size(size_t payload) {
-    size_t size = sizeof(struct shim_ipc_msg) + payload;
-    return (size > IPC_MSG_MINIMAL_SIZE) ? size : IPC_MSG_MINIMAL_SIZE;
-}
-
-static inline size_t get_ipc_msg_with_ack_size(size_t payload) {
-    static_assert(sizeof(struct shim_ipc_msg_with_ack) >= sizeof(struct shim_ipc_msg),
-                  "Incorrect shim_ipc_msg_with_ack size");
-    return get_ipc_msg_size(payload) +
-           (sizeof(struct shim_ipc_msg_with_ack) - sizeof(struct shim_ipc_msg));
-}
-
-void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest);
-void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t size, IDTYPE dest);
-
-void ipc_msg_response_handle(IDTYPE src, unsigned long seq,
-                             void (*callback)(struct shim_ipc_msg_with_ack*, void*), void* data);
-
-void wake_req_msg_thread(struct shim_ipc_msg_with_ack* req_msg, void* data);
-
-int connect_to_process(IDTYPE dest);
-int request_leader_connect_back(void);
-int ipc_dummy_callback(struct shim_ipc_msg* msg, IDTYPE src);
-int broadcast_ipc(struct shim_ipc_msg* msg, IDTYPE exclude_id);
-int send_ipc_message(struct shim_ipc_msg* msg, IDTYPE dest);
-int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dest, unsigned long* seq);
-int send_response_ipc_message(IDTYPE dest, int ret, unsigned long seq);
-
-int init_ipc_worker(void);
-void terminate_ipc_worker(void);
-
-int init_ns_ranges(void);
-int init_ns_pid(void);
-int init_ns_sysv(void);
-
-int get_all_pid_status(struct pid_status** status);
 
 #endif /* SHIM_IPC_H_ */

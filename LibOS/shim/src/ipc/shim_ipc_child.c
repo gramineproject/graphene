@@ -31,7 +31,7 @@ int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal) {
         return 0;
     }
 
-    IDTYPE dest = g_process_ipc_ids.parent_id;
+    IDTYPE dest = g_process_ipc_ids.parent_vmid;
 
     size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
