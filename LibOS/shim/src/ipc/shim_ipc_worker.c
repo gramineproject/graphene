@@ -235,7 +235,7 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
 #undef READAHEAD_SIZE
 
 static noreturn void ipc_worker_main(void) {
-    /* TODO: If we had a global array of connection (instead of a list) we wouldn't have to gather
+    /* TODO: If we had a global array of connections (instead of a list) we wouldn't have to gather
      * them all here in every loop iteration, but then deletion would be slower (but deletion should
      * be rare). */
     struct shim_ipc_connection** connections = NULL;

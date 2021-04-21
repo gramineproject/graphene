@@ -143,7 +143,7 @@ int send_ipc_message(struct shim_ipc_msg* msg, IDTYPE dest);
  * \param dest vmid of the destination process
  * \param[out] seq upon return contains sequence number of this message
  *
- * Ssend a ipc message to the \p dest process and await for a response. An unique number is assigned
+ * Send an ipc message to the \p dest process and wait for a response. An unique number is assigned
  * before sending the message and this thread will wait for a response ipc message, which contains
  * the same sequence number.
  */
@@ -183,7 +183,7 @@ void ipc_msg_response_handle(IDTYPE src, unsigned long seq,
  * \brief Wake up the thread awaiting for a response to \p req_msg
  *
  * \param req_msg original message which got the response
- * \param data unused (just to confrom to #ipc_msg_response_handle callbacks interface)
+ * \param data unused (just to conform to #ipc_msg_response_handle callbacks interface)
  */
 void wake_req_msg_thread(struct shim_ipc_msg_with_ack* req_msg, void* data);
 
