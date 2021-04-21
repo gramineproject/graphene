@@ -4,7 +4,7 @@ node('nonsgx_slave') {
     load '.ci/lib/config.jenkinsfile'
     load '.ci/lib/config-ubuntu18.04.jenkinsfile'
     load '.ci/lib/config-release.jenkinsfile'
-    env.GLIBC_VERSION = '2.27'
+    env.GLIBC_VERSION = '2.31'
 
     docker.build(
         "local:${env.BUILD_TAG}",
