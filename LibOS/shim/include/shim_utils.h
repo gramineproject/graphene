@@ -123,7 +123,6 @@ static inline int qstrempty(const struct shim_qstr* qstr) {
 
 static inline void qstrcopy(struct shim_qstr* to, const struct shim_qstr* from) {
     qstrsetstr(to, qstrgetstr(from), from->len);
-    to->hash = from->hash;
 }
 
 static inline int qstrcmpstr(const struct shim_qstr* qstr, const char* str, size_t len) {
