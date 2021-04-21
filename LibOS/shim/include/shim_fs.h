@@ -422,7 +422,7 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
  * Returns the new dentry, or NULL in case of allocation failure. The function will initialize
  * `fs` (if provided), `name`, `rel_path`, and parent/children links.
  *
- * The reference count of the returned dentry will 2 if `parent` was provided, 1 otherwise.
+ * The reference count of the returned dentry will be 2 if `parent` was provided, 1 otherwise.
  *
  * TODO: This function sets `rel_path` of a newly created dentry to:
  * - `parent->rel_path + "/" + name` if parent exists and has a relative path,
