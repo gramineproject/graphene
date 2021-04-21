@@ -26,11 +26,11 @@ static struct shim_lock dcache_mgr_lock;
 #define OBJ_TYPE struct shim_dentry
 #include "memmgr.h"
 
-struct shim_lock dcache_lock;
+struct shim_lock g_dcache_lock;
 
 static MEM_MGR dentry_mgr = NULL;
 
-struct shim_dentry* dentry_root = NULL;
+struct shim_dentry* g_dentry_root = NULL;
 
 static struct shim_dentry* alloc_dentry(void) {
     struct shim_dentry* dent =
@@ -55,30 +55,30 @@ static struct shim_dentry* alloc_dentry(void) {
 }
 
 int init_dcache(void) {
-    if (!create_lock(&dcache_mgr_lock) || !create_lock(&dcache_lock)) {
+    if (!create_lock(&dcache_mgr_lock) || !create_lock(&g_dcache_lock)) {
         return -ENOMEM;
     }
 
     dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
 
-    dentry_root = alloc_dentry();
-    if (!dentry_root) {
+    g_dentry_root = alloc_dentry();
+    if (!g_dentry_root) {
         return -ENOMEM;
     }
 
     /* The root is special; we assume it won't change or be freed, so we artificially increase its
      * refcount by 1. */
-    get_dentry(dentry_root);
+    get_dentry(g_dentry_root);
 
     /* Initialize the root to a valid state, as a low-level lookup
      *  will fail. */
-    dentry_root->state |= DENTRY_VALID;
+    g_dentry_root->state |= DENTRY_VALID;
 
     /* The root should be a directory too*/
-    dentry_root->state |= DENTRY_ISDIRECTORY;
+    g_dentry_root->state |= DENTRY_ISDIRECTORY;
 
-    qstrsetstr(&dentry_root->name, "", 0);
-    qstrsetstr(&dentry_root->rel_path, "", 0);
+    qstrsetstr(&g_dentry_root->name, "", 0);
+    qstrsetstr(&g_dentry_root->rel_path, "", 0);
 
     return 0;
 }
@@ -140,7 +140,7 @@ static int __put_dentry(struct shim_dentry* dent) {
 }
 
 /*
- * If possible, detach the dentry from parent so that it can be deleted. Requires `dcache_lock` to
+ * If possible, detach the dentry from parent so that it can be deleted. Requires `g_dcache_lock` to
  * be held.
  *
  * If the dentry cannot be detached at the moment, this function does nothing.
@@ -157,7 +157,7 @@ static int __put_dentry(struct shim_dentry* dent) {
  * - The dentry does not refer to an existing file: it is either not valid, or negative.
  */
 static void detach_dentry_if_possible(struct shim_dentry* dent) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
 
     if (REF_GET(dent->ref_count) != 2)
         return;
@@ -182,14 +182,14 @@ void put_dentry(struct shim_dentry* dent) {
          * and delete it. See `detach_dentry_if_possible` for the specific conditions.
          *
          * We try to detach the dentry from parent, but make sure we check the conditions while
-         * holding `dcache_lock`, as someone might have acquired a reference in meantime.
+         * holding `g_dcache_lock`, as someone might have acquired a reference in meantime.
          */
-        if (locked(&dcache_lock)) {
+        if (locked(&g_dcache_lock)) {
             detach_dentry_if_possible(dent);
         } else {
-            lock(&dcache_lock);
+            lock(&g_dcache_lock);
             detach_dentry_if_possible(dent);
-            unlock(&dcache_lock);
+            unlock(&g_dcache_lock);
         }
     }
     __put_dentry(dent);
@@ -197,7 +197,7 @@ void put_dentry(struct shim_dentry* dent) {
 
 struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* parent,
                                    const char* name, size_t name_len) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
 
     struct shim_dentry* dent = alloc_dentry();
 
@@ -236,7 +236,7 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
 }
 
 struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, size_t name_len) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
 
     assert(parent);
     assert(name_len > 0);
@@ -262,7 +262,7 @@ struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, 
  * structure on the heap to track progress.
  */
 int __del_dentry_tree(struct shim_dentry* root) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
 
     struct shim_dentry *cursor, *n;
 

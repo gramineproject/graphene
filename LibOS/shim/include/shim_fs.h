@@ -217,7 +217,7 @@ struct shim_mount {
     LIST_TYPE(shim_mount) list;
 };
 
-extern struct shim_dentry* dentry_root;
+extern struct shim_dentry* g_dentry_root;
 
 #define LOOKUP_FOLLOW    001
 #define LOOKUP_DIRECTORY 002
@@ -295,24 +295,24 @@ int walk_mounts(int (*walk)(struct shim_mount* mount, void* arg), void* arg);
 /* functions for dcache supports */
 int init_dcache(void);
 
-extern struct shim_lock dcache_lock;
+extern struct shim_lock g_dcache_lock;
 
 /* Checks permission (specified by mask) of a dentry. If force is not set, permission is considered
  * granted on invalid dentries.
- * Assumes that caller has acquired dcache_lock. */
+ * Assumes that caller has acquired g_dcache_lock. */
 int __permission(struct shim_dentry* dent, mode_t mask);
 
 /* This function looks up a single dentry based on its parent dentry pointer and the name. `namelen`
  * is the length of char* name. The dentry is returned in pointer *new.
  *
- * The caller should hold the dcache_lock.
+ * The caller should hold the g_dcache_lock.
  */
 int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
                   struct shim_dentry** new, struct shim_mount* fs);
 
 /* Looks up path under start dentry. Saves in dent.
  *
- * Assumes dcache_lock is held; main difference from path_lookupat is that dcache_lock is not
+ * Assumes g_dcache_lock is held; main difference from path_lookupat is that g_dcache_lock is not
  * released on return.
  *
  * The refcount is raised by one on the returned dentry.
@@ -329,7 +329,7 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
                     struct shim_dentry** dent, int link_depth, struct shim_mount* fs,
                     bool make_ancestor);
 
-/* Just wraps __path_lookupat, but also acquires and releases the dcache_lock. */
+/* Just wraps __path_lookupat, but also acquires and releases the g_dcache_lock. */
 int path_lookupat(struct shim_dentry* start, const char* name, int flags, struct shim_dentry** dent,
                   struct shim_mount* fs);
 
@@ -411,7 +411,7 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
 
 /*
  * Allocate and initialize a new dentry for path name, under parent. The caller should hold
- * `dcache_lock`.
+ * `g_dcache_lock`.
  *
  * `parent` is the parent node, or NULL if this is supposed to be the dentry root.
  *
@@ -428,14 +428,14 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
  * - `parent->rel_path + "/" + name` if parent exists and has a relative path,
  * - `name` otherwise.
  * This is usually right, but is wrong in the case of mounting of a new filesystem, in which case
- * the `rel_path` has to be manually reset to empty. This will probably be fixed by removing
- * `rel_path` altogether.
+ * the `rel_path` has to be manually reset to empty. This should be fixed together with the mount
+ * semantics.
  */
 struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* parent,
                                    const char* name, size_t name_len);
 
 /*
- * Search for a child of a dentry with a given name. The caller should hold `dcache_lock`.
+ * Search for a child of a dentry with a given name. The caller should hold `g_dcache_lock`.
  *
  * If found, the reference count on the returned dentry is incremented.
  */

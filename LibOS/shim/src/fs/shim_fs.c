@@ -405,7 +405,7 @@ int search_builtin_fs(const char* type, struct shim_mount** fs) {
 }
 
 static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
 
     int ret = 0;
 
@@ -526,7 +526,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     find_last_component(mount_point, &last, &last_len);
 
     bool need_parent_put = false;
-    lock(&dcache_lock);
+    lock(&g_dcache_lock);
 
     if (!parent) {
         // See if we are not at the root mount
@@ -536,7 +536,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
             char* parent_path = __alloca(parent_len + 1);
             memcpy(parent_path, mount_point, parent_len);
             parent_path[parent_len] = 0;
-            if ((ret = __path_lookupat(dentry_root, parent_path, 0, &parent, 0, dentry_root->fs,
+            if ((ret = __path_lookupat(g_dentry_root, parent_path, 0, &parent, 0, g_dentry_root->fs,
                                        make_ancestor)) < 0) {
                 log_error("Path lookup failed %d\n", ret);
                 goto out_with_unlock;
@@ -575,7 +575,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     struct shim_dentry* dent2;
     /* Special case the root */
     if (last_len == 0)
-        dent = dentry_root;
+        dent = g_dentry_root;
     else {
         dent = lookup_dcache(parent, last, last_len);
 
@@ -584,7 +584,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
         }
     }
 
-    if (dent != dentry_root && dent->state & DENTRY_VALID) {
+    if (dent != g_dentry_root && dent->state & DENTRY_VALID) {
         log_error("Mount %s already exists, verify that there are no duplicate mounts in manifest\n"
                   "(note that /proc and /dev are automatically mounted in Graphene).\n",
                   mount_point);
@@ -597,8 +597,8 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     qstrsetstr(&dent->rel_path, "", 0);
 
     /*Now go ahead and do a lookup so the dentry is valid */
-    if ((ret = __path_lookupat(dentry_root, mount_point, 0, &dent2, 0, parent ? parent->fs : mount,
-                               make_ancestor)) < 0)
+    if ((ret = __path_lookupat(g_dentry_root, mount_point, 0, &dent2, 0,
+                               parent ? parent->fs : mount, make_ancestor)) < 0)
         goto out_with_unlock;
 
     assert(dent == dent2);
@@ -625,7 +625,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     }
 
 out_with_unlock:
-    unlock(&dcache_lock);
+    unlock(&g_dcache_lock);
     if (need_parent_put) {
         put_dentry(parent);
     }

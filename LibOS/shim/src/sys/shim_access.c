@@ -35,7 +35,7 @@ long shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
     if (*filename != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
-    lock(&dcache_lock);
+    lock(&g_dcache_lock);
 
     ret = __path_lookupat(dir, filename, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, 0, NULL, false);
     if (ret < 0)
@@ -44,7 +44,7 @@ long shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
     ret = __permission(dent, mode);
 
 out:
-    unlock(&dcache_lock);
+    unlock(&g_dcache_lock);
 
     if (dir)
         put_dentry(dir);
