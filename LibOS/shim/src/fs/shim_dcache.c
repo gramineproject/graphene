@@ -139,7 +139,24 @@ static int __put_dentry(struct shim_dentry* dent) {
     return count;
 }
 
-static void maybe_delete_dentry(struct shim_dentry* dent) {
+/*
+ * If possible, detach the dentry from parent so that it can be deleted. Requires `dcache_lock` to
+ * be held.
+ *
+ * If the dentry cannot be detached at the moment, this function does nothing.
+ *
+ * We need to check the following conditions:
+ *
+ * - There are exactly 2 references to the dentry, and it has a parent: that means one reference is
+ *   the one we are forgetting right now, and the other comes from parent. (No one else can acquire
+ *   the dentry in the meantime, because they would have to traverse the dentry cache).
+ *
+ *   That means another `__put_dentry()` after this function will drop the reference count to 0 and
+ *   free it.
+ *
+ * - The dentry does not refer to an existing file: it is either not valid, or negative.
+ */
+static void detach_dentry_if_possible(struct shim_dentry* dent) {
     assert(locked(&dcache_lock));
 
     if (REF_GET(dent->ref_count) != 2)
@@ -160,14 +177,18 @@ void put_dentry(struct shim_dentry* dent) {
     int count = REF_GET(dent->ref_count);
 
     if (count == 2) {
-        /* If the ref count is exactly 2, we are holding the last reference to dentry (except for parent
-         * or filesystem, in case of root). Try to delete it. Make sure we check the conditions while
-         * holding `dcache_lock`, as someone might have acquired a reference in meantime. */
+        /*
+         * If the reference count is exactly 2, we might be able to detach the dentry from parent
+         * and delete it. See `detach_dentry_if_possible` for the specific conditions.
+         *
+         * We try to detach the dentry from parent, but make sure we check the conditions while
+         * holding `dcache_lock`, as someone might have acquired a reference in meantime.
+         */
         if (locked(&dcache_lock)) {
-            maybe_delete_dentry(dent);
+            detach_dentry_if_possible(dent);
         } else {
             lock(&dcache_lock);
-            maybe_delete_dentry(dent);
+            detach_dentry_if_possible(dent);
             unlock(&dcache_lock);
         }
     }
@@ -183,14 +204,14 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
     if (!dent)
         return NULL;
 
-    qstrsetstr(&dent->name, name, name_len);
-
     if (fs) {
         get_mount(fs);
         dent->fs = fs;
     }
 
     if (parent) {
+        qstrsetstr(&dent->name, name, name_len);
+
         /* Increment both dentries' ref counts, because they will be linked (through `dent->parent`
          * and `parent->children`) */
         get_dentry(parent);

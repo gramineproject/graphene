@@ -425,15 +425,24 @@ static bool __socket_is_ipv6_v6only(struct shim_handle* hdl) {
 }
 
 static int hash_to_hex_string(struct shim_dentry* dent, char* buf, size_t size) {
-    char buffer[dentry_get_path_size(dent)];
-    char* path = dentry_get_path(dent, buffer);
-    HASHTYPE hash = hash_path(path, strlen(path));
-
+    HASHTYPE hash;
     static_assert(sizeof(hash) == 8, "Unsupported HASHTYPE size");
     char hashbytes[8];
 
     if (size < sizeof(hashbytes) * 2 + 1)
         return -ENOMEM;
+
+    /* TODO: this could be a stack allocation, but LibOS full paths do not respect any limit (only
+     * mount-relative paths do). */
+    size_t path_size = dentry_get_path_size(dent);
+    char* buffer = malloc(path_size);
+
+    if (!buffer)
+        return -ENOMEM;
+
+    char* path = dentry_get_path(dent, buffer);
+    hash = hash_path(path, strlen(path));
+    free(buffer);
 
     memcpy(hashbytes, &hash, sizeof(hash));
     BYTES2HEXSTR(hashbytes, buf, size);

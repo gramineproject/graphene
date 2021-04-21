@@ -413,14 +413,23 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
  * Allocate and initialize a new dentry for path name, under parent. The caller should hold
  * `dcache_lock`.
  *
- * `parent` is the parent node, or NULL if this is supposed to be a root dentry.
+ * `parent` is the parent node, or NULL if this is supposed to be the dentry root.
  *
- * `fs` is the mountpoint the dentry is under, or NULL. This should typically be `parent->fs`, but
- * is passed explicitly for initializing the dentry of a mountpoint.
+ * `fs` is the filesystem the dentry is under, or NULL. This should typically be `parent->fs`, but
+ * is passed explicitly to support initializing the root dentry of a newly mounted filesystem. If
+ * `fs` is NULL, the resulting dentry's filesystem will be left as NULL.
  *
  * Returns the new dentry, or NULL in case of allocation failure. The function will initialize
- * `fs` (if provided), `name`, `rel_path`, and parent/children links. The reference count of the
- * returned dentry will be incremented.
+ * `fs` (if provided), `name`, `rel_path`, and parent/children links.
+ *
+ * The reference count of the returned dentry will 2 if `parent` was provided, 1 otherwise.
+ *
+ * TODO: This function sets `rel_path` of a newly created dentry to:
+ * - `parent->rel_path + "/" + name` if parent exists and has a relative path,
+ * - `name` otherwise.
+ * This is usually right, but is wrong in the case of mounting of a new filesystem, in which case
+ * the `rel_path` has to be manually reset to empty. This will probably be fixed by removing
+ * `rel_path` altogether.
  */
 struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* parent,
                                    const char* name, size_t name_len);
@@ -432,8 +441,7 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
  */
 struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, size_t name_len);
 
-/*
- * Search for a child of a dentry with a given name. The caller should hold `dcache_lock`.
+/* This function recursively deletes and frees all dentries under root
  *
  * XXX: Current code doesn't do a free..
  */
