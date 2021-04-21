@@ -418,7 +418,7 @@ static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
 
     if (!mount_root) {
         /* mount_root->state |= DENTRY_VALID; */
-        mount_root = get_new_dentry(mount, NULL, "", 0, NULL);
+        mount_root = get_new_dentry(mount, /*fs=*/NULL, /*name=*/"", /*name_len=*/0);
         assert(mount->d_ops && mount->d_ops->lookup);
         ret = mount->d_ops->lookup(mount_root);
         if (ret < 0) {
@@ -577,10 +577,10 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     if (last_len == 0)
         dent = dentry_root;
     else {
-        dent = __lookup_dcache(parent, last, last_len, NULL);
+        dent = lookup_dcache(parent, last, last_len);
 
         if (!dent) {
-            dent = get_new_dentry(mount, parent, last, last_len, NULL);
+            dent = get_new_dentry(mount, parent, last, last_len);
         }
     }
 
@@ -595,7 +595,6 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     // We need to fix up the relative path to this mount, but only for
     // directories.
     qstrsetstr(&dent->rel_path, "", 0);
-    mount->path.hash = dent->rel_path.hash;
 
     /*Now go ahead and do a lookup so the dentry is valid */
     if ((ret = __path_lookupat(dentry_root, mount_point, 0, &dent2, 0, parent ? parent->fs : mount,

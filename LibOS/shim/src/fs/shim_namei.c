@@ -109,10 +109,6 @@ int __permission(struct shim_dentry* dent, mode_t mask) {
  * The dentry is returned in pointer *new.  The refcount of new is incremented
  * by one.
  *
- * Parent can be null when mounting the root file system.  In this case, the
- * function creates a new, negative dentry, which will then be initialized by
- * the mount code and made non-negative.
- *
  * The fs argument specifies the file system type to use on a miss; typically,
  * this will be parent->fs.
  *
@@ -130,13 +126,14 @@ int __permission(struct shim_dentry* dent, mode_t mask) {
 int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
                   struct shim_dentry** new, struct shim_mount* fs) {
     assert(locked(&dcache_lock));
+    assert(parent);
 
     struct shim_dentry* dent = NULL;
     int do_fs_lookup = 0;
     int err = 0;
 
     /* Look up the name in the dcache first, one atom at a time. */
-    dent = __lookup_dcache(parent, name, namelen, NULL);
+    dent = lookup_dcache(parent, name, namelen);
 
     if (!dent) {
         if (parent) {
@@ -149,7 +146,7 @@ int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
             }
         }
 
-        dent = get_new_dentry(fs, parent, name, namelen, NULL);
+        dent = get_new_dentry(fs, parent, name, namelen);
         if (!dent) {
             err = -ENOMEM;
             goto out;
