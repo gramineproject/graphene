@@ -424,12 +424,23 @@ static bool __socket_is_ipv6_v6only(struct shim_handle* hdl) {
     return false;
 }
 
-static int hash_to_hex_string(HASHTYPE hash, char* buf, size_t size) {
+static int hash_dentry_path(struct shim_dentry* dent, char* buf, size_t size) {
+    HASHTYPE hash;
     static_assert(sizeof(hash) == 8, "Unsupported HASHTYPE size");
     char hashbytes[8];
 
     if (size < sizeof(hashbytes) * 2 + 1)
         return -ENOMEM;
+
+    size_t path_size = dentry_get_path_size(dent);
+    char* buffer = malloc(path_size);
+
+    if (!buffer)
+        return -ENOMEM;
+
+    char* path = dentry_get_path(dent, buffer);
+    hash = hash_path(path, strlen(path));
+    free(buffer);
 
     memcpy(hashbytes, &hash, sizeof(hash));
     BYTES2HEXSTR(hashbytes, buf, size);
@@ -485,8 +496,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
 
         /* instead of user-specified sun_path of UNIX socket, use its deterministic hash as name
          * (deterministic so that independent parent and child connect to the same socket) */
-        ret = hash_to_hex_string(dent->rel_path.hash, sock->addr.un.name,
-                                 sizeof(sock->addr.un.name));
+        ret = hash_dentry_path(dent, sock->addr.un.name, sizeof(sock->addr.un.name));
         if (ret < 0)
             goto out;
 
@@ -760,8 +770,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
 
         /* instead of user-specified sun_path of UNIX socket, use its deterministic hash as name
          * (deterministic so that independent parent and child connect to the same socket) */
-        ret = hash_to_hex_string(dent->rel_path.hash, sock->addr.un.name,
-                                 sizeof(sock->addr.un.name));
+        ret = hash_dentry_path(dent, sock->addr.un.name, sizeof(sock->addr.un.name));
         if (ret < 0) {
             put_dentry(dent);
             goto out;

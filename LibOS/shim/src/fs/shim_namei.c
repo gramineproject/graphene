@@ -49,9 +49,9 @@ static inline int __lookup_flags(int flags) {
  *
  * Returns 0 on success, negative on failure.
  */
-/* Assume caller has acquired dcache_lock */
+/* Assume caller has acquired g_dcache_lock */
 int __permission(struct shim_dentry* dent, mode_t mask) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
 
     mode_t mode = 0;
 
@@ -109,10 +109,6 @@ int __permission(struct shim_dentry* dent, mode_t mask) {
  * The dentry is returned in pointer *new.  The refcount of new is incremented
  * by one.
  *
- * Parent can be null when mounting the root file system.  In this case, the
- * function creates a new, negative dentry, which will then be initialized by
- * the mount code and made non-negative.
- *
  * The fs argument specifies the file system type to use on a miss; typically,
  * this will be parent->fs.
  *
@@ -125,18 +121,19 @@ int __permission(struct shim_dentry* dent, mode_t mask) {
  * Returns zero if the file is found; -ENOENT if it doesn't exist,
  * possibly other errors.
  *
- * The caller should hold the dcache_lock.
+ * The caller should hold the g_dcache_lock.
  */
 int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
                   struct shim_dentry** new, struct shim_mount* fs) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
+    assert(parent);
 
     struct shim_dentry* dent = NULL;
     int do_fs_lookup = 0;
     int err = 0;
 
     /* Look up the name in the dcache first, one atom at a time. */
-    dent = __lookup_dcache(parent, name, namelen, NULL);
+    dent = lookup_dcache(parent, name, namelen);
 
     if (!dent) {
         if (parent) {
@@ -149,7 +146,7 @@ int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
             }
         }
 
-        dent = get_new_dentry(fs, parent, name, namelen, NULL);
+        dent = get_new_dentry(fs, parent, name, namelen);
         if (!dent) {
             err = -ENOMEM;
             goto out;
@@ -215,8 +212,8 @@ out:
  * are cases where start may be absent (e.g., in bootstrapping).  Fs can be
  * null only if the current thread is defined.
  *
- * Assumes dcache_lock is held; main difference from path_lookupat is that
- * dcache_lock is acquired/released.
+ * Assumes g_dcache_lock is held; main difference from path_lookupat is that
+ * g_dcache_lock is acquired/released.
  *
  * We assume the caller has incremented the reference count on start and its
  * associated file system mount by one
@@ -242,7 +239,7 @@ out:
 int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
                     struct shim_dentry** dent, int link_depth, struct shim_mount* fs,
                     bool make_ancestor) {
-    assert(locked(&dcache_lock));
+    assert(locked(&g_dcache_lock));
     // Basic idea: recursively iterate over path, peeling off one atom at a
     // time.
     /* Chia-Che 12/5/2014:
@@ -278,7 +275,7 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
             /* Start at the global root if we have no fs and no start dentry.
              * This should only happen as part of initialization.
              */
-            start = dentry_root;
+            start = g_dentry_root;
         }
         get_dentry(start);
         unlock(&g_process.fs_lock);
@@ -465,14 +462,14 @@ out:
     return err;
 }
 
-/* Just wraps __path_lookupat, but also acquires and releases the dcache_lock.
+/* Just wraps __path_lookupat, but also acquires and releases the g_dcache_lock.
  */
 int path_lookupat(struct shim_dentry* start, const char* name, int flags, struct shim_dentry** dent,
                   struct shim_mount* fs) {
     int ret = 0;
-    lock(&dcache_lock);
+    lock(&g_dcache_lock);
     ret = __path_lookupat(start, name, flags, dent, 0, fs, 0);
-    unlock(&dcache_lock);
+    unlock(&g_dcache_lock);
     return ret;
 }
 
@@ -502,7 +499,7 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
         return -ENOENT;
     }
 
-    lock(&dcache_lock);
+    lock(&g_dcache_lock);
 
     // lookup the path from start, passing flags
     err = __path_lookupat(start, path, lookup_flags, &mydent, 0, NULL, 0);
@@ -586,7 +583,7 @@ out:
         put_dentry(mydent);
     }
 
-    unlock(&dcache_lock);
+    unlock(&g_dcache_lock);
 
     return err;
 }
@@ -707,14 +704,14 @@ static inline void set_dirent_type(mode_t* type, int d_type) {
 int list_directory_dentry(struct shim_dentry* dent) {
     int ret = 0;
     struct shim_mount* fs = dent->fs;
-    lock(&dcache_lock);
+    lock(&g_dcache_lock);
 
     /* DEP 8/4/17: Another process could list this directory
      * while we are waiting on the dcache lock.  This is ok,
      * no need to blow an assert.
      */
     if (dent->state & DENTRY_LISTED) {
-        unlock(&dcache_lock);
+        unlock(&g_dcache_lock);
         return 0;
     }
 
@@ -723,7 +720,7 @@ int list_directory_dentry(struct shim_dentry* dent) {
     // expect to learn is beyond me, but be careful with blowing assert
     // and tell the program something to keep it moving.
     if (dent->state & DENTRY_NEGATIVE) {
-        unlock(&dcache_lock);
+        unlock(&g_dcache_lock);
         return 0;
     }
 
@@ -766,7 +763,7 @@ int list_directory_dentry(struct shim_dentry* dent) {
     ret = 0;
 
 done_read:
-    unlock(&dcache_lock);
+    unlock(&g_dcache_lock);
     free(dirent);
     return ret;
 }
@@ -783,6 +780,7 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl) {
 
     int nchildren = dent->nchildren, count = 0;
     struct shim_dentry* child;
+    struct shim_dentry* tmp;
 
     assert(hdl->dir_info.buf == (void*)-1);
     assert(hdl->dir_info.ptr == (void*)-1);
@@ -800,8 +798,8 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl) {
     if (!children)
         return -ENOMEM;
 
-    lock(&dcache_lock);
-    LISTP_FOR_EACH_ENTRY(child, &dent->children, siblings) {
+    lock(&g_dcache_lock);
+    LISTP_FOR_EACH_ENTRY_SAFE(child, tmp, &dent->children, siblings) {
         if (count >= nchildren)
             break;
 
@@ -814,13 +812,15 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl) {
             get_dentry(c);
             children[count++] = c;
         }
+
+        dentry_gc(child);
     }
     children[count] = NULL;
 
     hdl->dir_info.buf = children;
     hdl->dir_info.ptr = children;
 
-    unlock(&dcache_lock);
+    unlock(&g_dcache_lock);
 
     return 0;
 }

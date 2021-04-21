@@ -93,7 +93,6 @@ struct shim_fs_ops {
 #define DENTRY_NEGATIVE    0x0002 /* recently deleted or inaccessible */
 #define DENTRY_RECENTLY    0x0004 /* recently used */
 #define DENTRY_PERSIST     0x0008 /* added as a persistent dentry */
-#define DENTRY_HASHED      0x0010 /* added in the dcache */
 #define DENTRY_MOUNTPOINT  0x0040 /* this dentry is a mount point */
 #define DENTRY_ISLINK      0x0080 /* this dentry is a link */
 #define DENTRY_ISDIRECTORY 0x0100 /* this dentry is a directory */
@@ -218,7 +217,7 @@ struct shim_mount {
     LIST_TYPE(shim_mount) list;
 };
 
-extern struct shim_dentry* dentry_root;
+extern struct shim_dentry* g_dentry_root;
 
 #define LOOKUP_FOLLOW    001
 #define LOOKUP_DIRECTORY 002
@@ -296,24 +295,24 @@ int walk_mounts(int (*walk)(struct shim_mount* mount, void* arg), void* arg);
 /* functions for dcache supports */
 int init_dcache(void);
 
-extern struct shim_lock dcache_lock;
+extern struct shim_lock g_dcache_lock;
 
 /* Checks permission (specified by mask) of a dentry. If force is not set, permission is considered
  * granted on invalid dentries.
- * Assumes that caller has acquired dcache_lock. */
+ * Assumes that caller has acquired g_dcache_lock. */
 int __permission(struct shim_dentry* dent, mode_t mask);
 
 /* This function looks up a single dentry based on its parent dentry pointer and the name. `namelen`
  * is the length of char* name. The dentry is returned in pointer *new.
  *
- * The caller should hold the dcache_lock.
+ * The caller should hold the g_dcache_lock.
  */
 int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
                   struct shim_dentry** new, struct shim_mount* fs);
 
 /* Looks up path under start dentry. Saves in dent.
  *
- * Assumes dcache_lock is held; main difference from path_lookupat is that dcache_lock is not
+ * Assumes g_dcache_lock is held; main difference from path_lookupat is that g_dcache_lock is not
  * released on return.
  *
  * The refcount is raised by one on the returned dentry.
@@ -330,7 +329,7 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
                     struct shim_dentry** dent, int link_depth, struct shim_mount* fs,
                     bool make_ancestor);
 
-/* Just wraps __path_lookupat, but also acquires and releases the dcache_lock. */
+/* Just wraps __path_lookupat, but also acquires and releases the g_dcache_lock. */
 int path_lookupat(struct shim_dentry* start, const char* name, int flags, struct shim_dentry** dent,
                   struct shim_mount* fs);
 
@@ -386,8 +385,34 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl);
 void get_dentry(struct shim_dentry* dent);
 /* Decrement the reference count on dent */
 void put_dentry(struct shim_dentry* dent);
-/* Decrement the reference count by one and delete `dent` if this is the last reference. */
-void put_dentry_maybe_delete(struct shim_dentry* dent);
+
+/*!
+ * \brief Garbage-collect a dentry, if possible
+ *
+ * \param dentry the dentry (has to have a parent)
+ *
+ * This function checks if a dentry is unused, and deletes it if that's true. The caller must hold
+ * `g_dcache_lock`.
+ *
+ * A dentry is unused if it has no external references and does not correspond to a real file
+ * (i.e. is invalid or negative). Such dentries can remain after failed lookups or file deletion.
+ *
+ * The function should be called when processing a list of children, after you're done with a given
+ * dentry. It guarantees that the amortized cost of processing such dentries is constant, i.e. they
+ * will be only encountered once.
+ *
+ * \code
+ * struct shim_dentry* child;
+ * struct shim_dentry* tmp;
+ *
+ * LISTP_FOR_EACH_ENTRY_SAFE(child, tmp, &dent->children, siblings) {
+ *     // do something with `child`, increase ref count if used
+ *     ...
+ *     dentry_gc(child);
+ * }
+ * \endcode
+ */
+void dentry_gc(struct shim_dentry* dent);
 
 /* Size of the path constructed by dentry_get_path(), including null terminator. */
 size_t dentry_get_path_size(struct shim_dentry* dent);
@@ -408,31 +433,51 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
     return qstrgetstr(&dent->name);
 }
 
-/* Allocate and initialize a new dentry for path name, under parent.  Return the dentry.
+/*!
+ * \brief Allocate and initialize a new dentry
  *
- * `mount` is the mountpoint the dentry is under; this is typically the parent->fs, but is passed
- * explicitly for initializing the dentry of a mountpoint.
+ * \param parent the parent node, or NULL if this is supposed to be the dentry root
+ * \param fs the filesystem the dentry is under, or NULL
+ * \param name name of the new dentry
+ * \param name_len length of the name
  *
- * If hashptr is passed (as an optimization), this is a hash of the name.
+ * \returns the new dentry, or NULL in case of allocation failure
  *
- * If parent is non-null, the ref count is 2; else it is 1.
+ * The caller should hold `g_dcache_lock`.
  *
- * This function also sets up both a name and a relative path
+ * The function will initialize the following fields: `fs` (if provided), `name`, `rel_path`, and
+ * parent/children links.
+ *
+ * The reference count of the returned dentry will be 2 if `parent` was provided, 1 otherwise.
+ *
+ * The `fs` parameter should typically be `parent->fs`, but is passed explicitly to support
+ * initializing the root dentry of a newly mounted filesystem. If `fs` is NULL, the resulting
+ * dentry's filesystem will be left as NULL.
+ *
+ * TODO: This function sets `rel_path` of a newly created dentry to:
+ * - `parent->rel_path + "/" + name` if parent exists and has a relative path,
+ * - `name` otherwise.
+ * This is usually right, but is wrong in the case of mounting of a new filesystem, in which case
+ * the `rel_path` has to be manually reset to empty. This should be fixed together with the mount
+ * semantics.
  */
-struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry* parent,
-                                   const char* name, int namelen, HASHTYPE* hashptr);
+struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* parent,
+                                   const char* name, size_t name_len);
 
-/* This function searches for name/namelen (as the relative path).
+/*!
+ * \brief Search for a child of a dentry with a given name
  *
- * If requested, the expected hash of the dentry is returned in hashptr, primarily so that the
- * hashing can be reused to add the dentry later.
+ * \param parent the dentry to search under
+ * \param name name of searched dentry
+ * \param name_len length of the name
  *
- * The reference count on the found dentry is incremented by one.
+ * \returns the new dentry, or NULL if not found
  *
- * Used only by shim_namei.c
+ * The caller should hold `g_dcache_lock`.
+ *
+ * If found, the reference count on the returned dentry is incremented.
  */
-struct shim_dentry* __lookup_dcache(struct shim_dentry* start, const char* name, int namelen,
-                                    HASHTYPE* hashptr);
+struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, size_t name_len);
 
 /* This function recursively deletes and frees all dentries under root
  *

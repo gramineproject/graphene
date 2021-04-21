@@ -365,7 +365,6 @@ struct shim_str {
 /* Use qstr for names. This has fixed size string + string object
  * if len > SHIM_QSTR_SIZE then use overflow string */
 struct shim_qstr {
-    HASHTYPE hash;
     size_t len;
     char name[QSTR_SIZE];
     struct shim_str* oflow;
