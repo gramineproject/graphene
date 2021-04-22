@@ -432,8 +432,6 @@ static int hash_dentry_path(struct shim_dentry* dent, char* buf, size_t size) {
     if (size < sizeof(hashbytes) * 2 + 1)
         return -ENOMEM;
 
-    /* TODO: this could be a stack allocation, but LibOS full paths do not respect any limit (only
-     * mount-relative paths do). */
     size_t path_size = dentry_get_path_size(dent);
     char* buffer = malloc(path_size);
 
