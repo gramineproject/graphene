@@ -154,13 +154,19 @@ static int ipc_connect_back_callback(struct shim_ipc_msg* orig_msg, IDTYPE src) 
     return send_ipc_message(msg, src);
 }
 
-#define READAHEAD_SIZE (IPC_MSG_MINIMAL_SIZE + 0x20)
+/*
+ * Receive and handle some (possibly many) messages from IPC connection `conn`.
+ * Returns `0` on success, `1` on EOF (connection closed on a message boundary), negative error
+ * code on failures.
+ */
 static int receive_ipc_messages(struct shim_ipc_connection* conn) {
     size_t size = 0;
+#define READAHEAD_SIZE (IPC_MSG_MINIMAL_SIZE + 0x20)
     union {
         struct shim_ipc_msg msg_header;
         char buf[IPC_MSG_MINIMAL_SIZE + READAHEAD_SIZE];
     } buf;
+#undef READAHEAD_SIZE
 
     do {
         /* Receive at least the message header. */
@@ -177,6 +183,10 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                 return ret;
             }
             if (tmp_size == 0) {
+                if (size == 0) {
+                    /* EOF on the handle, but exactly on the message boundary. */
+                    return 1;
+                }
                 log_error(LOG_PREFIX "receiving message from %u failed: remote closed early\n",
                           conn->vmid);
                 return -ENODATA;
@@ -232,7 +242,6 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
 
     return 0;
 }
-#undef READAHEAD_SIZE
 
 static noreturn void ipc_worker_main(void) {
     /* TODO: If we had a global array of connections (instead of a list) we wouldn't have to gather
@@ -351,6 +360,12 @@ static noreturn void ipc_worker_main(void) {
             conn = connections[i];
             if (ret_events[i] & PAL_WAIT_READ) {
                 ret = receive_ipc_messages(conn);
+                if (ret == 1) {
+                    /* Connection closed. */
+                    disconnect_callbacks(conn);
+                    del_ipc_connection(conn);
+                    continue;
+                }
                 if (ret < 0) {
                     log_error(LOG_PREFIX "failed to receive an IPC message from %u: %d\n",
                               conn->vmid, ret);
