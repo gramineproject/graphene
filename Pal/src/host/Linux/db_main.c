@@ -258,6 +258,9 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     g_pal_state.raw_manifest_data = manifest;
 
+    log_error("+++++ pal_linux_main (PID = %ld, TID = %ld): rsp = %p +++++\n",
+           INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0), initial_rsp);
+
     char errbuf[256];
     g_pal_state.manifest_root = toml_parse(manifest, errbuf, sizeof(errbuf));
     if (!g_pal_state.manifest_root)

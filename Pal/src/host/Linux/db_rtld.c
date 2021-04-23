@@ -101,6 +101,8 @@ void setup_vdso_map(ElfW(Addr) addr) {
         switch(dyn->d_tag) {
             case DT_STRTAB:
             case DT_SYMTAB:
+                if (ndyn > 3)
+                    log_error("+++++ setup_vdso_map: buffer overflow of local_dyn 1 +++++\n");
                 local_dyn[ndyn] = *dyn;
                 local_dyn[ndyn].d_un.d_ptr += load_offset;
                 vdso_map.l_info[dyn->d_tag] = &local_dyn[ndyn++];
@@ -114,6 +116,8 @@ void setup_vdso_map(ElfW(Addr) addr) {
             }
             case DT_VERSYM:
             case DT_VERDEF:
+                if (ndyn > 3)
+                    log_error("+++++ setup_vdso_map: buffer overflow of local_dyn 2 +++++\n");
                 local_dyn[ndyn] = *dyn;
                 local_dyn[ndyn].d_un.d_ptr += load_offset;
                 vdso_map.l_info[VERSYMIDX(dyn->d_tag)] = &local_dyn[ndyn++];
@@ -128,4 +132,13 @@ void setup_vdso_map(ElfW(Addr) addr) {
     sym = do_lookup_map(NULL, gettime, fast_hash, hash, &vdso_map);
     if (sym)
         g_linux_state.vdso_clock_gettime = (void*)(load_offset + sym->st_value);
+
+    log_error("+++++ setup_vdso_map (PID = %ld, TID = %ld): addr = %p +++++\n",
+            INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0), (void*)addr);
+    log_error("+++++ setup_vdso_map (PID = %ld, TID = %ld): load_offset = %p +++++\n",
+            INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0), (void*)load_offset);
+    log_error("+++++ setup_vdso_map (PID = %ld, TID = %ld): vdso_start = %p +++++\n",
+            INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0), (void*)vdso_start);
+    log_error("+++++ setup_vdso_map (PID = %ld, TID = %ld): vdso_clock_gettime = %p +++++\n",
+            INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0), g_linux_state.vdso_clock_gettime);
 }
