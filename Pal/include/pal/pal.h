@@ -156,6 +156,7 @@ typedef struct PAL_CONTROL_ {
     PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
     PAL_PTR_RANGE manifest_preload; /*!< manifest was preloaded here */
+    PAL_PTR_RANGE vdso_preload;     /*!< vDSO was preloaded here */
 
     /*
      * Host information

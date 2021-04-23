@@ -128,4 +128,10 @@ void setup_vdso_map(ElfW(Addr) addr) {
     sym = do_lookup_map(NULL, gettime, fast_hash, hash, &vdso_map);
     if (sym)
         g_linux_state.vdso_clock_gettime = (void*)(load_offset + sym->st_value);
+
+    if (vdso_start || vdso_end) {
+        /* vDSO occupies some memory region, need to inform the LibOS so it reflects it in VMAs */
+        g_pal_control.vdso_preload.start = (PAL_PTR)vdso_start;
+        g_pal_control.vdso_preload.end   = (PAL_PTR)vdso_end;
+    }
 }

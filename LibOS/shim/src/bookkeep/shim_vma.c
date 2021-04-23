@@ -544,6 +544,15 @@ int init_vma(void) {
             .offset  = 0,
             .comment = "manifest",
         },
+        {
+            .begin   = (uintptr_t)ALLOC_ALIGN_DOWN_PTR(PAL_CB(vdso_preload.start)),
+            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(PAL_CB(vdso_preload.end)),
+            .prot    = PROT_NONE,
+            .flags   = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL,
+            .file    = NULL,
+            .offset  = 0,
+            .comment = "vDSO",
+        },
     };
 
     spinlock_lock(&vma_tree_lock);
