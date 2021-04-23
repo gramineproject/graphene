@@ -110,7 +110,7 @@ static int find_thread_link(const char* name, struct shim_qstr* link,
     if (nextnext) {
         struct shim_dentry* next_dent = NULL;
 
-        ret = path_lookupat(dent, nextnext, 0, &next_dent, dent->fs);
+        ret = path_lookupat(dent, nextnext, LOOKUP_FOLLOW, &next_dent);
         if (ret < 0)
             goto out;
 
@@ -344,7 +344,7 @@ static int find_thread_each_fd(const char* name, struct shim_qstr* link,
     if (rest) {
         struct shim_dentry* next_dent = NULL;
 
-        ret = path_lookupat(dent, rest, 0, &next_dent, dent->fs);
+        ret = path_lookupat(dent, rest, LOOKUP_NO_FOLLOW, &next_dent);
         if (ret < 0)
             goto out;
 

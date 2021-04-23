@@ -481,15 +481,11 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
         char* spath               = saddr->sun_path;
         struct shim_dentry* dent  = NULL;
 
-        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0) {
-            /* We want either 0 or -ENOENT (dent is a valid object in both cases), as the expected
-             * case is that the name is free (and we use dent with the name already populated).
-             * FIXME: This is terrible semantics; path_lookupat() must be re-worked. */
-            if (ret != -ENOENT || !dent)
-                goto out;
+        if ((ret = path_lookupat(/*start=*/NULL, spath, LOOKUP_NO_FOLLOW | LOOKUP_CREATE, &dent)) < 0) {
+            goto out;
         }
 
-        if (dent->state & DENTRY_VALID && !(dent->state & DENTRY_NEGATIVE)) {
+        if (!(dent->state & DENTRY_NEGATIVE)) {
             ret = -EADDRINUSE;
             goto out;
         }
@@ -753,16 +749,11 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
         char* spath               = saddr->sun_path;
         struct shim_dentry* dent  = NULL;
 
-        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0) {
-            // DEP 7/3/17: We actually want either 0 or -ENOENT, as the
-            // expected case is that the name is free (and we get the dent to
-            // populate the name)
-            if (ret != -ENOENT || !dent)
-                goto out;
+        if ((ret = path_lookupat(/*start=*/NULL, spath, LOOKUP_CREATE | LOOKUP_FOLLOW, &dent)) < 0) {
+            goto out;
         }
 
-        if (dent->state & DENTRY_VALID && !(dent->state & DENTRY_NEGATIVE) &&
-                dent->fs != &socket_builtin_fs) {
+        if (!(dent->state & DENTRY_NEGATIVE) && dent->fs != &socket_builtin_fs) {
             ret = -ECONNREFUSED;
             put_dentry(dent);
             goto out;

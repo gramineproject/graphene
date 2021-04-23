@@ -363,7 +363,7 @@ int init_mount(void) {
 
     if (fs_start_dir) {
         struct shim_dentry* dent = NULL;
-        ret = path_lookupat(NULL, fs_start_dir, 0, &dent, NULL);
+        ret = path_lookupat(/*start=*/NULL, fs_start_dir, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &dent);
         free(fs_start_dir);
         if (ret < 0) {
             log_error("Invalid 'fs.start_dir' in manifest.\n");
@@ -456,12 +456,12 @@ static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
     do {
         struct shim_dentry* parent = dent->parent;
 
-        if (dent->state & DENTRY_ANCESTOR) {
+        if (dent->state & DENTRY_SYNTHETIC) {
             put_dentry(dent);
             break;
         }
 
-        dent->state |= DENTRY_ANCESTOR;
+        dent->state |= DENTRY_SYNTHETIC;
         if (parent)
             get_dentry(parent);
         put_dentry(dent);
@@ -501,7 +501,7 @@ out:
 /* Parent is optional, but helpful.
  * dentp (optional) memoizes the dentry of the newly-mounted FS, on success.
  *
- * The make_ancestor flag creates pseudo-dentries for any missing paths (passed to __path_lookupat).
+ * The make_ancestor flag creates pseudo-dentries for any missing paths (passed to _path_lookupat).
  * This is only intended for use to connect mounts specified in the manifest when an intervening
  * path is missing.
  */
@@ -509,6 +509,10 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
              struct shim_dentry** dentp, bool make_ancestor) {
     int ret = 0;
     struct shim_fs* fs = find_fs(type);
+
+    int lookup_flags = LOOKUP_NO_FOLLOW;
+    if (make_ancestor)
+        lookup_flags |= LOOKUP_MAKE_SYNTHETIC;
 
     if (!fs || !fs->fs_ops || !fs->fs_ops->mount) {
         ret = -ENODEV;
@@ -536,8 +540,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
             char* parent_path = __alloca(parent_len + 1);
             memcpy(parent_path, mount_point, parent_len);
             parent_path[parent_len] = 0;
-            if ((ret = __path_lookupat(g_dentry_root, parent_path, 0, &parent, 0, g_dentry_root->fs,
-                                       make_ancestor)) < 0) {
+            if ((ret = _path_lookupat(g_dentry_root, parent_path, lookup_flags, &parent)) < 0) {
                 log_error("Path lookup failed %d\n", ret);
                 goto out_with_unlock;
             }
@@ -597,8 +600,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     qstrsetstr(&dent->rel_path, "", 0);
 
     /*Now go ahead and do a lookup so the dentry is valid */
-    if ((ret = __path_lookupat(g_dentry_root, mount_point, 0, &dent2, 0,
-                               parent ? parent->fs : mount, make_ancestor)) < 0)
+    if ((ret = _path_lookupat(g_dentry_root, mount_point, lookup_flags, &dent2)) < 0)
         goto out_with_unlock;
 
     assert(dent == dent2);
