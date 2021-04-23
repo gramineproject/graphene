@@ -71,25 +71,25 @@ int init_ns_pid(void);
 int init_ns_sysv(void);
 
 /*!
- * \brief Initialize the ipc worker thread
+ * \brief Initialize the IPC worker thread
  */
 int init_ipc_worker(void);
 /*!
- * \brief Terminate the ipc worker thread
+ * \brief Terminate the IPC worker thread
  */
 void terminate_ipc_worker(void);
 
 /*!
- * \brief Establish a one-way ipc connection to another process
+ * \brief Establish a one-way IPC connection to another process
  *
  * \param dest vmid of the destination process to connect to
  */
 int connect_to_process(IDTYPE dest);
 /*!
- * \brief Request the ipc leader to open a one-way connection to this process
+ * \brief Request the IPC leader to open a one-way connection to this process
  *
- * This makes sure that the ipc leader has an open connection to this process and includes it in all
- * broadcast ipc messages.
+ * This makes sure that the IPC leader has an open connection to this process and includes it in all
+ * broadcast IPC messages.
  */
 int request_leader_connect_back(void);
 
@@ -130,31 +130,31 @@ void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest);
 void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t size, IDTYPE dest);
 
 /*!
- * \brief Send an ipc message
+ * \brief Send an IPC message
  *
  * \param msg message to send
  * \param dest vmid of the destination process
  */
 int send_ipc_message(struct shim_ipc_msg* msg, IDTYPE dest);
 /*!
- * \brief Send an ipc message and wait for response
+ * \brief Send an IPC message and wait for response
  *
  * \param msg message to send
  * \param dest vmid of the destination process
  * \param[out] seq upon return contains sequence number of this message
  *
- * Send an ipc message to the \p dest process and wait for a response. An unique number is assigned
- * before sending the message and this thread will wait for a response ipc message, which contains
+ * Send an IPC message to the \p dest process and wait for a response. An unique number is assigned
+ * before sending the message and this thread will wait for a response IPC message, which contains
  * the same sequence number.
  */
 int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dest, unsigned long* seq);
 /*!
- * \brief Broadcast a ipc message
+ * \brief Broadcast an IPC message
  *
  * \param msg message to send
  * \param exclude_vmid vmid of process to be excluded
  *
- * Send an ipc message \p msg to all known (connected) processes except for \p exclude_vmid.
+ * Send an IPC message \p msg to all known (connected) processes except for \p exclude_vmid.
  */
 int broadcast_ipc(struct shim_ipc_msg* msg, IDTYPE exclude_vmid);
 /*!

@@ -5,6 +5,7 @@
  */
 
 #include <stdalign.h>
+#include <stdint.h>
 #include <stdnoreturn.h>
 
 #include "assert.h"
@@ -84,7 +85,13 @@ static void disconnect_callbacks(struct shim_ipc_connection* conn) {
     }
     ipc_child_disconnect_callback(conn->vmid);
 
-    // TODO: ipc_msg_with_ack_disconnect_callback(conn->vmid);
+    /*
+     * TODO: currently outgoing IPC connections (handled in `shim_ipc.c`) are not cleaned up - there
+     * is no place that can notice disconnection of an outgoing connection other than a failure to
+     * send data via such connection. It might be a good idea to try to remove and outgoing IPC
+     * connection to a process that just disconnected here - usually we have connections set up in
+     * both ways. Something like: `ipc_msg_with_ack_disconnect_callback(conn->vmid)`
+    */
 }
 
 static int add_ipc_connection(PAL_HANDLE handle, IDTYPE id) {
@@ -130,7 +137,7 @@ static void set_request_retval(struct shim_ipc_msg_with_ack* req_msg, void* data
         return;
     }
 
-    req_msg->retval = (int)(long)data;
+    req_msg->retval = (int)(intptr_t)data;
     thread_wakeup(req_msg->thread);
 }
 
@@ -139,7 +146,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     log_debug(LOG_PREFIX "got IPC msg response from %u: %d\n", msg->src, resp->retval);
     assert(src == msg->src);
 
-    ipc_msg_response_handle(src, msg->seq, set_request_retval, (void*)(long)resp->retval);
+    ipc_msg_response_handle(src, msg->seq, set_request_retval, (void*)(intptr_t)resp->retval);
 
     return 0;
 }

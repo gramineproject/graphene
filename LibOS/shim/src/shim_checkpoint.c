@@ -580,7 +580,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
          * Child might have already been marked dead.
          * Let's pretend the process creation was successful - we have no way to handle such failure
          * here and it should be indistinguishable form host OS killing the child process right
-         * after we returns from this function.
+         * after we return from this function.
          */
         log_error("failed to send process creation ack to the child: %d\n", ret);
         (void)mark_child_exited_by_vmid(child_vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
