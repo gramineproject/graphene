@@ -168,7 +168,10 @@ static int ipc_connect_back_callback(struct shim_ipc_msg* orig_msg, IDTYPE src) 
  */
 static int receive_ipc_messages(struct shim_ipc_connection* conn) {
     size_t size = 0;
-#define READAHEAD_SIZE (IPC_MSG_MINIMAL_SIZE + 0x20)
+    /* Try to get more bytes that strictly required in case there are more messages waiting.
+     * `0x20` as a random estimation of "couple of ints" + `IPC_MSG_MINIMAL_SIZE` to get the next
+     * message header if possible. */
+#define READAHEAD_SIZE (0x20 + IPC_MSG_MINIMAL_SIZE)
     union {
         struct shim_ipc_msg msg_header;
         char buf[IPC_MSG_MINIMAL_SIZE + READAHEAD_SIZE];
