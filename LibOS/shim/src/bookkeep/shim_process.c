@@ -46,7 +46,7 @@ int init_process(int argc, const char** argv) {
     g_process.umask = 0;
 
     struct shim_dentry* dent = NULL;
-    int ret = path_lookupat(NULL, "/", 0, &dent, NULL);
+    int ret = path_lookupat(/*start=*/NULL, "/", LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &dent);
     if (ret < 0) {
         log_error("Could not set up dentry for \"/\", something is seriously broken.\n");
         return ret;

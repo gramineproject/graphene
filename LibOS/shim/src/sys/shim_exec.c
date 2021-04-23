@@ -182,7 +182,7 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
 reopen:
 
     /* XXX: Not sure what to do here yet */
-    if ((ret = path_lookupat(NULL, file, LOOKUP_OPEN, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_FOLLOW, &dent)) < 0)
         return ret;
 
     struct shim_mount* fs = dent->fs;

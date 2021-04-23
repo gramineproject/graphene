@@ -26,7 +26,7 @@ long shim_do_stat(const char* file, struct stat* stat) {
     int ret;
     struct shim_dentry* dent = NULL;
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_FOLLOW, &dent)) < 0)
         goto out;
 
     struct shim_mount* fs = dent->fs;
@@ -53,7 +53,7 @@ long shim_do_lstat(const char* file, struct stat* stat) {
     int ret;
     struct shim_dentry* dent = NULL;
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_NO_FOLLOW, &dent)) < 0)
         goto out;
 
     struct shim_mount* fs = dent->fs;
@@ -109,7 +109,7 @@ long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
 
     struct shim_qstr qstr = QSTR_INIT;
 
-    if ((ret = path_lookupat(dir, file, LOOKUP_ACCESS, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(dir, file, LOOKUP_NO_FOLLOW, &dent)) < 0)
         goto out;
 
     ret = -EINVAL;
@@ -168,7 +168,7 @@ long shim_do_statfs(const char* path, struct statfs* buf) {
     int ret;
     struct shim_dentry* dent = NULL;
 
-    if ((ret = path_lookupat(NULL, path, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, path, LOOKUP_FOLLOW, &dent)) < 0)
         return ret;
 
     struct shim_mount* fs = dent->fs;
@@ -194,7 +194,7 @@ long shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, i
     if (test_user_memory(statbuf, sizeof(*statbuf), true))
         return -EFAULT;
 
-    int lookup_flags = LOOKUP_ACCESS | LOOKUP_FOLLOW;
+    int lookup_flags = LOOKUP_FOLLOW;
     if (flags & AT_SYMLINK_NOFOLLOW)
         lookup_flags &= ~LOOKUP_FOLLOW;
     if (flags & AT_NO_AUTOMOUNT) {
@@ -234,7 +234,7 @@ long shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, i
     }
 
     struct shim_dentry* dent = NULL;
-    ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
+    ret = path_lookupat(dir, pathname, lookup_flags, &dent);
     if (ret >= 0) {
         struct shim_d_ops* d_ops = dent->fs->d_ops;
         if (d_ops && d_ops->stat)

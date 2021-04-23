@@ -98,12 +98,6 @@ do_ipc:
     if (dentptr) {
         /* XXX: Not sure how to handle this case yet */
         __abort();
-        ret = path_lookupat(NULL, (char*)ipc_data, 0, &dent, NULL);
-        if (ret < 0)
-            goto out;
-
-        get_dentry(dent);
-        *dentptr = dent;
     }
 
 out:

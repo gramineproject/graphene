@@ -540,7 +540,7 @@ long shim_do_truncate(const char* path, loff_t length) {
     if (!path || test_user_string(path))
         return -EFAULT;
 
-    if ((ret = path_lookupat(NULL, path, 0, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, path, LOOKUP_FOLLOW, &dent)) < 0)
         return ret;
 
     struct shim_mount* fs = dent->fs;

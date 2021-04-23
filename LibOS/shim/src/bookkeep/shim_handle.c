@@ -38,7 +38,7 @@ static int init_tty_handle(struct shim_handle* hdl, bool write) {
     hdl->flags = write ? (O_WRONLY | O_APPEND) : O_RDONLY;
 
     struct shim_dentry* dent = NULL;
-    if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, "/dev/tty", LOOKUP_FOLLOW, &dent)) < 0)
         return ret;
 
     ret = dent->fs->d_ops->open(hdl, dent, hdl->flags);
@@ -82,7 +82,7 @@ static inline int init_exec_handle(void) {
         while (*p == '/') {
             p++;
         }
-        path_lookupat(fs->root, p, 0, &exec->dentry, fs);
+        path_lookupat(fs->root, p, LOOKUP_FOLLOW, &exec->dentry);
         set_handle_fs(exec, fs);
         if (exec->dentry)
             dentry_get_path_into_qstr(exec->dentry, &exec->path);

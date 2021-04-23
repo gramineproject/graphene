@@ -44,7 +44,7 @@ long shim_do_unlinkat(int dfd, const char* pathname, int flag) {
     if (*pathname != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
-    if ((ret = path_lookupat(dir, pathname, LOOKUP_OPEN, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(dir, pathname, LOOKUP_NO_FOLLOW, &dent)) < 0)
         goto out;
 
     if (!dent->parent) {
@@ -119,7 +119,8 @@ long shim_do_rmdir(const char* pathname) {
     if (test_user_string(pathname))
         return -EFAULT;
 
-    if ((ret = path_lookupat(NULL, pathname, LOOKUP_OPEN | LOOKUP_DIRECTORY, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, pathname, LOOKUP_NO_FOLLOW | LOOKUP_DIRECTORY,
+                             &dent)) < 0)
         return ret;
 
     if (!dent->parent) {
@@ -175,7 +176,7 @@ long shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
     if (*filename != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
-    if ((ret = path_lookupat(dir, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(dir, filename, LOOKUP_FOLLOW, &dent)) < 0)
         goto out;
 
     if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->chmod) {
@@ -245,7 +246,7 @@ long shim_do_fchownat(int dfd, const char* filename, uid_t uid, gid_t gid, int f
     if (*filename != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
-    if ((ret = path_lookupat(dir, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(dir, filename, LOOKUP_FOLLOW, &dent)) < 0)
         goto out;
 
     /* XXX: do nothing now */
@@ -576,7 +577,7 @@ long shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const cha
         goto out;
     }
 
-    if ((ret = path_lookupat(old_dir_dent, oldpath, LOOKUP_OPEN, &old_dent, NULL)) < 0) {
+    if ((ret = path_lookupat(old_dir_dent, oldpath, LOOKUP_NO_FOLLOW, &old_dent)) < 0) {
         goto out;
     }
 
@@ -589,14 +590,9 @@ long shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const cha
         goto out;
     }
 
-    ret = path_lookupat(new_dir_dent, newpath, LOOKUP_OPEN | LOOKUP_CREATE, &new_dent, NULL);
-    if (ret < 0) {
-        if (ret != -ENOENT || !new_dent ||
-            (new_dent->state & (DENTRY_NEGATIVE | DENTRY_VALID)) !=
-                (DENTRY_NEGATIVE | DENTRY_VALID)) {
-            goto out;
-        }
-    }
+    ret = path_lookupat(new_dir_dent, newpath, LOOKUP_NO_FOLLOW | LOOKUP_CREATE, &new_dent);
+    if (ret < 0)
+        goto out;
 
     // Both dentries should have a ref count of at least 2 at this point
     assert(REF_GET(old_dent->ref_count) >= 2);
@@ -661,7 +657,7 @@ out:
 long shim_do_chroot(const char* filename) {
     int ret = 0;
     struct shim_dentry* dent = NULL;
-    if ((ret = path_lookupat(NULL, filename, 0, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(/*start=*/NULL, filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &dent)) < 0)
         goto out;
 
     if (!dent) {
