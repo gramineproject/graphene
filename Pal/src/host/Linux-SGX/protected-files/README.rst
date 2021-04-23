@@ -2,9 +2,9 @@
 Protected Files
 ===============
 
-Protected files (PF) are a new type of files that can be specified in the manifest (SGX only).
-They are encrypted on disk and transparently decrypted when accessed by Graphene or by application
-running inside Graphene.
+Protected files (PF) are a type of files that can be specified in the manifest (SGX only). They are
+encrypted on disk and transparently decrypted when accessed by Graphene or by application running
+inside Graphene.
 
 Features
 ========
@@ -12,12 +12,6 @@ Features
 - Data is encrypted (confidentiality) and integrity protected (tamper resistance).
 - File swap protection (a PF can only be accessed when in a specific path).
 - Transparency (Graphene application sees PFs as regular files, no need to modify the application).
-
-The following new manifest elements are added::
-
-   sgx.protected_files_key = "<16-byte hex value>"
-   sgx.protected_files.<name> = "file:<host path>"
-
 
 Example
 -------
@@ -41,9 +35,6 @@ Metadata currently limits PF path size to 512 bytes and filename size to 260 byt
 NOTE
 ----
 
-``sgx.protected_files_key`` specifies the encryption key and is only a temporary implementation.
-This key should be provisioned to the enclave with local/remote attestation in the future.
-
 The ``tools`` directory contains the ``pf_crypt`` utility that converts files to/from the protected
 format.
 
@@ -53,8 +44,7 @@ Internal protected file format in this version was ported from the `SGX SDK
 Tests
 =====
 
-Tests in ``LibOS/shim/test/fs`` now contain PF tests too (target is still ``test``).
-Target to run just non-PF tests is ``fs-test``.
+Tests in ``LibOS/shim/test/fs`` contain PF tests (target is ``pf-test``).
 
 TODO
 ====
