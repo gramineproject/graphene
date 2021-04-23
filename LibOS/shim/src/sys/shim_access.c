@@ -37,11 +37,11 @@ long shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
 
     lock(&g_dcache_lock);
 
-    ret = __path_lookupat(dir, filename, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, 0, NULL, false);
+    ret = _path_lookupat(dir, filename, LOOKUP_FOLLOW, &dent);
     if (ret < 0)
         goto out;
 
-    ret = __permission(dent, mode);
+    ret = check_permissions(dent, mode);
 
 out:
     unlock(&g_dcache_lock);

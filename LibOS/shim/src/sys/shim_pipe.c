@@ -283,17 +283,12 @@ long shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     if (*pathname != '/' && (ret = get_dirfd_dentry(dirfd, &dir)) < 0)
         goto out;
 
-    ret = path_lookupat(dir, pathname, LOOKUP_CREATE, &dent, NULL);
-    if (ret < 0 && ret != -ENOENT) {
+    ret = path_lookupat(dir, pathname, LOOKUP_NO_FOLLOW | LOOKUP_CREATE, &dent);
+    if (ret < 0) {
         goto out;
     }
 
-    if (!dent) {
-        ret = -ENOENT; /* impossible path, file cannot be created, mknod must return ENOENT */
-        goto out;
-    }
-
-    if (dent->state & DENTRY_VALID && !(dent->state & DENTRY_NEGATIVE)) {
+    if (!(dent->state & DENTRY_NEGATIVE)) {
         ret = -EEXIST;
         goto out;
     }

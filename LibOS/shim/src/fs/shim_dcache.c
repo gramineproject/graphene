@@ -250,6 +250,56 @@ bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent) {
     return false;
 }
 
+static int dump_dentry_write_all(const char* str, size_t size, void* arg) {
+    __UNUSED(arg);
+    log_always("%.*s\n", (int)size, str);
+    return 0;
+}
+
+#define DUMP_FLAG(flag, s, empty) buf_puts(&buf, (dent->state & flag) ? s : empty)
+
+static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
+    assert(locked(&g_dcache_lock));
+
+    struct print_buf buf = INIT_PRINT_BUF(dump_dentry_write_all);
+
+    buf_printf(&buf, "[%6.6s ", dent->fs ? dent->fs->type : "");
+
+    DUMP_FLAG(DENTRY_VALID, "V", ".");
+    DUMP_FLAG(DENTRY_LISTED, "L", ".");
+    DUMP_FLAG(DENTRY_INO_UPDATED, "I", ".");
+    DUMP_FLAG(DENTRY_SYNTHETIC, "S", ".");
+    buf_printf(&buf, "%3d] ", (int)REF_GET(dent->ref_count));
+
+    DUMP_FLAG(DENTRY_MOUNTPOINT, "*", " ");
+    DUMP_FLAG(DENTRY_NEGATIVE, "-", " ");
+
+    for (unsigned int i = 0; i < level; i++)
+        buf_puts(&buf, "  ");
+
+    buf_puts(&buf, qstrgetstr(&dent->name));
+    DUMP_FLAG(DENTRY_ISDIRECTORY, "/", "");
+    DUMP_FLAG(DENTRY_ISLINK, " -> ", "");
+    buf_flush(&buf);
+
+    struct shim_dentry* child;
+    LISTP_FOR_EACH_ENTRY(child, &dent->children, siblings) {
+        dump_dentry(child, level + 1);
+    }
+}
+
+#undef DUMP_FLAG
+
+void dump_dcache(struct shim_dentry* dent) {
+    lock(&g_dcache_lock);
+
+    if (!dent)
+        dent = g_dentry_root;
+
+    dump_dentry(dent, 0);
+    unlock(&g_dcache_lock);
+}
+
 BEGIN_CP_FUNC(dentry) {
     __UNUSED(size);
     assert(size == sizeof(struct shim_dentry));
