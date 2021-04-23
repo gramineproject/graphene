@@ -623,6 +623,16 @@ class TC_40_FileSystem(RegressionTestCase):
         stdout, _ = self.run_binary(['sysfs_common'])
         self.assertIn('TEST OK', stdout)
 
+    def test_060_protected_file(self):
+        pf_path = 'protected_file.dat'
+        if os.path.exists(pf_path):
+            os.remove(pf_path)
+
+        stdout, _ = self.run_binary(['protected_file', pf_path])
+        self.assertIn('CREATION OK', stdout)
+        stdout, _ = self.run_binary(['protected_file', pf_path])
+        self.assertIn('TEST OK', stdout)
+
 
 class TC_50_GDB(RegressionTestCase):
     def setUp(self):

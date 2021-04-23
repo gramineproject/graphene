@@ -452,7 +452,7 @@ Protected files
 
 ::
 
-    sgx.protected_files_key = "[16-byte hex value]"
+    sgx.protected_files_key = "sgx_seal_key_mrenclave|sgx_seal_key_mrsigner|[16-byte hex value]"
     sgx.protected_files.[identifier] = "[URI]"
 
 This syntax specifies the files that are encrypted on disk and transparently
@@ -469,9 +469,27 @@ directory are automatically treated as protected.
 Note that path size of a protected file is limited to 512 bytes and filename
 size is limited to 260 bytes.
 
-``sgx.protected_files_key`` specifies the wrap (master) encryption key and must
-be used only for debugging purposes. In production environments, this key must
-be provisioned to the enclave using local/remote attestation.
+``sgx.protected_files_key`` specifies the wrap (master) encryption key:
+
+* ``sgx.protected_files_key = "sgx_seal_key_mrenclave"`` specifies that the key
+  is generated via SGX hardware instruction ``EGETKEY(SEAL_KEY)``, bound to the
+  MRENCLAVE enclave measurement (so that only instances of the same enclave may
+  decrypt protected files). Note that enclave's CPU/ISV/CONFIG SVNs are also
+  used for protected files key derivation.
+
+* ``sgx.protected_files_key = "sgx_seal_key_mrsigner"`` specifies that the key
+  is generated via SGX hardware instruction ``EGETKEY(SEAL_KEY)``, bound to the
+  MRSIGNER enclave measurement (so that only enclaves with the same signer may
+  decrypt protected files). Note that enclave's CPU/ISV/CONFIG SVNs are also
+  used for protected files key derivation.
+
+* ``sgx.protected_files_key = "[16-byte hex value]"`` specifies that the key is
+  hard-coded in the manifest and should be used as-is. *Note:* this option is
+  insecure and must not be used in production environments!
+
+If you want to provision the protected files wrap key using SGX local/remote
+attestation, do *not* specify the ``sgx.protected_files_key`` manifest option at
+all. Instead, use the Secret Provisioning interface (see :doc:`attestation`).
 
 File check policy
 ^^^^^^^^^^^^^^^^^

@@ -9,6 +9,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_error.h"
+#include "sgx_arch.h"
 #include "spinlock.h"
 #include "toml.h"
 
@@ -470,20 +471,52 @@ int init_protected_files(void) {
     pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_gcm_encrypt, cb_aes_gcm_decrypt,
                      cb_random, debug_callback);
 
-    /* if wrap key is not hard-coded in the manifest, assume that it was received from parent or
-     * it will be provisioned after local/remote attestation; otherwise read it from manifest */
+    if (register_protected_files() < 0) {
+        log_error("Malformed protected files found in manifest\n");
+        return -PAL_ERROR_INVAL;
+    }
+
+    if (g_pf_wrap_key_set) {
+        /* wrap key was received from the parent enclave, no need to check the manifest for it */
+        return 0;
+    }
+
     char* protected_files_key_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.protected_files_key",
                          &protected_files_key_str);
     if (ret < 0) {
-        log_error("Cannot parse \'sgx.protected_files_key\' "
+        log_error("Cannot parse 'sgx.protected_files_key' "
                   "(the value must be put in double quotes!)\n");
         return -PAL_ERROR_INVAL;
     }
 
-    if (protected_files_key_str) {
+    if (!protected_files_key_str) {
+        /* wrap key is not specified in the manifest, assume it will be provisioned after
+         * local/remote attestation via DkSetProtectedFilesKey() */
+        return 0;
+    }
+
+    /* wrap key is specified in the manifest; it can be one of the following cases:
+     *   - "sgx_seal_key_mrenclave" -- use EGETKEY(SEAL_KEY) with KEYPOLICY_MRENCLAVE
+     *   - "sgx_seal_key_mrsigner"  -- use EGETKEY(SEAL_KEY) with KEYPOLICY_MRSIGNER
+     *   - "[16-byte hex value]"    -- use this hard-coded key (only for debugging!)
+     */
+    if (!strcmp(protected_files_key_str, "sgx_seal_key_mrenclave")) {
+        ret = sgx_get_seal_key(KEYPOLICY_MRENCLAVE, &g_pf_wrap_key);
+        if (ret < 0) {
+            free(protected_files_key_str);
+            return ret;
+        }
+    } else if (!strcmp(protected_files_key_str, "sgx_seal_key_mrsigner")) {
+        ret = sgx_get_seal_key(KEYPOLICY_MRSIGNER, &g_pf_wrap_key);
+        if (ret < 0) {
+            free(protected_files_key_str);
+            return ret;
+        }
+    } else {
+        /* this must be a 16-byte hex string (hard-coded 128-bit key) */
         if (strlen(protected_files_key_str) != PF_KEY_SIZE * 2) {
-            log_error("Malformed \'sgx.protected_files_key\' value in the manifest\n");
+            log_error("Malformed 'sgx.protected_files_key' value in the manifest\n");
             free(protected_files_key_str);
             return -PAL_ERROR_INVAL;
         }
@@ -492,21 +525,16 @@ int init_protected_files(void) {
         for (size_t i = 0; i < strlen(protected_files_key_str); i++) {
             int8_t val = hex2dec(protected_files_key_str[i]);
             if (val < 0) {
-                log_error("Malformed \'sgx.protected_files_key\' value in the manifest\n");
+                log_error("Malformed 'sgx.protected_files_key' value in the manifest\n");
                 free(protected_files_key_str);
                 return -PAL_ERROR_INVAL;
             }
             g_pf_wrap_key[i / 2] = g_pf_wrap_key[i / 2] * 16 + (uint8_t)val;
         }
-
-        free(protected_files_key_str);
-        g_pf_wrap_key_set = true;
     }
 
-    if (register_protected_files() < 0) {
-        log_error("Malformed protected files found in manifest\n");
-    }
-
+    free(protected_files_key_str);
+    g_pf_wrap_key_set = true;
     return 0;
 }
 

@@ -66,6 +66,7 @@ c_executables = \
 	proc_common \
 	proc_cpuinfo \
 	proc_path \
+	protected_file \
 	pselect \
 	pthread_set_get_affinity \
 	readdir \
