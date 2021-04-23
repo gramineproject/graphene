@@ -44,6 +44,12 @@ DEFINE_LISTP(pf_map);
 /* List of PF map buffers; this list is traversed on PF flush (on file close) */
 extern LISTP_TYPE(pf_map) g_pf_map_list;
 
+enum {
+    PROTECTED_FILE_KEY_WRAP = 0,
+    PROTECTED_FILE_KEY_MRENCLAVE,
+    PROTECTED_FILE_KEY_MRSIGNER,
+};
+
 /* Data of a protected file */
 struct protected_file {
     UT_hash_handle hh;
@@ -52,6 +58,7 @@ struct protected_file {
     pf_context_t* context; /* NULL until PF is opened */
     int64_t refcount; /* used for deciding when to call unload_protected_file() */
     int writable_fd; /* fd of underlying file for writable PF, -1 if no writable handles are open */
+    int key_type; /* one of KEY_WRAP (provisioned key), KEY_MRENCLAVE, KEY_MRSIGNER */
 };
 
 /* Take ownership of the global PF lock */

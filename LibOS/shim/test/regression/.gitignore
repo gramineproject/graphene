@@ -2,6 +2,7 @@
 /*.xml
 
 /nonexisting_testfile
+/sealed_file.dat
 /testfile
 /trusted_testfile
 
@@ -83,6 +84,7 @@
 /proc_common
 /proc_cpuinfo
 /proc_path
+/protected_file
 /pselect
 /pthread_set_get_affinity
 /rdtsc

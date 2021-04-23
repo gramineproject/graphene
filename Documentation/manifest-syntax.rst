@@ -505,7 +505,18 @@ Protected files
 ::
 
     sgx.protected_files_key = "[16-byte hex value]"
+
     sgx.protected_files = [
+      "[URI]",
+      "[URI]",
+    ]
+
+    sgx.protected_mrenclave_files = [
+      "[URI]",
+      "[URI]",
+    ]
+
+    sgx.protected_mrsigner_files = [
       "[URI]",
       "[URI]",
     ]
@@ -534,6 +545,16 @@ be used only for debugging purposes.
    attestation, thus you should not specify the ``sgx.protected_files_key``
    manifest option at all. Instead, use the Secret Provisioning interface (see
    :doc:`attestation`).
+
+``sgx.protected_files`` are encrypted using the wrap (master) encryption key;
+they are well-suited for input files encrypted by the user and sent to the
+deployment platform as well as for output files sent back to the user and
+decrypted at the user side. ``sgx.protected_mrenclave_files`` are encrypted
+using the SGX sealing key based on the MRENCLAVE identity of the enclave; they
+are useful to allow only the same enclave (on the same platform) to unseal
+files. ``sgx.protected_mrsigner_files`` are encrypted using the SGX sealing key
+based on the MRSIGNER identity of the enclave; they are useful to allow all
+enclaves signed with the same key (and on the same platform) to unseal files.
 
 File check policy
 ^^^^^^^^^^^^^^^^^

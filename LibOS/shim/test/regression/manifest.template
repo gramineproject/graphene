@@ -38,3 +38,8 @@ sgx.trusted_files = [
   "file:{{ entrypoint }}",
   "file:exec_victim",
 ]
+
+# for sealed_file test
+sgx.protected_mrenclave_files = [
+  "file:sealed_file.dat",
+]

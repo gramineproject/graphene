@@ -14,6 +14,14 @@
 #include "spinlock.h"
 #include "toml.h"
 
+/* SGX-specific keys for protected files, used for SGX sealing. The former key is bound to the
+ * MRENCLAVE measurement of the SGX enclave (only the same enclave can unseal secrets). The latter
+ * key is bound to the MRSIGNER measurement (all enclaves from the same signer can unseal secrets).
+ * We don't use synchronization on them since they are only set during initialization where Graphene
+ * runs single-threaded. */
+pf_key_t g_pf_mrenclave_key = {0};
+pf_key_t g_pf_mrsigner_key = {0};
+
 /* Wrap key for protected files, either hard-coded in manifest, provisioned during attestation, or
  * inherited from the parent process. We don't use synchronization on them since they are only set
  * during initialization where Graphene runs single-threaded. */
@@ -222,7 +230,7 @@ out:
     return ret;
 }
 
-static int register_protected_path(const char* path, struct protected_file** new_pf);
+static int register_protected_path(const char* path, int key_type, struct protected_file** new_pf);
 
 /* Return a registered PF that matches specified path
    (or the path that is contained in a registered PF directory) */
@@ -235,7 +243,7 @@ struct protected_file* get_protected_file(const char* path) {
     if (pf) {
         /* path not registered but matches registered dir */
         log_debug("get_pf: registering new PF '%s' in dir '%s'", path, pf->path);
-        int ret = register_protected_path(path, &pf);
+        int ret = register_protected_path(path, pf->key_type, &pf);
         __UNUSED(ret);
         assert(ret == 0);
         /* return newly registered PF */
@@ -281,7 +289,7 @@ out:
 }
 
 /* Register all files from the given directory recursively */
-static int register_protected_dir(const char* path) {
+static int register_protected_dir(const char* path, int key_type) {
     int fd = -1;
     int ret = -PAL_ERROR_NOMEM;
     size_t bufsize = 1024;
@@ -325,7 +333,7 @@ static int register_protected_dir(const char* path) {
                 goto out;
 
             snprintf(sub_path, sub_path_size, URI_PREFIX_FILE "%s/%s", path, dir->d_name);
-            ret = register_protected_path(sub_path, NULL);
+            ret = register_protected_path(sub_path, key_type, NULL);
             if (ret != 0) {
                 free(sub_path);
                 goto out;
@@ -345,7 +353,7 @@ out:
 }
 
 /* Register a single PF (if it's a directory, recursively) */
-static int register_protected_path(const char* path, struct protected_file** new_pf) {
+static int register_protected_path(const char* path, int key_type, struct protected_file** new_pf) {
     int ret = -PAL_ERROR_NOMEM;
     struct protected_file* new = NULL;
 
@@ -378,6 +386,8 @@ static int register_protected_path(const char* path, struct protected_file** new
         goto out;
     }
 
+    new->key_type = key_type;
+
     new->path_len = strlen(path);
     /* This is never freed but so isn't the whole struct, PFs persist for the whole lifetime
        of the process. */
@@ -399,7 +409,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     log_debug("register_protected_path: [%s] %s = %p", is_dir ? "dir" : "file", path, new);
 
     if (is_dir)
-        register_protected_dir(path);
+        register_protected_dir(path, key_type);
 
     pf_lock();
 
@@ -425,13 +435,30 @@ out:
     return ret;
 }
 
-static int register_protected_files_from_toml_table(void) {
+static int register_protected_files_from_toml_table(int key_type) {
     int ret;
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
         return 0;
 
-    toml_table_t* toml_pfs = toml_table_in(manifest_sgx, "protected_files");
+    char* table_name = NULL;
+    switch (key_type) {
+        case PROTECTED_FILE_KEY_WRAP:
+            table_name = "protected_files";
+            break;
+        case PROTECTED_FILE_KEY_MRENCLAVE:
+            table_name = "protected_mrenclave_files";
+            break;
+        case PROTECTED_FILE_KEY_MRSIGNER:
+            table_name = "protected_mrsigner_files";
+            break;
+        default:
+            log_error("Invalid key type when registering protected files!");
+            return -PAL_ERROR_INVAL;
+    }
+
+    assert(table_name);
+    toml_table_t* toml_pfs = toml_table_in(manifest_sgx, table_name);
     if (!toml_pfs)
         return 0;
 
@@ -467,7 +494,7 @@ static int register_protected_files_from_toml_table(void) {
             goto out;
         }
 
-        ret = register_protected_path(toml_pf_str, NULL);
+        ret = register_protected_path(toml_pf_str, key_type, NULL);
         if (ret < 0)
             goto out;
 
@@ -484,13 +511,30 @@ out:
     return ret;
 }
 
-static int register_protected_files_from_toml_array(void) {
+static int register_protected_files_from_toml_array(int key_type) {
     int ret;
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
         return 0;
 
-    toml_array_t* toml_pfs = toml_array_in(manifest_sgx, "protected_files");
+    char* table_name = NULL;
+    switch (key_type) {
+        case PROTECTED_FILE_KEY_WRAP:
+            table_name = "protected_files";
+            break;
+        case PROTECTED_FILE_KEY_MRENCLAVE:
+            table_name = "protected_mrenclave_files";
+            break;
+        case PROTECTED_FILE_KEY_MRSIGNER:
+            table_name = "protected_mrsigner_files";
+            break;
+        default:
+            log_error("Invalid key type when registering protected files!");
+            return -PAL_ERROR_INVAL;
+    }
+
+    assert(table_name);
+    toml_array_t* toml_pfs = toml_array_in(manifest_sgx, table_name);
     if (!toml_pfs)
         return 0;
 
@@ -523,7 +567,7 @@ static int register_protected_files_from_toml_array(void) {
             goto out;
         }
 
-        ret = register_protected_path(toml_pf_str, NULL);
+        ret = register_protected_path(toml_pf_str, key_type, NULL);
         if (ret < 0)
             goto out;
 
@@ -537,11 +581,11 @@ out:
     return ret;
 }
 
-static int register_protected_files(void) {
+static int register_protected_files(int key_type) {
     int ret;
 
     /* first try legacy manifest syntax with TOML tables, i.e. `sgx.protected_files.key = "file"` */
-    ret = register_protected_files_from_toml_table();
+    ret = register_protected_files_from_toml_table(key_type);
     if (ret < 0) {
         log_error("Reading protected files (in TOML-table syntax) from the manifest failed: %s",
                   pal_strerror(ret));
@@ -549,7 +593,7 @@ static int register_protected_files(void) {
     }
 
     /* use new manifest syntax with TOML arrays, i.e. `sgx.protected_files = ["file1", ..]` */
-    ret = register_protected_files_from_toml_array();
+    ret = register_protected_files_from_toml_array(key_type);
     if (ret < 0) {
         log_error("Reading protected files (in TOML-array syntax) from the manifest failed: %s",
                   pal_strerror(ret));
@@ -571,6 +615,18 @@ int init_protected_files(void) {
 
     pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_cmac, cb_aes_gcm_encrypt,
                      cb_aes_gcm_decrypt, cb_random, debug_callback);
+
+    ret = sgx_get_seal_key(KEYPOLICY_MRENCLAVE, &g_pf_mrenclave_key);
+    if (ret < 0) {
+        log_error("Cannot obtain MRENCLAVE-specific protected files key");
+        return ret;
+    }
+
+    ret = sgx_get_seal_key(KEYPOLICY_MRSIGNER, &g_pf_mrsigner_key);
+    if (ret < 0) {
+        log_error("Cannot obtain MRSIGNER-specific protected files key");
+        return ret;
+    }
 
     /* if wrap key is not hard-coded in the manifest, assume that it was received from parent or
      * it will be provisioned after local/remote attestation; otherwise read it from manifest */
@@ -604,8 +660,22 @@ int init_protected_files(void) {
         g_pf_wrap_key_set = true;
     }
 
-    if (register_protected_files() < 0) {
+    ret = register_protected_files(PROTECTED_FILE_KEY_WRAP);
+    if (ret < 0) {
         log_error("Malformed protected files found in manifest");
+        return ret;
+    }
+
+    ret = register_protected_files(PROTECTED_FILE_KEY_MRENCLAVE);
+    if (ret < 0) {
+        log_error("Malformed MRENCLAVE-specific protected files found in manifest");
+        return ret;
+    }
+
+    ret = register_protected_files(PROTECTED_FILE_KEY_MRSIGNER);
+    if (ret < 0) {
+        log_error("Malformed MRSIGNER-specific protected files found in manifest");
+        return ret;
     }
 
     return 0;
@@ -614,13 +684,29 @@ int init_protected_files(void) {
 /* Open/create a PF */
 static int open_protected_file(const char* path, struct protected_file* pf, pf_handle_t handle,
                                uint64_t size, pf_file_mode_t mode, bool create) {
-    if (!g_pf_wrap_key_set) {
-        log_error("pf_open(%d, %s) failed: wrap key was not provided", *(int*)handle, path);
-        return -PAL_ERROR_DENIED;
+    pf_key_t* pf_key = NULL;
+    switch (pf->key_type) {
+        case PROTECTED_FILE_KEY_WRAP:
+            if (!g_pf_wrap_key_set) {
+                log_error("pf_open failed: wrap key was not provided");
+                return -PAL_ERROR_DENIED;
+            }
+            pf_key = &g_pf_wrap_key;
+            break;
+        case PROTECTED_FILE_KEY_MRENCLAVE:
+            pf_key = &g_pf_mrenclave_key;
+            break;
+        case PROTECTED_FILE_KEY_MRSIGNER:
+            pf_key = &g_pf_mrsigner_key;
+            break;
+        default:
+            log_error("Invalid key type when opening protected file!");
+            return -PAL_ERROR_DENIED;
     }
+    assert(pf_key);
 
     pf_status_t pfs;
-    pfs = pf_open(handle, path, size, mode, create, &g_pf_wrap_key, &pf->context);
+    pfs = pf_open(handle, path, size, mode, create, pf_key, &pf->context);
     if (PF_FAILURE(pfs)) {
         log_warning("pf_open(%d, %s) failed: %s", *(int*)handle, path, pf_strerror(pfs));
         return -PAL_ERROR_DENIED;
