@@ -102,7 +102,7 @@ struct shim_fs_ops {
 //#define DENTRY_UNREACHABLE  0x0800  /* permission checked to be unreachable */
 #define DENTRY_LISTED      0x1000 /* children in directory listed */
 #define DENTRY_INO_UPDATED 0x2000 /* ino updated */
-#define DENTRY_ANCESTOR    0x4000 /* Auto-generated dentry to connect a mount point in the        \
+#define DENTRY_SYNTHETIC   0x4000 /* Auto-generated dentry to connect a mount point in the        \
                                    * manifest to the root, when one or more intermediate          \
                                    * directories do not exist on the underlying FS. The semantics \
                                    * of subsequent changes to such directories (or attempts to    \
@@ -217,12 +217,10 @@ struct shim_mount {
     LIST_TYPE(shim_mount) list;
 };
 
+/* TODO: This actually does not get migrated after a fork. We migrate `g_process.root`, which is
+ * enough for Graphene to function, but leaves `g_dentry_root` in child process pointing to an empty
+ * directory. */
 extern struct shim_dentry* g_dentry_root;
-
-#define LOOKUP_FOLLOW    001
-#define LOOKUP_DIRECTORY 002
-#define LOOKUP_CONTINUE  004  // No longer needed
-#define LOOKUP_PARENT    010  // Not sure we need this
 
 #define F_OK 0
 // XXX: Duplicate definition; should probably weed out includes of host system
@@ -242,11 +240,6 @@ extern struct shim_dentry* g_dentry_root;
 #define ACC_MODE(x)                                        \
     ((((x) == O_RDONLY || (x) == O_RDWR) ? MAY_READ : 0) | \
      (((x) == O_WRONLY || (x) == O_RDWR) ? MAY_WRITE : 0))
-
-#define LOOKUP_OPEN   0100  // Appears to be ignored
-#define LOOKUP_CREATE 0200
-#define LOOKUP_ACCESS 0400  // Appears to be ignored
-#define LOOKUP_SYNC   (LOOKUP_OPEN | LOOKUP_CREATE | LOOKUP_ACCESS)
 
 enum lookup_type {
     LAST_NORM,
@@ -297,41 +290,96 @@ int init_dcache(void);
 
 extern struct shim_lock g_dcache_lock;
 
-/* Checks permission (specified by mask) of a dentry. If force is not set, permission is considered
- * granted on invalid dentries.
- * Assumes that caller has acquired g_dcache_lock. */
-int __permission(struct shim_dentry* dent, mode_t mask);
-
-/* This function looks up a single dentry based on its parent dentry pointer and the name. `namelen`
- * is the length of char* name. The dentry is returned in pointer *new.
+/*!
+ * \brief Dump dentry cache
  *
- * The caller should hold the g_dcache_lock.
+ * \param dent the starting dentry, or NULL (will default to dentry root)
+ *
+ * Dumps the dentry cache using `log_always`, starting from the provided dentry. Intended for
+ * debugging the filesystem - just add it manually to the code.
  */
-int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
-                  struct shim_dentry** new, struct shim_mount* fs);
+void dump_dcache(struct shim_dentry* dent);
 
-/* Looks up path under start dentry. Saves in dent.
+/*!
+ * \brief Check file permissions, similar to Unix access
  *
- * Assumes g_dcache_lock is held; main difference from path_lookupat is that g_dcache_lock is not
- * released on return.
+ * \param dentry the dentry to check
+ * \param mask mask, same as for Unix access
  *
- * The refcount is raised by one on the returned dentry.
+ * Checks permissions for a dentry. Because Graphene currently has no notion of users, this will
+ * always use the "user" part of file mode.
  *
- * The make_ancestor flag creates pseudo-dentries for any parent paths that are not in cache and do
- * not exist on the underlying file system. This is intended for use only in setting up the
- * file system view specified in the manifest.
+ * The caller should hold `g_dcache_lock`.
  *
- * If the file isnt' found, returns -ENOENT.
- *
- * If the LOOKUP_DIRECTORY flag is set, and the found file isn't a directory, returns -ENOTDIR.
+ * `dentry` should be a valid dentry, but can be negative (in which case the function will return
+ * -ENOENT).
  */
-int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
-                    struct shim_dentry** dent, int link_depth, struct shim_mount* fs,
-                    bool make_ancestor);
+int check_permissions(struct shim_dentry* dent, mode_t mask);
 
-/* Just wraps __path_lookupat, but also acquires and releases the g_dcache_lock. */
-int path_lookupat(struct shim_dentry* start, const char* name, int flags, struct shim_dentry** dent,
-                  struct shim_mount* fs);
+/*
+ * Flags for `path_lookupat`.
+ *
+ * Note that, opposite to user-level O_NOFOLLOW, we define LOOKUP_FOLLOW as a positive flag, and add
+ * LOOKUP_NO_FOLLOW as a pseudo-flag for readability.
+ *
+ * This is modeled after Linux and BSD codebases, which define a positive FOLLOW flag, and a
+ * negative pseudo-flag was introduced by FreeBSD.
+ */
+#define LOOKUP_NO_FOLLOW       0
+#define LOOKUP_FOLLOW          0x1
+#define LOOKUP_CREATE          0x2
+#define LOOKUP_DIRECTORY       0x4
+#define LOOKUP_MAKE_SYNTHETIC  0x8
+
+/* Maximum number of nested symlinks that `path_lookupat` and related functions will follow */
+#define MAX_LINK_DEPTH 8
+
+/*!
+ * \brief Look up a path, retrieving a dentry
+ *
+ * \param start the start dentry for relative paths, or NULL (in which case it will default to
+ * process' cwd)
+ * \param path the path to look up
+ * \param flags lookup flags (see description below)
+ * \param[out] found pointer to retrieved dentry
+ *
+ * The caller should hold `g_dcache_lock`.
+ *
+ * On success, returns 0, and puts the retrieved dentry in `*found`. The reference count of the
+ * dentry will be increased by one.
+ *
+ * The retrieved dentry is always valid, and can only be negative if LOOKUP_CREATE is set.
+ *
+ * On failure, returns a negative error code, and sets `*found` to NULL.
+ *
+ * Supports the following flags:
+ *
+ * - LOOKUP_FOLLOW: if `path` refers to a symbolic link, follow it (the default is to return the
+ *   dentry to the link). Note that symbolic links for intermediate path segments are always
+ *   followed.
+ *
+ * - LOOKUP_NO_FOLLOW: this is a pseudo-flag defined as 0. You can use it to indicate to the reader
+ *   that symbolic links are intentionally not being followed.
+ *
+ * - LOOKUP_CREATE: if the file under `path` does not exist, but can be created (i.e. the parent
+ *   directory exists), the function will succeed and a negative dentry will be put in `*found`. If
+ *   the parent directory also does not exist, the function will still fail with -ENOENT.
+ *
+ * - LOOKUP_DIRECTORY: expect the file under `path` to be a directory, and fail with -ENOTDIR
+ *   otherwise
+ *
+ * - LOOKUP_MAKE_SYNTHETIC: create pseudo-files (DENTRY_SYNTHETIC) for any components on the path
+ *   that do not exist. This is intended for use when creating mountpoints specified in manifest.
+ *
+ * Note that a path with trailing slash is always treated as a directory, and LOOKUP_FOLLOW /
+ * LOOKUP_CREATE do not apply.
+ */
+int _path_lookupat(struct shim_dentry* start, const char* path, int flags,
+                   struct shim_dentry** found);
+
+/* Same as path_lookupat, but also acquires and releases  `g_dcache_lock`. */
+int path_lookupat(struct shim_dentry* start, const char* path, int flags,
+                  struct shim_dentry** found);
 
 /*
  * This function returns a dentry (in *dir) from a handle corresponding to dirfd.
@@ -343,24 +391,52 @@ int path_lookupat(struct shim_dentry* start, const char* name, int flags, struct
  */
 int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
 
-/* Open path with given flags, in mode, similar to Unix open.
+/*
+ * \brief Open a file under a given path, similar to Unix open
  *
- * The start dentry specifies where to begin the search.
- * `hdl` is an optional argument; if passed in, it is initialized to refer to the opened path.
+ * \param[out] hdl handle to initialize, can be NULL
+ * \param start the start dentry for relative paths, or NULL (in which case it will default to
+ * process' cwd)
+ * \param path the path to look up
+ * \param flags Unix open flags (see below)
+ * \param mode Unix file mode, used when creating a new file/directory
+ * \param[out] found pointer to retrieved dentry, can be NULL
  *
- * The result is stored in `dent`.
+ * The function checks permissions of the opened file (if it exists) and parent directory (if the
+ * file is being created), but not permissions for the whole path.
+ *
+ * If `hdl` is provided, on success it will be initialized based on the dentry; otherwise, the file
+ * will be just retrieved or created.
+ *
+ * If `found` is provided, on success it will be set to the file's dentry (and its reference count
+ * will be increased), and on failure it will be set to NULL.
+ *
+ * Similar to Unix open, `flags` must include one of O_RDONLY, O_WRONLY or O_RDWR. In addition,
+ * the following flags are supported by this function:
+ * - O_CREAT: create a new file if one does not exist
+ * - O_EXCL: fail if the file already exists
+ * - O_DIRECTORY: expect/create a directory instead of regular file
+ * - O_NOFOLLOW: don't follow symbolic links when resolving a path
+ * - O_TRUNC: truncate the file after opening
+ *
+ * The flags (including any not listed above), as well as file mode, are passed to the underlying
+ * filesystem.
  */
-
 int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* path, int flags,
-               int mode, struct shim_dentry** dent);
+               int mode, struct shim_dentry** found);
 
-/* This function calls the low-level file system to do the work of opening file indicated by dent,
- * and initializing it in hdl. Flags are standard open flags.
+/*
+ * \brief Open an already retrieved dentry, and associate a handle with it
  *
- * If O_TRUNC is specified, this function is responsible for calling the underlying truncate
- * function.
+ * \param[out] hdl handle to associate with dentry
+ * \param dent the dentry to open
+ * \param flags Unix open flags
+ *
+ * The dentry has to already correspond to a file (i.e. has to be valid and non-negative).
+ *
+ * The `flags` parameter will be passed to the underlying filesystem's `open` function. If O_TRUNC
+ * flag is specified, the filesystem's `truncate` function will also be called.
  */
-
 int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags);
 
 /* This function enumerates a directory and caches the results in the dentry.
@@ -471,7 +547,7 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
  * \param name name of searched dentry
  * \param name_len length of the name
  *
- * \returns the new dentry, or NULL if not found
+ * \returns the dentry, or NULL if not found
  *
  * The caller should hold `g_dcache_lock`.
  *
