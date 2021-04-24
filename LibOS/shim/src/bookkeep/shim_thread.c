@@ -191,7 +191,8 @@ static int init_main_thread(void) {
     set_sig_mask(cur_thread, &set);
     unlock(&cur_thread->lock);
 
-    int ret = DkNotificationEventCreate(PAL_TRUE, &cur_thread->scheduler_event);
+    int ret = DkEventCreate(&cur_thread->scheduler_event, /*init_signaled=*/true,
+                            /*auto_clear=*/false);
     if (ret < 0) {
         put_thread(cur_thread);
         return pal_to_unix_errno(ret);;
@@ -302,7 +303,7 @@ struct shim_thread* get_new_thread(void) {
 
     unlock(&cur_thread->lock);
 
-    int ret = DkNotificationEventCreate(PAL_TRUE, &thread->scheduler_event);
+    int ret = DkEventCreate(&thread->scheduler_event, /*init_signaled=*/true, /*auto_clear=*/false);
     if (ret < 0) {
         put_thread(thread);
         return NULL;
@@ -638,7 +639,7 @@ BEGIN_RS_FUNC(thread) {
         return -ENOMEM;
     }
 
-    int ret = DkNotificationEventCreate(PAL_TRUE, &thread->scheduler_event);
+    int ret = DkEventCreate(&thread->scheduler_event, /*init_signaled=*/true, /*auto_clear=*/false);
     if (ret < 0) {
         return pal_to_unix_errno(ret);
     }

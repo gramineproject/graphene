@@ -367,6 +367,9 @@ int toml_sizestring_in(const toml_table_t* root, const char* key, uint64_t defau
 
 #define URI_PREFIX_FILE_LEN (static_strlen(URI_PREFIX_FILE))
 
+#define US_IN_S 1000000ul
+#define NS_IN_US 1000ul
+
 #ifdef __x86_64__
 static inline bool __range_not_ok(uintptr_t addr, size_t size) {
     addr += size;

@@ -1,120 +1,75 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
-
-/*
- * This file contains implementation of Drawbridge event synchronization APIs.
+/* Copyright (C) 2021 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
 #include <asm/errno.h>
+#include <limits.h>
 #include <linux/futex.h>
 #include <linux/time.h>
+#include <stdbool.h>
 
 #include "api.h"
-#include "atomic.h"
+#include "assert.h"
 #include "pal.h"
-#include "pal_debug.h"
-#include "pal_defs.h"
-#include "pal_error.h"
 #include "pal_internal.h"
-#include "pal_linux.h"
-#include "pal_linux_defs.h"
+#include "pal_linux_error.h"
 
-int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
-    PAL_HANDLE ev = malloc(HANDLE_SIZE(event));
-    SET_HANDLE_TYPE(ev, event);
-    ev->event.isnotification = isnotification;
-    __atomic_store_n(&ev->event.nwaiters.counter, 0, __ATOMIC_SEQ_CST);
-    __atomic_store_n(&ev->event.signaled, initialState ? 1 : 0, __ATOMIC_SEQ_CST);
-    *event = ev;
+int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear) {
+    PAL_HANDLE handle = malloc(HANDLE_SIZE(event));
+    if (!handle) {
+        return -PAL_ERROR_NOMEM;
+    }
+
+    SET_HANDLE_TYPE(handle, event);
+    handle->event.auto_clear = auto_clear;
+    __atomic_store_n(&handle->event.signaled, init_signaled ? 1 : 0, __ATOMIC_RELEASE);
+
+    *handle_ptr = handle;
     return 0;
 }
 
-int _DkEventSet(PAL_HANDLE event, int wakeup) {
-    int ret = 0;
-
-    if (event->event.isnotification) {
-        // Leave it signaled, wake all
-        uint32_t t = 0;
-        if (__atomic_compare_exchange_n(&event->event.signaled, &t, 1, /*weak=*/false,
-                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-            int nwaiters = __atomic_load_n(&event->event.nwaiters.counter, __ATOMIC_SEQ_CST);
-            if (nwaiters) {
-                if (wakeup != -1 && nwaiters > wakeup)
-                    nwaiters = wakeup;
-
-                ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, nwaiters, NULL,
-                                     NULL, 0);
-                if (ret < 0)
-                    __atomic_store_n(&event->event.signaled, 0, __ATOMIC_SEQ_CST);
-            }
-        }
-    } else {
-        // Only one thread wakes up, leave unsignaled
-        ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, 1, NULL, NULL, 0);
-    }
-
-    return ret < 0 ? -PAL_ERROR_TRYAGAIN : ret;
+void _DkEventSet(PAL_HANDLE handle) {
+    __atomic_store_n(&handle->event.signaled, 1, __ATOMIC_RELEASE);
+    int ret = INLINE_SYSCALL(futex, 6, &handle->event.signaled, FUTEX_WAKE,
+                             handle->event.auto_clear ? 1 : INT_MAX, NULL, NULL, 0);
+    __UNUSED(ret);
+    /* This `FUTEX_WAKE` cannot really fail. */
+    assert(ret >= 0);
 }
 
-int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
-    int ret = 0;
+void _DkEventClear(PAL_HANDLE handle) {
+    __atomic_store_n(&handle->event.signaled, 0, __ATOMIC_RELEASE);
+}
 
-    struct timespec waittime;
-    struct timespec* waittime_ptr = NULL;
+static int wait_timeout(PAL_HANDLE handle, int64_t timeout_us) {
+    struct timespec timeout = { 0 };
+    struct timespec* timeout_ptr = NULL;
     if (timeout_us >= 0) {
-        int64_t sec      = timeout_us / 1000000UL;
-        int64_t microsec = timeout_us - (sec * 1000000UL);
-        waittime.tv_sec  = sec;
-        waittime.tv_nsec = microsec * 1000;
-        waittime_ptr = &waittime;
+        timeout.tv_sec = timeout_us / US_IN_S;
+        timeout.tv_nsec = (timeout_us - timeout.tv_sec * US_IN_S) * NS_IN_US;
+        timeout_ptr = &timeout;
     }
 
-    if (!event->event.isnotification ||
-        !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST)) {
+    while (1) {
+        bool needs_sleep = false;
+        if (handle->event.auto_clear) {
+            needs_sleep = __atomic_exchange_n(&handle->event.signaled, 0, __ATOMIC_ACQ_REL) == 0;
+        } else {
+            needs_sleep = __atomic_load_n(&handle->event.signaled, __ATOMIC_ACQUIRE) == 0;
+        }
 
-        __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
-
-        do {
-            ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT, 0, waittime_ptr,
+        if (!needs_sleep) {
+            return 0;
+        }
+        int ret = INLINE_SYSCALL(futex, 6, &handle->event.signaled, FUTEX_WAIT, 0, timeout_ptr,
                                  NULL, 0);
-
-            if (ret < 0) {
-                if (ret == -EWOULDBLOCK) {
-                    ret = 0;
-                } else if (ret == -EINTR
-                           && (!event->event.isnotification
-                               || __atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST))) {
-                    ret = 0;
-                    break;
-                } else {
-                    ret = unix_to_pal_error(ret);
-                    break;
-                }
-            }
-        } while (event->event.isnotification &&
-                 !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST));
-
-        __atomic_sub_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
+        if (ret < 0 && ret != -EAGAIN) {
+            return unix_to_pal_error(ret);
+        }
     }
-
-    return ret;
-}
-
-int _DkEventClear(PAL_HANDLE event) {
-    __atomic_store_n(&event->event.signaled, 0, __ATOMIC_SEQ_CST);
-    return 0;
-}
-
-static int event_close(PAL_HANDLE handle) {
-    _DkEventSet(handle, -1);
-    return 0;
-}
-
-static int event_wait(PAL_HANDLE handle, int64_t timeout_us) {
-    return _DkEventWaitTimeout(handle, timeout_us);
 }
 
 struct handle_ops g_event_ops = {
-    .close = &event_close,
-    .wait  = &event_wait,
+    .wait = wait_timeout,
 };

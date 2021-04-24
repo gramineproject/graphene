@@ -1,79 +1,98 @@
-#include <stdatomic.h>
-#include <stdbool.h>
-
+#include "api.h"
+#include "cpu.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
 
-static PAL_HANDLE event1;
-atomic_int timeouts = 0;
+#define CHECK(x) ({                                                     \
+    __typeof__(x) _x = (x);                                             \
+    if (_x < 0) {                                                       \
+        pal_printf("Error at line %u, pal_errno: %d\n", __LINE__, _x);  \
+        DkProcessExit(1);                                               \
+    }                                                                   \
+    _x;                                                                 \
+})
 
-static int thread2_run(void* args) {
-    pal_printf("Second thread started.\n");
-    DkThreadDelayExecution(3000000);
+static void wait_for(int* ptr, int val) {
+    while (__atomic_load_n(ptr, __ATOMIC_ACQUIRE) != val) {
+        CPU_RELAX();
+    }
+}
 
-    pal_printf("Sending event...\n");
-    DkEventSet(event1);
-    pal_printf("End of second thread.\n");
-    DkThreadExit(/*clear_child_tid=*/NULL);
-    /* UNREACHABLE */
+static void set(int* ptr, int val) {
+    __atomic_store_n(ptr, val, __ATOMIC_RELEASE);
+}
+
+static int g_clear_thread_exit = 1;
+static int g_ready = 0;
+
+static void thread_func(void* arg) {
+    PAL_HANDLE event = (PAL_HANDLE)arg;
+    set(&g_ready, 1);
+    wait_for(&g_ready, 2);
+
+    if (DkThreadDelayExecution(US_IN_S) != US_IN_S) {
+        pal_printf("Error: unexpected short sleep\n");
+        DkProcessExit(1);
+    }
+
+    DkEventSet(event);
+
+    DkThreadExit(&g_clear_thread_exit);
 }
 
 int main(void) {
-    pal_printf("Started main thread.\n");
+    PAL_HANDLE event = NULL;
+    CHECK(DkEventCreate(&event, /*init_signaled=*/true, /*auto_clear=*/true));
 
-    int ret = DkNotificationEventCreate(0, &event1);
-    if (ret < 0 || event1 == NULL) {
-        pal_printf("DkNotificationEventCreate failed\n");
-        return 1;
-    }
+    /* Event is already set, should not sleep. */
+    CHECK(DkSynchronizationObjectWait(event, NO_TIMEOUT));
 
-    PAL_HANDLE thread2 = NULL;
-    ret = DkThreadCreate(thread2_run, NULL, &thread2);
-    if (ret < 0) {
-        pal_printf("DkThreadCreate failed\n");
-        return 1;
+    uint64_t start = 0;
+    CHECK(DkSystemTimeQuery(&start));
+    /* Sleep for one second. */
+    int ret = DkSynchronizationObjectWait(event, US_IN_S);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        CHECK(-1);
     }
-    uint64_t t_start = 0;
-    if (DkSystemTimeQuery(&t_start) < 0) {
-        pal_printf("DkSystemTimeQuery failed\n");
-        return 1;
-    }
+    uint64_t end = 0;
+    CHECK(DkSystemTimeQuery(&end));
 
-    pal_printf("Testing wait with too short timeout...\n");
-    ret = DkSynchronizationObjectWait(event1, 1000000);
-    if (ret == -PAL_ERROR_TRYAGAIN) {
-        timeouts++;
+    if (end < start) {
+        CHECK(-1);
     }
-    uint64_t t_wait1 = 0;
-    if (DkSystemTimeQuery(&t_wait1) < 0) {
-        pal_printf("DkSystemTimeQuery failed\n");
-        return 1;
+    if (end - start < US_IN_S) {
+        CHECK(-1);
     }
-    uint64_t dt_wait1 = t_wait1 - t_start;
-    pal_printf("Wait returned after %lu us.\n", dt_wait1);
-    pal_printf("Timeout count: %d\n", timeouts);
-    if (dt_wait1 > 1000000 && dt_wait1 < 1100000 && timeouts == 1) {
-        pal_printf("Wait with too short timeout ok.\n");
+    if (end - start > US_IN_S * 3 / 2) {
+        CHECK(-1);
     }
 
-    pal_printf("Testing wait with long enough timeout...\n");
-    ret = DkSynchronizationObjectWait(event1, 5000000);
-    if (ret == -PAL_ERROR_TRYAGAIN) {
-        timeouts++;
+    PAL_HANDLE thread = NULL;
+    CHECK(DkThreadCreate(thread_func, event, &thread));
+
+    wait_for(&g_ready, 1);
+    set(&g_ready, 2);
+
+    CHECK(DkSystemTimeQuery(&start));
+    DkSynchronizationObjectWait(event, NO_TIMEOUT);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        CHECK(-1);
     }
-    uint64_t t_wait2 = 0;
-    if (DkSystemTimeQuery(&t_wait2) < 0) {
-        pal_printf("DkSystemTimeQuery failed\n");
-        return 1;
+    CHECK(DkSystemTimeQuery(&end));
+
+    if (end < start) {
+        CHECK(-1);
     }
-    uint64_t dt_wait2 = t_wait2 - t_start;
-    pal_printf("Wait returned after %lu us since start.\n", dt_wait2);
-    pal_printf("Timeout count: %d\n", timeouts);
-    if (dt_wait2 > 3000000 && dt_wait2 < 3100000 && timeouts == 1) {
-        pal_printf("Wait with long enough timeout ok.\n");
+    if (end - start < US_IN_S) {
+        CHECK(-1);
+    }
+    if (end - start > US_IN_S * 3 / 2) {
+        CHECK(-1);
     }
 
-    pal_printf("End of main thread.\n");
+    wait_for(&g_clear_thread_exit, 0);
+
+    pal_printf("TEST OK\n");
     return 0;
 }

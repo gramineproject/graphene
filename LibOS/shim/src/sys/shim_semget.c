@@ -74,7 +74,7 @@ static int __add_sem_handle(unsigned long key, IDTYPE semid, int nsems, bool own
     tmp->semid  = semid;
     tmp->owned  = owned;
 
-    ret = DkNotificationEventCreate(PAL_FALSE, &tmp->event);
+    ret = DkEventCreate(&tmp->event, /*init_signaled=*/false, /*auto_clear=*/false);
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
         goto failed;
@@ -515,7 +515,7 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
     }
 
     if (setevent)
-        DkEventSet(sem->event); // TODO: handle errors
+        DkEventSet(sem->event);
 
     return progressed;
 }

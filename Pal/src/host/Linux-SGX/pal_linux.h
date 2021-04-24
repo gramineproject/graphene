@@ -75,9 +75,6 @@ int _DkMutexLock(struct mutex_handle* mut);
 int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
 void _DkMutexUnlock(struct mutex_handle* mut);
 
-int* get_futex(void);
-void free_futex(int* futex);
-
 extern char __text_start, __text_end, __data_start, __data_end;
 #define TEXT_START ((void*)(&__text_start))
 #define TEXT_END   ((void*)(&__text_end))

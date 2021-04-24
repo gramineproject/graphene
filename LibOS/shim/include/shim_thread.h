@@ -185,7 +185,7 @@ static inline void set_cur_thread(struct shim_thread* thread) {
 static inline void thread_setwait(struct shim_thread** queue, struct shim_thread* thread) {
     if (!thread)
         thread = get_cur_thread();
-    DkEventClear(thread->scheduler_event); // TODO: handle errors
+    DkEventClear(thread->scheduler_event);
     if (queue) {
         get_thread(thread);
         *queue = thread;

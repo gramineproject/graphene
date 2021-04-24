@@ -318,10 +318,7 @@ Synchronization
 .. doxygenfunction:: DkMutexRelease
    :project: pal
 
-.. doxygenfunction:: DkNotificationEventCreate
-   :project: pal
-
-.. doxygenfunction:: DkSynchronizationEventCreate
+.. doxygenfunction:: DkEventCreate
    :project: pal
 
 .. doxygenfunction:: DkEventSet

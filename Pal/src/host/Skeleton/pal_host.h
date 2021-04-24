@@ -80,9 +80,9 @@ typedef struct pal_handle {
         } mutex;
 
         struct {
-            PAL_IDX fd;
+            int unused;
         } event;
     };
-} * PAL_HANDLE;
+}* PAL_HANDLE;
 
 #endif /* PAL_HOST_H */

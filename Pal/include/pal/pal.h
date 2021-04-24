@@ -632,39 +632,31 @@ int DkMutexCreate(PAL_NUM initialCount, PAL_HANDLE* handle);
 void DkMutexRelease(PAL_HANDLE mutexHandle);
 
 /*!
- * \brief Creates a notification event with the given `initialState`.
+ * \brief Create an event handle
  *
- * \param initialState initial state of the event
  * \param[out] handle on success `*handle` contains pointer to the event handle
+ * \param init_signaled initial state of the event (`true` - set, `false` - not set)
+ * \param auto_clear `true` if a successful wait for the event should also reset (consume) it
  *
- * The definition of notification events is the same as the WIN32 API. When
- * a notification event is set to the signaled state it remains in that state
- * until it is explicitly cleared.
+ * Creates a handle to an event that resembles WinAPI synchronization events. A thread can set
+ * (signal) the event using #DkEventSet, clear (unset) it using #DkEventClear or wait until
+ * the event becomes set (signaled) using #DkSynchronizationObjectWait.
  */
-int DkNotificationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle);
+int DkEventCreate(PAL_HANDLE* handle, bool init_signaled, bool auto_clear);
 
 /*!
- * \brief Creates a synchronization event with the given `initialState`.
+ * \brief Set (signal) an event.
  *
- * \param initialState initial state of the event
- * \param[out] handle on success `*handle` contains pointer to the event handle
- *
- * The definition of synchronization events is the same as the WIN32 API. When
- * a synchronization event is set to the signaled state, a single thread of
- * execution that was waiting for the event is released, and the event is
- * automatically reset to the not-signaled state.
+ * If the event is already set, does nothing.
  */
-int DkSynchronizationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle);
+void DkEventSet(PAL_HANDLE handle);
 
 /*!
- * \brief Set (signal) a notification event or a synchronization event.
+ * \brief Clear (unset) an event.
+ *
+ * If the event is not set, does nothing.
  */
-int DkEventSet(PAL_HANDLE eventHandle);
-
-/*!
- * \brief Clear a notification event or a synchronization event.
- */
-int DkEventClear(PAL_HANDLE eventHandle);
+void DkEventClear(PAL_HANDLE handle);
 
 /*! block until the handle's event is triggered */
 #define NO_TIMEOUT ((PAL_NUM)-1)

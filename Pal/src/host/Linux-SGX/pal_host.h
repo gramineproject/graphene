@@ -12,7 +12,9 @@
 #error "cannot be included outside PAL"
 #endif
 
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "atomic.h"
 #include "list.h"
@@ -150,18 +152,25 @@ typedef struct pal_handle {
         struct pal_handle_thread thread;
 
         struct {
-            struct atomic_int nwaiters;
-            PAL_NUM max_value;
-            union {
-                struct mutex_handle mut;
-            } mutex;
+            struct mutex_handle mut;
+        } mutex;
 
-            struct {
-                uint32_t* signaled;
-                struct atomic_int nwaiters;
-                PAL_BOL isnotification;
-            } event;
-        };
+        struct {
+            /* Guards accesses to the rest of the fields.
+             * We need to be able to set `signaled` and `signaled_untrusted` atomically, which is
+             * impossible without a lock. They are essentialy the same field, but we need two
+             * separate copies, because we need to guard against malicious host modifications yet
+             * still be able to call futex on it. */
+            spinlock_t lock;
+            /* Current number of waiters - used solely as an optimization. `uint32_t` because futex
+             * syscall does not allow for more than `INT_MAX` waiters anyway. */
+            uint32_t waiters_cnt;
+            bool signaled;
+            bool auto_clear;
+            /* Access to the *content* of this field should be atomic, because it's used as futex
+             * word on the untrusted host. */
+            uint32_t* signaled_untrusted;
+        } event;
     };
 }* PAL_HANDLE;
 
