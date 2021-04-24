@@ -1,10 +1,12 @@
 stage('test-direct') {
     try {
-        sh '''
-            cd LibOS/shim/test/ltp
-            make ${MAKEOPTS} all
-            make ltp.xml
-        '''
+        timeout(time: 20, unit: 'MINUTES') {
+            sh '''
+                cd LibOS/shim/test/ltp
+                make ${MAKEOPTS} all
+                make ltp.xml
+            '''
+        }
     } finally {
         archiveArtifacts 'LibOS/shim/test/ltp/ltp.xml'
         junit 'LibOS/shim/test/ltp/ltp.xml'
