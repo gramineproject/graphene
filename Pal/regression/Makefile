@@ -28,7 +28,6 @@ executables = \
 	Bootstrap7 \
 	Directory \
 	Event \
-	Event2 \
 	Exit \
 	File \
 	File2 \

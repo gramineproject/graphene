@@ -913,6 +913,11 @@ int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
         return -EINVAL;
     }
 
+    if (op != FUTEX_WAIT && op != FUTEX_WAKE) {
+        /* Other operations are not implemented currently. */
+        return -EINVAL;
+    }
+
     void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
     if (!ms) {
@@ -925,7 +930,14 @@ int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
     WRITE_ONCE(ms->ms_val, val);
     WRITE_ONCE(ms->ms_timeout_us, timeout_us);
 
-    retval = sgx_exitless_ocall(OCALL_FUTEX, ms);
+    if (op == FUTEX_WAIT) {
+        /* With `FUTEX_WAIT` this thread is most likely going to sleep, so there is no point in
+         * doing an exitless ocall. */
+        retval = sgx_ocall(OCALL_FUTEX, ms);
+    } else {
+        assert(op == FUTEX_WAKE);
+        retval = sgx_exitless_ocall(OCALL_FUTEX, ms);
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;

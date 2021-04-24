@@ -12,6 +12,9 @@
 #error "cannot be included outside PAL"
 #endif
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "atomic.h"
 
 /* Simpler mutex design: a single variable that tracks whether the
@@ -142,8 +145,7 @@ typedef struct pal_handle {
 
         struct {
             uint32_t signaled;
-            struct atomic_int nwaiters;
-            PAL_BOL isnotification;
+            bool auto_clear;
         } event;
     };
 }* PAL_HANDLE;

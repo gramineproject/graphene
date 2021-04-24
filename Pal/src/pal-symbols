@@ -9,9 +9,8 @@ DkThreadResume
 DkThreadSetCpuAffinity
 DkThreadGetCpuAffinity
 DkMutexCreate
-DkNotificationEventCreate
-DkSynchronizationEventCreate
 DkMutexRelease
+DkEventCreate
 DkEventSet
 DkEventClear
 DkSynchronizationObjectWait

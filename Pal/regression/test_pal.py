@@ -36,12 +36,6 @@ class TC_00_Basic(RegressionTestCase):
 
 @unittest.skipIf(HAS_SGX, "Not yet tested on SGX")
 class TC_00_BasicSet2(RegressionTestCase):
-    def test_Event2(self):
-        _, stderr = self.run_binary(['Event2'])
-        self.assertIn('Enter main thread', stderr)
-        self.assertIn('In thread 1', stderr)
-        self.assertIn('Success, leave main thread', stderr)
-
     @unittest.skipUnless(ON_X86, "x86-specific")
     def test_Exception2(self):
         _, stderr = self.run_binary(['Exception2'])
@@ -235,8 +229,7 @@ class TC_02_Symbols(RegressionTestCase):
         'DkSetExceptionHandler',
         'DkMutexCreate',
         'DkMutexRelease',
-        'DkNotificationEventCreate',
-        'DkSynchronizationEventCreate',
+        'DkEventCreate',
         'DkEventSet',
         'DkEventClear',
         'DkSynchronizationObjectWait',
@@ -406,8 +399,7 @@ class TC_20_SingleProcess(RegressionTestCase):
 
     def test_200_event(self):
         _, stderr = self.run_binary(['Event'])
-        self.assertIn('Wait with too short timeout ok.', stderr)
-        self.assertIn('Wait with long enough timeout ok.', stderr)
+        self.assertIn('TEST OK', stderr)
 
     def test_210_semaphore(self):
         _, stderr = self.run_binary(['Semaphore'])

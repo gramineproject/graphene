@@ -72,7 +72,7 @@ async_exit_pointer:
 	lock incq %gs:PAL_TCB_URTS_AEX_CNT
 
 #ifdef DEBUG
-	# Inform that we are in aex profiling code
+	# Inform that we are in AEX profiling code
 	movb $1, %gs:PAL_TCB_URTS_IN_AEX_PROF
 	# Save ERESUME parameters
 	pushq %rax

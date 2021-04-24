@@ -170,7 +170,8 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     if (interrupted_in_enclave(uc) || interrupted_in_aex_profiling()) {
-        /* signal arrived while in app/LibOS/trusted PAL code, handle signal inside enclave */
+        /* signal arrived while in app/LibOS/trusted PAL code or when handling another AEX, handle
+         * signal inside enclave */
         get_tcb_urts()->async_signal_cnt++;
         sgx_raise(event);
         return;

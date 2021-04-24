@@ -200,7 +200,7 @@ long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr, size_t setsize) {
     set_sig_mask(current, &mask);
     unlock(&current->lock);
 
-    DkEventClear(current->scheduler_event); // TODO: handle errors
+    DkEventClear(current->scheduler_event);
     while (!have_pending_signals()) {
         int ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/false);
         if (ret < 0 && ret != -EINTR && ret != -EAGAIN) {

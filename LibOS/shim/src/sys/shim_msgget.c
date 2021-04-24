@@ -84,7 +84,7 @@ static int __add_msg_handle(unsigned long key, IDTYPE msqid, bool owned,
     msgq->owned       = owned;
     msgq->deleted     = false;
     msgq->currentsize = 0;
-    int ret = DkSynchronizationEventCreate(PAL_FALSE, &msgq->event);
+    int ret = DkEventCreate(&msgq->event, /*init_signaled=*/false, /*auto_clear=*/true);
     if (ret < 0) {
         // Needs some cleanup, but this function is broken anyway...
         return pal_to_unix_errno(ret);
@@ -550,7 +550,7 @@ int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const voi
     if ((ret = __store_msg_qobjs(msgq, mtype, size, data)) < 0)
         goto out_locked;
 
-    DkEventSet(msgq->event); // TODO: handle errors
+    DkEventSet(msgq->event);
     ret = 0;
 out_locked:
     unlock(&hdl->lock);

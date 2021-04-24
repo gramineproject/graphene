@@ -96,7 +96,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     tcb->context.tls = arg->tls;
 
     /* Inform the parent thread that we finished initialization. */
-    DkEventSet(arg->initialize_event); // TODO: handle errors
+    DkEventSet(arg->initialize_event);
 
     put_thread(my_thread);
 
@@ -373,13 +373,13 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     struct shim_clone_args new_args;
     memset(&new_args, 0, sizeof(new_args));
 
-    ret = DkNotificationEventCreate(PAL_FALSE, &new_args.create_event);
+    ret = DkEventCreate(&new_args.create_event, /*init_signaled=*/false, /*auto_clear=*/false);
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
         goto clone_thread_failed;
     }
 
-    ret = DkNotificationEventCreate(PAL_FALSE, &new_args.initialize_event);
+    ret = DkEventCreate(&new_args.initialize_event, /*init_signaled=*/false, /*auto_clear=*/false);
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
         goto clone_thread_failed;
@@ -414,7 +414,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (set_parent_tid)
         *set_parent_tid = thread->tid;
 
-    DkEventSet(new_args.create_event); // TODO: handle errors
+    DkEventSet(new_args.create_event);
     object_wait_with_retry(new_args.initialize_event);
     DkObjectClose(new_args.initialize_event); // TODO: handle errors
 

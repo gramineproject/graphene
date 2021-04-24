@@ -9,6 +9,7 @@
 #define PAL_INTERNAL_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include "pal.h"
 #include "pal_defs.h"
@@ -211,10 +212,9 @@ void _DkMutexRelease(PAL_HANDLE sem);
 int _DkMutexGetCurrentCount(PAL_HANDLE sem);
 
 /* DkEvent calls */
-int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification);
-int _DkEventSet(PAL_HANDLE event, int wakeup);
-int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us);
-int _DkEventClear(PAL_HANDLE event);
+int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear);
+void _DkEventSet(PAL_HANDLE handle);
+void _DkEventClear(PAL_HANDLE handle);
 
 /* DkVirtualMemory calls */
 int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot);

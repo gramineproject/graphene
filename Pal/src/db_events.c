@@ -1,38 +1,23 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
-
-/*
- * This file contains implementation of Drawbridge event synchronization APIs.
+/* Copyright (C) 2021 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
-#include "api.h"
+#include "assert.h"
 #include "pal.h"
-#include "pal_defs.h"
-#include "pal_error.h"
 #include "pal_internal.h"
 
-int DkNotificationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle) {
+int DkEventCreate(PAL_HANDLE* handle, bool init_signaled, bool auto_clear) {
     *handle = NULL;
-    return _DkEventCreate(handle, initialState, true);
+    return _DkEventCreate(handle, init_signaled, auto_clear);
 }
 
-int DkSynchronizationEventCreate(PAL_BOL initialState, PAL_HANDLE* handle) {
-    *handle = NULL;
-    return _DkEventCreate(handle, initialState, false);
+void DkEventSet(PAL_HANDLE handle) {
+    assert(handle && IS_HANDLE_TYPE(handle, event));
+    _DkEventSet(handle);
 }
 
-int DkEventSet(PAL_HANDLE handle) {
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        return -PAL_ERROR_INVAL;
-    }
-
-    return _DkEventSet(handle, -1);
-}
-
-int DkEventClear(PAL_HANDLE handle) {
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        return -PAL_ERROR_INVAL;
-    }
-
-    return _DkEventClear(handle);
+void DkEventClear(PAL_HANDLE handle) {
+    assert(handle && IS_HANDLE_TYPE(handle, event));
+    _DkEventClear(handle);
 }

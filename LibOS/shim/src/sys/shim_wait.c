@@ -79,7 +79,7 @@ static void remove_qnode_from_wait_queue(struct shim_thread_queue* qnode) {
     unlock(&g_process.children_lock);
 
     while (!seen) {
-        DkEventClear(get_cur_thread()->scheduler_event); // TODO: handle errors
+        DkEventClear(get_cur_thread()->scheduler_event);
         /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
         COMPILER_BARRIER();
         /* Check if `qnode` is no longer used. */
@@ -176,7 +176,7 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
 
         unlock(&g_process.children_lock);
 
-        DkEventClear(self->scheduler_event); // TODO: handle errors
+        DkEventClear(self->scheduler_event);
         /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
         COMPILER_BARRIER();
         /* Check that we are still supposed to sleep. */

@@ -30,14 +30,14 @@ int main(int argc, char** argv) {
     PAL_HANDLE thd1;
     PAL_HANDLE thd2;
 
-    int ret = DkNotificationEventCreate(0, &event1);
+    int ret = DkEventCreate(&event1, /*init_signaled=*/false, /*auto_clear=*/false);
     if (ret < 0) {
-        pal_printf("DkNotificationEventCreate failed: %d\n", ret);
+        pal_printf("DkEventCreate failed: %d\n", ret);
         return 1;
     }
-    ret = DkNotificationEventCreate(0, &event2);
+    ret = DkEventCreate(&event2, /*init_signaled=*/false, /*auto_clear=*/false);
     if (ret < 0) {
-        pal_printf("DkNotificationEventCreate failed: %d\n", ret);
+        pal_printf("DkEventCreate failed: %d\n", ret);
         return 1;
     }
 
