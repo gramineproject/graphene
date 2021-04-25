@@ -222,15 +222,61 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     return bitmask_size_in_bytes;
 }
 
+#define CPUMASK_SETSIZE 1024
+#define CPUBITS         (8 * sizeof (unsigned long))
+#define NUM_MASKS       (CPUMASK_SETSIZE / CPUBITS)
+
 /* dummy implementation: always return cpu0  */
 long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
     __UNUSED(unused);
 
+    /* Mock implementation that returns a random set bit from the first non-empty cpu affinity mask */
     if (cpu) {
         if (test_user_memory(cpu, sizeof(*cpu), /*write=*/true)) {
             return -EFAULT;
         }
-        *cpu = 0;
+
+        size_t cpu_cnt = PAL_CB(cpu_info.online_logical_cores);
+        size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
+        struct shim_thread* thread = get_cur_thread();
+        get_thread(thread);
+
+        if (is_internal(thread)) {
+            put_thread(thread);
+            return -ESRCH;
+        }
+
+        unsigned long mask[NUM_MASKS] = {0};
+        int ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, &mask);
+        if (ret < 0) {
+            put_thread(thread);
+            return pal_to_unix_errno(ret);
+        }
+
+        /* Find first non-empty cpumask and get the no. of bits set */
+        unsigned int num_bits[NUM_MASKS] = {0};
+        unsigned int idx = 0;
+        for (; idx < NUM_MASKS; idx++) {
+            num_bits[idx] = count_ulong_bits_set(mask[idx]);
+            if (num_bits[idx])
+                break;
+        }
+
+        /* Generate a random no. and use it to find a random set bit in the cpumask */
+        unsigned long rand_num = 0;
+        ret = DkRandomBitsRead(&rand_num, sizeof(rand_num));
+        if (ret < 0) {
+            return pal_to_unix_errno(ret);
+        }
+
+        int nth_setbit = (num_bits[idx] == 1) ? 0 : (rand_num % (num_bits[idx] - 1) + 1);
+        unsigned long cpumask = mask[idx];
+        for (int j =0; j < nth_setbit; j++) {
+            cpumask = cpumask & ~(1UL << __builtin_ctzl(cpumask));
+        }
+
+        *cpu = __builtin_ctzl(cpumask) + (CPUBITS * idx);
+        put_thread(thread);
     }
 
     if (node) {
