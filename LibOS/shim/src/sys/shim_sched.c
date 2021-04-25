@@ -18,6 +18,10 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 
+#define CPUMASK_SETSIZE 1024
+#define CPUMASK_BITS    (BITS_IN_TYPE(unsigned long))
+#define MAX_CPUMASKS    (CPUMASK_SETSIZE / CPUMASK_BITS)
+
 long shim_do_sched_yield(void) {
     DkThreadYieldExecution();
     return 0;
@@ -222,15 +226,65 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     return bitmask_size_in_bytes;
 }
 
-/* dummy implementation: always return cpu0  */
 long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
     __UNUSED(unused);
 
+    /* Partial implementation that returns a random bit set from first non-empty cpu affinity mask */
     if (cpu) {
         if (!is_user_memory_writable(cpu, sizeof(*cpu))) {
             return -EFAULT;
         }
-        *cpu = 0;
+
+        size_t cpu_cnt = g_pal_control->cpu_info.online_logical_cores;
+        if (cpu_cnt > CPUMASK_SETSIZE) {
+            log_warning("Maximum supported CPU count in Glibc is %d, but current CPU count is %lu",
+                         CPUMASK_SETSIZE, cpu_cnt);
+            return -EINVAL;
+        }
+
+        size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
+        struct shim_thread* thread = get_cur_thread();
+
+        /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
+         * some bug in graphene. */
+        if (is_internal(thread)) {
+            return -ESRCH;
+        }
+
+        unsigned long mask[MAX_CPUMASKS] = {0};
+        assert(sizeof(mask) > bitmask_size_in_bytes);
+        int ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, &mask);
+        if (ret < 0) {
+            return pal_to_unix_errno(ret);
+        }
+
+        /* Find first non-empty cpumask and get the number of bits set */
+        unsigned int num_bits = 0;
+        unsigned int idx = 0;
+        while (idx < MAX_CPUMASKS) {
+            num_bits = count_ulong_bits_set(mask[idx]);
+            if (num_bits)
+                break;
+            idx++;
+        }
+        assert(num_bits);
+
+        /* Generate a random number and use it to find a random bit set in the cpumask */
+        unsigned long rand_num = 0;
+        ret = DkRandomBitsRead(&rand_num, sizeof(rand_num));
+        if (ret < 0) {
+            return pal_to_unix_errno(ret);
+        }
+
+        unsigned int nth_setbit = rand_num % num_bits;
+        unsigned long cpumask = mask[idx];
+        for (unsigned int j = 0; j < nth_setbit; j++) {
+            /* At each iteration, find the lowest bit set in cpumask and unset it; this will bring
+             * us to the nth_setbit after nth_setbit iterations */
+            cpumask = cpumask & ~(1UL << __builtin_ctzl(cpumask));
+        }
+
+        *cpu = __builtin_ctzl(cpumask) + CPUMASK_BITS * idx;
     }
 
     if (node) {
