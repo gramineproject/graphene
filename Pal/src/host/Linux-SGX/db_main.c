@@ -343,14 +343,17 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
     if (num_nodes == 0 || num_cores == 0)
         return -ENOENT;
 
+    int64_t cpumap;
     for (int64_t idx = 0; idx < num_nodes; idx++) {
-        int64_t cpumap = count_bits_set_from_resource_map(numa_topology[idx].cpumap);
-        if (!IS_IN_RANGE_INCL(cpumap, 1, num_cores))
-            return -EINVAL;
+        cpumap =+ count_bits_set_from_resource_map(numa_topology[idx].cpumap);
 
         if (num_nodes != sanitize_hw_resource_count(numa_topology[idx].distance, /*ordered=*/false))
             return -EINVAL;
     }
+    /* TODO: Ensure each NUMA has unique set of cores and there is no overlap */
+    if (!IS_IN_RANGE_INCL(cpumap, 1, num_cores))
+        return -EINVAL;
+
     return 0;
 }
 
