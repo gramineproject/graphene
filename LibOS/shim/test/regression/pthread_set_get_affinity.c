@@ -30,7 +30,13 @@ static void* dowork(void* args) {
     while (iterations != 0)
         iterations--;
 
-    int ret = pthread_barrier_wait(&barrier);
+    int ret = sched_getcpu();
+    if (ret < 0)
+        errx(EXIT_FAILURE, "sched_getcpu failed!");
+    else
+        printf("Thread %ld is running on CPU %d\n", syscall(SYS_gettid), ret);
+
+    ret = pthread_barrier_wait(&barrier);
     if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD) {
         errx(EXIT_FAILURE, "Child did not wait on barrier!");
     }
