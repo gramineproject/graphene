@@ -31,6 +31,7 @@ include ../../Scripts/Makefile.configs
 curl.manifest: curl.manifest.template
 	../common_tools/graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Dhome=$(HOME) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dcurl_dir=$(CURL_DIR) \
 		$< >$@
