@@ -412,13 +412,13 @@ long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
 
     if (!hdl->is_dir) {
         ret = -ENOTDIR;
-        goto out;
+        goto out_no_unlock;
     }
 
     /* DEP 3/3/17: Properly handle an unlinked directory */
     if (hdl->dentry->state & DENTRY_NEGATIVE) {
         ret = -ENOENT;
-        goto out;
+        goto out_no_unlock;
     }
 
     lock(&hdl->lock);
@@ -492,8 +492,9 @@ done:
      * hold anything */
     if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
-    unlock(&hdl->lock);
 out:
+    unlock(&hdl->lock);
+out_no_unlock:
     put_handle(hdl);
     return ret;
 }
