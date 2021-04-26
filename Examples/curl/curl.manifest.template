@@ -19,6 +19,7 @@ loader.insecure__use_cmdline_argv = 1
 # applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
 # paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
+loader.env.HOME = "{{ home }}"
 
 # Mount host-OS directory to required libraries (in 'uri') into in-Graphene
 # visible directory /lib (in 'path').
