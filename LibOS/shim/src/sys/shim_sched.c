@@ -254,7 +254,7 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
             return pal_to_unix_errno(ret);
         }
 
-        /* Find first non-empty cpumask and get the no. of bits set */
+        /* Find first non-empty cpumask and get the number of bits set */
         unsigned int num_bits = 0;
         unsigned int idx = 0;
         while (idx < NUM_MASKS) {
@@ -275,7 +275,7 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
 
         int nth_setbit = (num_bits == 1) ? 0 : (rand_num % (num_bits - 1) + 1);
         unsigned long cpumask = mask[idx];
-        for (int j =0; j < nth_setbit; j++) {
+        for (int j = 0; j < nth_setbit; j++) {
             cpumask = cpumask & ~(1UL << __builtin_ctzl(cpumask));
         }
 
