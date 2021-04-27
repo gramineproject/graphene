@@ -116,6 +116,10 @@ static bool interrupted_in_enclave(struct ucontext* uc) {
     return rip >= (unsigned long)async_exit_pointer && rip < (unsigned long)async_exit_pointer_end;
 }
 
+static bool interrupted_in_aex_profiling(void) {
+    return get_tcb_urts()->is_in_aex_profiling != 0;
+}
+
 static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
     int event = get_pal_event(signum);
     assert(event > 0);
@@ -165,7 +169,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    if (interrupted_in_enclave(uc)) {
+    if (interrupted_in_enclave(uc) || interrupted_in_aex_profiling()) {
         /* signal arrived while in app/LibOS/trusted PAL code, handle signal inside enclave */
         get_tcb_urts()->async_signal_cnt++;
         sgx_raise(event);

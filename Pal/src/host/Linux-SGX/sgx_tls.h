@@ -2,6 +2,8 @@
 #define __SGX_TLS_H__
 
 #include <stdatomic.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "pal.h"
 
@@ -95,6 +97,7 @@ typedef struct pal_tcb_urts {
     sgx_arch_tcs_t* tcs;           /* TCS page of SGX corresponding to thread, for EENTER */
     void* stack;                   /* bottom of stack, for later freeing when thread exits */
     void* alt_stack;               /* bottom of alt stack, for child thread to init alt stack */
+    uint8_t is_in_aex_profiling;   /* non-zero if thread is currently doing AEX profiling */
     atomic_ulong eenter_cnt;       /* # of EENTERs, corresponds to # of ECALLs */
     atomic_ulong eexit_cnt;        /* # of EEXITs, corresponds to # of OCALLs */
     atomic_ulong aex_cnt;          /* # of AEXs, corresponds to # of interrupts/signals */
