@@ -461,6 +461,13 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
         }
     }
 
+    if (dent->state & DENTRY_ISLINK) {
+        /* Can happen if user specified O_NOFOLLOW, or O_TRUNC | O_EXCL. Posix requires us to fail
+         * with -ELOOP when trying to open a symlink. */
+        ret = -ELOOP;
+        goto err;
+    }
+
     if (dent->state & DENTRY_NEGATIVE) {
         if (!(flags & O_CREAT)) {
             ret = -ENOENT;
