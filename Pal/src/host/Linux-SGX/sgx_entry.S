@@ -4,6 +4,7 @@
 #include "asm-offsets.h"
 
 	.extern tcs_base
+	.extern g_in_aex_profiling
 
 	.global sgx_ecall
 	.type sgx_ecall, @function
@@ -71,6 +72,8 @@ async_exit_pointer:
 	lock incq %gs:PAL_TCB_URTS_AEX_CNT
 
 #ifdef DEBUG
+	# Inform that we are in aex profiling code
+	movl $1, g_in_aex_profiling(%rip)
 	# Save ERESUME parameters
 	pushq %rax
 	.cfi_adjust_cfa_offset 8
@@ -99,6 +102,7 @@ async_exit_pointer:
 	.cfi_adjust_cfa_offset -8
 	popq %rax
 	.cfi_adjust_cfa_offset -8
+	movl $0, g_in_aex_profiling(%rip)
 #endif
 
 	.cfi_endproc
