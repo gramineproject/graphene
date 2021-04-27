@@ -73,7 +73,7 @@ async_exit_pointer:
 
 #ifdef DEBUG
 	# Inform that we are in aex profiling code
-	movl $1, g_in_aex_profiling(%rip)
+	movb $1, %gs:PAL_TCB_URTS_IN_AEX_PROF
 	# Save ERESUME parameters
 	pushq %rax
 	.cfi_adjust_cfa_offset 8
@@ -102,7 +102,7 @@ async_exit_pointer:
 	.cfi_adjust_cfa_offset -8
 	popq %rax
 	.cfi_adjust_cfa_offset -8
-	movl $0, g_in_aex_profiling(%rip)
+	movb $0, %gs:PAL_TCB_URTS_IN_AEX_PROF
 #endif
 
 	.cfi_endproc

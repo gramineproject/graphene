@@ -116,10 +116,8 @@ static bool interrupted_in_enclave(struct ucontext* uc) {
     return rip >= (unsigned long)async_exit_pointer && rip < (unsigned long)async_exit_pointer_end;
 }
 
-int g_in_aex_profiling = 0;
-
 static bool interrupted_in_aex_profiling(void) {
-    return g_in_aex_profiling != 0;
+    return get_tcb_urts()->is_in_aex_profiling != 0;
 }
 
 static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
