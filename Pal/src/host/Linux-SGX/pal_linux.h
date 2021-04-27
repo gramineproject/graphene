@@ -144,8 +144,6 @@ int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t um
 int register_trusted_child(const char* uri, const char* mr_enclave_str);
 
 int init_enclave(void);
-int init_enclave_key(void);
-
 void init_untrusted_slab_mgr(void);
 
 /* Used to track map buffers for protected files */

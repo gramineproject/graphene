@@ -14,6 +14,9 @@
 #include "spinlock.h"
 #include "toml.h"
 
+/* copy trusted-file contents from untrusted memory into enclave memory in 1KB chunks */
+#define FILE_CHUNK_SIZE 1024UL
+
 __sgx_mem_aligned struct pal_enclave_state g_pal_enclave_state;
 
 void* g_enclave_base;
@@ -134,8 +137,6 @@ static void print_report(sgx_report_t* r) {
     log_debug("  mac:         %s\n",     ALLOCA_BYTES2HEXSTR(r->mac));
 }
 
-static sgx_key_128bit_t g_enclave_key;
-
 static int __sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
                             sgx_report_t* report) {
     __sgx_mem_aligned struct pal_enclave_state state;
@@ -201,21 +202,6 @@ int sgx_verify_report(sgx_report_t* report) {
         return -PAL_ERROR_DENIED;
     }
 
-    return 0;
-}
-
-int init_enclave_key(void) {
-    __sgx_mem_aligned sgx_key_request_t keyrequest;
-    memset(&keyrequest, 0, sizeof(sgx_key_request_t));
-    keyrequest.key_name = SEAL_KEY;
-
-    int ret = sgx_getkey(&keyrequest, &g_enclave_key);
-    if (ret) {
-        log_error("Can't get seal key\n");
-        return -PAL_ERROR_DENIED;
-    }
-
-    log_debug("Seal key: %s\n", ALLOCA_BYTES2HEXSTR(g_enclave_key));
     return 0;
 }
 
@@ -426,66 +412,53 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
 
     sgx_stub_t* s = stubs; /* stubs is an array of 128bit values */
     uint64_t offset = 0;
-    LIB_SHA256_CONTEXT sha;
+    LIB_SHA256_CONTEXT sha_whole;
 
-    ret = lib_SHA256Init(&sha);
+    ret = lib_SHA256Init(&sha_whole);
     if (ret < 0)
         goto failed;
 
     for (; offset < tf->size; offset += TRUSTED_STUB_SIZE, s++) {
-        /* For each stub, generate a 128bit hash of a file chunk with
-         * AES-CMAC, and then update the SHA256 digest. */
+        /* For each file chunk of size TRUSTED_STUB_SIZE, generate 128-bit hash from SHA-256 hash
+         * over contents of this file chunk (we simply truncate SHA-256 hash to first 128 bits; this
+         * is fine for integrity purposes). Also, generate a SHA-256 hash for the whole file
+         * contents to compare with the manifest "reference" hash value. */
         uint64_t mapping_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
-        LIB_AESCMAC_CONTEXT aes_cmac;
-        ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&g_enclave_key, sizeof(g_enclave_key));
+        LIB_SHA256_CONTEXT sha_stub;
+        ret = lib_SHA256Init(&sha_stub);
         if (ret < 0)
             goto failed;
 
-        /*
-         * To prevent TOCTOU attack when generating the file checksum, we
-         * need to copy the file content into the enclave before hashing.
-         * For optimization, we use a relatively small buffer (1024 byte) to
-         * store the data for checksum generation.
-         */
+        /* To prevent TOCTOU attacks when calculating the file hashes, copy file contents into the
+         * enclave before hashing. Use a small stack-allocated buffer to store these contents. */
+        for (size_t chunk_off = 0; chunk_off < mapping_size; chunk_off += FILE_CHUNK_SIZE) {
+            uint64_t chunk_size = MIN(mapping_size - chunk_off, FILE_CHUNK_SIZE);
 
-#define FILE_CHUNK_SIZE 1024UL
+            uint8_t chunk[FILE_CHUNK_SIZE];
+            memcpy(chunk, *umem + offset + chunk_off, chunk_size);
 
-        uint8_t small_chunk[FILE_CHUNK_SIZE]; /* Buffer for hashing */
-        size_t chunk_offset = 0;
-
-        for (; chunk_offset < mapping_size; chunk_offset += FILE_CHUNK_SIZE) {
-            uint64_t chunk_size = MIN(mapping_size - chunk_offset, FILE_CHUNK_SIZE);
-
-            /* Any file content needs to be copied into the enclave before
-             * checking and re-hashing */
-            memcpy(small_chunk, *umem + offset + chunk_offset, chunk_size);
-
-            /* Update the file checksum */
-            ret = lib_SHA256Update(&sha, small_chunk, chunk_size);
+            ret = lib_SHA256Update(&sha_whole, chunk, chunk_size);
             if (ret < 0)
                 goto failed;
 
-            /* Update the checksum for the file chunk */
-            ret = lib_AESCMACUpdate(&aes_cmac, small_chunk, chunk_size);
+            ret = lib_SHA256Update(&sha_stub, chunk, chunk_size);
             if (ret < 0)
                 goto failed;
         }
 
-        /* Store the checksum for one file chunk for checking */
-        ret = lib_AESCMACFinish(&aes_cmac, (uint8_t*)s, sizeof(*s));
+        sgx_checksum_t hash;
+        ret = lib_SHA256Final(&sha_stub, (uint8_t*)hash.bytes);
         if (ret < 0)
             goto failed;
+        memcpy(s, &hash, sizeof(*s)); /* truncate SHA256 to 128 bits */
     }
 
     sgx_checksum_t hash;
-
-    /* Finalize and checking if the checksum of the whole file matches
-     * with record given in the manifest. */
-
-    ret = lib_SHA256Final(&sha, (uint8_t*)hash.bytes);
+    ret = lib_SHA256Final(&sha_whole, (uint8_t*)hash.bytes);
     if (ret < 0)
         goto failed;
 
+    /* check the generated hash-over-whole-file against the reference hash in the manifest */
     if (memcmp(&hash, &tf->checksum, sizeof(sgx_checksum_t))) {
         ret = -PAL_ERROR_DENIED;
         goto failed;
@@ -558,62 +531,56 @@ static void set_file_check_policy(int policy) {
 int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t umem_start,
                                  uint64_t umem_end, void* buffer, uint64_t offset, uint64_t size,
                                  sgx_stub_t* stubs, uint64_t total_size) {
+    int ret = 0;
+
     /* Check that the untrusted mapping is aligned to TRUSTED_STUB_SIZE
      * and includes the range for copying into the buffer */
     assert(IS_ALIGNED(umem_start, TRUSTED_STUB_SIZE));
     assert(offset >= umem_start && offset + size <= umem_end);
 
-    /* Start copying and checking at umem_start. The checked content may or
-     * may not be copied into the file content, depending on the offset of
-     * the content within the file. */
+    /* Start copying and checking at umem_start. The checked content may or may not be copied into
+     * the file content, depending on the offset of the content within the file. */
     uint64_t checking = umem_start;
-    /* The stubs is an array of 128-bit hash values of the file chunks.
-     * from the beginning of the file. 's' points to the stub that needs to
-     * be checked for the current offset. */
+
+    /* Stubs is an array of 128-bit hash values of the file chunks from the beginning of the file.
+     * 's' points to the stub that needs to be checked for the current offset. */
     sgx_stub_t* s = stubs + checking / TRUSTED_STUB_SIZE;
-    int ret = 0;
 
     for (; checking < umem_end; checking += TRUSTED_STUB_SIZE, s++) {
-        /* Check one chunk at a time. */
         uint64_t checking_size = MIN(total_size - checking, TRUSTED_STUB_SIZE);
         uint64_t checking_end = checking + checking_size;
+
         sgx_checksum_t hash;
 
+        LIB_SHA256_CONTEXT sha_stub;
+        ret = lib_SHA256Init(&sha_stub);
+        if (ret < 0)
+            goto failed;
+
         if (checking >= offset && checking_end <= offset + size) {
-            /* If the checking chunk completely overlaps with the region
-             * needed for copying into the buffer, simplying use the buffer
-             * for checking */
+            /* If the checking chunk completely overlaps with the region needed for copying into the
+             * buffer, simply use the buffer for checking the hash */
             memcpy(buffer + checking - offset, umem + checking - umem_start, checking_size);
 
-            /* Storing the checksum (using AES-CMAC) inside hash. */
-            ret = lib_AESCMAC((uint8_t*)&g_enclave_key, sizeof(g_enclave_key),
-                              buffer + checking - offset, checking_size, (uint8_t*)&hash,
-                              sizeof(hash));
-        } else {
-            /* If the checking chunk only partially overlaps with the region,
-             * read the file content in smaller chunks and only copy the part
-             * needed by the caller. */
-            LIB_AESCMAC_CONTEXT aes_cmac;
-            ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&g_enclave_key, sizeof(g_enclave_key));
+            ret = lib_SHA256Update(&sha_stub, buffer + checking - offset, checking_size);
             if (ret < 0)
                 goto failed;
-
-            uint8_t small_chunk[FILE_CHUNK_SIZE]; /* A small buffer */
+        } else {
+            /* If the checking chunk only partially overlaps with the region, read the file content
+             * in smaller chunks and only copy the part needed by the caller. */
+            uint8_t chunk[FILE_CHUNK_SIZE];
             uint64_t chunk_offset = checking;
 
             for (; chunk_offset < checking_end; chunk_offset += FILE_CHUNK_SIZE) {
                 uint64_t chunk_size = MIN(checking_end - chunk_offset, FILE_CHUNK_SIZE);
 
-                /* Copy into the small buffer before hashing the content */
-                memcpy(small_chunk, umem + (chunk_offset - umem_start), chunk_size);
+                memcpy(chunk, umem + (chunk_offset - umem_start), chunk_size);
 
-                /* Update the hash for the current chunk */
-                ret = lib_AESCMACUpdate(&aes_cmac, small_chunk, chunk_size);
+                ret = lib_SHA256Update(&sha_stub, chunk, chunk_size);
                 if (ret < 0)
                     goto failed;
 
-                /* Determine if the part just copied and checked is needed
-                 * by the caller. If so, copy it into the user buffer. */
+                /* Determine if the part just copied and checked is needed by the caller. */
                 uint64_t copy_start = chunk_offset;
                 uint64_t copy_end = copy_start + chunk_size;
 
@@ -623,38 +590,26 @@ int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t um
                     copy_end = offset + size;
 
                 if (copy_end > copy_start)
-                    memcpy(buffer + (copy_start - offset),
-                           small_chunk + (copy_start - chunk_offset),
+                    memcpy(buffer + copy_start - offset, chunk + copy_start - chunk_offset,
                            copy_end - copy_start);
             }
-
-            /* Storing the checksum (using AES-CMAC) inside hash. */
-            ret = lib_AESCMACFinish(&aes_cmac, (uint8_t*)&hash, sizeof(hash));
         }
 
+        ret = lib_SHA256Final(&sha_stub, (uint8_t*)hash.bytes);
         if (ret < 0)
             goto failed;
 
-        /*
-         * Check if the hash matches with the checksum of current chunk.
-         * If not, return with access denied. Note: some file content may
-         * still be in the buffer (including the corrupted part).
-         * We assume the user won't use the content if this function
-         * returns with failures.
-         *
-         * XXX: Maybe we should zero the buffer after denying the access?
-         */
-        if (memcmp(s, &hash, sizeof(sgx_stub_t))) {
-            log_error("Accesing file:%s is denied. Does not match with MAC at chunk starting at "
-                      "%lu-%lu.\n",
+        if (memcmp(s, &hash, sizeof(*s))) {
+            log_error("Accessing file '%s' is denied: incorrect hash of file chunk at %lu-%lu.\n",
                       path, checking, checking_end);
-            return -PAL_ERROR_DENIED;
+            goto failed;
         }
     }
 
     return 0;
 
 failed:
+    memset(buffer, 0, size);
     return -PAL_ERROR_DENIED;
 }
 
