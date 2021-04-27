@@ -23,7 +23,7 @@ CJSON_VERSION ?= 1.7.12
 CJSON_SRC ?= v$(CJSON_VERSION).tar.gz
 CJSON_URI ?= \
 	https://github.com/DaveGamble/cJSON/archive/$(CJSON_SRC) \
-	https://packages.grapeneproject.io/distfiles/cJSON-$(CJSON_VERSION).tar.gz
+	https://packages.grapheneproject.io/distfiles/cJSON-$(CJSON_VERSION).tar.gz
 CJSON_CHECKSUM ?= 760687665ab41a5cff9c40b1053c19572bcdaadef1194e5cba1b5e6f824686e7
 DOWNLOAD_SCRIPT := ../../../../../../Scripts/download
 
