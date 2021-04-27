@@ -59,7 +59,7 @@ static int chroot_mount(const char* uri, void** mount_data) {
 
     mdata->data_size    = data_size;
     mdata->base_type    = type;
-    mdata->ino_base     = hash_path(uri, uri_len);
+    mdata->ino_base     = hash_str(uri);
     mdata->root_uri_len = uri_len;
     memcpy(mdata->root_uri, uri, uri_len + 1);
 
@@ -146,8 +146,16 @@ static int make_uri(struct shim_dentry* dent) {
     struct shim_file_data* data = FILE_DENTRY_DATA(dent);
     char* uri = NULL;
     size_t uri_len = 0;
+
+    size_t rel_path_size;
+    char* rel_path = dentry_rel_path(dent, &rel_path_size);
+    if (!rel_path) {
+        return -ENOMEM;
+    }
+
     int ret = alloc_concat_uri(data->type, mdata->root_uri, mdata->root_uri_len,
-                               qstrgetstr(&dent->rel_path), dent->rel_path.len, &uri, &uri_len);
+                               rel_path, rel_path_size - 1, &uri, &uri_len);
+    free(rel_path);
     if (ret < 0) {
         return ret;
     }
@@ -276,13 +284,7 @@ static void chroot_update_ino(struct shim_dentry* dent) {
     if (dent->state & DENTRY_INO_UPDATED)
         return;
 
-    struct mount_data* mdata = DENTRY_MOUNT_DATA(dent);
-    unsigned long ino = mdata->ino_base;
-
-    if (!qstrempty(&dent->rel_path))
-        ino = rehash_path(mdata->ino_base, qstrgetstr(&dent->rel_path), dent->rel_path.len);
-
-    dent->ino = ino;
+    dent->ino = hash_abs_path(dent);
     dent->state |= DENTRY_INO_UPDATED;
 }
 
@@ -814,7 +816,7 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
     struct shim_file_data* data = NULL;
     int ret = 0;
     PAL_HANDLE pal_hdl = NULL;
-    size_t buf_size = MAX_PATH;
+    size_t buf_size = READDIR_BUF_SIZE;
     size_t dirent_buf_size = 0;
     char* buf = NULL;
     char* dirent_buf = NULL;
@@ -902,7 +904,7 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
             }
 
             struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-            dptr->ino  = rehash_name(dent->ino, name, len);
+            dptr->ino  = hash_name(dent->ino, name);
             dptr->type = is_dir ? LINUX_DT_DIR : LINUX_DT_REG;
             memcpy(dptr->name, name, len + 1);
 

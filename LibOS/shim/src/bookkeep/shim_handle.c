@@ -47,7 +47,6 @@ static int init_tty_handle(struct shim_handle* hdl, bool write) {
 
     set_handle_fs(hdl, dent->fs);
     hdl->dentry = dent;
-    dentry_get_path_into_qstr(dent, &hdl->path);
     return 0;
 }
 
@@ -98,8 +97,6 @@ static inline int init_exec_handle(void) {
             return -EINVAL;
         }
         set_handle_fs(exec, fs);
-        if (exec->dentry)
-            dentry_get_path_into_qstr(exec->dentry, &exec->path);
         put_mount(fs);
     } else {
         set_handle_fs(exec, &chroot_builtin_fs);
@@ -396,10 +393,10 @@ int set_new_fd_handle_above_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
 }
 
 static inline __attribute__((unused)) const char* __handle_name(struct shim_handle* hdl) {
-    if (!qstrempty(&hdl->path))
-        return qstrgetstr(&hdl->path);
     if (!qstrempty(&hdl->uri))
         return qstrgetstr(&hdl->uri);
+    if (hdl->dentry && !qstrempty(&hdl->dentry->name))
+        return qstrgetstr(&hdl->dentry->name);
     if (hdl->fs_type[0])
         return hdl->fs_type;
     return "(unknown)";
@@ -464,7 +461,6 @@ void put_handle(struct shim_handle* hdl) {
         if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->hput)
             hdl->fs->fs_ops->hput(hdl);
 
-        qstrfree(&hdl->path);
         qstrfree(&hdl->uri);
 
         if (hdl->pal_handle) {
@@ -688,7 +684,6 @@ BEGIN_CP_FUNC(handle) {
         REF_SET(new_hdl->ref_count, 0);
         clear_lock(&new_hdl->lock);
 
-        DO_CP_IN_MEMBER(qstr, new_hdl, path);
         DO_CP_IN_MEMBER(qstr, new_hdl, uri);
 
         if (fs && fs != &fifo_builtin_fs && hdl->dentry) {
@@ -800,8 +795,14 @@ BEGIN_RS_FUNC(handle) {
     if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->checkin)
         hdl->fs->fs_ops->checkin(hdl);
 
-    DEBUG_RS("path=%s,type=%s,uri=%s,flags=%03o", qstrgetstr(&hdl->path), hdl->fs_type,
-             qstrgetstr(&hdl->uri), hdl->flags);
+#if DEBUG_RESUME == 1
+    const char* path = NULL;
+    if (hdl->dentry)
+        path = dentry_abs_path(hdl->dentry, /*sizep=*/NULL);
+    DEBUG_RS("path=%s,type=%s,uri=%s,flags=%03o", path, hdl->fs_type, qstrgetstr(&hdl->uri),
+             hdl->flags);
+    free(path);
+#endif
 }
 END_RS_FUNC(handle)
 

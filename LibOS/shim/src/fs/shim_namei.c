@@ -106,13 +106,6 @@ static int lookup_dentry(struct shim_dentry* parent, const char* name, size_t na
 
     struct shim_dentry* dent = lookup_dcache(parent, name, name_len);
     if (!dent) {
-        /* Make sure newly created dentry's relative path will fit into qstr. */
-        if (parent->rel_path.len + 1 + name_len >= STR_SIZE) { /* +1 for '/' */
-            log_error("Relative path exceeds the limit %d\n", STR_SIZE);
-            ret = -ENAMETOOLONG;
-            goto err;
-        }
-
         dent = get_new_dentry(parent->fs, parent, name, name_len);
         if (!dent) {
             ret = -ENOMEM;
@@ -241,7 +234,7 @@ static int do_path_lookupat(struct shim_dentry* start, const char* path, int fla
         bool is_final = (*next_name == '\0');
         bool has_slash = (*name_end == '/');
 
-        if (name_len > MAX_FILENAME) {
+        if (name_len > NAME_MAX) {
             ret = -ENAMETOOLONG;
             goto err;
         }
@@ -402,11 +395,6 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
         // Use -1 to indicate that the buf/ptr isn't initialized
         hdl->dir_info.buf = (void*)-1;
         hdl->dir_info.ptr = (void*)-1;
-    }
-
-    if (!dentry_get_path_into_qstr(dent, &hdl->path)) {
-        ret = -ENOMEM;
-        goto err;
     }
 
     /* truncate regular writable file if O_TRUNC is given */
