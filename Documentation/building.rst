@@ -136,8 +136,8 @@ If you have an older CPU without :term:`FLC` support, you need to install the
 Intel SGX Linux SDK and the Intel SGX driver. Download and install them from the
 official Intel GitHub repositories:
 
-- https://github.com/01org/linux-sgx
-- https://github.com/01org/linux-sgx-driver
+- https://github.com/intel/linux-sgx
+- https://github.com/intel/linux-sgx-driver
 
 Alternatively, if your CPU supports :term:`FLC`, you can choose to install DCAP
 versions of the SDK and driver, download and install them from:
