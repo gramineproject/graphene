@@ -23,7 +23,7 @@ Why use Graphene for Intel SGX?
 
 Porting applications to an Intel SGX platform can be cumbersome. To secure an application with SGX,
 developers must recompile the application executable with the Intel SGX SDK
-(https://github.com/01org/linux-sgx). Moreover, an in-enclave application has *no* access to
+(https://github.com/intel/linux-sgx). Moreover, an in-enclave application has *no* access to
 OS features, such as opening a file, creating a network connection, or cloning a thread. For any
 interaction with the host, developers must define untrusted interfaces that the application must
 use to exit the enclave, perform the OS system call, and re-enter the enclave.
@@ -94,7 +94,7 @@ Prerequisites for Untrusted Host
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To run the applications on Intel SGX with Graphene-SGX, the host must have an SGX-enabled CPU, with
 Intel SGX SDK and the SGX driver installed. Please download and install the SDK and the driver from:
-https://github.com/01org/linux-sgx and https://github.com/01org/linux-sgx-driver. If you want
+https://github.com/intel/linux-sgx and https://github.com/intel/linux-sgx-driver. If you want
 to use the DCAP SDK and driver, please download and install from:
 https://github.com/intel/SGXDataCenterAttestationPrimitives.
 
@@ -107,7 +107,7 @@ following commands to build the driver::
     sudo insmod gsgx.ko
 
 If the Graphene SGX driver is successfully installed, and the Intel SDK aesmd service is up and
-running (see [here](https://github.com/01org/linux-sgx#start-or-stop-aesmd-service) for more
+running (see [here](https://github.com/intel/linux-sgx#start-or-stop-aesmd-service) for more
 information), one can acquire an enclave token to launch Graphene with the application. Use the
 token tool `Pal/src/host/Linux-SGX/signer/pal-sgx-get-token` to connect to the aesmd service
 and retrieve the token.
