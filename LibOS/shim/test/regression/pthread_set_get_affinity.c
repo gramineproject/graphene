@@ -23,10 +23,6 @@
 /* barrier to synchronize between parent and children */
 pthread_barrier_t barrier;
 
-static pid_t mygettid(void) {
-    return syscall(SYS_gettid);
-}
-
 /* Run a busy loop for some iterations, so that we can verify affinity with htop manually */
 static void* dowork(void* args) {
     volatile uint64_t iterations = *(uint64_t*)args;
@@ -36,9 +32,9 @@ static void* dowork(void* args) {
 
     int ret = sched_getcpu();
     if (ret < 0)
-        errx(EXIT_FAILURE, "sched_getcpu Failed!");
+        errx(EXIT_FAILURE, "sched_getcpu failed!");
     else
-        printf("Thread TID = %d, is running on CPU = (sched_getcpu)%d\n", mygettid(), ret);
+        printf("Thread %ld, is running on CPU %d\n", syscall(SYS_gettid), ret);
 
     ret = pthread_barrier_wait(&barrier);
     if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD) {

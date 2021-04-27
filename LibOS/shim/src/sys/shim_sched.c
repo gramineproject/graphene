@@ -223,10 +223,9 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
 }
 
 #define CPUMASK_SETSIZE 1024
-#define CPUBITS         (8 * sizeof (unsigned long))
+#define CPUBITS         (8 * sizeof(unsigned long))
 #define NUM_MASKS       (CPUMASK_SETSIZE / CPUBITS)
 
-/* dummy implementation: always return cpu0  */
 long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
     __UNUSED(unused);
 
@@ -241,6 +240,8 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
         struct shim_thread* thread = get_cur_thread();
         get_thread(thread);
 
+        /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
+         * some bug in user app. */
         if (is_internal(thread)) {
             put_thread(thread);
             return -ESRCH;
@@ -254,22 +255,25 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
         }
 
         /* Find first non-empty cpumask and get the no. of bits set */
-        unsigned int num_bits[NUM_MASKS] = {0};
+        unsigned int num_bits = 0;
         unsigned int idx = 0;
-        for (; idx < NUM_MASKS; idx++) {
-            num_bits[idx] = count_ulong_bits_set(mask[idx]);
-            if (num_bits[idx])
+        while (idx < NUM_MASKS) {
+            num_bits = count_ulong_bits_set(mask[idx]);
+            if (num_bits)
                 break;
+            idx++;
         }
+        assert(num_bits);
 
-        /* Generate a random no. and use it to find a random set bit in the cpumask */
+        /* Generate a random number and use it to find a random set bit in the cpumask */
         unsigned long rand_num = 0;
         ret = DkRandomBitsRead(&rand_num, sizeof(rand_num));
         if (ret < 0) {
+            put_thread(thread);
             return pal_to_unix_errno(ret);
         }
 
-        int nth_setbit = (num_bits[idx] == 1) ? 0 : (rand_num % (num_bits[idx] - 1) + 1);
+        int nth_setbit = (num_bits == 1) ? 0 : (rand_num % (num_bits - 1) + 1);
         unsigned long cpumask = mask[idx];
         for (int j =0; j < nth_setbit; j++) {
             cpumask = cpumask & ~(1UL << __builtin_ctzl(cpumask));
