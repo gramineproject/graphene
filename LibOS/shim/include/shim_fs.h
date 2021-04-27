@@ -120,7 +120,6 @@ struct shim_dentry {
     int state; /* flags for managing state */
 
     struct shim_mount* fs;     /* this dentry's mounted fs */
-    struct shim_qstr rel_path; /* the path is relative to its mount point */
     struct shim_qstr name;     /* caching the file's name. */
 
     struct shim_dentry* parent;
@@ -190,8 +189,13 @@ struct shim_d_ops {
     int (*readdir)(struct shim_dentry* dent, struct shim_dirent** dirent);
 };
 
-#define MAX_PATH     4096
-#define MAX_FILENAME 255
+/*
+ * Limits for path and filename length, as defined in Linux. Note that, same as Linux, PATH_MAX only
+ * applies to paths processed by syscalls such as getcwd() - there is no limit on paths you can
+ * open().
+ */
+#define NAME_MAX 255   /* filename length, NOT including null terminator */
+#define PATH_MAX 4096  /* path size, including null terminator */
 
 DEFINE_LIST(shim_mount);
 struct shim_mount {
@@ -251,9 +255,6 @@ extern struct shim_dentry* g_dentry_root;
 int init_fs(void);
 int init_mount_root(void);
 int init_mount(void);
-
-/* path utilities */
-const char* get_file_name(const char* path, size_t len);
 
 /* file system operations */
 int mount_fs(const char* mount_type, const char* mount_uri, const char* mount_point,
@@ -483,20 +484,33 @@ void put_dentry(struct shim_dentry* dent);
  */
 void dentry_gc(struct shim_dentry* dent);
 
-/* Size of the path constructed by dentry_get_path(), including null terminator. */
-size_t dentry_get_path_size(struct shim_dentry* dent);
-
-/* Get path (FS path + relpath). The path size can be checked by calling dentry_get_path_size(dent),
- * and the buffer needs to have space for at least that many bytes.
+/*!
+ * \brief Compute absolute/relative path for dentry, allocating memory for it
+ *
+ * \param dent the dentry
+ * \param relative if true, the path will be relative to mount root
+ * \param[out] sizep if not NULL, will be set to path size, including null terminator
+ *
+ * \returns pointer to the path, or NULL if out of memory
+ *
+ * This function computes a path for dentry, allocating a new buffer for it.  The returned string
+ * should be freed using `free`.
+ *
+ * An absolute path is a combination of all names up to the root (not including the root), separated
+ * by `/`, and beginning with `/`.
+ *
+ * A relative path is a combination of all names up to the mountpoint (not including the
+ * mountpoint), separated by `/`. A relative path never begins with `/`.
+ *
+ * Instead of using this function directly, you should use `dentry_abs_path` or `dentry_rel_path`,
+ * which are convenience variants with `relative` parameter already set.
  */
-char* dentry_get_path(struct shim_dentry* dent, char* buffer);
+char* _dentry_path(struct shim_dentry* dent, bool relative, size_t* sizep);
 
-static inline char* dentry_get_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str) {
-    size_t size = dentry_get_path_size(dent);
-    char buffer[size];
-    dentry_get_path(dent, buffer);
-    return qstrsetstr(str, buffer, size - 1);
-}
+char* dentry_abs_path(struct shim_dentry* dent, size_t* sizep);
+char* dentry_rel_path(struct shim_dentry* dent, size_t* sizep);
+
+char* dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str);
 
 static inline const char* dentry_get_name(struct shim_dentry* dent) {
     return qstrgetstr(&dent->name);
@@ -514,7 +528,7 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
  *
  * The caller should hold `g_dcache_lock`.
  *
- * The function will initialize the following fields: `fs` (if provided), `name`, `rel_path`, and
+ * The function will initialize the following fields: `fs` (if provided), `name`, and
  * parent/children links.
  *
  * The reference count of the returned dentry will be 2 if `parent` was provided, 1 otherwise.
@@ -522,13 +536,6 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
  * The `fs` parameter should typically be `parent->fs`, but is passed explicitly to support
  * initializing the root dentry of a newly mounted filesystem. If `fs` is NULL, the resulting
  * dentry's filesystem will be left as NULL.
- *
- * TODO: This function sets `rel_path` of a newly created dentry to:
- * - `parent->rel_path + "/" + name` if parent exists and has a relative path,
- * - `name` otherwise.
- * This is usually right, but is wrong in the case of mounting of a new filesystem, in which case
- * the `rel_path` has to be manually reset to empty. This should be fixed together with the mount
- * semantics.
  */
 struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* parent,
                                    const char* name, size_t name_len);
@@ -562,16 +569,18 @@ bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent);
 /* XXX: Future work: current dcache never shrinks. Would be nice to be able to do something like LRU
  * under space pressure, although for a single app, this may be over-kill. */
 
-/* hashing utilities */
-#define MOUNT_HASH_BYTE  1
-#define MOUNT_HASH_WIDTH 8
-#define MOUNT_HASH_SIZE  256
+/*
+ * Hashing utilities for paths.
+ *
+ * TODO: The following functions are used for inode numbers and in a few other places where we need
+ * a (mostly) unique number for a given path. Unfortunately, they do not guarantee full
+ * uniqueness. We might need a better solution for the filesystem to be fully consistent.
+ */
 
-#define MOUNT_HASH(hash) ((hash) & (MOUNT_HASH_SIZE - 1))
-
-HASHTYPE hash_path(const char* path, size_t size);
-HASHTYPE rehash_name(HASHTYPE parent_hbuf, const char* name, size_t size);
-HASHTYPE rehash_path(HASHTYPE ancester_hbuf, const char* path, size_t size);
+int init_hash(void);
+HASHTYPE hash_str(const char* str);
+HASHTYPE hash_name(HASHTYPE parent_hbuf, const char* name);
+HASHTYPE hash_abs_path(struct shim_dentry* dent);
 
 extern struct shim_fs_ops chroot_fs_ops;
 extern struct shim_d_ops chroot_d_ops;

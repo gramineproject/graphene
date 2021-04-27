@@ -227,7 +227,6 @@ reopen:
         return -EACCES;
     }
 
-    dentry_get_path_into_qstr(dent, &exec->path);
 
     if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
         put_dentry(dent);

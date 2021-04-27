@@ -1338,13 +1338,20 @@ BEGIN_RS_FUNC(vma) {
         }
     }
 
-    if (vma->file)
+#if DEBUG_RESUME == 1
+    if (vma->file) {
+        const char* path = NULL;
+        if (vma->file->dentry)
+            path = dentry_abs_path(vma->file->dentry, /*sizep=*/NULL);
         DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld,path=%s,uri=%s", vma->addr,
                  vma->addr + vma->length, vma->length, vma->prot, vma->flags, vma->file_offset,
-                 qstrgetstr(&vma->file->path), qstrgetstr(&vma->file->uri));
-    else
+                 path, qstrgetstr(&vma->file->uri));
+        free(path);
+    } else {
         DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld", vma->addr, vma->addr + vma->length,
                  vma->length, vma->prot, vma->flags, vma->file_offset);
+    }
+#endif
 }
 END_RS_FUNC(vma)
 

@@ -274,9 +274,9 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
               pid_meta_code_str[msgin->code]);
 
     struct shim_thread* thread = lookup_thread(msgin->pid);
-    void* data                 = NULL;
-    size_t datasize            = 0;
-    size_t bufsize             = 0;
+    void* data = NULL;
+    size_t datasize = 0;
+    size_t bufsize = 0;
 
     if (!thread) {
         ret = -ESRCH;
@@ -286,52 +286,51 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     switch (msgin->code) {
         case PID_META_CRED:
             lock(&thread->lock);
-            bufsize            = sizeof(IDTYPE) * 2;
-            data               = __alloca(bufsize);
-            datasize           = bufsize;
+            bufsize = sizeof(IDTYPE) * 2;
+            data = malloc(bufsize);
+            if (!data) {
+                ret = -ENOMEM;
+                goto out;
+            }
+            datasize = bufsize;
             ((IDTYPE*)data)[0] = thread->uid;
             ((IDTYPE*)data)[1] = thread->gid;
             unlock(&thread->lock);
             break;
         case PID_META_EXEC:
-            lock(&g_process.fs_lock);
-            if (!g_process.exec || !g_process.exec->dentry) {
-                unlock(&g_process.fs_lock);
-                ret = -ENOENT;
-                break;
-            }
-            bufsize = dentry_get_path_size(g_process.exec->dentry);
-            data = __alloca(bufsize);
-            datasize = bufsize - 1;
-            dentry_get_path(g_process.exec->dentry, data);
-            unlock(&g_process.fs_lock);
-            break;
         case PID_META_CWD:
+        case PID_META_ROOT: {
             lock(&g_process.fs_lock);
-            if (!g_process.cwd) {
+
+            struct shim_dentry* dent = NULL;
+            switch(msgin->code) {
+               case PID_META_EXEC:
+                   if (g_process.exec)
+                       dent = g_process.exec->dentry;
+                   break;
+               case PID_META_CWD:
+                   dent = g_process.cwd;
+                   break;
+               case PID_META_ROOT:
+                   dent = g_process.root;
+                   break;
+               default:
+                   break;
+            }
+            if (!dent) {
                 unlock(&g_process.fs_lock);
                 ret = -ENOENT;
                 break;
             }
-            bufsize = dentry_get_path_size(g_process.cwd);
-            data = __alloca(bufsize);
-            datasize = bufsize - 1;
-            dentry_get_path(g_process.cwd, data);
-            unlock(&g_process.fs_lock);
-            break;
-        case PID_META_ROOT:
-            lock(&g_process.fs_lock);
-            if (!g_process.root) {
+            if (!(data = dentry_abs_path(dent, &bufsize))) {
                 unlock(&g_process.fs_lock);
-                ret = -ENOENT;
-                break;
+                ret = -ENOMEM;
+                goto out;
             }
-            bufsize = dentry_get_path_size(g_process.root);
-            data = __alloca(bufsize);
             datasize = bufsize - 1;
-            dentry_get_path(g_process.root, data);
             unlock(&g_process.fs_lock);
             break;
+        }
         default:
             ret = -EINVAL;
             break;
@@ -344,6 +343,7 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 
     ret = ipc_pid_retmeta_send(port, msg->src, msgin->pid, msgin->code, data, datasize, msg->seq);
 out:
+    free(data);
     return ret;
 }
 

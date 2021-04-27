@@ -547,9 +547,15 @@ BEGIN_RS_FUNC(epoll_item) {
         CP_REBASE(epoll_item->back);
         CP_REBASE(epoll_item->list);
 
-        DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s", epoll_item->fd,
-                 qstrgetstr(&epoll_item->handle->path), epoll_item->handle->fs_type,
+#if DEBUG_RESUME == 1
+        const char* path = NULL;
+        if (epoll_item->handle->dentry)
+            path = dentry_abs_path(epoll_item->handle->dentry, /*sizep=*/NULL);
+
+        DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s", epoll_item->fd, path, epoll_item->handle->fs_type,
                  qstrgetstr(&epoll_item->handle->uri));
+        free(path);
+#endif
     }
 }
 END_RS_FUNC(epoll_item)

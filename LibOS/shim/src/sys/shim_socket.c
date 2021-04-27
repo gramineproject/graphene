@@ -279,21 +279,24 @@ static int inet_create_uri(int domain, char* buf, size_t buf_size, int sock_type
     return 0;
 }
 
-static inline void unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* dent) {
+static int unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* dent) {
     struct sockaddr_un* un = (struct sockaddr_un*)saddr;
     un->sun_family = AF_UNIX;
-    size_t size = dentry_get_path_size(dent);
-    char path[size];
-
-    dentry_get_path(dent, path);
+    size_t size;
+    char* path = dentry_abs_path(dent, &size);
+    if (!path)
+        return -ENOMEM;
 
     if (size > ARRAY_SIZE(un->sun_path)) {
+
         log_warning("unix_copy_addr(): path too long, truncating: %s\n", path);
         memcpy(un->sun_path, path, ARRAY_SIZE(un->sun_path) - 1);
         un->sun_path[ARRAY_SIZE(un->sun_path) - 1] = 0;
     } else {
         memcpy(un->sun_path, path, size);
     }
+    free(path);
+    return 0;
 }
 
 static int inet_check_addr(int domain, struct sockaddr* addr, size_t addrlen) {
@@ -424,27 +427,14 @@ static bool __socket_is_ipv6_v6only(struct shim_handle* hdl) {
     return false;
 }
 
-static int hash_dentry_path(struct shim_dentry* dent, char* buf, size_t size) {
-    HASHTYPE hash;
-    static_assert(sizeof(hash) == 8, "Unsupported HASHTYPE size");
-    char hashbytes[8];
+static void hash_dentry_path(struct shim_dentry* dent, char* buf, size_t size) {
+    HASHTYPE hash = hash_abs_path(dent);
+    char hashbytes[sizeof(hash)];
 
-    if (size < sizeof(hashbytes) * 2 + 1)
-        return -ENOMEM;
-
-    size_t path_size = dentry_get_path_size(dent);
-    char* buffer = malloc(path_size);
-
-    if (!buffer)
-        return -ENOMEM;
-
-    char* path = dentry_get_path(dent, buffer);
-    hash = hash_path(path, strlen(path));
-    free(buffer);
-
+    assert(size >= sizeof(hashbytes) * 2 + 1);
     memcpy(hashbytes, &hash, sizeof(hash));
+
     BYTES2HEXSTR(hashbytes, buf, size);
-    return 0;
 }
 
 long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
@@ -492,9 +482,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
 
         /* instead of user-specified sun_path of UNIX socket, use its deterministic hash as name
          * (deterministic so that independent parent and child connect to the same socket) */
-        ret = hash_dentry_path(dent, sock->addr.un.name, sizeof(sock->addr.un.name));
-        if (ret < 0)
-            goto out;
+        hash_dentry_path(dent, sock->addr.un.name, sizeof(sock->addr.un.name));
 
         sock->addr.un.dentry = dent;
     } else if (sock->domain == AF_INET || sock->domain == AF_INET6) {
@@ -761,11 +749,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
 
         /* instead of user-specified sun_path of UNIX socket, use its deterministic hash as name
          * (deterministic so that independent parent and child connect to the same socket) */
-        ret = hash_dentry_path(dent, sock->addr.un.name, sizeof(sock->addr.un.name));
-        if (ret < 0) {
-            put_dentry(dent);
-            goto out;
-        }
+        hash_dentry_path(dent, sock->addr.un.name, sizeof(sock->addr.un.name));
 
         sock->addr.un.dentry = dent;
     }
@@ -954,7 +938,9 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
         qstrsetstr(&cli->uri, qstrgetstr(&hdl->uri), hdl->uri.len);
 
         if (addr) {
-            unix_copy_addr(addr, sock->addr.un.dentry);
+            ret = unix_copy_addr(addr, sock->addr.un.dentry);
+            if (ret < 0)
+                goto out_cli;
 
             if (addrlen)
                 *addrlen = sizeof(struct sockaddr_un);
@@ -1405,7 +1391,12 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
 
         if (addr && !address_received) {
             if (sock->domain == AF_UNIX) {
-                unix_copy_addr(addr, sock->addr.un.dentry);
+                ret = unix_copy_addr(addr, sock->addr.un.dentry);
+                if (ret < 0) {
+                    lock(&hdl->lock);
+                    goto out_locked;
+                }
+
                 *addrlen = sizeof(struct sockaddr_un);
             }
 

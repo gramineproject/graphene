@@ -320,7 +320,6 @@ struct shim_handle {
 
     char fs_type[8];
     struct shim_mount* fs;
-    struct shim_qstr path;
     struct shim_dentry* dentry;
 
     /* If this handle is registered for any epoll handle, this list contains
