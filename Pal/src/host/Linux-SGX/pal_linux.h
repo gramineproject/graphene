@@ -81,11 +81,12 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START ((void*)(&__text_start))
 #define DATA_END   ((void*)(&__text_end))
 
+/* TODO: rename to sgx_file_hash_t and sgx_chunk_hash_t; always use "hash" and "chunk" in naming */
 typedef struct {
-    char bytes[32];
+    uint8_t bytes[32];
 } sgx_checksum_t;
 typedef struct {
-    char bytes[16];
+    uint8_t bytes[16];
 } sgx_stub_t;
 
 extern int g_xsave_enabled;
@@ -110,18 +111,16 @@ bool is_tsc_usable(void);
 uint64_t get_tsc_hz(void);
 void init_tsc(void);
 
-/* Function: load_trusted_file
- * checks if the file to be opened is trusted or allowed,
- * according to the setting in manifest
+/*!
+ * \brief check if the file to be opened is trusted or allowed, according to the manifest
  *
- * file:     file handle to be opened
- * stubptr:  buffer for catching matched file stub.
- * sizeptr:  size pointer
- * create:   this file is newly created or not
+ * \param file     file handle to be opened
+ * \param stubptr  buffer for caching file stubs (hashes over chunks of the file)
+ * \param sizeptr  returns size of opened file
+ * \param create   whether this file is newly created
  *
- * return:  0 succeed
+ * \return 0 on success, negative error code on failure
  */
-
 int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, int create,
                       void** umem);
 
@@ -134,15 +133,36 @@ int init_file_check_policy(void);
 
 int get_file_check_policy(void);
 
-int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t umem_start,
-                                 uint64_t umem_end, void* buffer, uint64_t offset, uint64_t size,
-                                 sgx_stub_t* stubs, uint64_t total_size);
+/*!
+ * \brief Copy and check file contents from untrusted outside buffer to in-enclave buffer
+ *
+ * \param path            file path (currently only for a log message)
+ * \param buf             in-enclave buffer where contents of the file are copied
+ * \param umem            start of untrusted file memory mapped outside the enclave
+ * \param aligned_offset  offset into file contents to copy, aligned to TRUSTED_STUB_SIZE
+ * \param aligned_end     end of file contents to copy, aligned to TRUSTED_STUB_SIZE
+ * \param offset          unaligned offset into file contents to copy
+ * \param end             unaligned end of file contents to copy
+ * \param stubs           contains hashes of all file chunks
+ * \param file_size       total size of the file
+ *
+ * \return 0 on success, negative error code on failure
+ *
+ * If needed, regions at either the beginning or the end of the copied regions are copied into a
+ * scratch buffer to avoid a TOCTTOU race. This is done to avoid the following TOCTTOU race
+ * condition with the untrusted host as an adversary:
+ *       *  Adversary: put good contents in buffer
+ *       *  Enclave: buffer check passes
+ *       *  Adversary: put bad contents in buffer
+ *       *  Enclave: copies in bad buffer contents
+ */
+int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* umem,
+                                 off_t aligned_offset, off_t aligned_end, off_t offset, off_t end,
+                                 sgx_stub_t* stubs, size_t file_size);
 
 int register_trusted_child(const char* uri, const char* mr_enclave_str);
 
 int init_enclave(void);
-int init_enclave_key(void);
-
 void init_untrusted_slab_mgr(void);
 
 /* Used to track map buffers for protected files */
