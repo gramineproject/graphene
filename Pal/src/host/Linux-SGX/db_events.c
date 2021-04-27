@@ -68,29 +68,22 @@ void _DkEventClear(PAL_HANDLE handle) {
 static int wait_timeout(PAL_HANDLE handle, int64_t timeout_us) {
     bool added_to_count = false;
     while (1) {
-        bool needs_sleep = false;
         spinlock_lock(&handle->event.lock);
-        if (handle->event.auto_clear) {
-            needs_sleep = !handle->event.signaled;
-            handle->event.signaled = false;
-            if (!needs_sleep) {
+        if (handle->event.signaled) {
+            if (handle->event.auto_clear) {
+                handle->event.signaled = false;
                 __atomic_store_n(handle->event.signaled_untrusted, 0, __ATOMIC_RELEASE);
             }
-        } else {
-            needs_sleep = !handle->event.signaled;
-        }
-
-        if (needs_sleep) {
-            if (!added_to_count) {
-                handle->event.waiters_cnt++;
-                added_to_count = true;
-            }
-        } else {
             if (added_to_count) {
                 handle->event.waiters_cnt--;
             }
             spinlock_unlock(&handle->event.lock);
             return 0;
+        }
+
+        if (!added_to_count) {
+            handle->event.waiters_cnt++;
+            added_to_count = true;
         }
         spinlock_unlock(&handle->event.lock);
 
