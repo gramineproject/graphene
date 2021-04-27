@@ -63,6 +63,8 @@ void _DkEventClear(PAL_HANDLE handle) {
     spinlock_unlock(&handle->event.lock);
 }
 
+/* We use `handle->event.signaled` as the source of truth whether the event was signaled.
+ * `handle->event.signaled_untrusted` acts only as a futex sleeping word. */
 static int wait_timeout(PAL_HANDLE handle, int64_t timeout_us) {
     bool added_to_count = false;
     while (1) {
