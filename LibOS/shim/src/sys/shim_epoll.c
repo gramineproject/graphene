@@ -546,10 +546,6 @@ BEGIN_RS_FUNC(epoll_item) {
         CP_REBASE(epoll_item->handle);
         CP_REBASE(epoll_item->back);
         CP_REBASE(epoll_item->list);
-
-        DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s", epoll_item->fd,
-                 qstrgetstr(&epoll_item->handle->path), epoll_item->handle->fs_type,
-                 qstrgetstr(&epoll_item->handle->uri));
     }
 }
 END_RS_FUNC(epoll_item)

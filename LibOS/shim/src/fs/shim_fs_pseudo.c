@@ -80,12 +80,12 @@ static int pseudo_findent(const char* path, const struct pseudo_ent* root_ent,
 }
 
 /*! Populate supplied buffer with dirents (see pseudo_readdir() for details). */
-static int populate_dirent(const char* path, const struct pseudo_dir* dir, struct shim_dirent* buf,
-                           size_t buf_size) {
+static int populate_dirent(struct shim_dentry* dent, const char* path, const struct pseudo_dir* dir,
+                           struct shim_dirent* buf, size_t buf_size) {
     if (!dir->size)
         return 0;
 
-    HASHTYPE dir_hash = hash_path(path, strlen(path));
+    HASHTYPE dir_hash = hash_abs_path(dent);
 
     struct shim_dirent* dirent_in_buf = buf;
     size_t total_size = 0;
@@ -104,7 +104,7 @@ static int populate_dirent(const char* path, const struct pseudo_dir* dir, struc
 
             memcpy(dirent_in_buf->name, ent->name, name_size);
             dirent_in_buf->next = (void*)dirent_in_buf + dirent_size;
-            dirent_in_buf->ino  = rehash_name(dir_hash, ent->name, name_size - 1);
+            dirent_in_buf->ino  = hash_name(dir_hash, ent->name);
             dirent_in_buf->type = ent->dir ? LINUX_DT_DIR : ent->type;
 
             dirent_in_buf = dirent_in_buf->next;
@@ -185,39 +185,50 @@ int pseudo_dir_open(struct shim_handle* hdl, const char* name, int flags) {
 
 /*! Generic callback to obtain a mode of an entry in a pseudo-filesystem. */
 int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent* root_ent) {
-    if (qstrempty(&dent->rel_path)) {
+    if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
         return pseudo_dir_mode(/*name=*/NULL, mode);
     }
 
-    const char* rel_path = qstrgetstr(&dent->rel_path);
-    const struct pseudo_ent* ent = NULL;
-
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
     if (ret < 0)
         return ret;
 
-    if (!ent->fs_ops || !ent->fs_ops->mode)
-        return -EACCES;
+    const struct pseudo_ent* ent = NULL;
+    ret = pseudo_findent(rel_path, root_ent, &ent);
+    if (ret < 0)
+        goto out;
 
-    return ent->fs_ops->mode(rel_path, mode);
+    if (!ent->fs_ops || !ent->fs_ops->mode) {
+        ret = -EACCES;
+        goto out;
+    }
+
+    ret = ent->fs_ops->mode(rel_path, mode);
+out:
+    free(rel_path);
+    return ret;
 }
 
 /*! Generic callback to check if an entry exists in a pseudo-filesystem (and populate \p dent). */
 int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent) {
-    if (qstrempty(&dent->rel_path)) {
+    if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
         dent->ino    = 1;
         dent->state |= DENTRY_ISDIRECTORY;
         return 0;
     }
 
-    const char* rel_path = qstrgetstr(&dent->rel_path);
-    const struct pseudo_ent* ent = NULL;
-
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
     if (ret < 0)
         return ret;
+
+    const struct pseudo_ent* ent = NULL;
+    ret = pseudo_findent(rel_path, root_ent, &ent);
+    if (ret < 0)
+        goto out;
 
     if (ent->dir)
         dent->state |= DENTRY_ISDIRECTORY;
@@ -225,21 +236,31 @@ int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent) {
     if (ent->fs_ops && ent->fs_ops->follow_link)
         dent->state |= DENTRY_ISLINK;
 
-    return 0;
+    ret = 0;
+
+out:
+    free(rel_path);
+    return ret;
 }
 
 /*! Generic callback to open an entry in a pseudo-filesystem (and populate \p hdl). */
 int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
                 const struct pseudo_ent* root_ent) {
-    const char* rel_path = qstrgetstr(&dent->rel_path);
-    const struct pseudo_ent* ent = NULL;
-
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
     if (ret < 0)
         return ret;
 
-    if (!ent->fs_ops || !ent->fs_ops->open)
-        return -EACCES;
+    const struct pseudo_ent* ent = NULL;
+
+    ret = pseudo_findent(rel_path, root_ent, &ent);
+    if (ret < 0)
+        goto out;
+
+    if (!ent->fs_ops || !ent->fs_ops->open) {
+        ret = -EACCES;
+        goto out;
+    }
 
     hdl->is_dir = !!ent->dir;
     /* Initialize as an empty TYPE_PSEUDO handle, fs_ops->open may override that */
@@ -247,7 +268,11 @@ int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
     hdl->flags = flags & ~O_ACCMODE;
     hdl->acc_mode = ACC_MODE(flags & O_ACCMODE);
 
-    return ent->fs_ops->open(hdl, rel_path, flags);
+    ret = ent->fs_ops->open(hdl, rel_path, flags);
+
+out:
+    free(rel_path);
+    return ret;
 }
 
 /*!
@@ -264,61 +289,81 @@ int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
  */
 int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
                    const struct pseudo_ent* root_ent) {
-    int ret;
-    const char* path = qstrgetstr(&dent->rel_path);
-    const struct pseudo_ent* ent = NULL;
-
-    ret = pseudo_findent(path, root_ent, &ent);
+    struct shim_dirent* buf = NULL;
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
     if (ret < 0)
         return ret;
 
-    if (!ent->dir)
-        return -ENOTDIR;
+    const struct pseudo_ent* ent = NULL;
 
-    struct shim_dirent* buf;
-    size_t buf_size = MAX_PATH;
+    ret = pseudo_findent(rel_path, root_ent, &ent);
+    if (ret < 0)
+        goto out;
+
+    if (!ent->dir) {
+        ret = -ENOTDIR;
+        goto out;
+    }
+
+    size_t buf_size = READDIR_BUF_SIZE;
 
     while (true) {
         buf = malloc(buf_size);
 
-        ret = populate_dirent(path, ent->dir, buf, buf_size);
+        ret = populate_dirent(dent, rel_path, ent->dir, buf, buf_size);
         if (!ret) {
             /* successfully listed all entries */
             break;
         } else if (ret == -ENOMEM) {
             /* reallocate bigger buffer and try again */
             free(buf);
+            buf = NULL;
             buf_size *= 2;
             continue;
         } else {
             /* unrecoverable error */
             free(buf);
-            return ret;
+            goto out;
         }
     }
 
-    *dirent = buf;
-    return 0;
+out:
+    free(rel_path);
+    if (ret == 0) {
+        *dirent = buf;
+    }
+    return ret;
 }
 
 /*! Generic callback to obtain stat of an entry in a pseudo-filesystem. */
 int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_ent* root_ent) {
-    if (qstrempty(&dent->rel_path)) {
+    if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
         return pseudo_dir_stat(/*name=*/NULL, buf);
     }
 
-    const char* rel_path = qstrgetstr(&dent->rel_path);
-    const struct pseudo_ent* ent = NULL;
-
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
     if (ret < 0)
         return ret;
 
-    if (!ent->fs_ops || !ent->fs_ops->stat)
-        return -EACCES;
+    const struct pseudo_ent* ent = NULL;
 
-    return ent->fs_ops->stat(rel_path, buf);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
+    if (ret < 0)
+        goto out;
+
+    if (!ent->fs_ops || !ent->fs_ops->stat) {
+        ret = -EACCES;
+        goto out;
+    }
+
+    ret = ent->fs_ops->stat(rel_path, buf);
+
+out:
+    free(rel_path);
+    return ret;
 }
 
 /*! Generic callback to obtain stat of an entry in a pseudo-filesystem via its open \p hdl. */
@@ -331,15 +376,25 @@ int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_
 /*! Generic callback to obtain a target string of a link entry in a pseudo-filesystem. */
 int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link,
                        const struct pseudo_ent* root_ent) {
-    const char* rel_path = qstrgetstr(&dent->rel_path);
-    const struct pseudo_ent* ent = NULL;
-
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
     if (ret < 0)
         return ret;
 
-    if (!ent->fs_ops || !ent->fs_ops->follow_link)
-        return -EINVAL;
+    const struct pseudo_ent* ent = NULL;
 
-    return ent->fs_ops->follow_link(rel_path, link);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
+    if (ret < 0)
+        goto out;
+
+    if (!ent->fs_ops || !ent->fs_ops->follow_link) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = ent->fs_ops->follow_link(rel_path, link);
+
+out:
+    free(rel_path);
+    return ret;
 }

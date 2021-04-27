@@ -118,9 +118,10 @@ static int find_thread_link(const char* name, struct shim_qstr* link,
         dent = next_dent;
     }
 
-    if (link && !dentry_get_path_into_qstr(dent, link)) {
-        ret = -ENOMEM;
-        goto out;
+    if (link) {
+        ret = dentry_abs_path_into_qstr(dent, link);
+        if (ret < 0)
+            goto out;
     }
 
     if (dentptr) {
@@ -352,9 +353,10 @@ static int find_thread_each_fd(const char* name, struct shim_qstr* link,
         dent = next_dent;
     }
 
-    if (link && !dentry_get_path_into_qstr(dent, link)) {
-        ret = -ENOMEM;
-        goto out;
+    if (link) {
+        ret = dentry_abs_path_into_qstr(dent, link);
+        if (ret < 0)
+            goto out;
     }
 
     if (dentptr) {
@@ -501,16 +503,18 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
         if (vma->file) {
             int dev_major = 0, dev_minor = 0;
             unsigned long ino = vma->file->dentry ? vma->file->dentry->ino : 0;
-            const char* name  = "[unknown]";
+            char* path = NULL;
 
-            if (!qstrempty(&vma->file->path))
-                name = qstrgetstr(&vma->file->path);
+            if (vma->file->dentry)
+                dentry_abs_path(vma->file->dentry, &path, /*size=*/NULL);
 
             EMIT(ADDR_FMT(start), start);
             EMIT("-");
             EMIT(ADDR_FMT(end), end);
             EMIT(" %c%c%c%c %08lx %02d:%02d %lu %s\n", pt[0], pt[1], pt[2], pr, vma->file_offset,
-                 dev_major, dev_minor, ino, name);
+                 dev_major, dev_minor, ino, path ? path : "[unknown]");
+
+            free(path);
         } else {
             EMIT(ADDR_FMT(start), start);
             EMIT("-");

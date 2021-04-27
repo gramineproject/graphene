@@ -22,11 +22,11 @@
 #define ERANGE 34
 #endif
 
-long shim_do_getcwd(char* buf, size_t len) {
-    if (!buf || !len)
+long shim_do_getcwd(char* buf, size_t buf_size) {
+    if (!buf || !buf_size)
         return -EINVAL;
 
-    if (test_user_memory(buf, len, true))
+    if (test_user_memory(buf, buf_size, true))
         return -EFAULT;
 
     lock(&g_process.fs_lock);
@@ -34,18 +34,24 @@ long shim_do_getcwd(char* buf, size_t len) {
     get_dentry(cwd);
     unlock(&g_process.fs_lock);
 
-    size_t plen = dentry_get_path_size(cwd) - 1;
+    char* path = NULL;
+    size_t size;
+    int ret = dentry_abs_path(cwd, &path, &size);
+    if (ret < 0)
+        goto out;
 
-    int ret;
-    if (plen >= MAX_PATH) {
+    if (size > PATH_MAX) {
         ret = -ENAMETOOLONG;
-    } else if (plen + 1 > len) {
+    } else if (size > buf_size) {
         ret = -ERANGE;
     } else {
-        ret = plen + 1;
-        dentry_get_path(cwd, buf);
+        ret = size;
+        memcpy(buf, path, size);
     }
 
+    free(path);
+
+out:
     put_dentry(cwd);
     return ret;
 }
@@ -60,7 +66,7 @@ long shim_do_chdir(const char* filename) {
     if (test_user_string(filename))
         return -EFAULT;
 
-    if (strnlen(filename, MAX_PATH + 1) == MAX_PATH + 1)
+    if (strnlen(filename, PATH_MAX + 1) == PATH_MAX + 1)
         return -ENAMETOOLONG;
 
     if ((ret = path_lookupat(/*start=*/NULL, filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &dent)) < 0)
@@ -85,8 +91,10 @@ long shim_do_fchdir(int fd) {
     struct shim_dentry* dent = hdl->dentry;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
-        char buffer[dentry_get_path_size(dent)];
-        log_debug("%s is not a directory\n", dentry_get_path(dent, buffer));
+        char* path = NULL;
+        dentry_abs_path(dent, &path, /*size=*/NULL);
+        log_debug("%s is not a directory\n", path);
+        free(path);
         put_handle(hdl);
         return -ENOTDIR;
     }

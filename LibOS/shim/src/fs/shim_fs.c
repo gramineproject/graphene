@@ -409,7 +409,6 @@ static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
 
     int ret = 0;
 
-    dent->state |= DENTRY_MOUNTPOINT;
     get_dentry(dent);
     mount->mount_point = dent;
     dent->mounted = mount;
@@ -520,16 +519,6 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
         }
     }
 
-    if (parent && last_len > 0) {
-        /* Newly created dentry's relative path will be a concatenation of parent
-         * + last strings (see get_new_dentry), make sure it fits into qstr */
-        if (parent->rel_path.len + 1 + last_len >= STR_SIZE) { /* +1 for '/' */
-            log_error("Relative path exceeds the limit %d\n", STR_SIZE);
-            ret = -ENAMETOOLONG;
-            goto out_with_unlock;
-        }
-    }
-
     struct shim_mount* mount = alloc_mount();
     void* mount_data         = NULL;
 
@@ -567,13 +556,12 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
         goto out_with_unlock;
     }
 
-    // We need to fix up the relative path to this mount, but only for
-    // directories.
-    qstrsetstr(&dent->rel_path, "", 0);
-
     /*Now go ahead and do a lookup so the dentry is valid */
-    if ((ret = _path_lookupat(g_dentry_root, mount_point, lookup_flags, &dent2)) < 0)
+    dent->state |= DENTRY_MOUNTPOINT;
+    if ((ret = _path_lookupat(g_dentry_root, mount_point, lookup_flags, &dent2)) < 0) {
+        dent->state &= ~DENTRY_MOUNTPOINT;
         goto out_with_unlock;
+    }
 
     assert(dent == dent2);
 
@@ -790,77 +778,3 @@ BEGIN_RS_FUNC(all_mounts) {
     mount_migrated = true;
 }
 END_RS_FUNC(all_mounts)
-
-const char* get_file_name(const char* path, size_t len) {
-    const char* c = path + len - 1;
-    while (c > path && *c != '/')
-        c--;
-    return *c == '/' ? c + 1 : c;
-}
-
-size_t dentry_get_path_size(struct shim_dentry* dent) {
-    size_t size = 0;
-    bool slash = false;
-
-    if (dent->fs && dent->fs->path.len) {
-        size += dent->fs->path.len;
-        slash = qstrgetstr(&dent->fs->path)[dent->fs->path.len - 1] == '/';
-    }
-
-    if (dent->rel_path.len) {
-        const char* path = qstrgetstr(&dent->rel_path);
-        size_t len = dent->rel_path.len;
-
-        // Ensure exactly 1 slash (see dentry_get_path())
-        if (slash && *path == '/')
-            size += len - 1;
-        else if (!slash && *path != '/')
-            size += len + 1;
-        else
-            size += len;
-    }
-
-    // 1 for null terminator
-    size++;
-
-    return size;
-}
-
-char* dentry_get_path(struct shim_dentry* dent, char* buffer) {
-    struct shim_mount* fs = dent->fs;
-    bool slash = false;
-    char* c;
-
-    assert(buffer);
-    c = buffer;
-
-    if (fs && fs->path.len) {
-        memcpy(c, qstrgetstr(&fs->path), fs->path.len);
-        c += fs->path.len;
-
-        slash = *(c - 1) == '/';
-    }
-
-    if (dent->rel_path.len) {
-        const char* path = qstrgetstr(&dent->rel_path);
-        size_t len = dent->rel_path.len;
-
-        // Ensure there is exactly 1 slash between fs path and rel_path.
-        if (slash && *path == '/') {
-            memcpy(c, path + 1, len - 1);
-            c += len - 1;
-        } else if (!slash && *path != '/') {
-            *c = '/';
-            memcpy(c + 1, path, len);
-            c += len + 1;
-        } else {
-            memcpy(c, path, len);
-            c += len;
-        }
-    }
-
-    assert(c - buffer == (ssize_t)(dentry_get_path_size(dent) - 1));
-
-    *c = 0;
-    return buffer;
-}

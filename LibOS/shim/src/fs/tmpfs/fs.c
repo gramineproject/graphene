@@ -117,9 +117,7 @@ static void tmpfs_update_ino(struct shim_dentry* dent) {
     if (dent->state & DENTRY_INO_UPDATED)
         return;
 
-    unsigned long ino = 1;
-    if (!qstrempty(&dent->rel_path))
-        ino = hash_path(qstrgetstr(&dent->rel_path), dent->rel_path.len);
+    unsigned long ino = hash_abs_path(dent);
 
     dent->ino = ino;
     dent->state |= DENTRY_INO_UPDATED;
@@ -336,7 +334,7 @@ static int query_dentry(struct shim_dentry* dent, mode_t* mode, struct stat* sta
 }
 
 static int tmpfs_mode(struct shim_dentry* dent, mode_t* mode) {
-    if (qstrempty(&dent->rel_path)) {
+    if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
         return pseudo_dir_mode(/*name=*/NULL, mode);
     }
@@ -344,7 +342,7 @@ static int tmpfs_mode(struct shim_dentry* dent, mode_t* mode) {
 }
 
 static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
-    if (qstrempty(&dent->rel_path)) {
+    if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
         return pseudo_dir_stat(/*name=*/NULL, statbuf);
     }
@@ -352,7 +350,7 @@ static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
 }
 
 static int tmpfs_lookup(struct shim_dentry* dent) {
-    if (qstrempty(&dent->rel_path)) {
+    if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
         dent->ino = 1;
         dent->state |= DENTRY_ISDIRECTORY;
@@ -420,7 +418,7 @@ static int tmpfs_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t
 
 static int tmpfs_hstat(struct shim_handle* hdl, struct stat* stat) {
     assert(hdl->dentry);
-    if (qstrempty(&hdl->dentry->rel_path)) {
+    if (hdl->dentry->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
         return pseudo_dir_stat(/*name=*/NULL, stat);
     }

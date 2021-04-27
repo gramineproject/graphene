@@ -1328,14 +1328,6 @@ BEGIN_RS_FUNC(vma) {
             return -ENOMEM;
         }
     }
-
-    if (vma->file)
-        DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld,path=%s,uri=%s", vma->addr,
-                 vma->addr + vma->length, vma->length, vma->prot, vma->flags, vma->file_offset,
-                 qstrgetstr(&vma->file->path), qstrgetstr(&vma->file->uri));
-    else
-        DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld", vma->addr, vma->addr + vma->length,
-                 vma->length, vma->prot, vma->flags, vma->file_offset);
 }
 END_RS_FUNC(vma)
 
