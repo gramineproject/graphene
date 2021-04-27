@@ -33,8 +33,14 @@ GLIBC_LIBS = \
 	libc.so.6 \
 	login/libutil.so.1 \
 	math/libm.so.6 \
+	mathvec/libmvec.so.1 \
+	nis/libnsl.so.1 \
 	nptl/libpthread.so.0 \
 	nptl_db/libthread_db.so.1 \
+	nss/libnss_compat.so.2 \
+	nss/libnss_db.so.2 \
+	nss/libnss_files.so.2 \
+	resolv/libanl.so.1  \
 	resolv/libnss_dns.so.2 \
 	resolv/libresolv.so.2 \
 	rt/librt.so.1
