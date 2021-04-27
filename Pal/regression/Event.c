@@ -75,10 +75,7 @@ int main(void) {
     set(&g_ready, 2);
 
     CHECK(DkSystemTimeQuery(&start));
-    DkSynchronizationObjectWait(event, NO_TIMEOUT);
-    if (ret != -PAL_ERROR_TRYAGAIN) {
-        CHECK(-1);
-    }
+    CHECK(DkSynchronizationObjectWait(event, NO_TIMEOUT));
     CHECK(DkSystemTimeQuery(&end));
 
     if (end < start) {
