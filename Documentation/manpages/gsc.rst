@@ -321,8 +321,8 @@ in :file:`config.yaml.template`.
 .. describe:: SGXDriver.Repository
 
    Source repository of the Intel SGX driver. Default value:
-   `https://github.com/01org/linux-sgx-driver.git
-   <https://github.com/01org/linux-sgx-driver.git>`__.
+   `https://github.com/intel/linux-sgx-driver.git
+   <https://github.com/intel/linux-sgx-driver.git>`__.
 
 .. describe:: SGXDriver.Branch
 
