@@ -378,6 +378,31 @@ int object_wait_with_retry(PAL_HANDLE handle);
 
 void _update_epolls(struct shim_handle* handle);
 void delete_from_epoll_handles(struct shim_handle* handle);
+/*!
+ * \brief Check if next `epoll_wait` with `EPOLLET` should trigger for this handle
+ *
+ * \param handle handle to check
+ * \param ret return value from last operation
+ * \param in `true` if last operation was of input type (e.g. `read`)
+ * \param was_partial `true` if last operation was did not fill the whole buffer
+ *
+ * This function should be called after each in/out operation on \p handle that is epoll-able,
+ * i.e. that you can wait on using `epoll` syscall. \p ret should be the return value from that
+ * operation, \p in should indicate if that was an input operation (e.g. `read` or `accept`) or
+ * output (e.g. `write`), \p was_partial - if that operation was done partially (e.g. `read` did not
+ * fill the while buffer).
+ *
+ * This `EPOLLET` emulation is not entirely identical with Linux. Unfortunately we cannot implement
+ * it ideally without PAL support, but adding such support is impossible on PALs other than native
+ * Linux. Due to this we have a "hacky" approach: if a handle is successfully waited for on some
+ * epoll instance using `EPOLLET` semantics, it's marked as not epollet-ready and then is not
+ * included in further `EPOLLET` waits. To mark it back as epollet-ready, a operation must be
+ * observed, which either returns `-EAGAIN` (non-blocking operation which cannot be compleated atm)
+ * or a partial operation (e.g. `read` not filling the whole buffer). The idea is that application
+ * cannot assume that all data was processed (hence expect next `EPOLLET` wait not to hang), until
+ * it sees one of the above happening.
+ */
+void maybe_epoll_et_trigger(struct shim_handle* handle, int ret, bool in, bool was_partial);
 
 void* allocate_stack(size_t size, size_t protect_size, bool user);
 int init_stack(const char** argv, const char** envp, const char*** out_argp, elf_auxv_t** out_auxv);

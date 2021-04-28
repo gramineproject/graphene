@@ -901,6 +901,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
      * afterwards; we rely on DkStreamWaitForClient() being thread-safe and that `handle` is not
      * freed during the wait. */
     ret = pal_to_unix_errno(DkStreamWaitForClient(handle, &accepted));
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/true, /*was_partial=*/false);
 
     lock(&hdl->lock);
     if (ret < 0) {
@@ -1132,9 +1133,9 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
     for (int i = 0; i < nbufs; i++) {
         size_t this_size = bufs[i].iov_len;
         ret = DkStreamWrite(pal_hdl, 0, &this_size, bufs[i].iov_base, uri);
-
+        ret = ret == -PAL_ERROR_STREAMEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
+        maybe_epoll_et_trigger(hdl, ret, /*in=*/false, !ret ? this_size < bufs[i].iov_len : false);
         if (ret < 0) {
-            ret = ret == -PAL_ERROR_STREAMEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
             if (ret == -EPIPE && !(flags & MSG_NOSIGNAL)) {
                 siginfo_t info = {
                     .si_signo = SIGPIPE,
@@ -1400,8 +1401,10 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
             size_t read_size = bufs[i].iov_len;
             ret = DkStreamRead(pal_hdl, 0, &read_size, bufs[i].iov_base, uri,
                                uri ? SOCK_URI_SIZE : 0);
+            ret = ret == -PAL_ERROR_STREAMNOTEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
+            maybe_epoll_et_trigger(hdl, ret, /*in=*/true,
+                                   ret == 0 ? read_size < bufs[i].iov_len : false);
             if (ret < 0) {
-                ret = ret == -PAL_ERROR_STREAMNOTEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
                 break;
             }
             iov_bytes = read_size;

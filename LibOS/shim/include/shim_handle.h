@@ -315,6 +315,8 @@ struct shim_dentry;
 struct shim_handle {
     enum shim_handle_type type;
     bool is_dir;
+    bool needs_et_poll_in;
+    bool needs_et_poll_out;
 
     REFTYPE ref_count;
 
