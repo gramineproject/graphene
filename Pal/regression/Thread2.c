@@ -1,7 +1,7 @@
 #include <stdatomic.h>
 
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 volatile bool dummy_true = true;
 

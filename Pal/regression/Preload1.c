@@ -1,5 +1,5 @@
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 /* prototype required due to -Wmissing-prototypes */
 void preload_func1(void);

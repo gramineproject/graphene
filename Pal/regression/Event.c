@@ -2,8 +2,8 @@
 #include <stdbool.h>
 
 #include "pal.h"
-#include "pal_debug.h"
 #include "pal_error.h"
+#include "pal_regression.h"
 
 static PAL_HANDLE event1;
 atomic_int timeouts = 0;

@@ -1,6 +1,6 @@
 #include "api.h"
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 #define NUM_TO_HEX(num) ((num) >= 10 ? 'a' + ((num) - 10) : '0' + (num))
 #define BUF_SIZE        40

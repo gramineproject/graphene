@@ -309,7 +309,7 @@ void log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 #define uthash_fatal(msg)                      \
     do {                                       \
         log_error("uthash error: %s\n", msg);  \
-        DkProcessExit(PAL_ERROR_NOMEM);        \
+        _DkProcessExit(PAL_ERROR_NOMEM);       \
     } while (0)
 #include "uthash.h"
 

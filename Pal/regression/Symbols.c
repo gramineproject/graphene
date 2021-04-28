@@ -1,5 +1,5 @@
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 #define SYMBOL_ADDR(sym)                                                    \
     ({                                                                      \

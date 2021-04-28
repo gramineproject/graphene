@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 static void* get_stack(void) {
     void* stack;

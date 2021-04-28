@@ -4,7 +4,7 @@
 
 #include "api.h"
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 #define UNIT (pal_control.alloc_align)
 

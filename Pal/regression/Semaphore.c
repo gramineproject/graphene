@@ -1,7 +1,7 @@
 #include "api.h"
 #include "pal.h"
-#include "pal_debug.h"
 #include "pal_error.h"
+#include "pal_regression.h"
 
 static void helper_timeout(PAL_NUM timeout) {
     /* Create a binary semaphore */

@@ -1,5 +1,5 @@
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 /* XXX: What is this even supposed to test?? */
 
