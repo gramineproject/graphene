@@ -97,7 +97,7 @@ The control block in Graphene is a structure that provides static information
 about the current process and its host. It is also a dynamic symbol that will be
 linked by the library OS and resolved at runtime. Sometimes, for the flexibility
 or the convenience of the dynamic resolution, the address of the control block
-may be resolved by a function (:func:`pal_control_addr()`).
+may be resolved by a function (:func:`DkGetPalControl()`).
 
 The fields of the Graphene control block are defined as follows:
 
@@ -125,7 +125,7 @@ The fields of the Graphene control block are defined as follows:
    :project: pal
    :members:
 
-.. doxygenfunction:: pal_control_addr
+.. doxygenfunction:: DkGetPalControl
    :project: pal
 
 Pal APIs

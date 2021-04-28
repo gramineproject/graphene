@@ -61,20 +61,22 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
         return -EINVAL;
     }
 
-    if (brk_start && brk_start <= PAL_CB(user_address.end)
-            && brk_max_size <= (uintptr_t)PAL_CB(user_address.end)
-            && (uintptr_t)brk_start < (uintptr_t)PAL_CB(user_address.end) - brk_max_size) {
+    PAL_CONTROL* pal_control = DkGetPalControl();
+
+    if (brk_start && brk_start <= pal_control->user_address.end
+            && brk_max_size <= (uintptr_t)pal_control->user_address.end
+            && (uintptr_t)brk_start < (uintptr_t)pal_control->user_address.end - brk_max_size) {
         int ret;
         size_t offset = 0;
 
-        if (!PAL_CB(disable_aslr)) {
+        if (!pal_control->disable_aslr) {
             ret = DkRandomBitsRead(&offset, sizeof(offset));
             if (ret < 0) {
                 return pal_to_unix_errno(ret);
             }
             /* Linux randomizes brk at offset from 0 to 0x2000000 from main executable data section
              * https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/kernel/process.c#L914 */
-            offset %= MIN((size_t)0x2000000, (size_t)((char*)PAL_CB(user_address.end) -
+            offset %= MIN((size_t)0x2000000, (size_t)((char*)pal_control->user_address.end -
                                                       brk_max_size - (char*)brk_start));
             offset = ALLOC_ALIGN_DOWN(offset);
         }

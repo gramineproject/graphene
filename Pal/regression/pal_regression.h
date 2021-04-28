@@ -9,6 +9,8 @@
 #include "api.h"
 #include "pal.h"
 
+#define pal_control (*DkGetPalControl())
+
 static inline int buf_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
     DkDebugLog((PAL_PTR)str, size);

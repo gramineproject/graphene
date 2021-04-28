@@ -177,8 +177,6 @@ void warn_unsupported_syscall(unsigned long sysno);
 void debug_print_syscall_before(unsigned long sysno, ...);
 void debug_print_syscall_after(unsigned long sysno, ...);
 
-#define PAL_CB(member) (pal_control.member)
-
 /*
  * These events have counting semaphore semantics:
  * - `set_event(e, n)` increases value of the semaphore by `n`,

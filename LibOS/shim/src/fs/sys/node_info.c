@@ -18,10 +18,12 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
     if (ret < 0)
         return -ENOENT;
 
+    PAL_CONTROL* pal_control = DkGetPalControl();
+
     const char* node_filebuf;
     if (!strcmp(filename, "online")) {
         /* This file refers to /sys/devices/system/node/online */
-        node_filebuf = pal_control.topo_info.online_nodes;
+        node_filebuf = pal_control->topo_info.online_nodes;
     } else {
         /* The below files are under /sys/devices/system/node/nodeX/ */
         int nodenum = extract_first_num_from_string(name);
@@ -29,15 +31,15 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
             return -ENOENT;
 
         if (!strcmp(filename, "cpumap")) {
-            node_filebuf = pal_control.topo_info.numa_topology[nodenum].cpumap;
+            node_filebuf = pal_control->topo_info.numa_topology[nodenum].cpumap;
         } else if (!strcmp(filename, "distance")) {
-            node_filebuf = pal_control.topo_info.numa_topology[nodenum].distance;
+            node_filebuf = pal_control->topo_info.numa_topology[nodenum].distance;
         } else if (strendswith(name, "hugepages-2048kB/nr_hugepages")) {
             node_filebuf =
-                pal_control.topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_2M].nr_hugepages;
+                pal_control->topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_2M].nr_hugepages;
         } else if (strendswith(name, "hugepages-1048576kB/nr_hugepages")) {
             node_filebuf =
-                pal_control.topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_1G].nr_hugepages;
+                pal_control->topo_info.numa_topology[nodenum].hugepages[HUGEPAGES_1G].nr_hugepages;
         } else {
             log_debug("Unrecognized file %s\n", name);
             return -ENOENT;

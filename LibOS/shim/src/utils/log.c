@@ -29,7 +29,7 @@ void log_setprefix(shim_tcb_t* tcb) {
     if (g_log_level <= PAL_LOG_NONE)
         return;
 
-    const char* exec = PAL_CB(executable);
+    const char* exec = DkGetPalControl()->executable;
     for (const char* it = exec; *it; it++)
         if (*it == ':' || *it == '/')
             exec = it + 1;

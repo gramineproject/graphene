@@ -524,6 +524,8 @@ static int _bkeep_initial_vma(struct shim_vma* new_vma) {
 static void* g_aslr_addr_top = NULL;
 
 int init_vma(void) {
+    PAL_CONTROL* pal_control = DkGetPalControl();
+
     struct shim_vma init_vmas[] = {
         {.begin = 0}, // vma for creation of memory manager
         {
@@ -536,8 +538,8 @@ int init_vma(void) {
             .comment = "LibOS",
         },
         {
-            .begin   = (uintptr_t)ALLOC_ALIGN_DOWN_PTR(PAL_CB(manifest_preload.start)),
-            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(PAL_CB(manifest_preload.end)),
+            .begin   = (uintptr_t)ALLOC_ALIGN_DOWN_PTR(pal_control->manifest_preload.start),
+            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(pal_control->manifest_preload.end),
             .prot    = PROT_NONE,
             .flags   = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL,
             .file    = NULL,
@@ -545,8 +547,8 @@ int init_vma(void) {
             .comment = "manifest",
         },
         {
-            .begin   = (uintptr_t)ALLOC_ALIGN_DOWN_PTR(PAL_CB(vdso_preload.start)),
-            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(PAL_CB(vdso_preload.end)),
+            .begin   = (uintptr_t)ALLOC_ALIGN_DOWN_PTR(pal_control->vdso_preload.start),
+            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(pal_control->vdso_preload.end),
             .prot    = PROT_NONE,
             .flags   = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL,
             .file    = NULL,
@@ -590,11 +592,12 @@ int init_vma(void) {
         return ret;
     }
 
-    g_aslr_addr_top = PAL_CB(user_address.end);
+    g_aslr_addr_top = pal_control->user_address.end;
 
-    if (!PAL_CB(disable_aslr)) {
+    if (!pal_control->disable_aslr) {
         /* Inspired by: https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/mm/mmap.c#L80 */
-        size_t gap_max_size = (PAL_CB(user_address.end) - PAL_CB(user_address.start)) / 6 * 5;
+        size_t gap_max_size =
+            (pal_control->user_address.end - pal_control->user_address.start) / 6 * 5;
         /* We do address space randomization only if we have at least ASLR_BITS to randomize. */
         if (gap_max_size / ALLOC_ALIGNMENT >= (1ul << ASLR_BITS)) {
             size_t gap = 0;
@@ -1033,15 +1036,17 @@ out:
 
 int bkeep_mmap_any(size_t length, int prot, int flags, struct shim_handle* file, uint64_t offset,
                    const char* comment, void** ret_val_ptr) {
-    return bkeep_mmap_any_in_range(PAL_CB(user_address.start), PAL_CB(user_address.end), length,
-                                   prot, flags, file, offset, comment, ret_val_ptr);
+    PAL_CONTROL* pal_control = DkGetPalControl();
+    return bkeep_mmap_any_in_range(pal_control->user_address.start, pal_control->user_address.end,
+                                   length, prot, flags, file, offset, comment, ret_val_ptr);
 }
 
 int bkeep_mmap_any_aslr(size_t length, int prot, int flags, struct shim_handle* file,
                         uint64_t offset, const char* comment, void** ret_val_ptr) {
     int ret;
-    ret = bkeep_mmap_any_in_range(PAL_CB(user_address.start), g_aslr_addr_top, length, prot, flags,
-                                  file, offset, comment, ret_val_ptr);
+    PAL_CONTROL* pal_control = DkGetPalControl();
+    ret = bkeep_mmap_any_in_range(pal_control->user_address.start, g_aslr_addr_top, length, prot,
+                                  flags, file, offset, comment, ret_val_ptr);
     if (ret >= 0) {
         return ret;
     }

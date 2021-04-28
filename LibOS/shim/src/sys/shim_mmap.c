@@ -131,10 +131,12 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, unsig
         flags &= ~MAP_32BIT;
 #endif
 
+    PAL_CONTROL* pal_control = DkGetPalControl();
+
     if (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) {
         /* We know that `addr + length` does not overflow (`access_ok` above). */
-        if (addr < PAL_CB(user_address.start)
-                || (uintptr_t)PAL_CB(user_address.end) < (uintptr_t)addr + length) {
+        if (addr < pal_control->user_address.start
+                || (uintptr_t)pal_control->user_address.end < (uintptr_t)addr + length) {
             ret = -EINVAL;
             goto out_handle;
         }
@@ -144,10 +146,10 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, unsig
         }
     } else {
         /* We know that `addr + length` does not overflow (`access_ok` above). */
-        if (addr && (uintptr_t)PAL_CB(user_address.start) <= (uintptr_t)addr
-                && (uintptr_t)addr + length <= (uintptr_t)PAL_CB(user_address.end)) {
-            ret = bkeep_mmap_any_in_range(PAL_CB(user_address.start), (char*)addr + length, length,
-                                          prot, flags, hdl, offset, NULL, &addr);
+        if (addr && (uintptr_t)pal_control->user_address.start <= (uintptr_t)addr
+                && (uintptr_t)addr + length <= (uintptr_t)pal_control->user_address.end) {
+            ret = bkeep_mmap_any_in_range(pal_control->user_address.start, (char*)addr + length,
+                                          length, prot, flags, hdl, offset, NULL, &addr);
         } else {
             /* Hacky way to mark we had no hit and need to search below. */
             ret = -1;
