@@ -47,4 +47,4 @@ DkAttestationReport
 DkAttestationQuote
 DkSetProtectedFilesKey
 DkDebugLog
-pal_control_addr
+DkGetPalControl

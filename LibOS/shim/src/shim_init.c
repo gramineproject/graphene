@@ -33,9 +33,9 @@
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
               "shim_tcb_t does not fit into PAL_TCB; please increase PAL_LIBOS_TCB_SIZE");
 
-size_t g_pal_alloc_align;
-
-toml_table_t* g_manifest_root = NULL;
+size_t g_pal_alloc_align      = 0;
+const toml_table_t* g_manifest_root = NULL;
+const PAL_CONTROL* g_pal_control    = NULL;
 
 /* TODO: Currently copied from log_always(). Ideally, LibOS's implementation of warn() should call a
  *       va_list version of log_always(). */
@@ -391,23 +391,26 @@ static int read_environs(const char** envp) {
     } while (0)
 
 noreturn void* shim_init(int argc, void* args) {
-    g_log_level = PAL_CB(log_level);
-    g_process_ipc_info.vmid = (IDTYPE)PAL_CB(process_id);
+    g_pal_control = DkGetPalControl();
+    assert(g_pal_control);
+
+    g_log_level = g_pal_control->log_level;
+    g_process_ipc_info.vmid = (IDTYPE)g_pal_control->process_id;
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
 
     log_setprefix(shim_get_tcb());
 
-    log_debug("Host: %s\n", PAL_CB(host_type));
+    log_debug("Host: %s\n", g_pal_control->host_type);
 
-    g_pal_alloc_align = PAL_CB(alloc_align);
+    g_pal_alloc_align = g_pal_control->alloc_align;
     if (!IS_POWER_OF_2(g_pal_alloc_align)) {
         log_error("Error during shim_init(): PAL allocation alignment not a power of 2\n");
         DkProcessExit(EINVAL);
     }
 
-    g_manifest_root = PAL_CB(manifest_root);
+    g_manifest_root = g_pal_control->manifest_root;
 
     shim_xstate_init();
 
@@ -430,11 +433,11 @@ noreturn void* shim_init(int argc, void* args) {
 
     log_debug("Shim loaded at %p, ready to initialize\n", &__load_address);
 
-    if (PAL_CB(parent_process)) {
+    if (g_pal_control->parent_process) {
         struct checkpoint_hdr hdr;
         size_t hdr_size = sizeof(hdr);
 
-        int ret = DkStreamRead(PAL_CB(parent_process), 0, &hdr_size, &hdr, NULL, 0);
+        int ret = DkStreamRead(g_pal_control->parent_process, 0, &hdr_size, &hdr, NULL, 0);
         if (ret < 0) {
             DkProcessExit(pal_to_unix_errno(-ret));
         } else if (hdr_size != sizeof(hdr)) {
@@ -462,14 +465,15 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_signal_handling);
     RUN_INIT(init_ipc_helper);
 
-    /* FIXME: `PAL_CB(parent_process)` was handed over to IPC code above so we should't be using it
-     * here. */
-    if (PAL_CB(parent_process)) {
+    /* FIXME: `g_pal_control->parent_process` was handed over to IPC code above so we should't be
+     * using it here. */
+    if (g_pal_control->parent_process) {
         /* Notify the parent process */
         IDTYPE child_vmid = g_process_ipc_info.vmid;
         size_t child_vmid_size = sizeof(child_vmid);
 
-        int ret = DkStreamWrite(PAL_CB(parent_process), 0, &child_vmid_size, &child_vmid, NULL);
+        int ret = DkStreamWrite(g_pal_control->parent_process, 0, &child_vmid_size, &child_vmid,
+                                NULL);
         if (ret < 0) {
             DkProcessExit(pal_to_unix_errno(-ret));
         } else if (child_vmid_size != sizeof(child_vmid)) {

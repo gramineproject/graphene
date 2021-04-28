@@ -206,7 +206,7 @@ static int init_main_thread(void) {
         return ret;
     }
 
-    cur_thread->pal_handle = PAL_CB(first_thread);
+    cur_thread->pal_handle = g_pal_control->first_thread;
 
     set_cur_thread(cur_thread);
     add_thread(cur_thread);
@@ -372,7 +372,7 @@ void put_thread(struct shim_thread* thread) {
 
         free(thread->groups_info.groups);
 
-        if (thread->pal_handle && thread->pal_handle != PAL_CB(first_thread))
+        if (thread->pal_handle && thread->pal_handle != g_pal_control->first_thread)
             DkObjectClose(thread->pal_handle);
 
         if (thread->handle_map) {
@@ -674,7 +674,7 @@ BEGIN_RS_FUNC(thread) {
     assert(tcb->context.regs);
     set_tls(tcb->context.tls);
 
-    thread->pal_handle = PAL_CB(first_thread);
+    thread->pal_handle = g_pal_control->first_thread;
 
     set_cur_thread(thread);
     log_setprefix(thread->shim_tcb);

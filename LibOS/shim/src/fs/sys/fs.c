@@ -67,21 +67,21 @@ int sys_match_resource_num(const char* pathname) {
             ret = 0;
             goto out;
         }
-        totalcnt = pal_control.topo_info.num_online_nodes;
+        totalcnt = g_pal_control->topo_info.num_online_nodes;
     } else if (strstartswith(token, "cpu")) {
         snprintf(dirname, sizeof(dirname), "cpu%d", num);
         if (strcmp(token, dirname)) {
             ret = 0;
             goto out;
         }
-        totalcnt = pal_control.cpu_info.online_logical_cores;
+        totalcnt = g_pal_control->cpu_info.online_logical_cores;
     } else if (strstartswith(token, "index")) {
         snprintf(dirname, sizeof(dirname), "index%d", num);
         if (strcmp(token, dirname)) {
             ret = 0;
             goto out;
         }
-        totalcnt = pal_control.topo_info.num_cache_index;
+        totalcnt = g_pal_control->topo_info.num_cache_index;
     } else {
         log_debug("Invalid resource %s in file %s!\n", token, pathname);
         ret = 0;
@@ -110,11 +110,11 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
         return -ENOENT;
 
     if (!strcmp(filename, "node")) {
-        totalcnt = pal_control.topo_info.num_online_nodes;
+        totalcnt = g_pal_control->topo_info.num_online_nodes;
     } else if (!strcmp(filename, "cache")) {
-        totalcnt = pal_control.topo_info.num_cache_index;
+        totalcnt = g_pal_control->topo_info.num_cache_index;
     } else if (!strcmp(filename, "cpu")) {
-        totalcnt = pal_control.cpu_info.online_logical_cores;
+        totalcnt = g_pal_control->cpu_info.online_logical_cores;
     } else {
         log_debug("Invalid resource name in file %s\n", pathname);
         return -EINVAL;

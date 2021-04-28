@@ -176,8 +176,7 @@ typedef struct PAL_CONTROL_ {
     PAL_TOPO_INFO topo_info; /*!< Topology information (only required ones) */
 } PAL_CONTROL;
 
-#define pal_control (*pal_control_addr())
-PAL_CONTROL* pal_control_addr(void);
+const PAL_CONTROL* DkGetPalControl(void);
 
 /*
  * MEMORY ALLOCATION

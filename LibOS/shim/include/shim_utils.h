@@ -164,6 +164,6 @@ int64_t install_async_event(PAL_HANDLE object, unsigned long time,
                             void (*callback)(IDTYPE caller, void* arg), void* arg);
 struct shim_thread* terminate_async_helper(void);
 
-extern toml_table_t* g_manifest_root;
+extern const toml_table_t* g_manifest_root;
 
 #endif /* _SHIM_UTILS_H */

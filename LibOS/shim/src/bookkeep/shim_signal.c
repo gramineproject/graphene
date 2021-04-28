@@ -421,7 +421,8 @@ static bool is_sgx_pal(void) {
 
     if (!__atomic_load_n(&inited, __ATOMIC_RELAXED)) {
         /* Ensure that `sgx_pal` is updated before `inited`. */
-        __atomic_store_n(&sgx_pal, !strcmp(PAL_CB(host_type), "Linux-SGX"), __ATOMIC_RELAXED);
+        __atomic_store_n(&sgx_pal, !strcmp(g_pal_control->host_type, "Linux-SGX"),
+                         __ATOMIC_RELAXED);
         COMPILER_BARRIER();
         __atomic_store_n(&inited, 1, __ATOMIC_RELAXED);
     }

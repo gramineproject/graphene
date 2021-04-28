@@ -52,14 +52,14 @@ static int init_tty_handle(struct shim_handle* hdl, bool write) {
 }
 
 static inline int init_exec_handle(void) {
-    if (!PAL_CB(executable))
+    if (!g_pal_control->executable)
         return 0;
 
     lock(&g_process.fs_lock);
     if (g_process.exec) {
         // TODO: This is only a temporary workaround, which should be deleted after removing exec
-        // handling from PAL. PAL_CB(executable) is valid only until first execve - in such case
-        // it's stale, and g_process.exec is already initialized by shim_do_execve_rtld.
+        // handling from PAL. `g_pal_control->executable` is valid only until first execve - in such
+        // case it's stale, and g_process.exec is already initialized by shim_do_execve_rtld.
         unlock(&g_process.fs_lock);
         return 0;
     }
@@ -69,19 +69,16 @@ static inline int init_exec_handle(void) {
     if (!exec)
         return -ENOMEM;
 
-    qstrsetstr(&exec->uri, PAL_CB(executable), strlen(PAL_CB(executable)));
+    qstrsetstr(&exec->uri, g_pal_control->executable, strlen(g_pal_control->executable));
     exec->type     = TYPE_FILE;
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
 
-    struct shim_mount* fs = find_mount_from_uri(PAL_CB(executable));
+    struct shim_mount* fs = find_mount_from_uri(g_pal_control->executable);
     if (fs) {
-        const char* p = PAL_CB(executable) + fs->uri.len;
-        /*
-         * Lookup for PAL_CB(executable) needs to be done under a given
-         * mount point. which requires a relative path name.
-         * On the other hand, the one in manifest file can be absolute path.
-         */
+        const char* p = g_pal_control->executable + fs->uri.len;
+        /* Lookup for `g_pal_control->executable` needs to be done under a given mount point which
+         * requires a relative path name. OTOH the one in manifest file can be absolute path. */
         while (*p == '/') {
             p++;
         }

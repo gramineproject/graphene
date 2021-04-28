@@ -110,7 +110,7 @@ static int init_self_ipc_port(void) {
 }
 
 static int init_parent_ipc_port(void) {
-    if (!PAL_CB(parent_process)) {
+    if (!g_pal_control->parent_process) {
         /* no parent process, no sense in creating parent IPC port */
         assert(!g_process_ipc_info.ipc_cp_data.parent_vmid);
         return 0;
@@ -118,7 +118,7 @@ static int init_parent_ipc_port(void) {
 
     assert(g_process_ipc_info.ipc_cp_data.parent_vmid);
 
-    add_ipc_port_by_id(g_process_ipc_info.ipc_cp_data.parent_vmid, PAL_CB(parent_process),
+    add_ipc_port_by_id(g_process_ipc_info.ipc_cp_data.parent_vmid, g_pal_control->parent_process,
                        /*fini=*/NULL, &g_process_ipc_info.parent);
 
     return 0;
@@ -136,7 +136,7 @@ static int init_ns_ipc_port(void) {
     assert(!g_process_ipc_info.ns);
     if (!g_process_ipc_info.ipc_cp_data.ns_vmid) {
         assert(!g_process_ipc_info.ipc_cp_data.parent_vmid);
-        assert(!PAL_CB(parent_process));
+        assert(!g_pal_control->parent_process);
 
         /* We are the very first Graphene process, hence also IPC leader. */
         return 0;
