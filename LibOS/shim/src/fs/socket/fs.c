@@ -48,9 +48,11 @@ static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
 
     unlock(&hdl->lock);
 
+    size_t orig_count = count;
     int ret = DkStreamRead(hdl->pal_handle, 0, &count, buf, NULL, 0);
+    ret = pal_to_unix_errno(ret);
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/true, ret == 0 ? count < orig_count : false);
     if (ret < 0) {
-        ret = pal_to_unix_errno(ret);
         lock(&hdl->lock);
         sock->error = -ret;
         unlock(&hdl->lock);
@@ -82,10 +84,11 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
 
     unlock(&hdl->lock);
 
+    size_t orig_count = count;
     int ret = DkStreamWrite(hdl->pal_handle, 0, &count, (void*)buf, NULL);
-
+    ret = pal_to_unix_errno(ret);
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/false, ret == 0 ? count < orig_count : false);
     if (ret < 0) {
-        ret = pal_to_unix_errno(ret);
         if (ret == -EPIPE) {
             siginfo_t info = {
                 .si_signo = SIGPIPE,

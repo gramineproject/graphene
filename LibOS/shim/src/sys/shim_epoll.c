@@ -63,7 +63,7 @@ long shim_do_epoll_create1(int flags) {
 
 /* the 'size' argument of epoll_create is not used */
 long shim_do_epoll_create(int size) {
-    if (size < 0)
+    if (size <= 0)
         return -EINVAL;
 
     return shim_do_epoll_create1(0);
@@ -122,6 +122,19 @@ void delete_from_epoll_handles(struct shim_handle* handle) {
         assert(epoll_item->handle == handle);
 
         free(epoll_item);
+    }
+}
+
+void maybe_epoll_et_trigger(struct shim_handle* handle, int ret, bool in, bool was_partial) {
+    if (ret == -EAGAIN || ret == -EWOULDBLOCK || was_partial) {
+        if (in) {
+            __atomic_store_n(&handle->needs_et_poll_in, true, __ATOMIC_RELEASE);
+        } else {
+            __atomic_store_n(&handle->needs_et_poll_out, true, __ATOMIC_RELEASE);
+        }
+        lock(&handle->lock);
+        _update_epolls(handle);
+        unlock(&handle->lock);
     }
 }
 
@@ -194,6 +207,11 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
             epoll_item->handle    = hdl;
             epoll_item->epoll     = epoll_hdl;
 
+            if (epoll_item->events & EPOLLET) {
+                __atomic_store_n(&hdl->needs_et_poll_in, true, __ATOMIC_RELEASE);
+                __atomic_store_n(&hdl->needs_et_poll_out, true, __ATOMIC_RELEASE);
+            }
+
             /* register hdl (corresponding to FD) in epoll (corresponding to EPFD):
              * - bind hdl to epoll-item via the `back` list
              * - bind epoll-item to epoll via the `list` list */
@@ -217,6 +235,12 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
                 if (epoll_item->fd == fd) {
                     epoll_item->events = event->events;
                     epoll_item->data   = event->data;
+
+                    if (epoll_item->events & EPOLLET) {
+                        struct shim_handle* handle = epoll_item->handle;
+                        __atomic_store_n(&handle->needs_et_poll_in, true, __ATOMIC_RELEASE);
+                        __atomic_store_n(&handle->needs_et_poll_out, true, __ATOMIC_RELEASE);
+                    }
 
                     log_debug("modified fd %d at epoll handle %p\n", fd, epoll);
                     notify_epoll_waiters(epoll);
@@ -323,6 +347,16 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
                                    ? PAL_WAIT_WRITE
                                    : 0;
             ret_events[pal_cnt] = 0;
+
+            if (epoll_item->events & EPOLLET) {
+                if (!__atomic_load_n(&epoll_item->handle->needs_et_poll_in, __ATOMIC_ACQUIRE)) {
+                    pal_events[pal_cnt] &= ~PAL_WAIT_READ;
+                }
+                if (!__atomic_load_n(&epoll_item->handle->needs_et_poll_out, __ATOMIC_ACQUIRE)) {
+                    pal_events[pal_cnt] &= ~PAL_WAIT_WRITE;
+                }
+            }
+
             pal_cnt++;
         }
 
@@ -407,6 +441,12 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
         if (epoll_item->revents & monitored_events) {
             events[nevents].events = epoll_item->revents & monitored_events;
             events[nevents].data   = epoll_item->data;
+            if (events[nevents].events & (EPOLLIN | EPOLLRDNORM)) {
+                __atomic_store_n(&epoll_item->handle->needs_et_poll_in, false, __ATOMIC_RELEASE);
+            }
+            if (events[nevents].events & (EPOLLOUT | EPOLLWRNORM)) {
+                __atomic_store_n(&epoll_item->handle->needs_et_poll_out, false, __ATOMIC_RELEASE);
+            }
             epoll_item->revents &= ~epoll_item->events; /* informed user about revents, may clear */
             nevents++;
         }

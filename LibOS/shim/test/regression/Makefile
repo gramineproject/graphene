@@ -17,6 +17,7 @@ c_executables = \
 	dev \
 	device \
 	double_fork \
+	epoll_epollet \
 	epoll_wait_timeout \
 	eventfd \
 	exec \

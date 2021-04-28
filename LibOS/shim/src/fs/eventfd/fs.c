@@ -20,9 +20,12 @@ static ssize_t eventfd_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (count < sizeof(uint64_t))
         return -EINVAL;
 
+    size_t orig_count = count;
     int ret = DkStreamRead(hdl->pal_handle, 0, &count, buf, NULL, 0);
+    ret = pal_to_unix_errno(ret);
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/true, ret == 0 ? count < orig_count : false);
     if (ret < 0) {
-        return pal_to_unix_errno(ret);
+        return ret;
     }
 
     return (ssize_t)count;
@@ -32,9 +35,12 @@ static ssize_t eventfd_write(struct shim_handle* hdl, const void* buf, size_t co
     if (count < sizeof(uint64_t))
         return -EINVAL;
 
+    size_t orig_count = count;
     int ret = DkStreamWrite(hdl->pal_handle, 0, &count, (void*)buf, NULL);
+    ret = pal_to_unix_errno(ret);
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/false, ret == 0 ? count < orig_count : false);
     if (ret < 0) {
-        return pal_to_unix_errno(ret);
+        return ret;
     }
 
     return (ssize_t)count;

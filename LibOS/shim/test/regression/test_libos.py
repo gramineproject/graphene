@@ -701,6 +701,10 @@ class TC_80_Socket(RegressionTestCase):
         # epoll_wait timeout
         self.assertIn('epoll_wait test passed', stdout)
 
+    def test_011_epoll_epollet(self):
+        stdout, _ = self.run_binary(['epoll_epollet', 'EMULATE_GRAPHENE_BUG'])
+        self.assertIn('TEST OK', stdout)
+
     def test_020_poll(self):
         stdout, _ = self.run_binary(['poll'])
         self.assertIn('poll(POLLOUT) returned 1 file descriptors', stdout)

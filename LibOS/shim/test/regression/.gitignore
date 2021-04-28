@@ -35,6 +35,7 @@
 /double_fork
 /env_from_file
 /env_from_host
+/epoll_epollet
 /epoll_wait_timeout
 /eventfd
 /exec
