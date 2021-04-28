@@ -236,21 +236,24 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
         }
 
         size_t cpu_cnt = PAL_CB(cpu_info.online_logical_cores);
+        if (cpu_cnt > CPUMASK_SETSIZE) {
+            log_warning("Due to glibc limitation max supported CPUs is 1024. "
+                        "System CPU count is %ld\n", cpu_cnt);
+            return -EINVAL;
+        }
+
         size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
         struct shim_thread* thread = get_cur_thread();
-        get_thread(thread);
 
         /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
          * some bug in user app. */
         if (is_internal(thread)) {
-            put_thread(thread);
             return -ESRCH;
         }
 
         unsigned long mask[NUM_MASKS] = {0};
         int ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, &mask);
         if (ret < 0) {
-            put_thread(thread);
             return pal_to_unix_errno(ret);
         }
 
@@ -269,18 +272,18 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
         unsigned long rand_num = 0;
         ret = DkRandomBitsRead(&rand_num, sizeof(rand_num));
         if (ret < 0) {
-            put_thread(thread);
             return pal_to_unix_errno(ret);
         }
 
-        int nth_setbit = (num_bits == 1) ? 0 : (rand_num % (num_bits - 1) + 1);
+        int nth_setbit = rand_num % num_bits;
         unsigned long cpumask = mask[idx];
         for (int j = 0; j < nth_setbit; j++) {
+            /* At each iteration, find the lowest set bit in cpumask and unset it; this will bring
+             * us to the nth_setbit after nth_setbit iterations */
             cpumask = cpumask & ~(1UL << __builtin_ctzl(cpumask));
         }
 
-        *cpu = __builtin_ctzl(cpumask) + (CPUBITS * idx);
-        put_thread(thread);
+        *cpu = __builtin_ctzl(cpumask) + CPUBITS * idx;
     }
 
     if (node) {
