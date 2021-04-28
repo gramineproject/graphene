@@ -1,4 +1,5 @@
-#include "pal_debug.h"
+#include "pal.h"
+#include "pal_regression.h"
 
 int main(int argc, char** argv, char** envp) {
     /* check if the programriables in the manifest should appear  is loaded */

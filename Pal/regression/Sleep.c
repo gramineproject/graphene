@@ -1,5 +1,5 @@
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 int main(int argc, char** argv, char** envp) {
     long sleeping = 3000000;

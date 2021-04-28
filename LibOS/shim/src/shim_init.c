@@ -37,6 +37,27 @@ size_t g_pal_alloc_align;
 
 toml_table_t* g_manifest_root = NULL;
 
+/* TODO: Currently copied from log_always(). Ideally, LibOS's implementation of warn() should call a
+ *       va_list version of log_always(). */
+static int buf_write_all(const char* str, size_t size, void* arg) {
+    __UNUSED(arg);
+    DkDebugLog((PAL_PTR)str, size);
+    return 0;
+}
+
+void warn(const char* format, ...) {
+    struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
+
+    buf_puts(&buf, shim_get_tcb()->log_prefix);
+
+    va_list ap;
+    va_start(ap, format);
+    buf_vprintf(&buf, format, ap);
+    va_end(ap);
+
+    buf_flush(&buf);
+}
+
 noreturn void __abort(void) {
     DEBUG_BREAK_ON_FAILURE();
     /* `__abort` might be called by any thread, even internal. */

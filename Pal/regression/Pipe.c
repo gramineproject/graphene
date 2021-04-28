@@ -1,6 +1,6 @@
 #include "api.h"
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 int main(int argc, char** argv, char** envp) {
     char buffer1[20] = "Hello World 1";

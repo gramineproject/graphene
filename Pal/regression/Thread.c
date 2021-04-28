@@ -1,7 +1,7 @@
 #include <stdatomic.h>
 
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 const char* private1 = "Hello World 1";
 const char* private2 = "Hello World 2";

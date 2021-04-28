@@ -2,7 +2,7 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 
 CFLAGS	+= -fno-stack-protector -fno-builtin -nostdlib \
-	  -I../src \
+	  -I. \
 	  -I../include \
 	  -I../include/pal \
 	  -I../include/lib \
@@ -104,11 +104,11 @@ abort.o: CFLAGS += -fPIC
 ../regression/File: | File
 	@true
 
-LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib) abort.o
+LDLIBS-preloads = ../crt_init/user_shared_start.o abort.o $(graphene_lib) $(pal_lib)
 $(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads)
 
-LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads) abort.o
+LDLIBS-executables = ../crt_init/user_start.o abort.o $(graphene_lib) $(pal_lib) $(preloads)
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 

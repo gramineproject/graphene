@@ -1012,6 +1012,8 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     int64_t bytes;
     int64_t ret;
 
+    assert(IS_HANDLE_TYPE(stream, process));
+
     ret = lib_DhInit(&context);
     if (ret < 0) {
         log_error("Key Exchange: DH Init failed: %ld\n", ret);
@@ -1105,6 +1107,8 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     uint64_t bytes;
     int64_t ret;
 
+    assert(IS_HANDLE_TYPE(stream, process));
+
     /* A -> B: targetinfo[A] */
     memset(&target_info, 0, sizeof(target_info));
     memcpy(&target_info.mr_enclave, &g_pal_sec.mr_enclave, sizeof(sgx_measurement_t));
@@ -1181,7 +1185,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     return 0;
 
 out:
-    DkStreamDelete(stream, 0);
+    _DkStreamDelete(stream, 0);
     return ret;
 }
 
@@ -1198,6 +1202,9 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
     int64_t ret;
+
+    assert(IS_HANDLE_TYPE(stream, process));
+
     memset(&target_info, 0, sizeof(target_info));
 
     /* A -> B: targetinfo[A] */
@@ -1268,7 +1275,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     return 0;
 
 out:
-    DkStreamDelete(stream, 0);
+    _DkStreamDelete(stream, 0);
     return ret;
 }
 

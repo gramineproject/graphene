@@ -1,8 +1,8 @@
 #include "api.h"
 #include "cpu.h"
 #include "pal.h"
-#include "pal_debug.h"
 #include "pal_error.h"
+#include "pal_regression.h"
 
 #define CHECK(x) ({                                                     \
     __typeof__(x) _x = (x);                                             \

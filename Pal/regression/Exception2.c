@@ -1,7 +1,7 @@
 #include <stdbool.h>
 
 #include "pal.h"
-#include "pal_debug.h"
+#include "pal_regression.h"
 
 int count = 0;
 int i     = 0;

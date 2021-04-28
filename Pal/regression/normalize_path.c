@@ -1,7 +1,6 @@
 #include "api.h"
-#include "pal_debug.h"
-#include "pal_defs.h"
 #include "pal_error.h"
+#include "pal_regression.h"
 
 static const char* get_norm_path_cases[][2] = {
     {"/", "/"},
@@ -43,7 +42,7 @@ static size_t cases_len;
 static int (*func_to_test)(const char*, char*, size_t*);
 static const char* func_name;
 
-char buf[URI_MAX] = {0};
+char buf[4096] = {0};
 
 static int run_test(void) {
     for (size_t i = 0; i < cases_len; i++) {
@@ -51,7 +50,7 @@ static int run_test(void) {
         int ret = func_to_test(cases[i][0], buf, &size);
 
         if (ret < 0) {
-            print_err(func_name, i, "failed with error: %s\n", pal_strerror(ret));
+            print_err(func_name, i, "failed with error: %d\n", ret);
             return 1;
         }
 
