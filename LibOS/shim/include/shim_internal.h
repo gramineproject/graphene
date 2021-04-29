@@ -4,6 +4,7 @@
 #ifndef _SHIM_INTERNAL_H_
 #define _SHIM_INTERNAL_H_
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdnoreturn.h>
 
@@ -31,7 +32,7 @@ static inline bool is_internal_tid(unsigned int tid) {
 
 extern int g_log_level;
 
-#include <stdarg.h>
+extern PAL_CONTROL* g_pal_control;
 
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.

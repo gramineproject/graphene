@@ -28,23 +28,22 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     if (idx < 0)
         return -ENOENT;
 
-    PAL_CONTROL* pal_control = DkGetPalControl();
-
+    PAL_CORE_CACHE_INFO* cache = &g_pal_control->topo_info.core_topology[cpunum].cache[idx];
     const char* cache_filebuf;
     if (!strcmp(filename, "shared_cpu_map")) {
-        cache_filebuf = pal_control->topo_info.core_topology[cpunum].cache[idx].shared_cpu_map;
+        cache_filebuf = cache->shared_cpu_map;
     } else if (!strcmp(filename, "level")) {
-        cache_filebuf = pal_control->topo_info.core_topology[cpunum].cache[idx].level;
+        cache_filebuf = cache->level;
     } else if (!strcmp(filename, "type")) {
-        cache_filebuf = pal_control->topo_info.core_topology[cpunum].cache[idx].type;
+        cache_filebuf = cache->type;
     } else if (!strcmp(filename, "size")) {
-        cache_filebuf = pal_control->topo_info.core_topology[cpunum].cache[idx].size;
+        cache_filebuf = cache->size;
     } else if (!strcmp(filename, "coherency_line_size")) {
-        cache_filebuf = pal_control->topo_info.core_topology[cpunum].cache[idx].coherency_line_size;
+        cache_filebuf = cache->coherency_line_size;
     } else if (!strcmp(filename, "number_of_sets")) {
-        cache_filebuf = pal_control->topo_info.core_topology[cpunum].cache[idx].number_of_sets;
+        cache_filebuf = cache->number_of_sets;
     } else if (!strcmp(filename, "physical_line_partition")) {
-        cache_filebuf = pal_control->topo_info.core_topology[cpunum].cache[idx].physical_line_partition;
+        cache_filebuf = cache->physical_line_partition;
     } else {
         log_debug("Unrecognized file %s\n", name);
         return -ENOENT;

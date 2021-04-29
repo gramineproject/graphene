@@ -94,11 +94,11 @@ int bkeep_mmap_any_in_range(void* bottom_addr, void* top_addr, size_t length, in
                             void** ret_val_ptr);
 
 /* Shorthand for `bkeep_mmap_any_in_range` with the range
- * [`DkGetPalControl()->user_address.start`, `DkGetPalControl()->user_address.end`). */
+ * [`g_pal_control->user_address.start`, `g_pal_control->user_address.end`). */
 int bkeep_mmap_any(size_t length, int prot, int flags, struct shim_handle* file, uint64_t offset,
                    const char* comment, void** ret_val_ptr);
 
-/* First tries to bookkeep in the range [`DkGetPalControl()->user_address.start`, `aslr_addr_top`)
+/* First tries to bookkeep in the range [`g_pal_control->user_address.start`, `aslr_addr_top`)
  * and if it fails calls `bkeep_mmap_any`. `aslr_addr_top` is a value randomized on each program
  * run. */
 int bkeep_mmap_any_aslr(size_t length, int prot, int flags, struct shim_handle* file,
