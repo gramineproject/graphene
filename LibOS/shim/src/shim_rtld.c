@@ -271,7 +271,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
         void* last_page_start = ALLOC_ALIGN_DOWN_PTR(zero_start);
 
         if ((c->prot & PROT_WRITE) == 0) {
-            if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_alloc_align,
+            if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_control->alloc_align,
                                               pal_prot | PAL_PROT_WRITE) < 0)) {
                 log_debug("%s: cannot change memory protections\n", __func__);
                 return pal_to_unix_errno(ret);
@@ -281,7 +281,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
         memset(zero_start, 0, zero_size);
 
         if ((c->prot & PROT_WRITE) == 0) {
-            if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_alloc_align,
+            if ((ret = DkVirtualMemoryProtect(last_page_start, g_pal_control->alloc_align,
                                               pal_prot) < 0)) {
                 log_debug("%s: cannot change memory protections\n", __func__);
                 return pal_to_unix_errno(ret);
@@ -951,7 +951,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     auxp[1].a_type     = AT_PHNUM;
     auxp[1].a_un.a_val = exec_map->l_phnum;
     auxp[2].a_type     = AT_PAGESZ;
-    auxp[2].a_un.a_val = g_pal_alloc_align;
+    auxp[2].a_un.a_val = g_pal_control->alloc_align;
     auxp[3].a_type     = AT_ENTRY;
     auxp[3].a_un.a_val = exec_map->l_entry;
     auxp[4].a_type     = AT_BASE;

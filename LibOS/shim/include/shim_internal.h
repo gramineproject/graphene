@@ -333,14 +333,13 @@ static inline int __ref_dec(REFTYPE* ref) {
 #define __alloca __builtin_alloca
 #endif
 
-extern size_t g_pal_alloc_align;
-#define ALLOC_ALIGNMENT         g_pal_alloc_align
-#define IS_ALLOC_ALIGNED(x)     IS_ALIGNED_POW2(x, g_pal_alloc_align)
-#define IS_ALLOC_ALIGNED_PTR(x) IS_ALIGNED_PTR_POW2(x, g_pal_alloc_align)
-#define ALLOC_ALIGN_DOWN(x)     ALIGN_DOWN_POW2(x, g_pal_alloc_align)
-#define ALLOC_ALIGN_UP(x)       ALIGN_UP_POW2(x, g_pal_alloc_align)
-#define ALLOC_ALIGN_DOWN_PTR(x) ALIGN_DOWN_PTR_POW2(x, g_pal_alloc_align)
-#define ALLOC_ALIGN_UP_PTR(x)   ALIGN_UP_PTR_POW2(x, g_pal_alloc_align)
+#define ALLOC_ALIGNMENT         g_pal_control->alloc_align
+#define IS_ALLOC_ALIGNED(x)     IS_ALIGNED_POW2(x, g_pal_control->alloc_align)
+#define IS_ALLOC_ALIGNED_PTR(x) IS_ALIGNED_PTR_POW2(x, g_pal_control->alloc_align)
+#define ALLOC_ALIGN_DOWN(x)     ALIGN_DOWN_POW2(x, g_pal_control->alloc_align)
+#define ALLOC_ALIGN_UP(x)       ALIGN_UP_POW2(x, g_pal_control->alloc_align)
+#define ALLOC_ALIGN_DOWN_PTR(x) ALIGN_DOWN_PTR_POW2(x, g_pal_control->alloc_align)
+#define ALLOC_ALIGN_UP_PTR(x)   ALIGN_UP_PTR_POW2(x, g_pal_control->alloc_align)
 
 void* __system_malloc(size_t size);
 void __system_free(void* addr, size_t size);

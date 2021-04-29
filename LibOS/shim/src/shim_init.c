@@ -33,7 +33,6 @@
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
               "shim_tcb_t does not fit into PAL_TCB; please increase PAL_LIBOS_TCB_SIZE");
 
-size_t g_pal_alloc_align      = 0;
 toml_table_t* g_manifest_root = NULL;
 PAL_CONTROL* g_pal_control    = NULL;
 
@@ -322,7 +321,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     if (!cur_thread || cur_thread->stack)
         return 0;
 
-    void* stack = allocate_stack(stack_size, g_pal_alloc_align, /*user=*/true);
+    void* stack = allocate_stack(stack_size, g_pal_control->alloc_align, /*user=*/true);
     if (!stack)
         return -ENOMEM;
 
@@ -335,7 +334,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
 
     cur_thread->stack_top = stack + stack_size;
     cur_thread->stack     = stack;
-    cur_thread->stack_red = stack - g_pal_alloc_align;
+    cur_thread->stack_red = stack - g_pal_control->alloc_align;
     return 0;
 }
 
@@ -404,8 +403,7 @@ noreturn void* shim_init(int argc, void* args) {
 
     log_debug("Host: %s\n", g_pal_control->host_type);
 
-    g_pal_alloc_align = g_pal_control->alloc_align;
-    if (!IS_POWER_OF_2(g_pal_alloc_align)) {
+    if (!IS_POWER_OF_2(g_pal_control->alloc_align)) {
         log_error("Error during shim_init(): PAL allocation alignment not a power of 2\n");
         DkProcessExit(EINVAL);
     }
