@@ -33,8 +33,8 @@
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
               "shim_tcb_t does not fit into PAL_TCB; please increase PAL_LIBOS_TCB_SIZE");
 
-toml_table_t* g_manifest_root = NULL;
-PAL_CONTROL* g_pal_control    = NULL;
+const toml_table_t* g_manifest_root = NULL;
+const PAL_CONTROL* g_pal_control    = NULL;
 
 /* TODO: Currently copied from log_always(). Ideally, LibOS's implementation of warn() should call a
  *       va_list version of log_always(). */
