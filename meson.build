@@ -23,6 +23,10 @@ pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
 
+if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
+    add_project_arguments('-DDEBUG', language: 'c')
+endif
+
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
 python3 = python3mod.find_python()
