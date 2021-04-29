@@ -105,6 +105,10 @@ typedef ptrdiff_t ssize_t;
         __asm__ volatile("int $3"); \
     } while (0)
 
+#define CPUMASK_SETSIZE 1024
+#define CPUBITS         (8 * sizeof(unsigned long))
+#define NUM_MASKS       (CPUMASK_SETSIZE / CPUBITS)
+
 #ifndef container_of
 /**
  * container_of - cast a member of a structure out to the containing structure

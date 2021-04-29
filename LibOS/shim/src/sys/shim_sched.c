@@ -222,10 +222,6 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     return bitmask_size_in_bytes;
 }
 
-#define CPUMASK_SETSIZE 1024
-#define CPUBITS         (8 * sizeof(unsigned long))
-#define NUM_MASKS       (CPUMASK_SETSIZE / CPUBITS)
-
 long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
     __UNUSED(unused);
 
@@ -237,8 +233,8 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
 
         size_t cpu_cnt = PAL_CB(cpu_info.online_logical_cores);
         if (cpu_cnt > CPUMASK_SETSIZE) {
-            log_warning("Due to glibc limitation max supported CPUs is 1024. "
-                        "System CPU count is %ld\n", cpu_cnt);
+            log_warning("Maximum supported CPU count in Glibc is %d, but current CPU count is %lu",
+                         CPUMASK_SETSIZE, cpu_cnt);
             return -EINVAL;
         }
 
