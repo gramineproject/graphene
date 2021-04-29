@@ -37,7 +37,8 @@ size_t g_pal_alloc_align      = 0;
 toml_table_t* g_manifest_root = NULL;
 PAL_CONTROL* g_pal_control    = NULL;
 
-/* TODO: Currently copied from log_always(). Remove this and always use log_*. */
+/* TODO: Currently copied from log_always(). Ideally, LibOS's implementation of warn() should call a
+ *       va_list version of log_always(). */
 static int buf_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
     DkDebugLog((PAL_PTR)str, size);
