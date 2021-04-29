@@ -241,23 +241,6 @@ extern struct shim_dentry* g_dentry_root;
     ((((x) == O_RDONLY || (x) == O_RDWR) ? MAY_READ : 0) | \
      (((x) == O_WRONLY || (x) == O_RDWR) ? MAY_WRITE : 0))
 
-enum lookup_type {
-    LAST_NORM,
-    LAST_ROOT,
-    LAST_DOT,
-    LAST_DOTDOT,
-    LAST_BIND
-};
-
-struct lookup {
-    struct shim_dentry* dentry;
-    struct shim_mount* mount;
-    const char* last;
-    int depth;
-    int flags;
-    enum lookup_type last_type;
-};
-
 /* initialization for fs and mounts */
 int init_fs(void);
 int init_mount_root(void);
