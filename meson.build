@@ -40,6 +40,8 @@ python3mod = import('python3')
 python3 = python3mod.find_python()
 
 add_project_arguments(
+    '-Wa,--noexecstack',
+
     '-Wall',
     '-Wextra',
 
@@ -81,6 +83,8 @@ endif
 # The compilation
 #
 
+subdir('common')
+subdir('Pal')
 subdir('LibOS')
 subdir('Runtime')
 subdir('python')
