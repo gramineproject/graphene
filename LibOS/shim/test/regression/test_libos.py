@@ -584,8 +584,8 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('stack', stdout)
         self.assertIn('vendor_id', stdout)
 
-    def test_001_dev(self):
-        stdout, _ = self.run_binary(['dev'])
+    def test_001_devfs(self):
+        stdout, _ = self.run_binary(['devfs'])
         self.assertIn('/dev/.', stdout)
         self.assertIn('/dev/null', stdout)
         self.assertIn('/dev/zero', stdout)

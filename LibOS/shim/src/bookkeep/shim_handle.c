@@ -82,7 +82,16 @@ static inline int init_exec_handle(void) {
         while (*p == '/') {
             p++;
         }
-        path_lookupat(fs->root, p, LOOKUP_FOLLOW, &exec->dentry);
+        int ret = path_lookupat(fs->mount_point, p, LOOKUP_FOLLOW, &exec->dentry);
+        if (ret < 0) {
+            log_error("init_exec_handle: cannot find executable in filesystem: %d\n", ret);
+            return ret;
+        }
+        if (exec->dentry->fs != fs) {
+            log_error("init_exec_handle: cannot find executable in filesystem, "
+                      "it seems to be shadowed by a mount\n");
+            return -EINVAL;
+        }
         set_handle_fs(exec, fs);
         if (exec->dentry)
             dentry_get_path_into_qstr(exec->dentry, &exec->path);

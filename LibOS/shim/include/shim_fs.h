@@ -197,6 +197,11 @@ DEFINE_LIST(shim_mount);
 struct shim_mount {
     char type[8];  // Null-terminated.
 
+    /*
+     * TODO: this field currently functions as both the mountpoint AND the filesystem root. Instead,
+     * `mount_point` should be the dentry from the parent filesystem, and `root` should be the
+     * filesystem root.
+     */
     struct shim_dentry* mount_point;
 
     struct shim_qstr path;
@@ -205,6 +210,7 @@ struct shim_mount {
     struct shim_fs_ops* fs_ops;
     struct shim_d_ops* d_ops;
 
+    /* TODO: this is unused right now (see `mount_point`) */
     struct shim_dentry* root;
 
     void* data;
