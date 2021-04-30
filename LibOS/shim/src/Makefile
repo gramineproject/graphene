@@ -34,7 +34,7 @@ CFLAGS += $(cc-option,-Wno-gnu-alignof-expression)
 
 # TODO: This is due to use of packed structs in IPC code, which triggers "taking address of a packed
 # member" warning in Clang and newer GCC. That code needs to be rewritten.
-CFLAGS += $(cc-option,-Wno-address-of-packed-member)
+CFLAGS += -Wno-address-of-packed-member
 
 ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include -I../include/arch/$(ARCH)
 
