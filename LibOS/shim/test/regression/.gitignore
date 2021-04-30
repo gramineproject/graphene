@@ -16,7 +16,7 @@
 /debug_log_file
 /debug_log_inline
 /debug_regs-x86_64
-/dev
+/devfs
 /device
 /double_fork
 /env_from_file

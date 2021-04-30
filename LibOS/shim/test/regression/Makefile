@@ -14,7 +14,7 @@ c_executables = \
 	bootstrap_pie \
 	bootstrap_static \
 	debug \
-	dev \
+	devfs \
 	device \
 	double_fork \
 	epoll_epollet \
