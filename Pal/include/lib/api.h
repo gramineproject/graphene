@@ -106,8 +106,8 @@ typedef ptrdiff_t ssize_t;
     } while (0)
 
 #define CPUMASK_SETSIZE 1024
-#define CPUBITS         (8 * sizeof(unsigned long))
-#define NUM_MASKS       (CPUMASK_SETSIZE / CPUBITS)
+#define CPUMASK_BITS    BITS_IN_TYPE(unsigned long)
+#define MAX_CPUMASKS    (CPUMASK_SETSIZE / CPUMASK_BITS)
 
 #ifndef container_of
 /**

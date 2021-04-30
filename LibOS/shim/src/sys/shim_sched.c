@@ -247,7 +247,7 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
             return -ESRCH;
         }
 
-        unsigned long mask[NUM_MASKS] = {0};
+        unsigned long mask[MAX_CPUMASKS] = {0};
         int ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, &mask);
         if (ret < 0) {
             return pal_to_unix_errno(ret);
@@ -256,7 +256,7 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
         /* Find first non-empty cpumask and get the number of bits set */
         unsigned int num_bits = 0;
         unsigned int idx = 0;
-        while (idx < NUM_MASKS) {
+        while (idx < MAX_CPUMASKS) {
             num_bits = count_ulong_bits_set(mask[idx]);
             if (num_bits)
                 break;
@@ -279,7 +279,7 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
             cpumask = cpumask & ~(1UL << __builtin_ctzl(cpumask));
         }
 
-        *cpu = __builtin_ctzl(cpumask) + CPUBITS * idx;
+        *cpu = __builtin_ctzl(cpumask) + CPUMASK_BITS * idx;
     }
 
     if (node) {
