@@ -1185,7 +1185,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     return 0;
 
 out:
-    ocall_shutdown(stream->process.stream, SHUT_RDWR);
+    _DkStreamDelete(stream, 0);
     return ret;
 }
 
@@ -1275,7 +1275,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     return 0;
 
 out:
-    ocall_shutdown(stream->process.stream, SHUT_RDWR);
+    _DkStreamDelete(stream, 0);
     return ret;
 }
 
