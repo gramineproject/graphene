@@ -1,6 +1,7 @@
 foreach script : [
     'check-no-reloc.sh',
     'gen-offsets.py',
+    'gen-pal-map.py',
     'get-python-platlib.py',
     'meson-clang-format.sh',
 ]

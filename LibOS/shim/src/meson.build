@@ -2,8 +2,7 @@ libgraphene_libos = cc.find_library('graphene-lib',
     dirs: join_paths(meson.current_source_dir(), '.lib'))
 
 if direct
-    libpal = cc.find_library('pal-Linux',
-        dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))
+    libpal = libpal_direct_dep
 elif sgx
     libpal = cc.find_library('pal-Linux-SGX',
         dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))

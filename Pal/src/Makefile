@@ -44,8 +44,10 @@ PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' 
 #     (2) Generic targets are in "host/{Host Name}/.obj".
 #     (3) API library targets are in "host/{Host Name}/.lib".
 
+ifneq ($(PAL_HOST),Linux)
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader)
+endif
 
 defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO)
 CFLAGS += $(defs)
@@ -79,7 +81,9 @@ ifneq ($(pal_lib),)
 	runtime_lib += $(RUNTIME_DIR)/libpal-$(PAL_HOST)$(suffix $(pal_lib))
 endif
 
+ifneq ($(PAL_HOST),Linux)
 files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
+endif
 
 
 ###########################
@@ -87,7 +91,7 @@ files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
 ###########################
 
 .PHONY: all
-all: $(files_to_build) $(files_to_install)
+all: $(graphene_lib) $(files_to_build) $(files_to_install)
 
 .PHONY: host_lib_recurse graphene_lib_recurse
 
@@ -157,7 +161,9 @@ clean_targets = clean distclean
 .PHONY: $(clean_targets) clean_
 
 $(clean_targets): clean_
+ifneq ($(PAL_HOST),Linux)
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) $@
+endif
 
 clean_:
 	$(RM) -r $(LIB_DIR) $(OBJ_DIR) $(files_to_build) *.d
