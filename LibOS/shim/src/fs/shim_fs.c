@@ -412,38 +412,10 @@ static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
     dent->state |= DENTRY_MOUNTPOINT;
     get_dentry(dent);
     mount->mount_point = dent;
-    dent->mounted      = mount;
+    dent->mounted = mount;
 
-    struct shim_dentry* mount_root = mount->root;
-
-    if (!mount_root) {
-        /* mount_root->state |= DENTRY_VALID; */
-        mount_root = get_new_dentry(mount, /*fs=*/NULL, /*name=*/"", /*name_len=*/0);
-        assert(mount->d_ops && mount->d_ops->lookup);
-        ret = mount->d_ops->lookup(mount_root);
-        if (ret < 0) {
-            put_dentry(mount_root);
-            return ret;
-        }
-        mount->root = mount_root;
-    }
-
-    /* DEP 7/1/17: If the mount is a directory, make sure the mount
-     * point is marked as a directory */
-    if (mount_root->state & DENTRY_ISDIRECTORY)
-        dent->state |= DENTRY_ISDIRECTORY;
-
-    /* DEP 6/16/17: In the dcache redesign, we don't use the *REACHABLE flags, but
-     * leaving this commented for documentation, in case there is a problem
-     * I over-simplified */
-    // mount_root->state |= dent->state & (DENTRY_REACHABLE|DENTRY_UNREACHABLE);
-
-    /* DEP 6/16/17: In the dcache redesign, I don't believe we need to manually
-     * rehash the path; this should be handled by get_new_dentry, or already be
-     * hashed if mount_root exists.  I'm going to leave this line here for now
-     * as documentation in case there is a problem later.
-     */
-    //__add_dcache(mount_root, &mount->path.hash);
+    /* TODO: use `mount->root` as actual filesystem root (see comment for `struct shim_mount`) */
+    mount->root = NULL;
 
     if ((ret = __del_dentry_tree(dent)) < 0)
         return ret;

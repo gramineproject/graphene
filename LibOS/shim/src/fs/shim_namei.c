@@ -698,9 +698,6 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl) {
 
         struct shim_dentry* c = child;
 
-        while (c->state & DENTRY_MOUNTPOINT)
-            c = c->mounted->root;
-
         if (c->state & DENTRY_VALID) {
             get_dentry(c);
             children[count++] = c;
