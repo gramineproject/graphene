@@ -15,8 +15,7 @@ precompiled_libgraphene_libos = cc.find_library('graphene-lib',
     dirs: join_paths(meson.current_source_dir(), '.lib'))
 
 if direct
-    precompiled_libpal = cc.find_library('pal-Linux',
-        dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))
+    precompiled_libpal = libpal_direct_dep
 elif sgx
     precompiled_libpal = cc.find_library('pal-Linux-SGX',
         dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))

@@ -1,6 +1,7 @@
 foreach script : [
     'check-no-reloc.sh',
     'gen-offsets.py',
+    'gen-pal-map.py',
     'get-python-platlib.py',
 ]
     set_variable('@0@_prog'.format(script.split('.')[0].underscorify()),

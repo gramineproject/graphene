@@ -63,6 +63,7 @@ endif
 # The compilation
 #
 
+subdir('Pal')
 subdir('LibOS')
 subdir('Runtime')
 subdir('python')
