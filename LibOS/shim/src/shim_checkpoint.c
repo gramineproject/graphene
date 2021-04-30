@@ -531,7 +531,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
             break;
 
         cpstore.bound >>= 1;
-        if (cpstore.bound < g_pal_control->alloc_align)
+        if (cpstore.bound < ALLOC_ALIGNMENT)
             break;
     }
 

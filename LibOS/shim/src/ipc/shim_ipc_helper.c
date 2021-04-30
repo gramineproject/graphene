@@ -17,7 +17,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-#define IPC_HELPER_STACK_SIZE (g_pal_control->alloc_align * 4)
+#define IPC_HELPER_STACK_SIZE (ALLOC_ALIGNMENT * 4)
 
 static struct shim_lock ipc_port_mgr_lock;
 
@@ -808,7 +808,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     unlock(&ipc_helper_lock);
 #endif // DEBUG
 
-    void* stack = allocate_stack(IPC_HELPER_STACK_SIZE, g_pal_control->alloc_align, false);
+    void* stack = allocate_stack(IPC_HELPER_STACK_SIZE, ALLOC_ALIGNMENT, false);
 
     if (!stack) {
         put_thread(self);

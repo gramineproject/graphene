@@ -307,7 +307,7 @@ long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (test_user_memory(addr, len, false))
         return -ENOMEM;
 
-    unsigned long pages = ALLOC_ALIGN_UP(len) / g_pal_control->alloc_align;
+    unsigned long pages = ALLOC_ALIGN_UP(len) / ALLOC_ALIGNMENT;
     if (test_user_memory(vec, pages, true))
         return -EFAULT;
 
