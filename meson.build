@@ -3,17 +3,10 @@ project(
     version: '1.0',
     license: 'LGPLv3+',
 
-    # DISTRO            EOL         meson_version
-    # xenial            2021.04     0.29
-    # xenial-backports  2021.04     0.40
-    # bionic            2023.04     0.45
-    # buster            2022        0.49
-    # buster-backports  2022        0.52
-    # focal             2025.04     0.53
-    #
-    # https://wiki.ubuntu.com/Releases
-    # https://wiki.debian.org/DebianReleases#Production_Releases
-    meson_version: '>=0.45',
+    # Don't uncomment until we either update to module('python') and/or
+    # meson>=0.54, because meson<0.54.2 has a bug which displays bogus warnings
+    # about deprecated versions: https://github.com/mesonbuild/meson/issues/7080
+#   meson_version: '>=0.45',
 )
 
 prefix = get_option('prefix')
