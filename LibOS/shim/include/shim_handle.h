@@ -315,8 +315,6 @@ struct shim_dentry;
 struct shim_handle {
     enum shim_handle_type type;
     bool is_dir;
-    bool needs_et_poll_in;
-    bool needs_et_poll_out;
 
     REFTYPE ref_count;
 
@@ -328,6 +326,12 @@ struct shim_handle {
     /* If this handle is registered for any epoll handle, this list contains
      * a shim_epoll_item object in correspondence with the epoll handle. */
     LISTP_TYPE(shim_epoll_item) epolls;
+    /* Only meaningful if the handle is registered in some epoll instance with `EPOLLET` semantics.
+     * `false` if it already triggered an `EPOLLIN` event for the current portion of data otherwise
+     * `true` and the next `epoll_wait` will consider this handle and report events for it. */
+    bool needs_et_poll_in;
+    /* Same as above but for `EPOLLOUT` events. */
+    bool needs_et_poll_out;
 
     struct shim_qstr uri; /* URI representing this handle, it is not
                            * necessary to be set. */

@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/epoll.h>
@@ -11,7 +12,7 @@ int main(int argc, char* argv[]) {
     if (argc != 1 && argc != 2) {
         errx(1, "invalid arguments count");
     }
-    int expected_events = EPOLLIN;
+    uint32_t expected_events = EPOLLIN;
     if (argc == 2 && !strcmp(argv[1], "EMULATE_GRAPHENE_BUG")) {
         /* More details: https://github.com/oscarlab/graphene/issues/1717 */
         expected_events |= EPOLLOUT;
@@ -43,7 +44,7 @@ int main(int argc, char* argv[]) {
     }
 
     memset(&event, '\0', sizeof(event));
-    if (epoll_wait(efd, &event, 1, 10) != 1) {
+    if (epoll_wait(efd, &event, 1, -1) != 1) {
         err(1, "epoll_wait");
     }
 
