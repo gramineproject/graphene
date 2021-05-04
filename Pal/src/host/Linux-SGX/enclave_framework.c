@@ -494,6 +494,7 @@ int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* ume
      * 's' points to the file chunk that needs to be checked for the current offset. */
     sgx_stub_t* s = stubs + aligned_offset / TRUSTED_STUB_SIZE;
 
+    uint8_t* buf_pos = buf;
     off_t chunk_offset = aligned_offset;
     for (; chunk_offset < aligned_end; chunk_offset += TRUSTED_STUB_SIZE, s++) {
         size_t chunk_size = MIN(file_size - chunk_offset, TRUSTED_STUB_SIZE);
@@ -508,17 +509,17 @@ int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* ume
 
         if (chunk_offset >= offset && chunk_end <= end) {
             /* if current chunk-to-copy completely resides in the requested region-to-copy,
-             * directly copy into buf (without a sratch buffer) and hash in-place */
-            memcpy(buf, umem + chunk_offset, chunk_size);
+             * directly copy into buf (without a scratch buffer) and hash in-place */
+            memcpy(buf_pos, umem + chunk_offset, chunk_size);
 
-            ret = lib_SHA256Update(&sha_stub, buf, chunk_size);
+            ret = lib_SHA256Update(&sha_stub, buf_pos, chunk_size);
             if (ret < 0)
                 goto failed;
 
-            buf += chunk_size;
+            buf_pos += chunk_size;
         } else {
             /* if current chunk-to-copy only partially overlaps with the requested region-to-copy,
-             * read the file contents in a scratch buffer, verify hash and then copy only the part
+             * read the file contents into a scratch buffer, verify hash and then copy only the part
              * needed by the caller */
             memcpy(tmp_chunk, umem + chunk_offset, chunk_size);
 
@@ -531,8 +532,8 @@ int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* ume
             off_t copy_end   = MIN(chunk_offset + (off_t)chunk_size, end);
             assert(copy_end > copy_start);
 
-            memcpy(buf, tmp_chunk + copy_start - chunk_offset, copy_end - copy_start);
-            buf += copy_end - copy_start;
+            memcpy(buf_pos, tmp_chunk + copy_start - chunk_offset, copy_end - copy_start);
+            buf_pos += copy_end - copy_start;
         }
 
         ret = lib_SHA256Final(&sha_stub, hash.bytes);
