@@ -14,9 +14,6 @@
 #include "spinlock.h"
 #include "toml.h"
 
-/* copy trusted-file contents from untrusted memory into enclave memory in 1KB chunks */
-#define FILE_CHUNK_SIZE 1024UL
-
 __sgx_mem_aligned struct pal_enclave_state g_pal_enclave_state;
 
 void* g_enclave_base;
