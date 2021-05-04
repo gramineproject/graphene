@@ -116,10 +116,10 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             goto out;
         }
     } else {
-        sgx_stub_t* stubs;
+        sgx_chunk_hash_t* chunk_hashes;
         uint64_t total;
         void* umem;
-        ret = load_trusted_file(hdl, &stubs, &total, create, &umem);
+        ret = load_trusted_file(hdl, &chunk_hashes, &total, create, &umem);
         if (ret < 0) {
             log_error("Accessing file:%s is denied (%s). This file is not trusted or allowed."
                       " Trusted files should be regular files (seekable).\n", hdl->file.realpath,
@@ -127,11 +127,11 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             goto out;
         }
 
-        if (stubs && total) {
+        if (chunk_hashes && total) {
             assert(umem);
         }
 
-        hdl->file.stubs = (PAL_PTR)stubs;
+        hdl->file.chunk_hashes = (PAL_PTR)chunk_hashes;
         hdl->file.total = total;
         hdl->file.umem  = umem;
     }
@@ -179,9 +179,9 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
         return pf_file_read(pf, handle, offset, count, buffer);
 
     int64_t ret;
-    sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
+    sgx_chunk_hash_t* chunk_hashes = (sgx_chunk_hash_t*)handle->file.chunk_hashes;
 
-    if (!stubs) {
+    if (!chunk_hashes) {
         if (handle->file.seekable) {
             ret = ocall_pread(handle->file.fd, buffer, count, offset);
         } else {
@@ -200,11 +200,12 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
         return 0;
 
     off_t end = MIN(offset + count, total);
-    off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
-    off_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
+    off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_CHUNK_SIZE);
+    off_t aligned_end    = ALIGN_UP(end, TRUSTED_CHUNK_SIZE);
 
     ret = copy_and_verify_trusted_file(handle->file.realpath, buffer, handle->file.umem,
-                                       aligned_offset, aligned_end, offset, end, stubs, total);
+                                       aligned_offset, aligned_end, offset, end, chunk_hashes,
+                                       total);
     if (ret < 0)
         return ret;
 
@@ -238,9 +239,9 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
         return pf_file_write(pf, handle, offset, count, buffer);
 
     int64_t ret;
-    sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
+    sgx_chunk_hash_t* chunk_hashes = (sgx_chunk_hash_t*)handle->file.chunk_hashes;
 
-    if (!stubs) {
+    if (!chunk_hashes) {
         if (handle->file.seekable) {
             ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
         } else {
@@ -289,7 +290,7 @@ static int file_close(PAL_HANDLE handle) {
             return ret;
     }
 
-    if (handle->file.stubs && handle->file.total) {
+    if (handle->file.chunk_hashes && handle->file.total) {
         /* case of trusted file: the whole file was mmapped in untrusted memory */
         ocall_munmap_untrusted(handle->file.umem, handle->file.total);
     }
@@ -415,12 +416,12 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     if (pf)
         return pf_file_map(pf, handle, addr, prot, offset, size);
 
-    sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
-    void* mem         = *addr;
+    sgx_chunk_hash_t* chunk_hashes = (sgx_chunk_hash_t*)handle->file.chunk_hashes;
+    void* mem = *addr;
 
     /* If the file is listed in the manifest as an "allowed" file, we allow mapping the file outside
      * the enclave, if the library OS does not request a specific address. */
-    if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
+    if (!mem && !chunk_hashes && !(prot & PAL_PROT_WRITECOPY)) {
         ret = ocall_mmap_untrusted(&mem, size, PAL_PROT_TO_LINUX(prot), MAP_SHARED, handle->file.fd,
                                    offset);
         if (ret >= 0)
@@ -441,12 +442,12 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     if (!mem)
         return -PAL_ERROR_NOMEM;
 
-    if (stubs) {
+    if (chunk_hashes) {
         /* case of trusted file: already mmaped in umem, copy from there into enclave memory and
          * verify hashes along the way */
         off_t end = MIN(offset + size, handle->file.total);
-        off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
-        off_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
+        off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_CHUNK_SIZE);
+        off_t aligned_end    = ALIGN_UP(end, TRUSTED_CHUNK_SIZE);
         off_t total_size     = aligned_end - aligned_offset;
 
         if ((uint64_t)total_size > SIZE_MAX) {
@@ -456,7 +457,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         }
 
         ret = copy_and_verify_trusted_file(handle->file.realpath, mem, handle->file.umem,
-                                           aligned_offset, aligned_end, offset, end, stubs,
+                                           aligned_offset, aligned_end, offset, end, chunk_hashes,
                                            handle->file.total);
         if (ret < 0) {
             log_error("file_map - copy & verify on trusted file returned %d\n", ret);

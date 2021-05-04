@@ -81,13 +81,12 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START ((void*)(&__text_start))
 #define DATA_END   ((void*)(&__text_end))
 
-/* TODO: rename to sgx_file_hash_t and sgx_chunk_hash_t; always use "hash" and "chunk" in naming */
 typedef struct {
     uint8_t bytes[32];
-} sgx_checksum_t;
+} sgx_file_hash_t;
 typedef struct {
     uint8_t bytes[16];
-} sgx_stub_t;
+} sgx_chunk_hash_t;
 
 extern int g_xsave_enabled;
 extern uint64_t g_xsave_features;
@@ -114,15 +113,16 @@ void init_tsc(void);
 /*!
  * \brief check if the file to be opened is trusted or allowed, according to the manifest
  *
- * \param file     file handle to be opened
- * \param stubptr  buffer for caching file stubs (hashes over chunks of the file)
- * \param sizeptr  returns size of opened file
- * \param create   whether this file is newly created
+ * \param file              file handle to be opened
+ * \param chunk_hashes_ptr  array of hashes over file chunks
+ * \param size_ptr          returns size of opened file
+ * \param create            whether this file is newly created
+ * \param umem              untrusted memory address at which the file is loaded
  *
  * \return 0 on success, negative error code on failure
  */
-int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, int create,
-                      void** umem);
+int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint64_t* size_ptr,
+                      int create, void** umem);
 
 enum {
     FILE_CHECK_POLICY_STRICT = 0,
@@ -139,11 +139,11 @@ int get_file_check_policy(void);
  * \param path            file path (currently only for a log message)
  * \param buf             in-enclave buffer where contents of the file are copied
  * \param umem            start of untrusted file memory mapped outside the enclave
- * \param aligned_offset  offset into file contents to copy, aligned to TRUSTED_STUB_SIZE
- * \param aligned_end     end of file contents to copy, aligned to TRUSTED_STUB_SIZE
+ * \param aligned_offset  offset into file contents to copy, aligned to TRUSTED_CHUNK_SIZE
+ * \param aligned_end     end of file contents to copy, aligned to TRUSTED_CHUNK_SIZE
  * \param offset          unaligned offset into file contents to copy
  * \param end             unaligned end of file contents to copy
- * \param stubs           contains hashes of all file chunks
+ * \param chunk_hashes    array of hashes of all file chunks
  * \param file_size       total size of the file
  *
  * \return 0 on success, negative error code on failure
@@ -158,7 +158,7 @@ int get_file_check_policy(void);
  */
 int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* umem,
                                  off_t aligned_offset, off_t aligned_end, off_t offset, off_t end,
-                                 sgx_stub_t* stubs, size_t file_size);
+                                 sgx_chunk_hash_t* chunk_hashes, size_t file_size);
 
 int register_trusted_child(const char* uri, const char* mr_enclave_str);
 
