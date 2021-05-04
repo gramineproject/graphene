@@ -199,16 +199,12 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     if (offset >= total)
         return 0;
 
-    uint64_t end       = (offset + count > total) ? total : offset + count;
-    uint64_t map_start = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
-    uint64_t map_end   = ALIGN_UP(end, TRUSTED_STUB_SIZE);
+    off_t end = MIN(offset + count, total);
+    off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
+    off_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
 
-    if (map_end > total)
-        map_end = ALLOC_ALIGN_UP(total);
-
-    ret = copy_and_verify_trusted_file(handle->file.realpath, handle->file.umem + map_start,
-                                       map_start, map_end, buffer, offset, end - offset, stubs,
-                                       total);
+    ret = copy_and_verify_trusted_file(handle->file.realpath, buffer, handle->file.umem,
+                                       aligned_offset, aligned_end, offset, end, stubs, total);
     if (ret < 0)
         return ret;
 
@@ -448,8 +444,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     if (stubs) {
         /* case of trusted file: already mmaped in umem, copy from there into enclave memory and
          * verify hashes along the way */
-        off_t end            = (offset + size > handle->file.total) ? handle->file.total
-                                                                    : offset + size;
+        off_t end = MIN(offset + size, handle->file.total);
         off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
         off_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
         off_t total_size     = aligned_end - aligned_offset;
@@ -460,11 +455,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
             goto out;
         }
 
-        ret = copy_and_verify_trusted_file(handle->file.realpath,
-                                           handle->file.umem + aligned_offset,
-                                           aligned_offset, aligned_end,
-                                           mem, offset, end - offset,
-                                           stubs, handle->file.total);
+        ret = copy_and_verify_trusted_file(handle->file.realpath, mem, handle->file.umem,
+                                           aligned_offset, aligned_end, offset, end, stubs,
+                                           handle->file.total);
         if (ret < 0) {
             log_error("file_map - copy & verify on trusted file returned %d\n", ret);
             goto out;

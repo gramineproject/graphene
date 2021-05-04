@@ -205,27 +205,15 @@ int sgx_verify_report(sgx_report_t* report) {
     return 0;
 }
 
-/*
- * The file integrity check is designed as follow:
+/* For each file that requires authentication (specified in the manifest as "sgx.trusted_files"), a
+ * SHA256 hash is generated and stored in the manifest, signed and verified as part of the enclave's
+ * crypto measurement. When user opens such a file, Graphene loads the whole file, calculates its
+ * SHA256 hash, and checks against the corresponding hash in the manifest. If the hashes do not
+ * match, the file access will be rejected.
  *
- * For each file that requires authentication (specified in the manifest
- * as "sgx.trusted_files.xxx"), a SHA256 checksum is generated and stored
- * in the manifest, signed and verified as part of the enclave's crypto
- * measurement. When user requests for opening the file, Graphene loads
- * the whole file, generate the SHA256 checksum, and check with the known
- * checksums listed in the manifest. If the checksum does not match, and
- * neither does the file is allowed for unauthenticated access, the file
- * access will be rejected.
- *
- * During the generation of the SHA256 checksum, a 128-bit hash is also
- * generated for each chunk in the file. The per-chunk hashes are used
- * for partial verification in future reads, to avoid re-verifying the
- * whole file again or the need of caching file contents. The per-chunk
- * hashes are stored as "stubs" for each file. For a performance reason,
- * each per-chunk hash is a 128-bit AES-CMAC hash value, using a secret
- * key generated at the beginning of the enclave.
- */
-
+ * During the generation of the SHA256 checksum, a 128-bit hash (truncated SHA256) is also generated
+ * for each chunk in the file. The per-chunk hashes are used for partial verification in future
+ * reads, to avoid re-verifying the whole file again or the need of caching file contents. */
 DEFINE_LIST(trusted_file);
 struct trusted_file {
     LIST_TYPE(trusted_file) list;
@@ -265,22 +253,13 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf, const char* 
     return false;
 }
 
-/*
- * 'load_trusted_file' checks if the file to be opened is trusted
- * or allowed for unauthenticated access, according to the manifest.
- *
- * file:     file handle to be opened
- * stubptr:  buffer for catching matched file stub.
- * sizeptr:  size pointer
- * create:   this file is newly created or not
- *
- * Returns 0 if succeeded, or an error code otherwise.
- */
 int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, int create,
                       void** umem) {
     *stubptr = NULL;
     *sizeptr = 0;
     *umem = NULL;
+
+    uint8_t* tmp_chunk = NULL; /* scratch buf to calculate whole-file and chunk-of-file hashes */
 
     struct trusted_file* tf = NULL;
     struct trusted_file* tmp;
@@ -401,11 +380,16 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
     }
     spinlock_unlock(&g_trusted_file_lock);
 
-    int nstubs = tf->size / TRUSTED_STUB_SIZE +
-                (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
+    int nstubs = tf->size / TRUSTED_STUB_SIZE + (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
     stubs = malloc(sizeof(sgx_stub_t) * nstubs);
     if (!stubs) {
+        ret = -PAL_ERROR_NOMEM;
+        goto failed;
+    }
+
+    tmp_chunk = malloc(TRUSTED_STUB_SIZE);
+    if (!tmp_chunk) {
         ret = -PAL_ERROR_NOMEM;
         goto failed;
     }
@@ -423,38 +407,32 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
          * over contents of this file chunk (we simply truncate SHA-256 hash to first 128 bits; this
          * is fine for integrity purposes). Also, generate a SHA-256 hash for the whole file
          * contents to compare with the manifest "reference" hash value. */
-        uint64_t mapping_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
+        uint64_t chunk_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
         LIB_SHA256_CONTEXT sha_stub;
         ret = lib_SHA256Init(&sha_stub);
         if (ret < 0)
             goto failed;
 
-        /* To prevent TOCTOU attacks when calculating the file hashes, copy file contents into the
-         * enclave before hashing. Use a small stack-allocated buffer to store these contents. */
-        for (size_t chunk_off = 0; chunk_off < mapping_size; chunk_off += FILE_CHUNK_SIZE) {
-            uint64_t chunk_size = MIN(mapping_size - chunk_off, FILE_CHUNK_SIZE);
+        /* to prevent TOCTOU attacks, copy file contents into the enclave before hashing */
+        memcpy(tmp_chunk, *umem + offset, chunk_size);
 
-            uint8_t chunk[FILE_CHUNK_SIZE];
-            memcpy(chunk, *umem + offset + chunk_off, chunk_size);
+        ret = lib_SHA256Update(&sha_whole, tmp_chunk, chunk_size);
+        if (ret < 0)
+            goto failed;
 
-            ret = lib_SHA256Update(&sha_whole, chunk, chunk_size);
-            if (ret < 0)
-                goto failed;
-
-            ret = lib_SHA256Update(&sha_stub, chunk, chunk_size);
-            if (ret < 0)
-                goto failed;
-        }
+        ret = lib_SHA256Update(&sha_stub, tmp_chunk, chunk_size);
+        if (ret < 0)
+            goto failed;
 
         sgx_checksum_t hash;
-        ret = lib_SHA256Final(&sha_stub, (uint8_t*)hash.bytes);
+        ret = lib_SHA256Final(&sha_stub, hash.bytes);
         if (ret < 0)
             goto failed;
         memcpy(s, &hash, sizeof(*s)); /* truncate SHA256 to 128 bits */
     }
 
     sgx_checksum_t hash;
-    ret = lib_SHA256Final(&sha_whole, (uint8_t*)hash.bytes);
+    ret = lib_SHA256Final(&sha_whole, hash.bytes);
     if (ret < 0)
         goto failed;
 
@@ -469,10 +447,13 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
         *stubptr = tf->stubs;
         spinlock_unlock(&g_trusted_file_lock);
         free(stubs);
+        free(tmp_chunk);
         return 0;
     }
     *stubptr = tf->stubs = stubs;
     spinlock_unlock(&g_trusted_file_lock);
+
+    free(tmp_chunk);
     return 0;
 
 failed:
@@ -481,7 +462,7 @@ failed:
         ocall_munmap_untrusted(*umem, *sizeptr);
     }
     free(stubs);
-
+    free(tmp_chunk);
     return ret;
 
 out_free:
@@ -498,119 +479,84 @@ static void set_file_check_policy(int policy) {
     g_file_check_policy = policy;
 }
 
-/*
- * A common helper function for copying and checking the file contents
- * from a buffer mapped outside the enclaves into an in-enclave buffer.
- * If needed, regions at either the beginning or the end of the copied regions
- * are copied into a scratch buffer to avoid a TOCTTOU race.
- *
- * * Note that it must be done this way to avoid the following TOCTTOU race
- * * condition with the untrusted host as an adversary:
- *       *  Adversary: put good contents in buffer
- *       *  Enclave: buffer check passes
- *       *  Adversary: put bad contents in buffer
- *       *  Enclave: copies in bad buffer contents
- *
- * * For optimization, we verify the memory in place, as the application code
- *   should not use the memory before return.  There can be subtle interactions
- *   at the edges of a region with ELF loading.  Namely, the ELF loader will
- *   want to map several file chunks that are not aligned to TRUSTED_STUB_SIZE
- *   next to each other, sometimes overlapping.  There is probably room to
- *   improve load time with more smarts around ELF loading, but for now, just
- *   make things work.
- *
- * 'umem' is the untrusted file memory mapped outside the enclave (should
- * already be mapped up by the caller). 'umem_start' and 'umem_end' are
- * the offset _within the file_ of 'umem'.  'umem_start' should be aligned
- * to the file checking chunk size (TRUSTED_STUB_SIZE). 'umem_end' can be
- * either aligned, or equal to 'total_size'. 'buffer' is the in-enclave
- * buffer for copying the file content. 'offset' is the offset within the file
- * for copying into the buffer. 'size' is the size of the in-enclave buffer.
- * 'stubs' contain the checksums of all the chunks in a file.
- */
-int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t umem_start,
-                                 uint64_t umem_end, void* buffer, uint64_t offset, uint64_t size,
-                                 sgx_stub_t* stubs, uint64_t total_size) {
+int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* umem,
+                                 off_t aligned_offset, off_t aligned_end, off_t offset, off_t end,
+                                 sgx_stub_t* stubs, size_t file_size) {
     int ret = 0;
 
-    /* Check that the untrusted mapping is aligned to TRUSTED_STUB_SIZE
-     * and includes the range for copying into the buffer */
-    assert(IS_ALIGNED(umem_start, TRUSTED_STUB_SIZE));
-    assert(offset >= umem_start && offset + size <= umem_end);
+    assert(IS_ALIGNED(aligned_offset, TRUSTED_STUB_SIZE));
+    assert(offset >= aligned_offset && end <= aligned_end);
 
-    /* Start copying and checking at umem_start. The checked content may or may not be copied into
-     * the file content, depending on the offset of the content within the file. */
-    uint64_t checking = umem_start;
+    uint8_t* tmp_chunk = malloc(TRUSTED_STUB_SIZE);
+    if (!tmp_chunk) {
+        ret = -PAL_ERROR_NOMEM;
+        goto failed;
+    }
 
     /* Stubs is an array of 128-bit hash values of the file chunks from the beginning of the file.
-     * 's' points to the stub that needs to be checked for the current offset. */
-    sgx_stub_t* s = stubs + checking / TRUSTED_STUB_SIZE;
+     * 's' points to the file chunk that needs to be checked for the current offset. */
+    sgx_stub_t* s = stubs + aligned_offset / TRUSTED_STUB_SIZE;
 
-    for (; checking < umem_end; checking += TRUSTED_STUB_SIZE, s++) {
-        uint64_t checking_size = MIN(total_size - checking, TRUSTED_STUB_SIZE);
-        uint64_t checking_end = checking + checking_size;
+    off_t chunk_offset = aligned_offset;
+    for (; chunk_offset < aligned_end; chunk_offset += TRUSTED_STUB_SIZE, s++) {
+        size_t chunk_size = MIN(file_size - chunk_offset, TRUSTED_STUB_SIZE);
+        off_t chunk_end   = chunk_offset + chunk_size;
 
-        sgx_checksum_t hash;
+        sgx_checksum_t hash = {0};
 
         LIB_SHA256_CONTEXT sha_stub;
         ret = lib_SHA256Init(&sha_stub);
         if (ret < 0)
             goto failed;
 
-        if (checking >= offset && checking_end <= offset + size) {
-            /* If the checking chunk completely overlaps with the region needed for copying into the
-             * buffer, simply use the buffer for checking the hash */
-            memcpy(buffer + checking - offset, umem + checking - umem_start, checking_size);
+        if (chunk_offset >= offset && chunk_end <= end) {
+            /* if current chunk-to-copy completely resides in the requested region-to-copy,
+             * directly copy into buf (without a sratch buffer) and hash in-place */
+            memcpy(buf, umem + chunk_offset, chunk_size);
 
-            ret = lib_SHA256Update(&sha_stub, buffer + checking - offset, checking_size);
+            ret = lib_SHA256Update(&sha_stub, buf, chunk_size);
             if (ret < 0)
                 goto failed;
+
+            buf += chunk_size;
         } else {
-            /* If the checking chunk only partially overlaps with the region, read the file content
-             * in smaller chunks and only copy the part needed by the caller. */
-            uint8_t chunk[FILE_CHUNK_SIZE];
-            uint64_t chunk_offset = checking;
+            /* if current chunk-to-copy only partially overlaps with the requested region-to-copy,
+             * read the file contents in a scratch buffer, verify hash and then copy only the part
+             * needed by the caller */
+            memcpy(tmp_chunk, umem + chunk_offset, chunk_size);
 
-            for (; chunk_offset < checking_end; chunk_offset += FILE_CHUNK_SIZE) {
-                uint64_t chunk_size = MIN(checking_end - chunk_offset, FILE_CHUNK_SIZE);
+            ret = lib_SHA256Update(&sha_stub, tmp_chunk, chunk_size);
+            if (ret < 0)
+                goto failed;
 
-                memcpy(chunk, umem + (chunk_offset - umem_start), chunk_size);
+            /* determine which part of the chunk is needed by the caller */
+            off_t copy_start = MAX(chunk_offset, offset);
+            off_t copy_end   = MIN(chunk_offset + (off_t)chunk_size, end);
+            assert(copy_end > copy_start);
 
-                ret = lib_SHA256Update(&sha_stub, chunk, chunk_size);
-                if (ret < 0)
-                    goto failed;
-
-                /* Determine if the part just copied and checked is needed by the caller. */
-                uint64_t copy_start = chunk_offset;
-                uint64_t copy_end = copy_start + chunk_size;
-
-                if (copy_start < offset)
-                    copy_start = offset;
-                if (copy_end > offset + size)
-                    copy_end = offset + size;
-
-                if (copy_end > copy_start)
-                    memcpy(buffer + copy_start - offset, chunk + copy_start - chunk_offset,
-                           copy_end - copy_start);
-            }
+            memcpy(buf, tmp_chunk + copy_start - chunk_offset, copy_end - copy_start);
+            buf += copy_end - copy_start;
         }
 
-        ret = lib_SHA256Final(&sha_stub, (uint8_t*)hash.bytes);
+        ret = lib_SHA256Final(&sha_stub, hash.bytes);
         if (ret < 0)
             goto failed;
 
         if (memcmp(s, &hash, sizeof(*s))) {
             log_error("Accessing file '%s' is denied: incorrect hash of file chunk at %lu-%lu.\n",
-                      path, checking, checking_end);
+                      path, chunk_offset, chunk_end);
+            ret = -PAL_ERROR_DENIED;
             goto failed;
         }
     }
 
+    free(tmp_chunk);
     return 0;
 
 failed:
-    memset(buffer, 0, size);
-    return -PAL_ERROR_DENIED;
+    free(tmp_chunk);
+    memset(buf, 0, end - offset);
+    return ret;
 }
 
 static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates) {
