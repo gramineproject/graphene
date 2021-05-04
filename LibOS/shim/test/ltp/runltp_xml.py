@@ -258,13 +258,24 @@ class TestRunner:
             preexec_fn=os.setsid,
             close_fds=True)
 
+        timedout = False
+
         try:
             stdout, stderr = await asyncio.wait_for(
                 proc.communicate(), timeout=timeout)
 
         except asyncio.TimeoutError:
-            self.time = time.time() - start_time
+            timedout = True
 
+        finally:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+        self.time = time.time() - start_time
+
+        if timedout:
             if sys.version_info >= (3, 7):
                 # https://bugs.python.org/issue32751 (fixed in 3.7) causes
                 # proc.communicate() task inside wait_for() to be cancelled,
@@ -281,14 +292,6 @@ class TestRunner:
                 self.log.warning('cannot extract stdio on python < 3.7')
 
             raise Error('Timed out after {} s.'.format(timeout))
-
-        finally:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-
-        self.time = time.time() - start_time
 
         assert proc.pid is not None
         self.log.info('finished pid=%d time=%.3f returncode=%d stdout=%r',
