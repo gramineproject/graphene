@@ -363,9 +363,9 @@ static inline int open_flags_to_lookup_flags(int flags) {
 int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     assert(dent->state & DENTRY_VALID);
     assert(!(dent->state & DENTRY_NEGATIVE));
+    assert(!hdl->dentry);
 
     int ret = 0;
-    bool is_opened = false;
     struct shim_mount* fs = dent->fs;
 
     if (!(fs->d_ops && fs->d_ops->open)) {
@@ -381,7 +381,6 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     get_dentry(dent);
     hdl->dentry = dent;
     hdl->flags = flags;
-    is_opened = true;
 
     if (dent->state & DENTRY_ISDIRECTORY) {
         /* Initialize directory handle */
@@ -429,7 +428,7 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
 
 err:
     /* If we failed after calling `open`, undo it */
-    if (is_opened) {
+    if (hdl->dentry) {
         if (fs->fs_ops && fs->fs_ops->hput)
             fs->fs_ops->hput(hdl);
 
@@ -445,6 +444,9 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
     mode_t acc_mode = ACC_MODE(flags & O_ACCMODE);
     int ret = 0;
     struct shim_dentry* dent = NULL;
+
+    if (hdl)
+        assert(!hdl->dentry);
 
     lock(&g_dcache_lock);
 
@@ -623,8 +625,8 @@ int list_directory_dentry(struct shim_dentry* dent) {
     for (; d; d = d->next) {
         struct shim_dentry* child;
         if ((ret = lookup_dentry(dent, d->name, strlen(d->name), &child)) < 0) {
-            /* ENOENT from underlying lookup should be handled as DENTRY_NEGATIVE */
-            assert(ret != ENOENT);
+            /* -ENOENT from underlying lookup should be handled as DENTRY_NEGATIVE */
+            assert(ret != -ENOENT);
 
             /* Ignore inaccessible files */
             if (ret == -EACCES)

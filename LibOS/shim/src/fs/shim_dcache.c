@@ -256,7 +256,7 @@ static int dump_dentry_write_all(const char* str, size_t size, void* arg) {
     return 0;
 }
 
-#define DUMP_FLAG(flag, s, empty) buf_puts(&buf, (dent->state & flag) ? s : empty)
+#define DUMP_FLAG(flag, s, empty) buf_puts(&buf, (dent->state & (flag)) ? (s) : (empty))
 
 static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
     assert(locked(&g_dcache_lock));

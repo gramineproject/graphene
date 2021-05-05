@@ -356,6 +356,9 @@ int check_permissions(struct shim_dentry* dent, mode_t mask);
  *
  * Note that a path with trailing slash is always treated as a directory, and LOOKUP_FOLLOW /
  * LOOKUP_CREATE do not apply.
+ *
+ * TODO: This function doesn't check any permissions. It should return -EACCES on inaccessible
+ * directories.
  */
 int _path_lookupat(struct shim_dentry* start, const char* path, int flags,
                    struct shim_dentry** found);
@@ -377,7 +380,7 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
 /*
  * \brief Open a file under a given path, similar to Unix open
  *
- * \param[out] hdl handle to initialize, can be NULL
+ * \param[out] hdl handle to associate with dentry, can be NULL
  * \param start the start dentry for relative paths, or NULL (in which case it will default to
  * process' cwd)
  * \param path the path to look up
@@ -385,11 +388,8 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
  * \param mode Unix file mode, used when creating a new file/directory
  * \param[out] found pointer to retrieved dentry, can be NULL
  *
- * The function checks permissions of the opened file (if it exists) and parent directory (if the
- * file is being created), but not permissions for the whole path.
- *
- * If `hdl` is provided, on success it will be initialized based on the dentry; otherwise, the file
- * will be just retrieved or created.
+ * If `hdl` is provided, on success it will be associated with the dentry. Otherwise, the file will
+ * just be retrieved or created.
  *
  * If `found` is provided, on success it will be set to the file's dentry (and its reference count
  * will be increased), and on failure it will be set to NULL.
@@ -404,6 +404,10 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
  *
  * The flags (including any not listed above), as well as file mode, are passed to the underlying
  * filesystem.
+ *
+ * TODO: This function checks permissions of the opened file (if it exists) and parent directory (if
+ * the file is being created), but not permissions for the whole path. That check probably should be
+ * added to `path_lookupat`.
  */
 int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* path, int flags,
                int mode, struct shim_dentry** found);
