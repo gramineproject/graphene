@@ -32,9 +32,9 @@ stage('build') {
                 --buildtype="$BUILDTYPE" \
                 -Ddirect=disabled \
                 -Dsgx=enabled
-            ninja -C build
+            ninja -vC build
             meson test -C build --no-rebuild --print-errorlogs --suite graphene:compiletime
-            ninja -C build install
+            ninja -vC build install
         '''
     } finally {
         archiveArtifacts 'build/meson-logs/**/*'
