@@ -11,7 +11,7 @@ if direct
         install_dir: join_paths(pkglibdir, 'direct/gdb_integration/common'),
         strip_directory: true)
     meson.add_install_script('/bin/sh', '-c',
-        'ln -s libpal.so "$MESON_INSTALL_DESTDIR_PREFIX"/@0@'.format(
+        'ln -sf libpal.so "$MESON_INSTALL_DESTDIR_PREFIX"/@0@'.format(
             join_paths(pkglibdir, 'direct', 'loader')))
 
     hostpalpath_direct = join_paths(prefix, pkglibdir, 'direct')
@@ -45,7 +45,7 @@ if sgx
         strip_directory: true)
 
     meson.add_install_script('/bin/sh', '-c',
-        'ln -s pal-sgx "$MESON_INSTALL_DESTDIR_PREFIX"/@0@'.format(
+        'ln -sf pal-sgx "$MESON_INSTALL_DESTDIR_PREFIX"/@0@'.format(
             join_paths(pkglibdir, 'sgx', 'loader')))
 
     hostpalpath_linux_sgx = join_paths(prefix, pkglibdir, 'sgx')
