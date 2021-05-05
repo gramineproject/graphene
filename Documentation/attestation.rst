@@ -1,5 +1,5 @@
-Attestation
-===========
+Attestation and Secret Provisioning
+===================================
 
 Graphene is typically used to create and run Trusted Execution Environments
 (:term:`TEE`). A very important aspect of a TEE is :term:`Attestation`. Broadly
@@ -38,6 +38,13 @@ Applications running under Graphene can use each of the above three levels to
 build their attestation flows. Each next level builds on the previous one and
 exposes a simpler API to the application (but also is more restricted in its
 functionality).
+
+In addition to these three Graphene-native flows, there is also an option to use
+third-party attestation & secret provisioning solutions. This option may be
+better suited for complex deployments, for example, deploying chained
+micro-services in the public cloud. Please refer to :ref:`third_party_solutions`
+for specific examples.
+
 
 Remote Attestation flows for EPID and DCAP
 ------------------------------------------
@@ -435,3 +442,75 @@ The library uses the same SGX-specific environment variables as
 ``secret_prov_verify_epid.so`` and ignores the EPID-specific environment
 variables. The library expects all the DCAP infrastructure to be installed and
 working correctly on the host.
+
+
+.. _third_party_solutions:
+
+Third-Party Solutions
+---------------------
+
+The three Graphene-native interfaces described above are quite limited in their
+functionality. For example, RA-TLS currently creates only self-signed X.509
+certificates that may not fit well in traditional Public Key Infrastructure
+(PKI) flows.  As another example, our Secret Provisioning service is only a
+*minimal reference implementation*: it is not scalable, it cannot verify
+multiple different enclaves, it doesn't allow flexible attestation rules, etc.
+
+Therefore, a more fully-fledged, centralized attestation & secret provisioning
+solution may be required. This is especially true in cloud deployments: in the
+cloud, it makes sense to have a single service that manages remote attestation
+and secret provisioning. The end users do *not* perform attestation of separate
+enclaves but only perform attestation and verification of this single service.
+This service itself runs in the SGX enclave, and is bootstrapped with a policy
+file that contains all the secure measurements and policies for each of the
+participating SGX applications.
+
+Fortunately, there are several such solutions that integrate with Graphene. We
+describe one of them below, and we will add more solutions in the future.
+
+Edgeless Marblerun
+^^^^^^^^^^^^^^^^^^
+
+.. image:: ./img/marblerun.svg
+   :target: ./img/marblerun.svg
+   :alt: Figure: Edgeless Marblerun integration with Graphene
+
+Marblerun is the service mesh for confidential computing from Edgeless Systems.
+Marblerun consists of two parts: the Coordinator (the centralized attestation &
+secret provisioning service) and the Marbles (separate Graphene applications).
+The Coordinator needs to be deployed once in the cluster and the Marble
+component needs to be integrated with each Graphene application. Marblerun
+Coordinator is configured with a simple JSON document (the manifest). It
+specifies the topology of the cluster, the infrastructure properties, and
+provides configuration parameters for each Graphene application.
+
+Marblerun integrates with Graphene using the "premain" trick. In essence,
+instead of starting the Graphene application directly, Marblerun requires
+modifications to the Graphene manifest file to start its "premain" executable
+first. This "premain" executable attests itself to the Coordinator, receives
+secrets from the Coordinator, patches command-line arguments, environment
+variables and files with these secrets, and only then starts the main Graphene
+application. This "premain" executable together with the Graphene application is
+referred to as a Marble. For more details, see `Marblerun docs on Graphene
+integration <https://www.marblerun.sh/docs/building-services/graphene>`__.
+
+The Coordinator serves as a centralized service for remote attestation of
+Marbles and provisioning of secrets to them. The Coordinator verifies the
+identity and integrity of each newly spawned Marble before admitting it to the
+trusted cluster. Each Marble tries to register itself with the Coordinator by
+sending an activation request to it. This request contains the SGX quote, which
+allows the Coordinator to verify that the Marble (and thus the Graphene
+application) adheres to the Marblerun manifest in effect.
+
+End users do not perform remote attestation on each Graphene application but
+instead they only attest the Coordinator. After attesting the Coordinator and
+verifying its manifest, the end user gains trust in the whole cluster.
+Afterwards, the end user can establish conventional TLS connections to
+individual Graphene applications in the cluster and use them as normal. The
+Coordinator acts as a Certificate Authority (CA) for these connections.
+
+For more information, refer to official Marblerun resources:
+
+- `Official website <https://www.marblerun.sh>`__
+- `Marblerun documentation <https://www.marblerun.sh/docs/introduction>`__
+- `GitHub repository <https://github.com/edgelesssys/marblerun>`__
