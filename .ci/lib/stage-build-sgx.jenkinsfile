@@ -31,8 +31,8 @@ stage('build') {
                 --prefix="$PREFIX" \
                 -Ddirect=disabled \
                 -Dsgx=enabled
-            ninja -C build
-            ninja -C build install
+            ninja -vC build
+            ninja -vC build install
         '''
     } finally {
         archiveArtifacts 'build/meson-logs/**/*'
