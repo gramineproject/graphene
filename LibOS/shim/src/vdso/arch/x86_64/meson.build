@@ -19,7 +19,26 @@ libos_vdso_so_dbg = shared_library('vdso',
     link_depends: ['vdso.lds'],
 )
 
-# TODO check_no_reloc
+# vdso.so is required to have no relocations. This rule checks it.
+# Use default linker script to retain relocations if exist.
+libos_vdso_for_reloc_check = shared_library(
+    'vdso-for-reloc-check',
+    name_prefix: '',
+    name_suffix: 'so.dbg',
+    objects: libos_vdso_so_dbg.extract_objects('vdso.c'),
+    link_args: [
+        '-Wl,-nostdlib',
+        '-Wl,-shared',
+        '-Wl,-Bsymbolic',
+    ],
+)
+
+test(
+    'libos-vdso-check-no-reloc',
+    check_no_reloc_prog,
+    args: [libos_vdso_for_reloc_check],
+    suite: 'compiletime',
+)
 
 vdso_so = custom_target(
     'vdso.so',

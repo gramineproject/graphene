@@ -33,6 +33,7 @@ stage('build') {
                 -Ddirect=disabled \
                 -Dsgx=enabled
             ninja -C build
+            meson test -C build --no-rebuild --print-errorlogs --suite graphene:compiletime
             ninja -C build install
         '''
     } finally {
