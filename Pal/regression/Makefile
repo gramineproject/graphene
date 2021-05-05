@@ -89,9 +89,9 @@ sgx-tokens: $(call expand_target_to_token,$(target))
 
 .PHONY: crt_init-recurse
 crt_init-recurse:
-	$(MAKE) -C ../crt_init all
+	$(MAKE) -C crt_init all
 
-../crt_init/user_shared_start.o ../crt_init/user_start.o: crt_init-recurse
+crt_init/user_shared_start.o crt_init/user_start.o: crt_init-recurse
 	@true
 
 CFLAGS-Pie = -fPIC -pie
@@ -104,11 +104,11 @@ abort.o: CFLAGS += -fPIC
 ../regression/File: | File
 	@true
 
-LDLIBS-preloads = ../crt_init/user_shared_start.o abort.o $(graphene_lib) $(pal_lib)
+LDLIBS-preloads = crt_init/user_shared_start.o abort.o $(graphene_lib) $(pal_lib)
 $(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads)
 
-LDLIBS-executables = ../crt_init/user_start.o abort.o $(graphene_lib) $(pal_lib) $(preloads)
+LDLIBS-executables = crt_init/user_start.o abort.o $(graphene_lib) $(pal_lib) $(preloads)
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 
@@ -129,6 +129,7 @@ pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target))
 
 .PHONY: clean
 clean:
+	$(MAKE) -C crt_init $@
 	$(RM) -r \
 		$(executables) \
 		$(gen_manifests) \
