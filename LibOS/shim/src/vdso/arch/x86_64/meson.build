@@ -3,6 +3,7 @@ libos_vdso_so_dbg = shared_library('vdso',
     name_prefix: '',
     name_suffix: 'so.dbg',
     include_directories: includes_libos,
+    c_args: cflags_libos,
     link_args: [
         '-Wl,-T@0@'.format(join_paths(meson.current_source_dir(), 'vdso.lds')),
         '-Wl,-nostdlib',
@@ -25,6 +26,7 @@ libos_vdso_for_reloc_check = shared_library(
     'vdso-for-reloc-check',
     name_prefix: '',
     name_suffix: 'so.dbg',
+    c_args: cflags_libos,
     objects: libos_vdso_so_dbg.extract_objects('vdso.c'),
     link_args: [
         '-Wl,-nostdlib',
