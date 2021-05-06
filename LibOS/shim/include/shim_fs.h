@@ -493,7 +493,7 @@ void dentry_gc(struct shim_dentry* dent);
  *
  * \returns pointer to the path, or NULL if out of memory
  *
- * This function computes a path for dentry, allocating a new buffer for it.  The returned string
+ * This function computes a path for dentry, allocating a new buffer for it. The returned string
  * should be freed using `free`.
  *
  * An absolute path is a combination of all names up to the root (not including the root), separated
@@ -577,10 +577,11 @@ bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent);
  * uniqueness. We might need a better solution for the filesystem to be fully consistent.
  */
 
-int init_hash(void);
 HASHTYPE hash_str(const char* str);
 HASHTYPE hash_name(HASHTYPE parent_hbuf, const char* name);
 HASHTYPE hash_abs_path(struct shim_dentry* dent);
+
+#define READDIR_BUF_SIZE 4096
 
 extern struct shim_fs_ops chroot_fs_ops;
 extern struct shim_d_ops chroot_d_ops;

@@ -14,8 +14,6 @@
 #include "shim_fs.h"
 #include "stat.h"
 
-#define READDIR_BUF_SIZE 4096
-
 /*!
  * \brief Find entry corresponding to path, starting from \p root_ent.
  *

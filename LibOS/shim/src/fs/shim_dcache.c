@@ -127,6 +127,7 @@ void put_dentry(struct shim_dentry* dent) {
 #ifdef DEBUG_REF
     const char* path = dentry_abs_path(dent);
     log_debug("put dentry %p(%s) (ref_count = %lld)\n", dent, path, count);
+    free(path);
 #endif
     assert(count >= 0);
 
@@ -263,6 +264,8 @@ static size_t dentry_path_size(struct shim_dentry* dent, bool relative) {
     return size;
 }
 
+/* Compute dentry path, filling an existing buffer. Returns a pointer inside `buf`, possibly after
+ * the beginning, because it constructs the path from the end. */
 static char* dentry_path_into_buf(struct shim_dentry* dent, bool relative, char* buf, size_t size) {
     bool first = true;
     size_t pos = size - 1;

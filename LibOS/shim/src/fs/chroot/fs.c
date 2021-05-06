@@ -23,8 +23,6 @@
 #include "shim_vma.h"
 #include "stat.h"
 
-#define READDIR_BUF_SIZE 4096
-
 struct mount_data {
     size_t data_size;
     enum shim_file_type base_type;
