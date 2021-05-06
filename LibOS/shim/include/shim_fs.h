@@ -380,7 +380,7 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
 /*
  * \brief Open a file under a given path, similar to Unix open
  *
- * \param[out] hdl handle to associate with dentry, can be NULL
+ * \param hdl handle to associate with dentry, can be NULL
  * \param start the start dentry for relative paths, or NULL (in which case it will default to
  * process' cwd)
  * \param path the path to look up
@@ -408,6 +408,13 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
  * TODO: This function checks permissions of the opened file (if it exists) and parent directory (if
  * the file is being created), but not permissions for the whole path. That check probably should be
  * added to `path_lookupat`.
+ *
+ * TODO: The set of allowed flags should be checked in syscalls that use this function.
+ *
+ * TODO: This function is used both by `open` and `mkdir` families of syscalls. However, when Linux
+ * `open` is called with O_CREAT and O_DIRECTORY, and the file does not exist, it ends up creating a
+ * regular file (as described by `man 2 open`). We should emulate this bug, but it probably requires
+ * some refactoring - maybe separating the code used by `open` and `mkdir`.
  */
 int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* path, int flags,
                int mode, struct shim_dentry** found);
@@ -415,7 +422,7 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
 /*
  * \brief Open an already retrieved dentry, and associate a handle with it
  *
- * \param[out] hdl handle to associate with dentry
+ * \param hdl handle to associate with dentry
  * \param dent the dentry to open
  * \param flags Unix open flags
  *

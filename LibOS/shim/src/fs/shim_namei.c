@@ -90,12 +90,12 @@ int check_permissions(struct shim_dentry* dent, mode_t mask) {
  *
  * The caller should hold `g_dcache_lock`.
  *
- * On success, returns 0 and sets `*new` to the found dentry (whose reference count is increased). A
- * negative filesystem lookup (ENOENT) is also considered a success, and `*new` is set to a negative
- * dentry. The dentry is always valid.
+ * On success, returns 0 and sets `*found` to the found dentry (whose reference count is increased).
+ * A negative filesystem lookup (ENOENT) is also considered a success, and `*found` is set to a
+ * negative dentry. The dentry is always valid.
  *
  * On failure (including lookup failing with any other error than ENOENT) returns the negative error
- * code, and sets `*new` to NULL.
+ * code, and sets `*found` to NULL.
  */
 static int lookup_dentry(struct shim_dentry* parent, const char* name, size_t name_len,
                          struct shim_dentry** found) {
@@ -466,8 +466,12 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
     }
 
     if (dent->state & DENTRY_ISLINK) {
-        /* Can happen if user specified O_NOFOLLOW, or O_TRUNC | O_EXCL. Posix requires us to fail
-         * with -ELOOP when trying to open a symlink. */
+        /*
+         * Can happen if user specified O_NOFOLLOW, or O_TRUNC | O_EXCL. Posix requires us to fail
+         * with -ELOOP when trying to open a symlink.
+         *
+         * (Linux allows opening a symlink with O_PATH, but Graphene does not support it yet).
+         */
         ret = -ELOOP;
         goto err;
     }
