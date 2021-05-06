@@ -496,8 +496,8 @@ void dentry_gc(struct shim_dentry* dent);
  * This function computes a path for dentry, allocating a new buffer for it. The returned string
  * should be freed using `free`.
  *
- * An absolute path is a combination of all names up to the root (not including the root), separated
- * by `/`, and beginning with `/`.
+ * An absolute path is a combination of all names up to the root (not including the root, which by
+ * convention has an empty name), separated by `/`, and beginning with `/`.
  *
  * A relative path is a combination of all names up to the mountpoint (not including the
  * mountpoint), separated by `/`. A relative path never begins with `/`.
