@@ -15,6 +15,9 @@ project(
     # https://wiki.debian.org/DebianReleases#Production_Releases
     meson_version: '>=0.45',
 )
+add_project_arguments(
+    '-std=c11',
+    language: 'c')
 
 prefix = get_option('prefix')
 pkglibdir = join_paths(get_option('libdir'), meson.project_name())
