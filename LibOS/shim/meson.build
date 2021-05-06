@@ -30,7 +30,6 @@ cflags_libos += cc.get_supported_arguments(
 # underlying PAL which must have a canary in its PAL_TCB at offset 0x8, so no additional enabling
 # is required in the LibOS code);
 # not all compilers support mstack-protector-guard, so use stack protector only if supported
-cflags_libos += '-fno-stack-protector'
 cflags_libos_stack_protector = [
     '-fstack-protector-strong',
     '-mstack-protector-guard=tls',
@@ -39,13 +38,9 @@ cflags_libos_stack_protector = [
 ]
 if cc.has_multi_arguments(cflags_libos_stack_protector)
     cflags_libos += cflags_libos_stack_protector
+else
+    cflags_libos += '-fno-stack-protector'
 endif
-
-#LDFLAGS-libsysdb.so += --version-script shim.map -T arch/$(ARCH)/shim.lds --eh-frame-hdr
-#libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
-#	     $(graphene_lib) $(pal_lib) shim.map arch/$(ARCH)/shim.lds
-#	$(call cmd,ld_so_o)
-# cmd_ld_so_o = ... $(filter-out pal-symbols %.map %.map.template %.lds,$^) -soname $(notdir $@)
 
 subdir('include')
 subdir('src')
