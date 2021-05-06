@@ -456,7 +456,7 @@ certificates that may not fit well in traditional Public Key Infrastructure
 *minimal reference implementation*: it is not scalable, it cannot verify
 multiple different enclaves, it doesn't allow flexible attestation rules, etc.
 
-Therefore, a more full-fledged, centralized attestation & secret provisioning
+Therefore, a more fully-fledged, centralized attestation & secret provisioning
 solution may be required. This is especially true in cloud deployments: in the
 cloud, it makes sense to have a single service that manages remote attestation
 and secret provisioning. The end users do *not* perform attestation of separate
@@ -466,7 +466,7 @@ file that contains all the secure measurements and policies for each of the
 participating SGX applications.
 
 Fortunately, there are several such solutions that integrate with Graphene. We
-describe them in the below sub-sections.
+describe one of them below, and we will add more solutions in the future.
 
 Edgeless Marblerun
 ^^^^^^^^^^^^^^^^^^
@@ -511,6 +511,6 @@ Coordinator acts as a Certificate Authority (CA) for these connections.
 
 For more information, refer to official Marblerun resources:
 
-- `Official website <https://www.marblerun.sh>`__.
-- `Marblerun documentation <https://www.marblerun.sh/docs/introduction>`__.
-- `GitHub repository <https://github.com/edgelesssys/marblerun>`__.
+- `Official website <https://www.marblerun.sh>`__
+- `Marblerun documentation <https://www.marblerun.sh/docs/introduction>`__
+- `GitHub repository <https://github.com/edgelesssys/marblerun>`__
