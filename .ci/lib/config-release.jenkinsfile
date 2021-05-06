@@ -1,2 +1,2 @@
 // env.DEBUG is not set
-env.BUILDTYPE = 'plain'
+env.BUILDTYPE = 'release'
