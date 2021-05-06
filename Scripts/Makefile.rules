@@ -8,6 +8,8 @@
 #   e.g., use 'LDFLAGS-libsysdb.so=...' to specify libsysdb.so-specific linker flags
 #
 
+SCRIPTSDIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
 ifeq ("$(origin V)", "command line")
   BUILD_VERBOSE = $(V)
 endif
@@ -136,7 +138,6 @@ quiet_cmd_manifest = [ $@ ]
   $(if $(2),graphene-manifest $(3) -Dentrypoint=$(2) $< > $@,cp -f $< $@)
 
 # pal map
-SCRIPTSDIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PAL_SYMBOL_FILE := $(SCRIPTSDIR)/../Pal/src/pal-symbols
 quiet_cmd_pal_map = [ $@ ]
       cmd_pal_map = \
