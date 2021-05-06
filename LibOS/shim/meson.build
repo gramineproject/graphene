@@ -42,5 +42,9 @@ else
     cflags_libos += '-fno-stack-protector'
 endif
 
+if host_machine.cpu_family() == 'x86_64'
+    cflags_libos += ['-mfxsr', '-mxsave']
+endif
+
 subdir('include')
 subdir('src')
