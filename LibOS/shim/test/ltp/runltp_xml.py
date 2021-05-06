@@ -258,59 +258,47 @@ class TestRunner:
             preexec_fn=os.setsid,
             close_fds=True)
 
-        timedout = False
+        # XXX: change `ensure_future` to `create_task` once versions < 3.7 are
+        # deprecated
+        tasks = [asyncio.ensure_future(i) for i in [proc.wait(),
+            proc.communicate()]]
+
+        done, pending = await asyncio.wait(tasks, timeout=timeout,
+            return_when=asyncio.FIRST_COMPLETED)
 
         try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout)
+            # after `setsid` pgid should be the same as pid
+            if proc.pid != os.getpgid(proc.pid):
+                self.log.warning('main process changed pgid, this might '
+                    'indicate an error and prevent all processes from being '
+                    'cleaned up')
+        except ProcessLookupError:
+            pass
 
-        except asyncio.TimeoutError:
-            timedout = True
-
-        finally:
-            try:
-                try:
-                    # after `setsid` pgid should be the same as pid
-                    if proc.pid != os.getpgid(proc.pid):
-                        self.log.warning('main process changed pgid, this might'
-                            ' indicate an error and prevent all processes from '
-                            'being cleaned up')
-                except ProcessLookupError:
-                    pass
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
         self.time = time.time() - start_time
 
-        if timedout:
-            if sys.version_info >= (3, 7):
-                # https://bugs.python.org/issue32751 (fixed in 3.7) causes
-                # proc.communicate() task inside wait_for() to be cancelled,
-                # but it most likely didn't get scheduled, so the coroutine
-                # inside is still waiting for CancelledError delivery and is not
-                # actually done waiting for stdio. No two tasks should await the
-                # same input. Rather than reimplement fix for the bug, better
-                # update, hence the warning.
-                self.stdout = (await proc.stdout.read()).decode(
-                    errors=ERRORHANDLER)
-                self.stderr = (await proc.stderr.read()).decode(
-                    errors=ERRORHANDLER)
-            else:
-                self.log.warning('cannot extract stdio on python < 3.7')
+        if pending:
+            _, pending = await asyncio.wait(pending)
+            assert not pending
 
+        assert tasks[1].done()
+        self.stdout, self.stderr = (stream.decode(errors=ERRORHANDLER)
+            for stream in tasks[1].result())
+
+        if not done:
             raise Error('Timed out after {} s.'.format(timeout))
 
-        assert proc.pid is not None
-        self.log.info('finished pid=%d time=%.3f returncode=%d stdout=%r',
-            proc.pid, self.time, proc.returncode, stdout)
-        if stderr:
-            self.log.info('stderr=%r', stderr)
+        self.log.info('finished pid=%d time=%.3f returncode=%d stdout=%s',
+            proc.pid, self.time, proc.returncode, self.stdout)
+        if self.stderr:
+            self.log.info('stderr=%s', self.stderr)
 
         self.props['returncode'] = proc.returncode
-
-        self.stdout, self.stderr = (stream.decode(errors=ERRORHANDLER)
-            for stream in (stdout, stderr))
 
         return proc.returncode
 
