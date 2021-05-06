@@ -200,26 +200,28 @@ static int do_path_lookupat(struct shim_dentry* start, const char* path, int fla
         /* Absolute path, use process root even if `start` was provided (can happen for *at() system
          * calls) */
         lock(&g_process.fs_lock);
-        start = g_process.root;
-        if (!start) {
+        dent = g_process.root;
+        if (!dent) {
             /* Can happen during LibOS initialization */
-            start = g_dentry_root;
+            dent = g_dentry_root;
         }
+        get_dentry(dent);
         unlock(&g_process.fs_lock);
     } else if (!start) {
         /* Relative part with no start dentry provided, use process current working directory */
         lock(&g_process.fs_lock);
-        start = g_process.cwd;
-        if (!start) {
+        dent = g_process.cwd;
+        if (!dent) {
             /* Can happen during LibOS initialization */
             start = g_dentry_root;
         }
+        get_dentry(dent);
         unlock(&g_process.fs_lock);
+    } else {
+        /* Relative path with start dentry provided, use it */
+        dent = start;
+        get_dentry(dent);
     }
-
-    assert(start);
-    dent = start;
-    get_dentry(dent);
 
     const char* name = path;
     while (*name == '/')
