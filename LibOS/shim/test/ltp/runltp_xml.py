@@ -269,7 +269,15 @@ class TestRunner:
 
         finally:
             try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                try:
+                    # after `setsid` pgid should be the same as pid
+                    if proc.pid != os.getpgid(proc.pid):
+                        self.log.warning('main process changed pgid, this might'
+                            ' indicate an error and prevent all processes from '
+                            'being cleaned up')
+                except ProcessLookupError:
+                    pass
+                os.killpg(proc.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
 
