@@ -27,6 +27,8 @@ sgx = get_option('sgx') == 'enabled'
 python3mod = import('python3')
 python3 = python3mod.find_python()
 
+subdir('Scripts')
+
 subdir('LibOS')
 subdir('Runtime')
 subdir('python')
