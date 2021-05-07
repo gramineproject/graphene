@@ -4,18 +4,18 @@
  * Copyright (C) 2011-2019 Intel Corporation
  */
 
-#ifndef IN_PAL
+#ifdef IN_PAL
+#include "api.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define USE_STDLIB
 #endif
 
 #include "protected_files.h"
 #include "protected_files_format.h"
 #include "protected_files_internal.h"
 
-#include "api.h"
 
 /* Function for scrubbing sensitive memory buffers.
  * memset() can be optimized away and memset_s() is not available in PAL.
@@ -79,8 +79,7 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* ou
     pf_status_t status;
 
     buf.index = 1;
-    if (!strcpy_static(buf.label, METADATA_KEY_NAME, MAX_LABEL_SIZE))
-        return false;
+    memcpy(buf.label, METADATA_KEY_NAME, sizeof(METADATA_KEY_NAME));
 
     if (!restore) {
         status = g_cb_random((uint8_t*)&buf.nonce, sizeof(buf.nonce));
@@ -89,7 +88,7 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* ou
             return false;
         }
     } else {
-        COPY_ARRAY(buf.nonce, pf->file_metadata.plain_part.metadata_key_id);
+        memcpy(buf.nonce, pf->file_metadata.plain_part.metadata_key_id, sizeof(buf.nonce));
     }
 
     // length of output (128 bits)
@@ -103,7 +102,8 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* ou
     }
 
     if (!restore) {
-        COPY_ARRAY(pf->file_metadata.plain_part.metadata_key_id, buf.nonce);
+        memcpy(pf->file_metadata.plain_part.metadata_key_id, buf.nonce,
+               sizeof(pf->file_metadata.plain_part.metadata_key_id));
     }
 
     erase_memory(&buf, sizeof(buf));
@@ -188,7 +188,7 @@ static pf_context_t* ipf_open(const char* path, pf_file_mode_t mode, bool create
     // for new file, this value will later be saved in the meta data plain part (init_new_file)
     // for existing file, we will later compare this value with the value from the file
     // (init_existing_file)
-    COPY_ARRAY(pf->user_kdk_key, *kdk_key);
+    memcpy(pf->user_kdk_key, *kdk_key, sizeof(pf->user_kdk_key));
 
     // omeg: we require a canonical full path to file, so no stripping path to filename only
     // omeg: Intel's implementation opens the file, we get the fd and size from the Graphene handler

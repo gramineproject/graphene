@@ -13,6 +13,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef MIN
+#define MIN(a, b)               \
+    ({                          \
+        __typeof__(a) _a = (a); \
+        __typeof__(b) _b = (b); \
+        _a < _b ? _a : _b;      \
+    })
+#endif
+
+
 /*! Size of the AES-GCM encryption key */
 #define PF_KEY_SIZE 16
 
