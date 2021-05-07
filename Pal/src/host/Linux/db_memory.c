@@ -125,6 +125,8 @@ unsigned long _DkMemoryAvailableQuota(void) {
     return quota * 1024;
 }
 
+/* Expects `line` to be in the same format as "/proc/self/maps" entries, i.e. starting with
+ * "hexadecimal_number-hexadecimalnumber", e.g. "1fe3-87cc ...". */
 static void parse_line(const char* line, uintptr_t* start_ptr, uintptr_t* end_ptr) {
     char* next = NULL;
     long start = strtol(line, &next, 16);

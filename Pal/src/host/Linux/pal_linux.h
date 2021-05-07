@@ -106,7 +106,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);
 extern uintptr_t g_vdso_start;
 extern uintptr_t g_vdso_end;
 bool is_in_vdso(uintptr_t addr);
-/* Parse "/proc/self/maps" and return addres ranges for "vdso" and "vvar". */
+/* Parse "/proc/self/maps" and return address ranges for "vdso" and "vvar". */
 int get_vdso_and_vvar_ranges(uintptr_t* vdso_start, uintptr_t* vdso_end, uintptr_t* vvar_start,
                              uintptr_t* vvar_end);
 
