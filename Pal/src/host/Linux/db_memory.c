@@ -17,6 +17,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
+#include "pal_linux_error.h"
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     return (addr < DATA_END && addr + size > TEXT_START);
@@ -123,3 +124,82 @@ unsigned long _DkMemoryAvailableQuota(void) {
         return 0;
     return quota * 1024;
 }
+
+static void parse_line(const char* line, uintptr_t* start_ptr, uintptr_t* end_ptr) {
+    char* next = NULL;
+    long start = strtol(line, &next, 16);
+    long end = 0;
+    if (next && next[0] == '-') {
+        end = strtol(next + 1, NULL, 16);
+    }
+    if (start >= 0 && end > 0) {
+        *start_ptr = (uintptr_t)start;
+        *end_ptr = (uintptr_t)end;
+    }
+}
+
+/* This function is very fragile w.r.t. "/proc/self/maps" file format. */
+int get_vdso_and_vvar_ranges(uintptr_t* vdso_start, uintptr_t* vdso_end, uintptr_t* vvar_start,
+                             uintptr_t* vvar_end) {
+    int fd = INLINE_SYSCALL(open, 3, "/proc/self/maps", O_RDONLY, 0);
+    if (fd < 0) {
+        return unix_to_pal_error(fd);
+    }
+
+    const char* vdso_str = "[vdso]";
+    const size_t vdso_str_len = strlen(vdso_str);
+    const char* vvar_str = "[vvar]";
+    const size_t vvar_str_len = strlen(vvar_str);
+
+    int ret = 0;
+    /* Arbitrary size, must be big enough to hold lines containing "vdso" and "vvar". */
+    char buf[0x100];
+    size_t size = 0;
+    ssize_t got = 0;
+    do {
+        /* There should be no failures or partial reads from this fd. */
+        got = INLINE_SYSCALL(read, 3, fd, buf + size, sizeof(buf) - 1 - size);
+        if (got < 0) {
+            ret = unix_to_pal_error(got);
+            goto out;
+        }
+        size += (size_t)got;
+        buf[size] = '\0';
+
+        char* line_end = strchr(buf, '\n');
+        if (!line_end) {
+            line_end = buf + size;
+        }
+        assert(line_end < buf + sizeof(buf));
+        *line_end = '\0';
+
+        uintptr_t start = 0;
+        uintptr_t end = 0;
+        if (!memcmp(vdso_str, line_end - vdso_str_len, vdso_str_len)) {
+            parse_line(buf, &start, &end);
+            if (start || end) {
+                *vdso_start = start;
+                *vdso_end = end;
+            }
+        }
+        if (!memcmp(vvar_str, line_end - vvar_str_len, vvar_str_len)) {
+            parse_line(buf, &start, &end);
+            if (start || end) {
+                *vvar_start = start;
+                *vvar_end = end;
+            }
+        }
+
+        size_t new_size = 0;
+        if (buf + size > line_end + 1) {
+            new_size = buf + size - (line_end + 1);
+            memmove(buf, line_end + 1, new_size);
+        }
+        size = new_size;
+    } while (size > 0 || got > 0);
+
+out:;
+    int tmp_ret = unix_to_pal_error(INLINE_SYSCALL(close, 1, fd));
+    return ret ?: tmp_ret;
+}
+

@@ -9,8 +9,11 @@
 #include "pal_error.h"
 
 static int unix_to_pal_error_positive(int unix_errno) {
-    assert(unix_errno > 0);
+    assert(unix_errno >= 0);
     switch (unix_errno) {
+        case 0:
+            return PAL_ERROR_SUCCESS;
+            static_assert(PAL_ERROR_SUCCESS == 0, "unexpected PAL_ERROR_SUCCESS value");
         case ENOENT:
             return PAL_ERROR_STREAMNOTEXIST;
         case EINTR:

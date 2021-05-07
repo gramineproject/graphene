@@ -58,3 +58,26 @@ int DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot) {
 
     return _DkVirtualMemoryProtect((void*)addr, size, prot);
 }
+
+int add_preloaded_range(uintptr_t start, uintptr_t end, const char* comment) {
+    size_t new_len = g_pal_control.preloaded_ranges_len + 1;
+    void* new_ranges = malloc(new_len * sizeof(*g_pal_control.preloaded_ranges));
+    if (!new_ranges) {
+        return -PAL_ERROR_NOMEM;
+    }
+
+    if (g_pal_control.preloaded_ranges_len) {
+        memcpy(new_ranges, g_pal_control.preloaded_ranges,
+               g_pal_control.preloaded_ranges_len * sizeof(*g_pal_control.preloaded_ranges));
+    }
+
+    free(g_pal_control.preloaded_ranges);
+    g_pal_control.preloaded_ranges = new_ranges;
+
+    g_pal_control.preloaded_ranges[g_pal_control.preloaded_ranges_len].start = start;
+    g_pal_control.preloaded_ranges[g_pal_control.preloaded_ranges_len].end = end;
+    g_pal_control.preloaded_ranges[g_pal_control.preloaded_ranges_len].comment = comment;
+    g_pal_control.preloaded_ranges_len++;
+
+    return 0;
+}

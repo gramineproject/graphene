@@ -20,15 +20,11 @@
 #include "pal_linux.h"
 #include "pal_rtld.h"
 
-static uintptr_t vdso_start = 0;
-static uintptr_t vdso_end = 0;
-
-uintptr_t get_vdso_start(void) {
-    return vdso_start;
-}
+uintptr_t g_vdso_start = 0;
+uintptr_t g_vdso_end = 0;
 
 bool is_in_vdso(uintptr_t addr) {
-    return (vdso_start || vdso_end) && vdso_start <= addr && addr < vdso_end;
+    return (g_vdso_start || g_vdso_end) && g_vdso_start <= addr && addr < g_vdso_end;
 }
 
 void _DkDebugMapAdd(const char* name, void* addr) {
@@ -76,8 +72,8 @@ void setup_vdso_map(ElfW(Addr) addr) {
         switch (ph->p_type) {
             case PT_LOAD:
                 load_offset = addr + (ElfW(Addr))ph->p_offset - (ElfW(Addr))ph->p_vaddr;
-                vdso_start = (uintptr_t)addr;
-                vdso_end = ALIGN_UP(vdso_start + (size_t)ph->p_memsz, PAGE_SIZE);
+                g_vdso_start = (uintptr_t)addr;
+                g_vdso_end = ALIGN_UP(g_vdso_start + (size_t)ph->p_memsz, PAGE_SIZE);
                 pt_loads_count++;
                 break;
             case PT_DYNAMIC:
@@ -89,8 +85,8 @@ void setup_vdso_map(ElfW(Addr) addr) {
     if (pt_loads_count != 1) {
         log_warning("The VDSO has %lu PT_LOAD segments, but only 1 was expected.\n",
                     pt_loads_count);
-        vdso_start = 0;
-        vdso_end = 0;
+        g_vdso_start = 0;
+        g_vdso_end = 0;
         return;
     }
 
@@ -128,10 +124,4 @@ void setup_vdso_map(ElfW(Addr) addr) {
     sym = do_lookup_map(NULL, gettime, fast_hash, hash, &vdso_map);
     if (sym)
         g_linux_state.vdso_clock_gettime = (void*)(load_offset + sym->st_value);
-
-    if (vdso_start || vdso_end) {
-        /* vDSO occupies some memory region, need to inform the LibOS so it reflects it in VMAs */
-        g_pal_control.vdso_preload.start = (PAL_PTR)vdso_start;
-        g_pal_control.vdso_preload.end   = (PAL_PTR)vdso_end;
-    }
 }

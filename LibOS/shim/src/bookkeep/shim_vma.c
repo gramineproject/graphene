@@ -524,36 +524,27 @@ static int _bkeep_initial_vma(struct shim_vma* new_vma) {
 static void* g_aslr_addr_top = NULL;
 
 int init_vma(void) {
-    struct shim_vma init_vmas[] = {
-        {.begin = 0}, // vma for creation of memory manager
-        {
-            .begin   = (uintptr_t)&__load_address,
-            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(&__load_address_end),
-            .prot    = PROT_NONE,
-            .flags   = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL,
-            .file    = NULL,
-            .offset  = 0,
-            .comment = "LibOS",
-        },
-        {
-            .begin   = (uintptr_t)ALLOC_ALIGN_DOWN_PTR(g_pal_control->manifest_preload.start),
-            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(g_pal_control->manifest_preload.end),
-            .prot    = PROT_NONE,
-            .flags   = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL,
-            .file    = NULL,
-            .offset  = 0,
-            .comment = "manifest",
-        },
-        {
-            .begin   = (uintptr_t)ALLOC_ALIGN_DOWN_PTR(g_pal_control->vdso_preload.start),
-            .end     = (uintptr_t)ALLOC_ALIGN_UP_PTR(g_pal_control->vdso_preload.end),
-            .prot    = PROT_NONE,
-            .flags   = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL,
-            .file    = NULL,
-            .offset  = 0,
-            .comment = "vDSO",
-        },
-    };
+    struct shim_vma init_vmas[2 + g_pal_control->preloaded_ranges_len];
+
+    init_vmas[0].begin = 0; // vma for creation of memory manager
+
+    init_vmas[1].begin  = (uintptr_t)&__load_address;
+    init_vmas[1].end    = (uintptr_t)ALLOC_ALIGN_UP_PTR(&__load_address_end);
+    init_vmas[1].prot   = PROT_NONE;
+    init_vmas[1].flags  = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
+    init_vmas[1].file   = NULL;
+    init_vmas[1].offset = 0;
+    copy_comment(&init_vmas[1], "LibOS");
+
+    for (size_t i = 0; i < g_pal_control->preloaded_ranges_len; i++) {
+        init_vmas[2 + i].begin  = ALLOC_ALIGN_DOWN(g_pal_control->preloaded_ranges[i].start);
+        init_vmas[2 + i].end    = ALLOC_ALIGN_UP(g_pal_control->preloaded_ranges[i].end);
+        init_vmas[2 + i].prot   = PROT_NONE;
+        init_vmas[2 + i].flags  = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
+        init_vmas[2 + i].file   = NULL;
+        init_vmas[2 + i].offset = 0;
+        copy_comment(&init_vmas[2 + i], g_pal_control->preloaded_ranges[i].comment);
+    }
 
     spinlock_lock(&vma_tree_lock);
     int ret = 0;
