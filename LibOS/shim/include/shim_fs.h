@@ -326,7 +326,8 @@ int check_permissions(struct shim_dentry* dent, mode_t mask);
  * \param flags lookup flags (see description below)
  * \param[out] found pointer to retrieved dentry
  *
- * The caller should hold `g_dcache_lock`.
+ * The caller should hold `g_dcache_lock`. If you do not already need to hold `g_dcache_lock`, use
+ * `path_lookupat` instead.
  *
  * On success, returns 0, and puts the retrieved dentry in `*found`. The reference count of the
  * dentry will be increased by one.
@@ -363,7 +364,12 @@ int check_permissions(struct shim_dentry* dent, mode_t mask);
 int _path_lookupat(struct shim_dentry* start, const char* path, int flags,
                    struct shim_dentry** found);
 
-/* Same as path_lookupat, but also acquires and releases  `g_dcache_lock`. */
+/*
+ * \brief Look up a path, retrieving a dentry
+ *
+ * This is a version of `_path_lookupat` that does not require caller to hold `g_dcache_lock`, but
+ * acquires and releases it by itself. See the documentation for `_path_lookupat` for details.
+ */
 int path_lookupat(struct shim_dentry* start, const char* path, int flags,
                   struct shim_dentry** found);
 
@@ -405,16 +411,16 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
  * The flags (including any not listed above), as well as file mode, are passed to the underlying
  * filesystem.
  *
+ * Note that unlike Linux `open`, this function called with O_CREAT and O_DIRECTORY will attempt to
+ * create a directory (Linux `open` ignores the O_DIRECTORY flag and creates a regular file).
+ * However, that behaviour of Linux `open` is a bug, and emulating it is inconvenient for us
+ * (because we use this function for both `open` and `mkdir`).
+ *
  * TODO: This function checks permissions of the opened file (if it exists) and parent directory (if
  * the file is being created), but not permissions for the whole path. That check probably should be
  * added to `path_lookupat`.
  *
  * TODO: The set of allowed flags should be checked in syscalls that use this function.
- *
- * TODO: This function is used both by `open` and `mkdir` families of syscalls. However, when Linux
- * `open` is called with O_CREAT and O_DIRECTORY, and the file does not exist, it ends up creating a
- * regular file (as described by `man 2 open`). We should emulate this bug, but it probably requires
- * some refactoring - maybe separating the code used by `open` and `mkdir`.
  */
 int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* path, int flags,
                int mode, struct shim_dentry** found);
