@@ -162,7 +162,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     uint64_t start_time;
     ret = _DkSystemTimeQuery(&start_time);
     if (ret < 0)
-        INIT_FAIL(unix_to_pal_error(-ret), "_DkSystemTimeQuery() failed");
+        INIT_FAIL(-ret, "_DkSystemTimeQuery() failed");
 
     /* Initialize alloc_align as early as possible, a lot of PAL APIs depend on this being set. */
     g_pal_state.alloc_align = _DkGetAllocationAlignment();
@@ -222,6 +222,38 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     if (g_sysinfo_ehdr)
         setup_vdso_map(g_sysinfo_ehdr);
 
+    uintptr_t vdso_start = 0;
+    uintptr_t vdso_end = 0;
+    uintptr_t vvar_start = 0;
+    uintptr_t vvar_end = 0;
+    ret = get_vdso_and_vvar_ranges(&vdso_start, &vdso_end, &vvar_start, &vvar_end);
+    if (ret < 0) {
+        INIT_FAIL(-ret, "getting vdso and vvar ranges failed");
+    }
+
+    if (!g_vdso_start && !g_vdso_end) {
+        /* We did not get vdso address from the auxiliary vector. */
+        g_vdso_start = vdso_start;
+        g_vdso_end = vdso_end;
+    }
+
+    if (g_vdso_start || g_vdso_end) {
+        ret = add_preloaded_range(g_vdso_start, g_vdso_end, "vdso");
+        if (ret < 0) {
+            INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+        }
+    } else {
+        log_warning("vdso address range not preloaded, is your system missing vdso?!\n");
+    }
+    if (vvar_start || vvar_end) {
+        ret = add_preloaded_range(vvar_start, vvar_end, "vvar");
+        if (ret < 0) {
+            INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+        }
+    } else {
+        log_warning("vvar address range not preloaded, is your system missing vvar?!\n");
+    }
+
     if (!g_pal_sec.process_id)
         g_pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
     g_linux_state.pid = g_pal_sec.process_id;
@@ -244,7 +276,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
         ret = read_text_file_to_cstr(manifest_path, &manifest);
         if (ret < 0) {
-            INIT_FAIL(-ret, "Reading manifest failed");
+            INIT_FAIL(unix_to_pal_error(-ret), "Reading manifest failed");
         }
     } else {
         // Children receive their argv and config via IPC.

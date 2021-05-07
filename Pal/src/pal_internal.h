@@ -136,6 +136,8 @@ extern struct pal_internal_state g_pal_state;
 
 extern PAL_CONTROL g_pal_control;
 
+int add_preloaded_range(uintptr_t start, uintptr_t end, const char* comment);
+
 #define IS_ALLOC_ALIGNED(addr)     IS_ALIGNED_POW2(addr, g_pal_state.alloc_align)
 #define IS_ALLOC_ALIGNED_PTR(addr) IS_ALIGNED_PTR_POW2(addr, g_pal_state.alloc_align)
 #define ALLOC_ALIGN_UP(addr)       ALIGN_UP_POW2(addr, g_pal_state.alloc_align)

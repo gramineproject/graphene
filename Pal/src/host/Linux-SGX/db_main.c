@@ -690,8 +690,12 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
     void* manifest_addr = g_enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
 
-    g_pal_control.manifest_preload.start = (PAL_PTR)manifest_addr;
-    g_pal_control.manifest_preload.end   = (PAL_PTR)manifest_addr + manifest_size;
+    ret = add_preloaded_range((uintptr_t)manifest_addr, (uintptr_t)manifest_addr + manifest_size,
+                              "manifest");
+    if (ret < 0) {
+        log_error("Failed to initialize manifest preload range: %d\n", ret);
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
 
     /* parse manifest */
     char errbuf[256];

@@ -155,8 +155,12 @@ typedef struct PAL_CONTROL_ {
     PAL_BOL disable_aslr;       /*!< disable ASLR (may be necessary for restricted environments) */
     PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
-    PAL_PTR_RANGE manifest_preload; /*!< manifest was preloaded here */
-    PAL_PTR_RANGE vdso_preload;     /*!< vDSO was preloaded here */
+    struct {
+        uintptr_t start;
+        uintptr_t end;
+        const char* comment;
+    }* preloaded_ranges; /*!< array of memory ranges which are preoccupied */
+    size_t preloaded_ranges_cnt;
 
     /*
      * Host information
