@@ -634,7 +634,9 @@ int list_directory_dentry(struct shim_dentry* dent) {
             /* -ENOENT from underlying lookup should be handled as DENTRY_NEGATIVE */
             assert(ret != -ENOENT);
 
-            /* Ignore inaccessible files */
+            /* Ignore inaccessible files: the underlying lookup can fail with -EACCES, for example
+             * for host symlinks pointing to inaccessible target (since the "chroot" filesystem
+             * transparently follows symlinks instead of reporting them to Graphene). */
             if (ret == -EACCES)
                 continue;
 
