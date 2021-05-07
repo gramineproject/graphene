@@ -59,8 +59,8 @@ Table of Contents
    tutorials/pytorch/index.rst
 
 .. toctree::
-   :caption: Recipes
-   :maxdepth: 2
+   :caption: Applications
+   :maxdepth: 1
 
    recipes/index.rst
 
