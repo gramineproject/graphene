@@ -374,6 +374,8 @@ int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_
 int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link,
                        const struct pseudo_ent* root_ent) {
     char* rel_path = dentry_rel_path(dent, /*sizep=*/NULL);
+    if (!rel_path)
+        return -ENOMEM;
 
     const struct pseudo_ent* ent = NULL;
 

@@ -303,7 +303,7 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
             lock(&g_process.fs_lock);
 
             struct shim_dentry* dent = NULL;
-            switch(msgin->code) {
+            switch (msgin->code) {
                case PID_META_EXEC:
                    if (g_process.exec)
                        dent = g_process.exec->dentry;
