@@ -131,7 +131,7 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
         return ret;
 
     lock(&data->lock);
-    if (dent->state & DENTRY_MOUNTPOINT) {
+    if (!dent->parent) {
         /* root of tmpfs */
         data->type = FILE_DIR;
         data->mode = PERM_rwxrwxrwx;
@@ -334,7 +334,7 @@ static int query_dentry(struct shim_dentry* dent, mode_t* mode, struct stat* sta
 }
 
 static int tmpfs_mode(struct shim_dentry* dent, mode_t* mode) {
-    if (dent->state & DENTRY_MOUNTPOINT) {
+    if (!dent->parent) {
         /* root of pseudo-FS */
         return pseudo_dir_mode(/*name=*/NULL, mode);
     }
@@ -342,7 +342,7 @@ static int tmpfs_mode(struct shim_dentry* dent, mode_t* mode) {
 }
 
 static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
-    if (dent->state & DENTRY_MOUNTPOINT) {
+    if (!dent->parent) {
         /* root of pseudo-FS */
         return pseudo_dir_stat(/*name=*/NULL, statbuf);
     }
@@ -350,7 +350,7 @@ static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
 }
 
 static int tmpfs_lookup(struct shim_dentry* dent) {
-    if (dent->state & DENTRY_MOUNTPOINT) {
+    if (!dent->parent) {
         /* root of pseudo-FS */
         dent->ino = 1;
         dent->state |= DENTRY_ISDIRECTORY;
@@ -418,7 +418,7 @@ static int tmpfs_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t
 
 static int tmpfs_hstat(struct shim_handle* hdl, struct stat* stat) {
     assert(hdl->dentry);
-    if (hdl->dentry->state & DENTRY_MOUNTPOINT) {
+    if (!hdl->dentry->parent) {
         /* root of pseudo-FS */
         return pseudo_dir_stat(/*name=*/NULL, stat);
     }

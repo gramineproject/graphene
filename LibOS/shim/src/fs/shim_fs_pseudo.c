@@ -185,7 +185,7 @@ int pseudo_dir_open(struct shim_handle* hdl, const char* name, int flags) {
 
 /*! Generic callback to obtain a mode of an entry in a pseudo-filesystem. */
 int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent* root_ent) {
-    if (dent->state & DENTRY_MOUNTPOINT) {
+    if (!dent->parent) {
         /* root of pseudo-FS */
         return pseudo_dir_mode(/*name=*/NULL, mode);
     }
@@ -213,7 +213,7 @@ out:
 
 /*! Generic callback to check if an entry exists in a pseudo-filesystem (and populate \p dent). */
 int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent) {
-    if (dent->state & DENTRY_MOUNTPOINT) {
+    if (!dent->parent) {
         /* root of pseudo-FS */
         dent->ino    = 1;
         dent->state |= DENTRY_ISDIRECTORY;
@@ -338,7 +338,7 @@ out:
 
 /*! Generic callback to obtain stat of an entry in a pseudo-filesystem. */
 int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_ent* root_ent) {
-    if (dent->state & DENTRY_MOUNTPOINT) {
+    if (!dent->parent) {
         /* root of pseudo-FS */
         return pseudo_dir_stat(/*name=*/NULL, buf);
     }

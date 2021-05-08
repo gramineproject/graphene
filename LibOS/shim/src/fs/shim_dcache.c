@@ -187,6 +187,15 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
     return dent;
 }
 
+struct shim_dentry* dentry_up(struct shim_dentry* dent) {
+    while (!dent->parent) {
+        if (!dent->fs)
+            return NULL;
+        dent = dent->fs->mount_point;
+    }
+    return dent->parent;
+}
+
 struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, size_t name_len) {
     assert(locked(&g_dcache_lock));
 
@@ -206,35 +215,9 @@ struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, 
     return NULL;
 }
 
-/* This function recursively removes children and drops the reference count
- * under root (but not the root itself).
- *
- * For memory-constrained systems (arguably SGX enclaves), there is a
- * legitimate concern that this could overflow the stack, as a path can have
- * as many as 4096 characters, leading to as many as 2048 stack frames.  It
- * may be preferable to rewrite this using tail recursion or allocating a
- * structure on the heap to track progress.
- */
-int __del_dentry_tree(struct shim_dentry* root) {
-    assert(locked(&g_dcache_lock));
-
-    struct shim_dentry *cursor, *n;
-
-    LISTP_FOR_EACH_ENTRY_SAFE(cursor, n, &root->children, siblings) {
-        // Recur if this is a non-empty directory
-        if (!LISTP_EMPTY(&cursor->children))
-            __del_dentry_tree(cursor);
-
-        LISTP_DEL_INIT(cursor, &root->children, siblings);
-        cursor->parent = NULL;
-        root->nchildren--;
-        put_dentry(cursor);
-    }
-
-    return 0;
-}
-
 bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent) {
+    assert(anc->fs == dent->fs);
+
     while (dent) {
         if (dent == anc) {
             return true;
@@ -251,9 +234,9 @@ static size_t dentry_path_size(struct shim_dentry* dent, bool relative) {
     /* initial size is 1 for null terminator */
     size_t size = 1;
 
-    while (dent->parent) {
-        /* If the path is relative, also finish when encountering a mountpoint */
-        if (relative && (dent->state & DENTRY_MOUNTPOINT))
+    while (true) {
+        struct shim_dentry* up = relative ? dent->parent : dentry_up(dent);
+        if (!up)
             break;
 
         /* Add '/' after name, except the first one */
@@ -264,7 +247,7 @@ static size_t dentry_path_size(struct shim_dentry* dent, bool relative) {
         /* Add name */
         size += dent->name.len;
 
-        dent = dent->parent;
+        dent = up;
     }
 
     /* Add beginning '/' if absolute path */
@@ -286,9 +269,9 @@ static char* dentry_path_into_buf(struct shim_dentry* dent, bool relative, char*
     buf[pos] = '\0';
 
     /* Add names, starting from the last one, until we encounter root */
-    while (dent->parent) {
-        /* If the path is relative, also finish when encountering a mountpoint */
-        if (relative && (dent->state & DENTRY_MOUNTPOINT))
+    while (true) {
+        struct shim_dentry* up = relative ? dent->parent : dentry_up(dent);
+        if (!up)
             break;
 
         /* Add '/' after name, except the first one */
@@ -306,7 +289,7 @@ static char* dentry_path_into_buf(struct shim_dentry* dent, bool relative, char*
         pos -= dent->name.len;
         memcpy(&buf[pos], qstrgetstr(&dent->name), dent->name.len);
 
-        dent = dent->parent;
+        dent = up;
     }
 
     /* Add beginning '/' if absolute path */
@@ -378,7 +361,13 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
     DUMP_FLAG(DENTRY_SYNTHETIC, "S", ".");
     buf_printf(&buf, "%3d] ", (int)REF_GET(dent->ref_count));
 
-    DUMP_FLAG(DENTRY_MOUNTPOINT, "*", " ");
+    if (dent->mounted) {
+        buf_puts(&buf, "M");
+    } else if (!dent->parent) {
+        buf_puts(&buf, "*");
+    } else {
+        buf_puts(&buf, " ");
+    }
     DUMP_FLAG(DENTRY_NEGATIVE, "-", " ");
 
     for (unsigned int i = 0; i < level; i++)
@@ -389,9 +378,14 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
     DUMP_FLAG(DENTRY_ISLINK, " -> ", "");
     buf_flush(&buf);
 
-    struct shim_dentry* child;
-    LISTP_FOR_EACH_ENTRY(child, &dent->children, siblings) {
-        dump_dentry(child, level + 1);
+    if (dent->mounted) {
+        struct shim_dentry* root = dent->mounted->root;
+        dump_dentry(root, level + 1);
+    } else {
+        struct shim_dentry* child;
+        LISTP_FOR_EACH_ENTRY(child, &dent->children, siblings) {
+            dump_dentry(child, level + 1);
+        }
     }
 }
 
