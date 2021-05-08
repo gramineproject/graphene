@@ -65,9 +65,13 @@ static struct shim_mount* alloc_mount(void) {
     return get_mem_obj_from_mgr_enlarge(mount_mgr, size_align_up(MOUNT_MGR_ALLOC));
 }
 
+static void free_mount(struct shim_mount* mount) {
+    free_mem_obj_to_mgr(mount_mgr, mount);
+}
+
 static bool mount_migrated = false;
 
-static int __mount_root(struct shim_dentry** root) {
+static int __mount_root(void) {
     int ret = 0;
     char* fs_root_type = NULL;
     char* fs_root_uri  = NULL;
@@ -90,13 +94,13 @@ static int __mount_root(struct shim_dentry** root) {
 
     if (fs_root_type && fs_root_uri) {
         log_debug("Mounting root as %s filesystem: from %s to /\n", fs_root_type, fs_root_uri);
-        if ((ret = mount_fs(fs_root_type, fs_root_uri, "/", NULL, root, 0)) < 0) {
+        if ((ret = mount_fs(fs_root_type, fs_root_uri, "/")) < 0) {
             log_error("Mounting root filesystem failed (%d)\n", ret);
             goto out;
         }
     } else {
         log_debug("Mounting root as chroot filesystem: from file:. to /\n");
-        if ((ret = mount_fs("chroot", URI_PREFIX_FILE, "/", NULL, root, 0)) < 0) {
+        if ((ret = mount_fs("chroot", URI_PREFIX_FILE, "/")) < 0) {
             log_error("Mounting root filesystem failed (%d)\n", ret);
             goto out;
         }
@@ -109,31 +113,30 @@ out:
     return ret;
 }
 
-static int __mount_sys(struct shim_dentry* root) {
+static int __mount_sys(void) {
     int ret;
 
     log_debug("Mounting special proc filesystem: /proc\n");
-    if ((ret = mount_fs("proc", NULL, "/proc", root, NULL, 0)) < 0) {
+    if ((ret = mount_fs("proc", NULL, "/proc")) < 0) {
         log_error("Mounting /proc filesystem failed (%d)\n", ret);
         return ret;
     }
 
     log_debug("Mounting special dev filesystem: /dev\n");
-    struct shim_dentry* dev_dent = NULL;
-    if ((ret = mount_fs("dev", NULL, "/dev", root, &dev_dent, 0)) < 0) {
+    if ((ret = mount_fs("dev", NULL, "/dev")) < 0) {
         log_error("Mounting dev filesystem failed (%d)\n", ret);
         return ret;
     }
 
     log_debug("Mounting terminal device /dev/tty under /dev\n");
-    if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty", dev_dent, NULL, 0)) < 0) {
+    if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty")) < 0) {
         log_error("Mounting terminal device /dev/tty failed (%d)\n", ret);
         return ret;
     }
 
     log_debug("Mounting special sys filesystem: /sys\n");
 
-    if ((ret = mount_fs("sys", NULL, "/sys", root, NULL, 0)) < 0) {
+    if ((ret = mount_fs("sys", NULL, "/sys")) < 0) {
         log_error("Mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
@@ -210,7 +213,7 @@ static int __mount_one_other(toml_table_t* mount) {
         goto out;
     }
 
-    if ((ret = mount_fs(mount_type, mount_uri, mount_path, NULL, NULL, 1)) < 0) {
+    if ((ret = mount_fs(mount_type, mount_uri, mount_path)) < 0) {
         log_error("Mounting %s on %s (type=%s) failed (%d)\n", mount_uri, mount_path, mount_type,
                   -ret);
         goto out;
@@ -300,12 +303,11 @@ int init_mount_root(void) {
         return 0;
 
     int ret;
-    struct shim_dentry* root = NULL;
 
-    if ((ret = __mount_root(&root)) < 0)
+    if ((ret = __mount_root()) < 0)
         return ret;
 
-    if ((ret = __mount_sys(root)) < 0)
+    if ((ret = __mount_sys()) < 0)
         return ret;
 
     return 0;
@@ -358,193 +360,128 @@ struct shim_fs* find_fs(const char* name) {
     return NULL;
 }
 
-static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
+static int mount_fs_at_dentry(const char* type, const char* uri, const char* mount_path,
+                              struct shim_dentry* mount_point) {
     assert(locked(&g_dcache_lock));
+    assert(!mount_point->attached_mount);
 
-    int ret = 0;
+    int ret;
+    struct shim_fs* fs = find_fs(type);
+    if (!fs || !fs->fs_ops || !fs->fs_ops->mount)
+        return -ENODEV;
 
-    get_dentry(dent);
-    mount->mount_point = dent;
-    dent->mounted = mount;
+    if (!fs->d_ops || !fs->d_ops->lookup)
+        return -ENODEV;
 
-    /* TODO: use `mount->root` as actual filesystem root (see comment for `struct shim_mount`) */
-    mount->root = NULL;
+    void* mount_data = NULL;
 
-    if ((ret = __del_dentry_tree(dent)) < 0)
+    /* Call filesystem-specific mount operation */
+    if ((ret = fs->fs_ops->mount(uri, &mount_data)) < 0)
         return ret;
 
-    lock(&mount_list_lock);
-    get_mount(mount);
-    LISTP_ADD_TAIL(mount, &mount_list, list);
-    unlock(&mount_list_lock);
-
-    do {
-        struct shim_dentry* parent = dent->parent;
-
-        if (dent->state & DENTRY_SYNTHETIC) {
-            put_dentry(dent);
-            break;
-        }
-
-        dent->state |= DENTRY_SYNTHETIC;
-        if (parent)
-            get_dentry(parent);
-        put_dentry(dent);
-        dent = parent;
-    } while (dent);
-
-    return 0;
-}
-
-/* Extracts the last component of the `path`. If there's none, `*last_elem_len` is set to 0 and
- * `*last_elem` is set to NULL. */
-static void find_last_component(const char* path, const char** last_comp, size_t* last_comp_len) {
-    *last_comp = NULL;
-    size_t last_len = 0;
-    size_t path_len = strlen(path);
-    if (path_len == 0)
-        goto out;
-
-    // Drop any trailing slashes.
-    const char* last = path + path_len - 1;
-    while (last > path && *last == '/')
-        last--;
-    if (*last == '/')
-        goto out;
-
-    // Skip the last component.
-    last_len = 1;
-    while (last > path && *(last - 1) != '/') {
-        last--;
-        last_len++;
-    }
-    *last_comp = last;
-out:
-    *last_comp_len = last_len;
-}
-
-/* Parent is optional, but helpful.
- * dentp (optional) memoizes the dentry of the newly-mounted FS, on success.
- *
- * The make_ancestor flag creates pseudo-dentries for any missing paths (passed to _path_lookupat).
- * This is only intended for use to connect mounts specified in the manifest when an intervening
- * path is missing.
- */
-int mount_fs(const char* type, const char* uri, const char* mount_point, struct shim_dentry* parent,
-             struct shim_dentry** dentp, bool make_ancestor) {
-    int ret = 0;
-    struct shim_fs* fs = find_fs(type);
-
-    int lookup_flags = LOOKUP_NO_FOLLOW;
-    if (make_ancestor)
-        lookup_flags |= LOOKUP_MAKE_SYNTHETIC;
-
-    if (!fs || !fs->fs_ops || !fs->fs_ops->mount) {
-        ret = -ENODEV;
-        goto out;
-    }
-
-    /* Split the mount point into the prefix and atom */
-    size_t mount_point_len = strlen(mount_point);
-    if (mount_point_len == 0) {
-        ret = -EINVAL;
-        goto out;
-    }
-    const char* last;
-    size_t last_len;
-    find_last_component(mount_point, &last, &last_len);
-
-    bool need_parent_put = false;
-    lock(&g_dcache_lock);
-
-    if (!parent) {
-        // See if we are not at the root mount
-        if (last_len > 0) {
-            // Look up the parent
-            size_t parent_len = last - mount_point;
-            char* parent_path = __alloca(parent_len + 1);
-            memcpy(parent_path, mount_point, parent_len);
-            parent_path[parent_len] = 0;
-            if ((ret = _path_lookupat(g_dentry_root, parent_path, lookup_flags, &parent)) < 0) {
-                log_error("Path lookup failed %d\n", ret);
-                goto out_with_unlock;
-            }
-            need_parent_put = true;
-        }
-    }
+    /* Allocate and set up `shim_mount` object */
 
     struct shim_mount* mount = alloc_mount();
-    void* mount_data         = NULL;
+    if (!mount) {
+        ret = -ENOMEM;
+        goto err;
+    }
+    memset(mount, 0, sizeof(*mount));
 
-    /* call fs-specific mount to allocate mount_data */
-    if ((ret = fs->fs_ops->mount(uri, &mount_data)) < 0)
-        goto out_with_unlock;
-
-    size_t uri_len = uri ? strlen(uri) : 0;
-    qstrsetstr(&mount->path, mount_point, mount_point_len);
-    qstrsetstr(&mount->uri, uri, uri_len);
+    if (!qstrsetstr(&mount->path, mount_path, strlen(mount_path))) {
+        ret = -ENOMEM;
+        goto err;
+    }
+    if (uri) {
+        if (!qstrsetstr(&mount->uri, uri, strlen(uri))) {
+            ret = -ENOMEM;
+            goto err;
+        }
+    }
     mount->fs = fs;
     mount->data = mount_data;
 
-    /* Get the negative dentry from the cache, if one exists */
-    struct shim_dentry* dent;
-    struct shim_dentry* dent2;
-    /* Special case the root */
-    if (last_len == 0)
-        dent = g_dentry_root;
-    else {
-        dent = lookup_dcache(parent, last, last_len);
+    /* Attach mount to mountpoint, and the other way around */
 
-        if (!dent) {
-            dent = get_new_dentry(mount, parent, last, last_len);
+    mount->mount_point = mount_point;
+    get_dentry(mount_point);
+    mount_point->attached_mount = mount;
+    get_mount(mount);
+
+    /* Initialize root dentry of the new filesystem */
+
+    mount->root = get_new_dentry(mount, /*parent=*/NULL, qstrgetstr(&mount_point->name),
+                                 mount_point->name.len);
+    if (!mount->root) {
+        ret = -ENOMEM;
+        goto err;
+    }
+
+    /* Trigger filesystem lookup for the root dentry, so that it's already valid. If there is a
+     * problem looking up the root, we want the mount operation to fail. */
+
+    struct shim_dentry* root;
+    if ((ret = _path_lookupat(g_dentry_root, mount_path, LOOKUP_NO_FOLLOW, &root))) {
+        log_warning("error looking up mount root %s: %d\n", mount_path, ret);
+        goto err;
+    }
+    assert(root == mount->root);
+    put_dentry(root);
+
+    /* Add `mount` to the global list */
+
+    lock(&mount_list_lock);
+    LISTP_ADD_TAIL(mount, &mount_list, list);
+    get_mount(mount);
+    unlock(&mount_list_lock);
+
+    return 0;
+
+err:
+    if (mount_point->attached_mount)
+        mount_point->attached_mount = NULL;
+
+    if (mount) {
+        if (mount->mount_point)
+            put_dentry(mount_point);
+
+        if (mount->root)
+            put_dentry(mount->root);
+
+        free_mount(mount);
+    }
+
+    if (fs->fs_ops->unmount) {
+        int ret_unmount = fs->fs_ops->unmount(mount_data);
+        if (ret_unmount < 0) {
+            log_warning("error unmounting %s: %d\n", mount_path, ret_unmount);
         }
     }
 
-    if (dent != g_dentry_root && dent->state & DENTRY_VALID) {
-        log_error("Mount %s already exists, verify that there are no duplicate mounts in manifest\n"
-                  "(note that /proc and /dev are automatically mounted in Graphene).\n",
-                  mount_point);
-        ret = -EEXIST;
-        goto out_with_unlock;
+    return ret;
+}
+
+int mount_fs(const char* type, const char* uri, const char* mount_path) {
+    int ret;
+    struct shim_dentry* mount_point = NULL;
+
+    lock(&g_dcache_lock);
+
+    int lookup_flags = LOOKUP_NO_FOLLOW | LOOKUP_MAKE_SYNTHETIC;
+    if ((ret = _path_lookupat(g_dentry_root, mount_path, lookup_flags, &mount_point)) < 0) {
+        log_warning("error looking up mountpoint %s: %d\n", mount_path, ret);
+        goto out;
     }
 
-    /*Now go ahead and do a lookup so the dentry is valid */
-    dent->state |= DENTRY_MOUNTPOINT;
-    if ((ret = _path_lookupat(g_dentry_root, mount_point, lookup_flags, &dent2)) < 0) {
-        dent->state &= ~DENTRY_MOUNTPOINT;
-        goto out_with_unlock;
-    }
+    if ((ret = mount_fs_at_dentry(type, uri, mount_path, mount_point)) < 0)
+        goto out;
 
-    assert(dent == dent2);
-
-    /* We want the net impact of mounting to increment the ref count on the
-     * entry (until the unmount).  But we shouldn't also hold the reference on
-     * dent from the validation step.  Drop it here */
-    put_dentry(dent2);
-
-    ret = __mount_fs(mount, dent);
-
-    // If we made it this far and the dentry is still negative, clear
-    // the negative flag from the denry.
-    if (!ret && (dent->state & DENTRY_NEGATIVE))
-        dent->state &= ~DENTRY_NEGATIVE;
-
-    /* Set the file system at the mount point properly */
-    dent->mount = mount;
-    dent->fs = mount->fs;
-
-    if (dentp && !ret) {
-        *dentp = dent;
-    } else {
-        put_dentry(dent);
-    }
-
-out_with_unlock:
-    unlock(&g_dcache_lock);
-    if (need_parent_put) {
-        put_dentry(parent);
-    }
+    ret = 0;
 out:
+    if (mount_point)
+        put_dentry(mount_point);
+    unlock(&g_dcache_lock);
+
     return ret;
 }
 
