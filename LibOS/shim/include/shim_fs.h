@@ -91,9 +91,7 @@ struct shim_fs_ops {
 
 #define DENTRY_VALID       0x0001 /* this dentry is verified to be valid */
 #define DENTRY_NEGATIVE    0x0002 /* recently deleted or inaccessible */
-#define DENTRY_RECENTLY    0x0004 /* recently used */
 #define DENTRY_PERSIST     0x0008 /* added as a persistent dentry */
-#define DENTRY_MOUNTPOINT  0x0040 /* this dentry is a mount point */
 #define DENTRY_ISLINK      0x0080 /* this dentry is a link */
 #define DENTRY_ISDIRECTORY 0x0100 /* this dentry is a directory */
 #define DENTRY_LOCKED      0x0200 /* locked by mountpoints at children */
@@ -132,11 +130,16 @@ struct shim_dentry {
      * different in case of special files (such as named pipes or sockets). */
     struct shim_fs* fs;
 
+    /* Parent of this dentry, within the same filesystem. Use `dentry_up` to get the dentry above
+     * (going across filesystems, if necessary). */
     struct shim_dentry* parent;
+
     size_t nchildren;
     LISTP_TYPE(shim_dentry) children; /* These children and siblings link */
     LIST_TYPE(shim_dentry) siblings;
 
+    /* Filesystem mounted under this dentry. If set, this dentry is a mountpoint: filesystem
+     * operations should use `mounted->fs->root` instead of this dentry. */
     struct shim_mount* mounted;
 
     /* file type: S_IFREG, S_IFDIR, S_IFLNK etc. */
@@ -234,17 +237,11 @@ DEFINE_LIST(shim_mount);
 struct shim_mount {
     struct shim_fs* fs;
 
-    /*
-     * TODO: this field currently functions as both the mountpoint AND the mount root. Instead,
-     * `mount_point` should be the dentry from the parent filesystem, and `root` should be the mount
-     * root.
-     */
     struct shim_dentry* mount_point;
 
     struct shim_qstr path;
     struct shim_qstr uri;
 
-    /* TODO: this is unused right now (see `mount_point`) */
     struct shim_dentry* root;
 
     void* data;
@@ -285,9 +282,32 @@ int init_mount_root(void);
 int init_mount(void);
 
 /* file system operations */
-int mount_fs(const char* mount_type, const char* mount_uri, const char* mount_point,
-             struct shim_dentry* parent, struct shim_dentry** dentp, bool make_ancestor);
-int unmount_fs(const char* mount_point);
+
+/*!
+ * \brief Mount a new filesystem
+ *
+ * \param type Filesystem type (currently defined in `mountable_fs` in `shim_fs.c`)
+ * \param uri PAL URI to mount, or NULL if not applicable
+ * \param mount_path Path to the mountpoint
+ * \param make_synthetic Make synthetic dentries on path to mountpoint (including mountpoint)
+ *
+ * If successful, this function converts the dentry pointed to by `mount_path` to a mountpoint. That
+ * means (assuming the dentry is called `mount_point`):
+ *
+ * - `mount_point->mounted` is the new filesystem,
+ * - `mount_point->mounted->root` is the dentry of new filesystem's root.
+ *
+ * Subsequent lookups for `mount_path` and paths starting with `mount_path` will therefore retrieve
+ * the new filesystem's root, not the mountpoint.
+ *
+ * If `make_synthetic` is true, the function will also ensure that the mountpoint exists: new
+ * dentries marked with DENTRY_SYNTHETIC will be created, if necessary. This is is a departure from
+ * Unix mount, necessary to implement Graphene manifest semantics.
+ *
+ * TODO: On failure, this function does not clean the synthetic nodes it just created (when
+ * `make_synthetic` is true).
+ */
+int mount_fs(const char* type, const char* uri, const char* mount_path, bool make_synthetic);
 
 void get_mount(struct shim_mount* mount);
 void put_mount(struct shim_mount* mount);
@@ -500,6 +520,19 @@ void get_dentry(struct shim_dentry* dent);
 void put_dentry(struct shim_dentry* dent);
 
 /*!
+ * \brief Get the dentry one level up
+ *
+ * \param dent the dentry
+ *
+ * \return the dentry one level up, or NULL if one does not exist
+ *
+ * Computes the dentry pointed to by ".." from the current one, unless the current dentry is at
+ * global root. Unlike the `parent` field, this traverses mounted filesystems (i.e. works also for a
+ * root dentry of a mount).
+ */
+struct shim_dentry* dentry_up(struct shim_dentry* dent);
+
+/*!
  * \brief Garbage-collect a dentry, if possible
  *
  * \param dentry the dentry (has to have a parent)
@@ -539,8 +572,8 @@ void dentry_gc(struct shim_dentry* dent);
  * This function computes an absolute path for dentry, allocating a new buffer for it. The path
  * should later be freed using `free`.
  *
- * An absolute path is a combination of all names up to the root (not including the root, which by
- * convention has an empty name), separated by `/`, and beginning with `/`.
+ * An absolute path is a combination of all names up to the global root (not including the root,
+ * which by convention has an empty name), separated by `/`, and beginning with `/`.
  */
 int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size);
 
@@ -556,8 +589,8 @@ int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size);
  * This function computes a relative path for dentry, allocating a new buffer for it. The path
  * should later be freed using `free`.
  *
- * A relative path is a combination of all names up to the mountpoint (not including the
- * mountpoint), separated by `/`. A relative path never begins with `/`.
+ * A relative path is a combination of all names up to the root of the dentry's filesystem (not
+ * including the root), separated by `/`. A relative path never begins with `/`.
  */
 int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size);
 
@@ -572,7 +605,7 @@ ino_t dentry_ino(struct shim_dentry* dent);
 /*!
  * \brief Allocate and initialize a new dentry
  *
- * \param parent the parent node, or NULL if this is supposed to be the dentry root
+ * \param parent the parent node, or NULL if this is supposed to be the mount root
  * \param mount the mount the dentry is under
  * \param name name of the new dentry
  * \param name_len length of the name
@@ -608,14 +641,9 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
  */
 struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, size_t name_len);
 
-/* This function recursively deletes and frees all dentries under root
- *
- * XXX: Current code doesn't do a free..
- */
-int __del_dentry_tree(struct shim_dentry* root);
-
 /*
- * Returns true if `anc` is an ancestor of `dent`.
+ * Returns true if `anc` is an ancestor of `dent`. Both dentries need to be within the same mounted
+ * filesystem.
  */
 bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent);
 

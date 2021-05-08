@@ -350,7 +350,7 @@ long shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
 
     /* mark pseudo entry in file system as valid and stash FDs in data */
     dent->state &= ~DENTRY_NEGATIVE;
-    dent->state |= DENTRY_VALID | DENTRY_RECENTLY;
+    dent->state |= DENTRY_VALID;
 
     static_assert(sizeof(vfd1) == sizeof(uint32_t) && sizeof(vfd2) == sizeof(uint32_t),
                   "FDs must be 4B in size");

@@ -40,10 +40,14 @@ HASHTYPE hash_name(HASHTYPE parent_hbuf, const char* name) {
 HASHTYPE hash_abs_path(struct shim_dentry* dent) {
     HASHTYPE digest = 0;
 
-    while (dent->parent) {
+    while (true) {
+        struct shim_dentry* up = dentry_up(dent);
+        if (!up)
+            break;
+
         digest += hash_str(qstrgetstr(&dent->name));
         digest *= 9;
-        dent = dent->parent;
+        dent = up;
     }
     return digest;
 }
