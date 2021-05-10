@@ -308,6 +308,9 @@ Exception handling
 Synchronization
 ^^^^^^^^^^^^^^^
 
+.. doxygendefine:: NO_TIMEOUT
+   :project: pal
+
 .. doxygenfunction:: DkEventCreate
    :project: pal
 
@@ -317,14 +320,11 @@ Synchronization
 .. doxygenfunction:: DkEventClear
    :project: pal
 
+.. doxygenfunction:: DkEventWait
+   :project: pal
+
 Objects
 ^^^^^^^
-
-.. doxygendefine:: NO_TIMEOUT
-   :project: pal
-
-.. doxygenfunction:: DkSynchronizationObjectWait
-   :project: pal
 
 .. doxygenfunction:: DkStreamsWaitEvents
    :project: pal

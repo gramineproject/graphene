@@ -11,7 +11,7 @@ DkThreadGetCpuAffinity
 DkEventCreate
 DkEventSet
 DkEventClear
-DkSynchronizationObjectWait
+DkEventWait
 DkStreamsWaitEvents
 DkStreamOpen
 DkStreamRead

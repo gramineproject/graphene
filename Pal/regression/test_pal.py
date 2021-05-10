@@ -230,7 +230,7 @@ class TC_02_Symbols(RegressionTestCase):
         'DkEventCreate',
         'DkEventSet',
         'DkEventClear',
-        'DkSynchronizationObjectWait',
+        'DkEventWait',
         'DkStreamsWaitEvents',
         'DkObjectClose',
         'DkSystemTimeQuery',

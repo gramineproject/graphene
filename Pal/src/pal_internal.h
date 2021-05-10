@@ -82,14 +82,6 @@ struct handle_ops {
      * a stream handle */
     int (*attrsetbyhdl)(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
-    /* 'wait' is used for synchronous wait.
-     * The 'timeout_us' is in microseconds, NO_TIMEOUT means no timeout.
-     * Returns 0 on success, a negative value on failure.
-     * Timeout: -PAL_ERROR_TRYAGAIN
-     * Positive return values are undefined.
-     */
-    int (*wait)(PAL_HANDLE handle, int64_t timeout_us);
-
     /* 'rename' is used to change name of a stream, or reset its share option */
     int (*rename)(PAL_HANDLE handle, const char* type, const char* uri);
 };
@@ -210,6 +202,7 @@ int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu
 int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear);
 void _DkEventSet(PAL_HANDLE handle);
 void _DkEventClear(PAL_HANDLE handle);
+int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us);
 
 /* DkVirtualMemory calls */
 int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot);
@@ -218,7 +211,6 @@ int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot);
 
 /* DkObject calls */
 int _DkObjectClose(PAL_HANDLE objectHandle);
-int _DkSynchronizationObjectWait(PAL_HANDLE handle, int64_t timeout_us);
 int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events,
                          PAL_FLG* ret_events, int64_t timeout_us);
 
