@@ -25,7 +25,7 @@ static struct {
     char* brk_end;
 } brk_region;
 
-static struct shim_lock brk_lock = {.lock = NULL};
+static struct shim_lock brk_lock;
 
 int init_brk_region(void* brk_start, size_t data_segment_size) {
     int ret;
