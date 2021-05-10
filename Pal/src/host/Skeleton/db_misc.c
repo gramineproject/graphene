@@ -12,18 +12,6 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-void _DkInternalLock(PAL_LOCK* lock) {
-    __abort();
-}
-
-void _DkInternalUnlock(PAL_LOCK* lock) {
-    __abort();
-}
-
-bool _DkInternalIsLocked(PAL_LOCK* lock) {
-    __abort();
-}
-
 int _DkSystemTimeQuery(uint64_t* out_usec) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

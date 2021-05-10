@@ -8,8 +8,6 @@ DkThreadExit
 DkThreadResume
 DkThreadSetCpuAffinity
 DkThreadGetCpuAffinity
-DkMutexCreate
-DkMutexRelease
 DkEventCreate
 DkEventSet
 DkEventClear

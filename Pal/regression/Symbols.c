@@ -44,8 +44,6 @@ int main(int argc, char** argv, char** envp) {
 
     PRINT_SYMBOL(DkSetExceptionHandler);
 
-    PRINT_SYMBOL(DkMutexCreate);
-    PRINT_SYMBOL(DkMutexRelease);
     PRINT_SYMBOL(DkEventCreate);
     PRINT_SYMBOL(DkEventSet);
     PRINT_SYMBOL(DkEventClear);

@@ -227,8 +227,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkThreadExit',
         'DkThreadResume',
         'DkSetExceptionHandler',
-        'DkMutexCreate',
-        'DkMutexRelease',
         'DkEventCreate',
         'DkEventSet',
         'DkEventClear',
@@ -400,17 +398,6 @@ class TC_20_SingleProcess(RegressionTestCase):
     def test_200_event(self):
         _, stderr = self.run_binary(['Event'])
         self.assertIn('TEST OK', stderr)
-
-    def test_210_semaphore(self):
-        _, stderr = self.run_binary(['Semaphore'])
-
-        # Semaphore: Timeout on Locked Semaphores
-        self.assertIn('Locked binary semaphore timed out (1000).', stderr)
-        self.assertIn('Locked binary semaphore timed out (0).', stderr)
-
-        # Semaphore: Acquire Unlocked Semaphores
-        self.assertIn('Locked binary semaphore successfully (-1).', stderr)
-        self.assertIn('Locked binary semaphore successfully (0).', stderr)
 
     def test_300_memory(self):
         _, stderr = self.run_binary(['Memory'])

@@ -22,7 +22,7 @@ defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes eventfd sockets streams memory threading \
-	    mutex events process object main rtld misc exception)
+	    events process object main rtld misc exception)
 
 .PHONY: all
 all: $(host_files)

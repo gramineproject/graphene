@@ -308,12 +308,6 @@ Exception handling
 Synchronization
 ^^^^^^^^^^^^^^^
 
-.. doxygenfunction:: DkMutexCreate
-   :project: pal
-
-.. doxygenfunction:: DkMutexRelease
-   :project: pal
-
 .. doxygenfunction:: DkEventCreate
    :project: pal
 

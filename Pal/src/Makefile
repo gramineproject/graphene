@@ -54,7 +54,6 @@ objs = \
 	db_main.o \
 	db_memory.o \
 	db_misc.o \
-	db_mutex.o \
 	db_object.o \
 	db_process.o \
 	db_rtld.o \

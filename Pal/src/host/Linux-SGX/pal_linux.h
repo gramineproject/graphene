@@ -67,14 +67,6 @@ void pal_start_thread(void);
 struct link_map;
 void setup_pal_map(struct link_map* map);
 
-/* Locking and unlocking of Mutexes */
-int __DkMutexCreate(struct mutex_handle* mut);
-int _DkMutexAtomicCreate(struct mutex_handle* mut);
-int __DkMutexDestroy(struct mutex_handle* mut);
-int _DkMutexLock(struct mutex_handle* mut);
-int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
-void _DkMutexUnlock(struct mutex_handle* mut);
-
 extern char __text_start, __text_end, __data_start, __data_end;
 #define TEXT_START ((void*)(&__text_start))
 #define TEXT_END   ((void*)(&__text_end))

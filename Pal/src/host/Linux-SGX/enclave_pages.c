@@ -6,6 +6,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_security.h"
+#include "spinlock.h"
 
 struct atomic_int g_allocated_pages;
 
@@ -28,7 +29,7 @@ struct heap_vma {
 DEFINE_LISTP(heap_vma);
 
 static LISTP_TYPE(heap_vma) g_heap_vma_list = LISTP_INIT;
-static PAL_LOCK g_heap_vma_lock = LOCK_INIT;
+static spinlock_t g_heap_vma_lock = INIT_SPINLOCK_UNLOCKED;
 
 /* heap_vma objects are taken from pre-allocated pool to avoid recursive mallocs */
 #define MAX_HEAP_VMAS 100000
@@ -38,7 +39,7 @@ static struct heap_vma* g_free_vma = NULL;
 
 /* returns uninitialized heap_vma, the caller is responsible for setting at least bottom/top */
 static struct heap_vma* __alloc_vma(void) {
-    assert(_DkInternalIsLocked(&g_heap_vma_lock));
+    assert(spinlock_is_locked(&g_heap_vma_lock));
 
     if (g_free_vma) {
         /* simple optimization: if there is a cached free vma object, use it */
@@ -65,7 +66,7 @@ static struct heap_vma* __alloc_vma(void) {
 }
 
 static void __free_vma(struct heap_vma* vma) {
-    assert(_DkInternalIsLocked(&g_heap_vma_lock));
+    assert(spinlock_is_locked(&g_heap_vma_lock));
     assert((uintptr_t)vma >= (uintptr_t)&g_heap_vma_pool[0]);
     assert((uintptr_t)vma <= (uintptr_t)&g_heap_vma_pool[MAX_HEAP_VMAS - 1]);
 
@@ -83,7 +84,7 @@ int init_enclave_pages(void) {
 
 static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_internal,
                                     struct heap_vma* vma_above) {
-    assert(_DkInternalIsLocked(&g_heap_vma_lock));
+    assert(spinlock_is_locked(&g_heap_vma_lock));
     assert(addr && size);
 
     if (addr < g_heap_bottom)
@@ -194,7 +195,7 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
     struct heap_vma* vma_above = NULL;
     struct heap_vma* vma;
 
-    _DkInternalLock(&g_heap_vma_lock);
+    spinlock_lock(&g_heap_vma_lock);
 
     if (is_pal_internal && size > g_pal_internal_mem_size - g_pal_internal_mem_used) {
         /* requested PAL-internal allocation would exceed the limit, fail */
@@ -234,7 +235,7 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
     }
 
 out:
-    _DkInternalUnlock(&g_heap_vma_lock);
+    spinlock_unlock(&g_heap_vma_lock);
     return ret;
 }
 
@@ -251,7 +252,7 @@ int free_enclave_pages(void* addr, size_t size) {
         return -PAL_ERROR_INVAL;
     }
 
-    _DkInternalLock(&g_heap_vma_lock);
+    spinlock_lock(&g_heap_vma_lock);
 
     /* VMA list contains both normal and pal-internal VMAs; it is impossible to free an area
      * that overlaps with VMAs of two types at the same time, so we fail in such cases */
@@ -317,13 +318,13 @@ int free_enclave_pages(void* addr, size_t size) {
     }
 
 out:
-    _DkInternalUnlock(&g_heap_vma_lock);
+    spinlock_unlock(&g_heap_vma_lock);
     return ret;
 }
 
 /* returns current highest available address on the enclave heap */
 void* get_enclave_heap_top(void) {
-    _DkInternalLock(&g_heap_vma_lock);
+    spinlock_lock(&g_heap_vma_lock);
 
     void* addr = g_heap_top;
     struct heap_vma* vma;
@@ -335,6 +336,6 @@ void* get_enclave_heap_top(void) {
     }
 
 out:
-    _DkInternalUnlock(&g_heap_vma_lock);
+    spinlock_unlock(&g_heap_vma_lock);
     return addr;
 }

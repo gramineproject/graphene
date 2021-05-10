@@ -10,13 +10,14 @@
 #include "pal_defs.h"
 #include "pal_error.h"
 #include "pal_internal.h"
+#include "spinlock.h"
 
 static size_t g_slab_alignment;
-static PAL_LOCK g_slab_mgr_lock = LOCK_INIT;
+static spinlock_t g_slab_mgr_lock = INIT_SPINLOCK_UNLOCKED;
 
-#define SYSTEM_LOCK()   _DkInternalLock(&g_slab_mgr_lock)
-#define SYSTEM_UNLOCK() _DkInternalUnlock(&g_slab_mgr_lock)
-#define SYSTEM_LOCKED() _DkInternalIsLocked(&g_slab_mgr_lock)
+#define SYSTEM_LOCK()   spinlock_lock(&g_slab_mgr_lock)
+#define SYSTEM_UNLOCK() spinlock_unlock(&g_slab_mgr_lock)
+#define SYSTEM_LOCKED() spinlock_is_locked(&g_slab_mgr_lock)
 
 #if STATIC_SLAB == 1
 #define POOL_SIZE 64 * 1024 * 1024

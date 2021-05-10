@@ -206,13 +206,6 @@ noreturn void _DkProcessExit(int exitCode);
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
-/* DkMutex calls */
-int _DkMutexCreate(PAL_HANDLE* handle, int initialCount);
-int _DkMutexAcquire(PAL_HANDLE sem);
-int _DkMutexAcquireTimeout(PAL_HANDLE sem, int64_t timeout_us);
-void _DkMutexRelease(PAL_HANDLE sem);
-int _DkMutexGetCurrentCount(PAL_HANDLE sem);
-
 /* DkEvent calls */
 int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear);
 void _DkEventSet(PAL_HANDLE handle);
@@ -233,9 +226,6 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event_num);
 
 /* other DK calls */
-void _DkInternalLock(PAL_LOCK* mut);
-void _DkInternalUnlock(PAL_LOCK* mut);
-bool _DkInternalIsLocked(PAL_LOCK* mut);
 int _DkSystemTimeQuery(uint64_t* out_usec);
 
 /*

@@ -17,37 +17,6 @@
 
 #include "atomic.h"
 
-/* Simpler mutex design: a single variable that tracks whether the
- * mutex is locked.  State is 1 (locked) or 0 (unlocked).
- * Keep a count of how many threads are waiting on the mutex.
- *
- * If DEBUG_MUTEX is defined, mutex_handle will record the owner of mutex locking.
- */
-typedef struct mutex_handle {
-    uint32_t locked;
-    struct atomic_int nwaiters;
-#ifdef DEBUG_MUTEX
-    int owner;
-#endif
-} PAL_LOCK;
-
-/* Initializer of Mutexes */
-#define MUTEX_HANDLE_INIT \
-    { .locked = 0, .nwaiters.counter = 0 }
-#define INIT_MUTEX_HANDLE(m)           \
-    do {                               \
-        (m)->locked = 0;               \
-        atomic_set(&(m)->nwaiters, 0); \
-    } while (0)
-
-#define LOCK_INIT       MUTEX_HANDLE_INIT
-#define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock)
-
-/* Locking and unlocking of Mutexes */
-int _DkMutexLock(struct mutex_handle* mut);
-int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
-void _DkMutexUnlock(struct mutex_handle* mut);
-
 typedef struct {
     PAL_HDR hdr;
 } PAL_RESERVED_HDR;
@@ -138,10 +107,6 @@ typedef struct pal_handle {
             PAL_IDX tid;
             PAL_PTR stack;
         } thread;
-
-        struct {
-            struct mutex_handle mut;
-        } mutex;
 
         struct {
             uint32_t signaled;

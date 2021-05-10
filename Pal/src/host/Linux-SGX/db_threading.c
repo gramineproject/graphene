@@ -23,8 +23,9 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
+#include "spinlock.h"
 
-static PAL_LOCK g_thread_list_lock = LOCK_INIT;
+static spinlock_t g_thread_list_lock = INIT_SPINLOCK_UNLOCKED;
 DEFINE_LISTP(pal_handle_thread);
 static LISTP_TYPE(pal_handle_thread) g_thread_list = LISTP_INIT;
 
@@ -54,7 +55,7 @@ static PAL_IDX pal_assign_tid(void) {
 __attribute__((__optimize__("-fno-stack-protector"))) void pal_start_thread(void) {
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
-    _DkInternalLock(&g_thread_list_lock);
+    spinlock_lock(&g_thread_list_lock);
     LISTP_FOR_EACH_ENTRY(tmp, &g_thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
@@ -63,7 +64,7 @@ __attribute__((__optimize__("-fno-stack-protector"))) void pal_start_thread(void
                              __ATOMIC_RELEASE);
             break;
         }
-    _DkInternalUnlock(&g_thread_list_lock);
+    spinlock_unlock(&g_thread_list_lock);
 
     if (!new_thread)
         return;
@@ -110,9 +111,9 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     thread_param->param    = param;
     new_thread->thread.param = (void*)thread_param;
 
-    _DkInternalLock(&g_thread_list_lock);
+    spinlock_lock(&g_thread_list_lock);
     LISTP_ADD_TAIL(&new_thread->thread, &g_thread_list, list);
-    _DkInternalUnlock(&g_thread_list_lock);
+    spinlock_unlock(&g_thread_list_lock);
 
     int ret = ocall_clone_thread();
     if (ret < 0)
@@ -150,9 +151,9 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 
     /* main thread is not part of the g_thread_list */
     if (exiting_thread != &g_pal_control.first_thread->thread) {
-        _DkInternalLock(&g_thread_list_lock);
+        spinlock_lock(&g_thread_list_lock);
         LISTP_DEL(exiting_thread, &g_thread_list, list);
-        _DkInternalUnlock(&g_thread_list_lock);
+        spinlock_unlock(&g_thread_list_lock);
     }
 
     ocall_exit(0, /*is_exitgroup=*/false);

@@ -12,9 +12,8 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-/* Stream handler table: this table corresponds to all the
-   handle type supported by PAL. Threads, Semaphores and Events
-   are not streams, so they need no handler */
+/* Stream handler table: this table corresponds to all the handle type supported by PAL. Threads
+ * are not streams, so they need no handler. */
 extern struct handle_ops g_file_ops;
 extern struct handle_ops g_pipe_ops;
 extern struct handle_ops g_pipeprv_ops;
@@ -25,7 +24,6 @@ extern struct handle_ops g_udp_ops;
 extern struct handle_ops g_udpsrv_ops;
 extern struct handle_ops g_thread_ops;
 extern struct handle_ops g_proc_ops;
-extern struct handle_ops g_mutex_ops;
 extern struct handle_ops g_event_ops;
 extern struct handle_ops g_eventfd_ops;
 
@@ -43,7 +41,6 @@ const struct handle_ops* g_pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
     [pal_type_udpsrv]  = &g_udpsrv_ops,
     [pal_type_process] = &g_proc_ops,
     [pal_type_thread]  = &g_thread_ops,
-    [pal_type_mutex]   = &g_mutex_ops,
     [pal_type_event]   = &g_event_ops,
     [pal_type_eventfd] = &g_eventfd_ops,
 };

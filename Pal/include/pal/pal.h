@@ -115,7 +115,6 @@ enum {
     pal_type_udpsrv,
     pal_type_process,
     pal_type_thread,
-    pal_type_mutex,
     pal_type_event,
     pal_type_eventfd,
     PAL_HANDLE_TYPE_BOUND,
@@ -618,21 +617,6 @@ void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
 /*
  * Synchronization
  */
-
-/*!
- * \brief Create a mutex with the given `initialCount`.
- *
- * Destroy a mutex using DkObjectClose.
- *
- * \param initialCount 0 is unlocked, 1 is locked
- * \param[out] handle on success contains the mutex handle
- */
-int DkMutexCreate(PAL_NUM initialCount, PAL_HANDLE* handle);
-
-/*!
- * \brief Unlock the given mutex.
- */
-void DkMutexRelease(PAL_HANDLE mutexHandle);
 
 /*!
  * \brief Create an event handle

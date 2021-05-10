@@ -42,7 +42,6 @@ executables = \
 	Process3 \
 	Process4 \
 	Select \
-	Semaphore \
 	SendHandle \
 	Sleep \
 	Socket \

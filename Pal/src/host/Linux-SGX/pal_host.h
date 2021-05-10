@@ -20,37 +20,8 @@
 #include "list.h"
 #include "spinlock.h"
 
-typedef spinlock_t PAL_LOCK;
-
-#define LOCK_INIT           INIT_SPINLOCK_UNLOCKED
-#define _DkInternalLock     spinlock_lock
-#define _DkInternalUnlock   spinlock_unlock
-#define _DkInternalIsLocked spinlock_is_locked
-
 void* malloc_untrusted(size_t size);
 void free_untrusted(void* mem);
-
-/* Simpler mutex design: a single variable that tracks whether the
- * mutex is locked.  State is 1 (locked) or 0 (unlocked).
- * Keep a count of how many threads are waiting on the mutex.
- *
- * If DEBUG_MUTEX is defined, mutex_handle will record the owner of mutex locking.
- */
-struct mutex_handle {
-    uint32_t* locked;
-    struct atomic_int nwaiters;
-#ifdef DEBUG_MUTEX
-    int owner;
-#endif
-};
-
-/* Initializer of Mutexes */
-#define MUTEX_HANDLE_INIT \
-    { .u = 0 }
-#define INIT_MUTEX_HANDLE(m) \
-    do {                     \
-        (m)->u = 0;          \
-    } while (0)
 
 DEFINE_LIST(pal_handle_thread);
 struct pal_handle_thread {
@@ -150,10 +121,6 @@ typedef struct pal_handle {
         } process;
 
         struct pal_handle_thread thread;
-
-        struct {
-            struct mutex_handle mut;
-        } mutex;
 
         struct {
             /* Guards accesses to the rest of the fields.

@@ -24,6 +24,7 @@
 #include "seqlock.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
+#include "spinlock.h"
 #include "toml.h"
 
 #define TSC_REFINE_INIT_TIMEOUT_USECS 10000000
@@ -116,12 +117,12 @@ static struct pal_cpuid {
 } g_pal_cpuid_cache[CPUID_CACHE_SIZE];
 
 static int g_pal_cpuid_cache_top   = 0;
-static PAL_LOCK g_cpuid_cache_lock = LOCK_INIT;
+static spinlock_t g_cpuid_cache_lock = INIT_SPINLOCK_UNLOCKED;
 
 static int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     int ret = -PAL_ERROR_DENIED;
 
-    _DkInternalLock(&g_cpuid_cache_lock);
+    spinlock_lock(&g_cpuid_cache_lock);
     for (int i = 0; i < g_pal_cpuid_cache_top; i++) {
         if (g_pal_cpuid_cache[i].leaf == leaf && g_pal_cpuid_cache[i].subleaf == subleaf) {
             values[0] = g_pal_cpuid_cache[i].values[0];
@@ -132,12 +133,12 @@ static int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigne
             break;
         }
     }
-    _DkInternalUnlock(&g_cpuid_cache_lock);
+    spinlock_unlock(&g_cpuid_cache_lock);
     return ret;
 }
 
 static void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    _DkInternalLock(&g_cpuid_cache_lock);
+    spinlock_lock(&g_cpuid_cache_lock);
 
     struct pal_cpuid* chosen = NULL;
     if (g_pal_cpuid_cache_top < CPUID_CACHE_SIZE) {
@@ -159,7 +160,7 @@ static void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned
         chosen->values[3] = values[3];
     }
 
-    _DkInternalUnlock(&g_cpuid_cache_lock);
+    spinlock_unlock(&g_cpuid_cache_lock);
 }
 
 static inline uint32_t extension_enabled(uint32_t xfrm, uint32_t bit_idx) {
