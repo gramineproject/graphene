@@ -42,7 +42,7 @@ void _DkEventClear(PAL_HANDLE handle) {
     __atomic_store_n(&handle->event.signaled, 0, __ATOMIC_RELEASE);
 }
 
-static int wait_timeout(PAL_HANDLE handle, int64_t timeout_us) {
+int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
     struct timespec timeout = { 0 };
     struct timespec* timeout_ptr = NULL;
     if (timeout_us >= 0) {
@@ -71,6 +71,4 @@ static int wait_timeout(PAL_HANDLE handle, int64_t timeout_us) {
     }
 }
 
-struct handle_ops g_event_ops = {
-    .wait = wait_timeout,
-};
+struct handle_ops g_event_ops = {};

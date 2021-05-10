@@ -627,7 +627,7 @@ void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event);
  *
  * Creates a handle to an event that resembles WinAPI synchronization events. A thread can set
  * (signal) the event using #DkEventSet, clear (unset) it using #DkEventClear or wait until
- * the event becomes set (signaled) using #DkSynchronizationObjectWait.
+ * the event becomes set (signaled) using #DkEventWait.
  */
 int DkEventCreate(PAL_HANDLE* handle, bool init_signaled, bool auto_clear);
 
@@ -635,6 +635,7 @@ int DkEventCreate(PAL_HANDLE* handle, bool init_signaled, bool auto_clear);
  * \brief Set (signal) an event.
  *
  * If the event is already set, does nothing.
+ * This function has release semantics and synchronizes with #DkEventWait.
  */
 void DkEventSet(PAL_HANDLE handle);
 
@@ -649,14 +650,21 @@ void DkEventClear(PAL_HANDLE handle);
 #define NO_TIMEOUT ((PAL_NUM)-1)
 
 /*!
- * \brief Wait on a synchronization handle.
+ * \brief Wait for a event handle.
  *
- * \param timeout_us is the maximum time that the API should wait (in
- *  microseconds), or #NO_TIMEOUT to indicate it is to be blocked until the
- *  handle's event is triggered.
- * \return 0 if this handle's event was triggered, negative error code otherwise
+ * \param handle handle to wait on, must be of event type
+ * \param timeout_us timeout for the wait
+ *
+ * \return 0 if the event was triggered, negative error code otherwise (#PAL_ERROR_TRYAGAIN in case
+ *           of timeout triggering)
+ *
+ * \p timeout_us specifies the maximal time (in microseconds) that this function should sleep if
+ * this event is not signaled in the meantime. Specifying #NO_TIMEOUT blocks indefnitely. Note that
+ * in any case this function can return earlier, e.g. if a signal has arrived, but this will be
+ * indicated by the returned error code.
+ * This function has acuire semantics and synchronizes with #DkEventSet.
  */
-int DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us);
+int DkEventWait(PAL_HANDLE handle, int64_t timeout_us);
 
 enum PAL_WAIT {
     PAL_WAIT_SIGNAL = 1, /*!< ignored in events */

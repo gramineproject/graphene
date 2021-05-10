@@ -47,7 +47,7 @@ static void lock(struct shim_lock* l) {
 
     assert(l->lock);
 
-    while (DkSynchronizationObjectWait(l->lock, NO_TIMEOUT) < 0)
+    while (DkEventWait(l->lock, NO_TIMEOUT) < 0)
         /* nop */;
 
     l->owner = get_cur_tid();

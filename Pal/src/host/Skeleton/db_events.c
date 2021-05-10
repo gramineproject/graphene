@@ -21,10 +21,14 @@ void _DkEventClear(PAL_HANDLE handle) {
     assert(0);
 }
 
-static int _DkEventWaitTimeout(PAL_HANDLE handle, int64_t timeout_us) {
+int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+static int event_close(PAL_HANDLE handle) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 struct handle_ops g_event_ops = {
-    .wait = _DkEventWaitTimeout,
+    .close = event_close,
 };

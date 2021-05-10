@@ -67,7 +67,7 @@ void _DkEventClear(PAL_HANDLE handle) {
 
 /* We use `handle->event.signaled` as the source of truth whether the event was signaled.
  * `handle->event.signaled_untrusted` acts only as a futex sleeping word. */
-static int wait_timeout(PAL_HANDLE handle, int64_t timeout_us) {
+int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
     bool added_to_count = false;
     while (1) {
         spinlock_lock(&handle->event.lock);
@@ -109,5 +109,4 @@ static int event_close(PAL_HANDLE handle) {
 
 struct handle_ops g_event_ops = {
     .close = event_close,
-    .wait  = wait_timeout,
 };

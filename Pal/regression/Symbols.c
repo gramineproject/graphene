@@ -47,7 +47,7 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkEventCreate);
     PRINT_SYMBOL(DkEventSet);
     PRINT_SYMBOL(DkEventClear);
-    PRINT_SYMBOL(DkSynchronizationObjectWait);
+    PRINT_SYMBOL(DkEventWait);
 
     PRINT_SYMBOL(DkObjectClose);
 
