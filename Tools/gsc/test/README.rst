@@ -7,7 +7,7 @@ This folder includes sample images and test cases for GSC:
 -  Python3 (run python3 command line) which is tested with a
    ``-c 'print("Hello World!")'`` and the three
    `Graphene Examples <https://github.com/oscarlab/graphene/tree/master/Examples>`__
-   from python-simple
+   from Examples/python
 -  NodeJS (print "Hello World")
 -  Pytorch script, from
     `Graphene Examples <https://github.com/oscarlab/graphene/tree/master/Examples>`__

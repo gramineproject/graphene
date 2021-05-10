@@ -13,14 +13,7 @@ stage('test-direct') {
     }
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
-            cd Examples/python-simple
-            make ${MAKEOPTS} all
-            make check
-        '''
-    }
-    timeout(time: 5, unit: 'MINUTES') {
-        sh '''
-            cd Examples/python-scipy
+            cd Examples/python
             make ${MAKEOPTS} all
             make check
         '''

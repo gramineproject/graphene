@@ -39,7 +39,7 @@ python.manifest: python.manifest.template
 python.manifest.sgx: python.manifest
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
-		--manifest python.manifest \
+		--manifest $< \
 		--output $@
 
 python.sig: python.manifest.sgx
@@ -47,27 +47,17 @@ python.sig: python.manifest.sgx
 python.token: python.sig
 	graphene-sgx-get-token --output $@ --sig $<
 
-ifeq ($(SGX),)
-GRAPHENE = graphene-direct
-else
-GRAPHENE = graphene-sgx
-endif
-
 .PHONY: check
 check: all
-	$(GRAPHENE) ./python scripts/test-numpy.py > OUTPUT 2> /dev/null
-	@sleep 1  # to make sure Bash child processes flush output under Graphene-SGX
-	@grep -q "dot: " OUTPUT && echo "[ Success 1/2 ]"
-	@rm OUTPUT
-
-	$(GRAPHENE) ./python scripts/test-scipy.py > OUTPUT 2> /dev/null
-	@sleep 1
-	@grep -q "cholesky: " OUTPUT && echo "[ Success 2/2 ]"
-	@rm OUTPUT
+	./run-tests.sh > TEST_STDOUT 2> TEST_STDERR
+	@grep -q "Success 1/4" TEST_STDOUT
+	@grep -q "Success 2/4" TEST_STDOUT
+	@grep -q "Success 3/4" TEST_STDOUT
+	@grep -q "Success 4/4" TEST_STDOUT
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig OUTPUT*
+	$(RM) *.manifest *.manifest.sgx *.token *.sig OUTPUT* *.PID TEST_STDOUT TEST_STDERR
 	$(RM) -r scripts/__pycache__
 
 .PHONY: distclean

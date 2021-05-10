@@ -2,10 +2,12 @@
 
 import timeit
 
-setup = "import numpy;\
-        import scipy.linalg as linalg;\
-        x = numpy.random.random((1000,1000));\
-        z = numpy.dot(x, x.T)"
+setup = """\
+import numpy;
+import scipy.linalg as linalg;
+x = numpy.random.random((100,100));
+z = numpy.dot(x, x.T)
+"""
 count = 5
 
 t = timeit.Timer("linalg.cholesky(z, lower=True)", setup=setup)
