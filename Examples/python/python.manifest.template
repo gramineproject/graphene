@@ -1,7 +1,7 @@
 # Python3 manifest example
 #
-# This manifest was prepared and tested on Ubuntu 16.04/18.04 and tested with
-# Python 3.5 and 3.6.
+# This manifest was prepared and tested on Ubuntu 18.04 and 20.04 and tested with
+# Python 3.6 and 3.8.
 
 libos.entrypoint = "file:{{ entrypoint }}"
 
@@ -63,7 +63,11 @@ fs.mount.etc.uri = "file:/etc"
 # Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
 # size must be specified during signing. If Python needs more virtual memory
 # than the enclave size, Graphene will not be able to allocate it.
-sgx.enclave_size = "1G"
+sgx.enclave_size = "512M"
+
+# Graphene creates stacks of 256KB by default. It is not enough for SciPy/NumPy
+# packages, e.g., libopenblas dependency assumes more than 512KB-sized stacks.
+sys.stack.size = "2M"
 
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
@@ -71,7 +75,7 @@ sgx.enclave_size = "1G"
 # thread for handling inter-process communication (IPC), and potentially another
 # thread for asynchronous events. Therefore, the actual number of threads that
 # the application can create is (sgx.thread_num - 2).
-sgx.thread_num = 8
+sgx.thread_num = 32
 
 sgx.nonpie_binary = 1
 
@@ -99,3 +103,6 @@ sgx.allowed_files.passwd = "file:/etc/passwd"
 sgx.allowed_files.gaiconf = "file:/etc/gai.conf"
 sgx.allowed_files.hostconf = "file:/etc/host.conf"
 sgx.allowed_files.resolv = "file:/etc/resolv.conf"
+
+# SGX untrusted (allowed) files/directories
+sgx.allowed_files.tmp = "file:/tmp"

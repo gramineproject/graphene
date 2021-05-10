@@ -2,17 +2,17 @@
 
 This directory contains an example for running Python 3 in Graphene, including
 the Makefile and a template for generating the manifest. The application is
-tested on Ubuntu 16.04 and Ubuntu 18.04, with both normal Linux and SGX
-platforms. The tested versions of Python are 3.5 and 3.6.
+tested on Ubuntu 18.04 and Ubuntu 20.04, with both normal Linux and SGX
+platforms. The tested versions of Python are 3.6 and 3.8.
 
 # Generating the manifest
 
 ## Installing prerequisites
 
 For generating the manifest and running the test scripts, please run the following
-command to install the required utility packages (Ubuntu-specific):
+command to install the required packages (Ubuntu-specific):
 
-    sudo apt-get install libnss-mdns
+    sudo apt-get install libnss-mdns python3-numpy python3-scipy
 
 ## Building for Linux
 
@@ -33,9 +33,6 @@ a particular version of Python. For example:
 make PYTHONPATH=<python install path> PYTHONVERSION=python3.6 SGX=1
 ```
 
-By default, `PYTHONPATH=/usr` and `PYTHONVERSION=python3.5`.
-
-
 # Run Python with Graphene
 
 Here's an example of running Python scripts under Graphene:
@@ -43,13 +40,15 @@ Here's an example of running Python scripts under Graphene:
 Without SGX:
 ```
 graphene-direct ./python scripts/helloworld.py
-graphene-direct ./python scripts/fibonacci.py
+graphene-direct ./python scripts/test-numpy.py
+graphene-direct ./python scripts/test-scipy.py
 ```
 
 With SGX:
 ```
 graphene-sgx ./python scripts/helloworld.py
-graphene-sgx ./python scripts/fibonacci.py
+graphene-sgx ./python scripts/test-numpy.py
+graphene-sgx ./python scripts/test-scipy.py
 ```
 
 You can also manually run included tests:

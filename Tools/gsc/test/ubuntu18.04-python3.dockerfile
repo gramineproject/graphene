@@ -5,6 +5,6 @@ RUN apt-get update \
     && mkdir -p /graphene/Examples
 
 # Build environment of this Dockerfile should point to the root of Graphene's Examples/
-COPY python-simple/ /graphene/Examples
+COPY python/ /graphene/Examples
 
 CMD ["python3"]

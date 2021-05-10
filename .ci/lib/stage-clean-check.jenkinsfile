@@ -14,8 +14,7 @@ stage('clean-check') {
 
         make -C LibOS/shim/test/regression clean
 
-        make -C Examples/python-simple clean
-        make -C Examples/python-scipy clean
+        make -C Examples/python clean
         make -C Examples/bash clean
         make -C Examples/curl clean
         make -C Examples/gcc distclean

@@ -43,8 +43,6 @@ a particular version of Python. For example:
 make PYTHONPATH=<python install path> PYTHONVERSION=python3.6 SGX=1
 ```
 
-By default, `PYTHONPATH=/usr` and `PYTHONVERSION=python3.5`.
-
 # Run
 
 Execute any one of the following commands to run the workload
