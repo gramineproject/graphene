@@ -188,6 +188,9 @@ static pf_context_t* ipf_open(const char* path, pf_file_mode_t mode, bool create
     // for new file, this value will later be saved in the meta data plain part (init_new_file)
     // for existing file, we will later compare this value with the value from the file
     // (init_existing_file)
+    static_assert(__builtin_types_compatible_p(__typeof__(pf->user_kdk_key), __typeof__(*kdk_key)),
+                  "nonmatching kdk key types");
+    static_assert(sizeof(pf->user_kdk_key) == sizeof(*kdk_key), "nonmatching kdk key sizes");
     memcpy(pf->user_kdk_key, *kdk_key, sizeof(pf->user_kdk_key));
 
     // omeg: we require a canonical full path to file, so no stripping path to filename only

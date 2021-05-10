@@ -133,7 +133,12 @@ typedef struct {
     uint32_t output_len; // in bits
 } kdf_input_t;
 
+static_assert(__builtin_types_compatible_p(__typeof__(((kdf_input_t*)0)->nonce),
+                                           __typeof__(((metadata_plain_t*)0)->metadata_key_id)),
+              "nonmatching struct fields' types");
+static_assert(sizeof(((kdf_input_t*)0)->nonce) == sizeof(((metadata_plain_t*)0)->metadata_key_id),
+              "nonmatching struct fields");
+
 #pragma pack(pop)
 
 #endif /* PROTECTED_FILES_FORMAT_H_ */
-
