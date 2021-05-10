@@ -21,33 +21,8 @@ safe & secure end-user experience. Thus, there is a need to build a complete
 secure inferencing flow. This tutorial will present TensorFlow Serving with Intel
 SGX and Graphene and will provide end-to-end protection (from client to servers)
 and integrate various security ingredients such as the load balancer (Nginx
-Ingress) and elastic scheduler (Kubernetes).
-
-Kubernetes (also known as k8s or "kube") is an open source container orchestration
-platform that automates many of the manual processes involved in deploying, managing,
-and scaling containerized applications. In other words, you can cluster together
-groups of hosts running Linux containers, and Kubernetes helps you easily and
-efficiently manage those clusters.
-Kubernetes clusters can span hosts across on-premise, public, private, or hybrid
-clouds.
-For this reason, Kubernetes is an ideal platform for hosting cloud-native
-applications that require rapid scaling.
-
-A working Kubernetes deployment is called a cluster. Kubernetes runs on top of
-an operating system (Ubuntu18.04 in this tutorial) and interacts
-with pods of containers running on the nodes. By default, applications running
-in Kubernetes `pods <https://kubernetes.io/docs/concepts/workloads/pods/pod/>`__
-are not accessible from the external network, but only from other pods within
-the Kubernetes cluster.
-
-Kubernetes has a built in configuration object for HTTP load balancing, called
-`Nginx Ingress <https://kubernetes.io/docs/concepts/services-networking/ingress/>`__
-, that defines rules for external connectivity to the pods represented by one
-or more Kubernetes services. When you need to provide external access to your
-Kubernetes services, you can create an Ingress resource that defines the connectivity
-rules, including the URI path, backing service name, and other information.
-The Ingress controller then automatically configures a frontend load balancer to
-implement the Ingress rules.
+Ingress) and elastic scheduler (Kubernetes). Please refer to `What is Kubernetes <https://www.redhat.com/en/topics/containers/what-is-kubernetes>`__
+for more details.
 
 .. image:: ./img/NGINX-Ingress-Controller.svg
    :target: ./img/NGINX-Ingress-Controller.svg
