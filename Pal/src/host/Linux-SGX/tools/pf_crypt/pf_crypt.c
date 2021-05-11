@@ -40,6 +40,10 @@ static void usage(void) {
     INFO("  --output, -o PATH       Single file or directory to write output files to\n");
     INFO("  --wrap-key, -w PATH     Path to wrap key file, must exist\n");
     INFO("  --verify, -V            (optional) Verify that input path matches PF's allowed paths\n");
+    INFO("\n");
+    INFO("NOTE: Files encrypted using the 'encrypt' mode embed the output path string, exactly\n");
+    INFO("      as specified in '-o PATH'. Therefore, the Graphene manifest must specify this\n");
+    INFO("      exact path in sgx.protected_files.xyz = \"PATH\".\n");
 }
 
 int main(int argc, char* argv[]) {

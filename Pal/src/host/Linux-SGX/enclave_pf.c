@@ -521,7 +521,7 @@ static int open_protected_file(const char* path, struct protected_file* pf, pf_h
     pf_status_t pfs;
     pfs = pf_open(handle, path, size, mode, create, &g_pf_wrap_key, &pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("pf_open(%d, %s) failed: %d\n", *(int*)handle, path, pfs);
+        log_error("pf_open(%d, %s) failed: %s\n", *(int*)handle, path, pf_strerror(pfs));
         return -PAL_ERROR_DENIED;
     }
     return 0;
@@ -585,7 +585,7 @@ int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
         if (map_size > 0) {
             pfs = pf_write(map_pf->context, map->offset, map_size, map->buffer);
             if (PF_FAILURE(pfs)) {
-                log_error("flush_pf_maps: pf_write failed: %d\n", pfs);
+                log_error("flush_pf_maps: pf_write failed: %s\n", pf_strerror(pfs));
                 pf_unlock();
                 return -PAL_ERROR_INVAL;
             }
@@ -609,7 +609,7 @@ int unload_protected_file(struct protected_file* pf) {
         return ret;
     pf_status_t pfs = pf_close(pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("unload_protected_file(%p) failed: %d\n", pf, pfs);
+        log_error("unload_protected_file(%p) failed: %s\n", pf, pf_strerror(pfs));
     }
 
     pf->context = NULL;

@@ -171,6 +171,14 @@ typedef struct pf_context pf_context_t;
 /* Public API */
 
 /*!
+ * \brief Convert error code to error message
+ *
+ * \param [in] err Error code
+ * \return Error message
+ */
+const char* pf_strerror(int err);
+
+/*!
  * \brief Open a protected file
  *
  * \param [in] handle Open underlying file handle

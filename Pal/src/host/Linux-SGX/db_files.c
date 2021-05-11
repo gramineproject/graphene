@@ -164,7 +164,7 @@ static int64_t pf_file_read(struct protected_file* pf, PAL_HANDLE handle, uint64
     pf_status_t pfs = pf_read(pf->context, offset, count, buffer, &bytes_read);
 
     if (PF_FAILURE(pfs)) {
-        log_error("pf_file_read(PF fd %d): pf_read failed: %d\n", fd, pfs);
+        log_error("pf_file_read(PF fd %d): pf_read failed: %s\n", fd, pf_strerror(pfs));
         return -PAL_ERROR_DENIED;
     }
 
@@ -224,7 +224,7 @@ static int64_t pf_file_write(struct protected_file* pf, PAL_HANDLE handle, uint6
     pf_status_t pf_ret = pf_write(pf->context, offset, count, buffer);
 
     if (PF_FAILURE(pf_ret)) {
-        log_error("pf_file_write(PF fd %d): pf_write failed: %d\n", fd, pf_ret);
+        log_error("pf_file_write(PF fd %d): pf_write failed: %s\n", fd, pf_strerror(pf_ret));
         return -PAL_ERROR_DENIED;
     }
 
@@ -386,7 +386,7 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
             pf_ret = PF_STATUS_CORRUPTED;
         }
         if (PF_FAILURE(pf_ret)) {
-            log_error("pf_file_map(PF fd %d): pf_read failed: %d\n", fd, pf_ret);
+            log_error("pf_file_map(PF fd %d): pf_read failed: %s\n", fd, pf_strerror(pf_ret));
             ret = -PAL_ERROR_DENIED;
             goto out;
         }
@@ -517,8 +517,8 @@ static int64_t pf_file_setlength(struct protected_file* pf, PAL_HANDLE handle, u
 
     pf_status_t pfs = pf_set_size(pf->context, length);
     if (PF_FAILURE(pfs)) {
-        log_error("pf_file_setlength(PF fd %d, %lu): pf_set_size returned %d\n", fd, length,
-                  pfs);
+        log_error("pf_file_setlength(PF fd %d, %lu): pf_set_size returned %s\n", fd, length,
+                  pf_strerror(pfs));
         return -PAL_ERROR_DENIED;
     }
     return length;
@@ -545,12 +545,12 @@ static int file_flush(PAL_HANDLE handle) {
     if (pf) {
         int ret = flush_pf_maps(pf, /*buffer=*/NULL, /*remove=*/false);
         if (ret < 0) {
-            log_error("file_flush(PF fd %d): flush_pf_maps returned %d\n", fd, ret);
+            log_error("file_flush(PF fd %d): flush_pf_maps returned %s\n", fd, pal_strerror(ret));
             return ret;
         }
         pf_status_t pfs = pf_flush(pf->context);
         if (PF_FAILURE(pfs)) {
-            log_error("file_flush(PF fd %d): pf_flush returned %d\n", fd, pfs);
+            log_error("file_flush(PF fd %d): pf_flush returned %s\n", fd, pf_strerror(pfs));
             return -PAL_ERROR_DENIED;
         }
     } else {

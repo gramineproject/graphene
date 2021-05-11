@@ -69,6 +69,35 @@ static pf_random_f          g_cb_random          = NULL;
 static pf_iv_t g_empty_iv = {0};
 static bool g_initialized = false;
 
+static const char* g_pf_error_list[] = {
+    [PF_STATUS_SUCCESS] = "Success",
+    [-PF_STATUS_UNKNOWN_ERROR] = "Unknown error",
+    [-PF_STATUS_UNINITIALIZED] = "Protected Files uninitialized",
+    [-PF_STATUS_INVALID_PARAMETER] = "Invalid parameter",
+    [-PF_STATUS_INVALID_MODE] = "Invalid mode",
+    [-PF_STATUS_NO_MEMORY] = "Not enough memory",
+    [-PF_STATUS_INVALID_VERSION] = "Invalid version",
+    [-PF_STATUS_INVALID_HEADER] = "Invalid header",
+    [-PF_STATUS_INVALID_PATH] = "Invalid path",
+    [-PF_STATUS_MAC_MISMATCH] = "MAC mismatch",
+    [-PF_STATUS_NOT_IMPLEMENTED] = "Functionality not implemented",
+    [-PF_STATUS_CALLBACK_FAILED] = "Callback failed",
+    [-PF_STATUS_PATH_TOO_LONG] = "Path is too long",
+    [-PF_STATUS_RECOVERY_NEEDED] = "File recovery needed",
+    [-PF_STATUS_FLUSH_ERROR] = "Flush error",
+    [-PF_STATUS_CRYPTO_ERROR] = "Crypto error",
+    [-PF_STATUS_CORRUPTED] = "File is corrupted",
+    [-PF_STATUS_WRITE_TO_DISK_FAILED] = "Write to disk failed",
+};
+
+const char* pf_strerror(int err) {
+    unsigned err_idx = err >= 0 ? err : -err;
+    if (err_idx >= ARRAY_SIZE(g_pf_error_list) || !g_pf_error_list[err_idx]) {
+        return "Unknown error";
+    }
+    return g_pf_error_list[err_idx];
+}
+
 // The key derivation function follow recommendations from NIST Special Publication 800-108:
 // Recommendation for Key Derivation Using Pseudorandom Functions
 // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf
@@ -223,14 +252,14 @@ static pf_context_t* ipf_open(const char* path, pf_file_mode_t mode, bool create
     DEBUG_PF("OK (data size %lu)\n", pf->encrypted_part_plain.size);
 
 out:
+    if (pf)
+        *status = pf->last_error;
+
     if (pf && PF_FAILURE(pf->last_error)) {
         DEBUG_PF("failed: %d\n", pf->last_error);
         free(pf);
         pf = NULL;
     }
-
-    if (pf)
-        *status = pf->last_error;
 
     return pf;
 }

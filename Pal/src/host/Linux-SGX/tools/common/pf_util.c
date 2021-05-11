@@ -271,13 +271,15 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const pf_ke
         goto out;
     }
 
-    INFO("Encrypting: %s\n", input_path);
+    INFO("Encrypting: %s -> %s\n", input_path, output_path);
+    INFO("            (Graphene's sgx.protected_files must contain this exact path: \"%s\")\n",
+                      output_path);
 
     pf_handle_t handle = (pf_handle_t)&output;
     pf_status_t pfs = pf_open(handle, output_path, /*size=*/0, PF_FILE_MODE_WRITE, /*create=*/true,
                               wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
-        ERROR("Failed to open output PF: %d\n", pfs);
+        ERROR("Failed to open output PF: %s\n", pf_strerror(pfs));
         goto out;
     }
 
@@ -305,7 +307,7 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const pf_ke
 
         pfs = pf_write(pf, input_offset, chunk_size, chunk);
         if (PF_FAILURE(pfs)) {
-            ERROR("Failed to write to output PF: %d\n", pfs);
+            ERROR("Failed to write to output PF: %s\n", pf_strerror(pfs));
             goto out;
         }
 
@@ -355,7 +357,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         goto out;
     }
 
-    INFO("Decrypting: %s\n", input_path);
+    INFO("Decrypting: %s -> %s\n", input_path, output_path);
 
     /* Get underlying file size */
     uint64_t input_size = get_file_size(input);
@@ -368,7 +370,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
     pf_status_t pfs = pf_open((pf_handle_t)&input, path, input_size, PF_FILE_MODE_READ,
                               /*create=*/false, wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
-        ERROR("Opening protected input file failed: %d\n", pfs);
+        ERROR("Opening protected input file failed: %s\n", pf_strerror(pfs));
         goto out;
     }
 
@@ -376,7 +378,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
     uint64_t data_size;
     pfs = pf_get_size(pf, &data_size);
     if (PF_FAILURE(pfs)) {
-        ERROR("pf_get_size failed: %d\n", pfs);
+        ERROR("pf_get_size failed: %s\n", pf_strerror(pfs));
         goto out;
     }
 
@@ -399,8 +401,8 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
             pfs = PF_STATUS_CORRUPTED;
         }
         if (PF_FAILURE(pfs)) {
-            ERROR("Read from protected file failed (offset %" PRIu64 ", size %" PRIu64 "): %d\n",
-                  input_offset, chunk_size, pfs);
+            ERROR("Read from protected file failed (offset %" PRIu64 ", size %" PRIu64 "): %s\n",
+                  input_offset, chunk_size, pf_strerror(pfs));
             goto out;
         }
 
