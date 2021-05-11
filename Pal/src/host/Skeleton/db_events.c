@@ -21,7 +21,7 @@ void _DkEventClear(PAL_HANDLE handle) {
     assert(0);
 }
 
-int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
+int _DkEventWait(PAL_HANDLE handle, uint64_t* timeout_us) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

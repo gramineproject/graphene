@@ -291,13 +291,41 @@ static long sgx_ocall_futex(void* pms) {
     ms_ocall_futex_t* ms = (ms_ocall_futex_t*)pms;
     long ret;
     ODEBUG(OCALL_FUTEX, ms);
-    struct timespec* ts = NULL;
-    if (ms->ms_timeout_us >= 0) {
-        ts = __alloca(sizeof(struct timespec));
-        ts->tv_sec  = ms->ms_timeout_us / 1000000;
-        ts->tv_nsec = (ms->ms_timeout_us - ts->tv_sec * 1000000) * 1000;
+
+    struct timespec timeout = { 0 };
+    bool have_timeout = ms->ms_timeout_us != (uint64_t)-1;
+    if (have_timeout) {
+        time_get_now_plus_ns(&timeout, ms->ms_timeout_us * TIME_NS_IN_US);
     }
-    ret = INLINE_SYSCALL(futex, 6, ms->ms_futex, ms->ms_op, ms->ms_val, ts, NULL, 0);
+
+    /* `FUTEX_WAIT` treats timeout parameter as a relative value. We want to have an absolute one
+     * (since we need to get start time anyway, to calculate remaining time later on), hence we use
+     * `FUTEX_WAIT_BITSET` with `FUTEX_BITSET_MATCH_ANY`. */
+    uint32_t val3 = 0;
+    int priv_flag = ms->ms_op & FUTEX_PRIVATE_FLAG;
+    int op = ms->ms_op & ~FUTEX_PRIVATE_FLAG;
+    if (op == FUTEX_WAKE) {
+        op = FUTEX_WAKE_BITSET;
+        val3 = FUTEX_BITSET_MATCH_ANY;
+    } else if (op == FUTEX_WAIT) {
+        op = FUTEX_WAIT_BITSET;
+        val3 = FUTEX_BITSET_MATCH_ANY;
+    } else {
+        /* Other operations are not supported atm. */
+        return -EINVAL;
+    }
+
+    ret = INLINE_SYSCALL(futex, 6, ms->ms_futex, op | priv_flag, ms->ms_val,
+                         have_timeout ? &timeout : NULL, NULL, val3);
+
+    if (have_timeout) {
+        int64_t diff = time_ns_diff_from_now(&timeout);
+        if (diff < 0) {
+            /* We might have slept a bit too long. */
+            diff = 0;
+        }
+        ms->ms_timeout_us = (uint64_t)diff / TIME_NS_IN_US;
+    }
     return ret;
 }
 

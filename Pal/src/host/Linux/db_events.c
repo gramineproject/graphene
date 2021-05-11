@@ -11,6 +11,8 @@
 
 #include "api.h"
 #include "assert.h"
+#include "cpu.h"
+#include "linux_utils.h"
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux_error.h"
@@ -31,10 +33,13 @@ int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear) 
 
 void _DkEventSet(PAL_HANDLE handle) {
     __atomic_store_n(&handle->event.signaled, 1, __ATOMIC_RELEASE);
-    int ret = INLINE_SYSCALL(futex, 6, &handle->event.signaled, FUTEX_WAKE,
-                             handle->event.auto_clear ? 1 : INT_MAX, NULL, NULL, 0);
+    /* We could just use `FUTEX_WAKE`, but using `FUTEX_WAKE_BITSET` is more consistent with
+     * `FUTEX_WAIT_BITSET` in `_DkEventWait`. */
+    int ret = INLINE_SYSCALL(futex, 6, &handle->event.signaled, FUTEX_WAKE_BITSET,
+                             handle->event.auto_clear ? 1 : INT_MAX, NULL, NULL,
+                             FUTEX_BITSET_MATCH_ANY);
     __UNUSED(ret);
-    /* This `FUTEX_WAKE` cannot really fail. */
+    /* This `FUTEX_WAKE_BITSET` cannot really fail. */
     assert(ret >= 0);
 }
 
@@ -42,13 +47,11 @@ void _DkEventClear(PAL_HANDLE handle) {
     __atomic_store_n(&handle->event.signaled, 0, __ATOMIC_RELEASE);
 }
 
-int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
+int _DkEventWait(PAL_HANDLE handle, uint64_t* timeout_us) {
+    int ret;
     struct timespec timeout = { 0 };
-    struct timespec* timeout_ptr = NULL;
-    if (timeout_us >= 0) {
-        timeout.tv_sec = timeout_us / TIME_US_IN_S;
-        timeout.tv_nsec = (timeout_us - timeout.tv_sec * TIME_US_IN_S) * TIME_NS_IN_US;
-        timeout_ptr = &timeout;
+    if (timeout_us) {
+        time_get_now_plus_ns(&timeout, *timeout_us * TIME_NS_IN_US);
     }
 
     while (1) {
@@ -60,15 +63,29 @@ int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
         }
 
         if (!needs_sleep) {
-            return 0;
+            ret = 0;
+            break;
         }
-        /* TODO: we do not decrease timeout, so it might be off if we get woken up spuriously. */
-        int ret = INLINE_SYSCALL(futex, 6, &handle->event.signaled, FUTEX_WAIT, 0, timeout_ptr,
-                                 NULL, 0);
+
+        /* Using `FUTEX_WAIT_BITSET` to have an absolute timeout. */
+        ret = INLINE_SYSCALL(futex, 6, &handle->event.signaled, FUTEX_WAIT_BITSET, 0,
+                             timeout_us ? &timeout : NULL, NULL, FUTEX_BITSET_MATCH_ANY);
         if (ret < 0 && ret != -EAGAIN) {
-            return unix_to_pal_error(ret);
+            ret = unix_to_pal_error(ret);
+            break;
         }
     }
+
+    if (timeout_us) {
+        int64_t diff = time_ns_diff_from_now(&timeout);
+        if (diff < 0) {
+            /* We might have slept a bit too long. */
+            diff = 0;
+        }
+        assert(ret != -ETIMEDOUT || diff == 0);
+        *timeout_us = (uint64_t)diff / TIME_NS_IN_US;
+    }
+    return ret;
 }
 
 struct handle_ops g_event_ops = {};

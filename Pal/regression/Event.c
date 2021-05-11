@@ -46,12 +46,13 @@ int main(void) {
     CHECK(DkEventCreate(&event, /*init_signaled=*/true, /*auto_clear=*/true));
 
     /* Event is already set, should not sleep. */
-    CHECK(DkEventWait(event, NO_TIMEOUT));
+    CHECK(DkEventWait(event, /*timeout=*/NULL));
 
     uint64_t start = 0;
     CHECK(DkSystemTimeQuery(&start));
     /* Sleep for one second. */
-    int ret = DkEventWait(event, TIME_US_IN_S);
+    uint64_t timeout = TIME_US_IN_S;
+    int ret = DkEventWait(event, &timeout);
     if (ret != -PAL_ERROR_TRYAGAIN) {
         CHECK(-1);
     }
@@ -75,7 +76,7 @@ int main(void) {
     set(&g_ready, 2);
 
     CHECK(DkSystemTimeQuery(&start));
-    CHECK(DkEventWait(event, NO_TIMEOUT));
+    CHECK(DkEventWait(event, /*timeout=*/NULL));
     CHECK(DkSystemTimeQuery(&end));
 
     if (end < start) {
