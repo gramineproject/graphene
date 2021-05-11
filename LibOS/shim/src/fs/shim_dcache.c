@@ -87,7 +87,7 @@ void get_dentry(struct shim_dentry* dent) {
 #ifdef DEBUG_REF
     int64_t count = REF_INC(dent->ref_count);
 
-    const char* path = dentry_abs_path(dent);
+    const char* path = dentry_abs_path(dent, /*sizep=*/NULL);
     log_debug("get dentry %p(%s) (ref_count = %lld)\n", dent, path, count);
     free(path);
 #else
@@ -125,7 +125,7 @@ static void free_dentry(struct shim_dentry* dent) {
 void put_dentry(struct shim_dentry* dent) {
     int64_t count = REF_DEC(dent->ref_count);
 #ifdef DEBUG_REF
-    const char* path = dentry_abs_path(dent);
+    const char* path = dentry_abs_path(dent, /*sizep=*/NULL);
     log_debug("put dentry %p(%s) (ref_count = %lld)\n", dent, path, count);
     free(path);
 #endif
