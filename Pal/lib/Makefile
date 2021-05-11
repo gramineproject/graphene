@@ -19,7 +19,7 @@ CFLAGS += \
 
 CRYPTO_PROVIDER ?= mbedtls
 
-# Select which crypto adapater you want to use here. This has to match the #define in crypto.h.
+# Select which crypto adapter you want to use here. This has to match the #define in crypto.h.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 crypto_mbedtls_library_objs = \
 	crypto/mbedtls/library/aes.o \

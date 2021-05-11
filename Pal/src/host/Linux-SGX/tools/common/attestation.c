@@ -158,8 +158,8 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
 
     ret = mbedtls_base64_decode(/*dest=*/NULL, /*dlen=*/0, &ias_sig_size, ias_sig_b64,
                                 ias_sig_b64_size);
-    if (ret != 0) {
-        ERROR("Failed to base64-decode IAS signature\n");
+    if (ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL) {
+        ERROR("Failed to get size for base64 decoding of IAS signature\n");
         goto out;
     }
 
@@ -172,8 +172,8 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
 
     ret = mbedtls_base64_decode(ias_sig, ias_sig_size, &ias_sig_size, ias_sig_b64,
                                 ias_sig_b64_size);
-    if (ret != 0) {
-        ERROR("Failed to base64-decode IAS signature\n");
+    if (ret < 0) {
+        ERROR("Failed to base64 decode IAS signature\n");
         goto out;
     }
 
@@ -272,8 +272,8 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
     size_t quote_size = 0;
     ret = mbedtls_base64_decode(/*dest=*/NULL, /*dlen=*/0, &quote_size, (uint8_t*)node->valuestring,
                                 strlen(node->valuestring));
-    if (ret != 0) {
-        ERROR("IAS report: failed to decode report quote\n");
+    if (ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL) {
+        ERROR("IAS report: failed to get size for base64 decoding of report quote\n");
         goto out;
     }
 
@@ -286,7 +286,7 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
 
     ret = mbedtls_base64_decode(report_quote, quote_size, &quote_size, (uint8_t*)node->valuestring,
                                 strlen(node->valuestring));
-    if (ret != 0) {
+    if (ret < 0) {
         ERROR("IAS report: failed to decode report quote\n");
         goto out;
     }

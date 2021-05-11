@@ -337,8 +337,8 @@ int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_s
     if (ias_resp->data) {
         ret = mbedtls_base64_decode(/*dst=*/NULL, /*dlen=*/0, sigrl_size, (uint8_t*)ias_resp->data,
                                     strlen(ias_resp->data));
-        if (ret < 0) {
-            ERROR("Failed to base64 decode SigRL\n");
+        if (ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL) {
+            ERROR("Failed to get size for base64 decoding of SigRL\n");
             goto out;
         }
 
@@ -350,13 +350,8 @@ int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_s
 
         ret = mbedtls_base64_decode(*sigrl, *sigrl_size, sigrl_size, (uint8_t*)ias_resp->data,
                                     strlen(ias_resp->data));
-        if (ret < 0) {
+        if (ret < 0 || !*sigrl_size) {
             ERROR("Failed to base64 decode SigRL\n");
-            goto out;
-        }
-
-        if (!*sigrl_size) {
-            ERROR("Failed to base64-decode SigRL\n");
             goto out;
         }
     }
@@ -391,8 +386,8 @@ static int ias_send_request(struct ias_context_t* context, struct ias_request_re
 
     /* get needed base64 buffer size */
     ret = mbedtls_base64_encode(/*dest=*/NULL, /*dlen=*/0, &quote_b64_size, quote, quote_size);
-    if (ret < 0) {
-        ERROR("Failed to base64 encode the quote\n");
+    if (ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL) {
+        ERROR("Failed to get size for base64 encoding of the quote\n");
         goto out;
     }
 
