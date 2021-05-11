@@ -21,8 +21,9 @@ safe & secure end-user experience. Thus, there is a need to build a complete
 secure inferencing flow. This tutorial will present TensorFlow Serving with Intel
 SGX and Graphene and will provide end-to-end protection (from client to servers)
 and integrate various security ingredients such as the load balancer (Nginx
-Ingress) and elastic scheduler (Kubernetes). Please refer to `What is Kubernetes <https://www.redhat.com/en/topics/containers/what-is-kubernetes>`__
-for more details.
+Ingress) and elastic scheduler (Kubernetes). Please refer to `What is Kubernetes
+<https://www.redhat.com/en/topics/containers/what-is-kubernetes>`__ for more
+details.
 
 .. image:: ./img/NGINX-Ingress-Controller.svg
    :target: ./img/NGINX-Ingress-Controller.svg
