@@ -653,7 +653,7 @@ void DkEventClear(PAL_HANDLE handle);
  * \brief Wait for a event handle.
  *
  * \param handle handle to wait on, must be of event type
- * \param timeout_us timeout for the wait
+ * \param timeout_us timeout for the wait TODO
  *
  * \return 0 if the event was triggered, negative error code otherwise (#PAL_ERROR_TRYAGAIN in case
  *           of timeout triggering)
@@ -664,7 +664,7 @@ void DkEventClear(PAL_HANDLE handle);
  * indicated by the returned error code.
  * This function has acuire semantics and synchronizes with #DkEventSet.
  */
-int DkEventWait(PAL_HANDLE handle, int64_t timeout_us);
+int DkEventWait(PAL_HANDLE handle, uint64_t* timeout);
 
 enum PAL_WAIT {
     PAL_WAIT_SIGNAL = 1, /*!< ignored in events */

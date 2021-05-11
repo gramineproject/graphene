@@ -110,7 +110,7 @@ static long sgx_exitless_ocall(uint64_t code, void* ms) {
 
             WRITE_ONCE(ms->ms_futex, &req->lock.lock);
             WRITE_ONCE(ms->ms_op, FUTEX_WAIT_PRIVATE);
-            WRITE_ONCE(ms->ms_timeout_us, -1); /* never time out */
+            WRITE_ONCE(ms->ms_timeout_us, (uint64_t)-1l); /* never time out */
 
             do {
                 /* at this point lock = LOCKED_*; before waiting on futex, need to move lock to
@@ -905,7 +905,7 @@ int ocall_create_process(const char* uri, size_t nargs, const char** args, int* 
     return retval;
 }
 
-int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
+int ocall_futex(uint32_t* futex, int op, int val, uint64_t* timeout_us) {
     int retval = 0;
     ms_ocall_futex_t* ms;
 
@@ -928,7 +928,7 @@ int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
     WRITE_ONCE(ms->ms_futex, futex);
     WRITE_ONCE(ms->ms_op, op);
     WRITE_ONCE(ms->ms_val, val);
-    WRITE_ONCE(ms->ms_timeout_us, timeout_us);
+    WRITE_ONCE(ms->ms_timeout_us, timeout_us ? *timeout_us : (uint64_t)-1l);
 
     if (op == FUTEX_WAIT) {
         /* With `FUTEX_WAIT` this thread is most likely going to sleep, so there is no point in
@@ -937,6 +937,15 @@ int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
     } else {
         assert(op == FUTEX_WAKE);
         retval = sgx_exitless_ocall(OCALL_FUTEX, ms);
+    }
+
+    if (timeout_us) {
+        uint64_t remaining_time = READ_ONCE(ms->ms_timeout_us);
+        if (remaining_time > *timeout_us) {
+            retval = -EPERM;
+        } else {
+            *timeout_us = remaining_time;
+        }
     }
 
     sgx_reset_ustack(old_ustack);

@@ -206,7 +206,7 @@ static inline int thread_sleep(uint64_t timeout_us, bool ignore_pending_signals)
         return -EINTR;
     }
 
-    return pal_to_unix_errno(DkEventWait(event, timeout_us));
+    return pal_to_unix_errno(DkEventWait(event, &timeout_us));
 }
 
 static inline void thread_wakeup(struct shim_thread* thread) {

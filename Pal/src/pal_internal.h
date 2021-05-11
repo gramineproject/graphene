@@ -202,7 +202,7 @@ int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu
 int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear);
 void _DkEventSet(PAL_HANDLE handle);
 void _DkEventClear(PAL_HANDLE handle);
-int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us);
+int _DkEventWait(PAL_HANDLE handle, uint64_t* timeout);
 
 /* DkVirtualMemory calls */
 int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot);

@@ -38,6 +38,7 @@ commons_objs = \
 	bogomips.o \
 	file_utils.o \
 	main_exec_path.o \
+	timespec_utils.o \
 	topo_info.o
 
 arch_objs = \
