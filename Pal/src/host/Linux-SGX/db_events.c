@@ -49,7 +49,7 @@ void _DkEventSet(PAL_HANDLE handle) {
         int ret = 0;
         do {
             ret = ocall_futex(handle->event.signaled_untrusted, FUTEX_WAKE,
-                              handle->event.auto_clear ? 1 : INT_MAX, -1);
+                              handle->event.auto_clear ? 1 : INT_MAX, /*timeout=*/NULL);
         } while (ret == -EINTR);
         /* This `FUTEX_WAKE` cannot really fail. Negative return value would mean malicious host,
          * but it could also report `0` here and not perform the wakeup, so the worst case scenario
@@ -67,7 +67,7 @@ void _DkEventClear(PAL_HANDLE handle) {
 
 /* We use `handle->event.signaled` as the source of truth whether the event was signaled.
  * `handle->event.signaled_untrusted` acts only as a futex sleeping word. */
-int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
+int _DkEventWait(PAL_HANDLE handle, uint64_t* timeout_us) {
     bool added_to_count = false;
     while (1) {
         spinlock_lock(&handle->event.lock);
@@ -89,7 +89,6 @@ int _DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
         }
         spinlock_unlock(&handle->event.lock);
 
-        /* TODO: we do not decrease timeout, so it might be off if we get woken up spuriously. */
         int ret = ocall_futex(handle->event.signaled_untrusted, FUTEX_WAIT, 0, timeout_us);
         if (ret < 0 && ret != -EAGAIN) {
             if (added_to_count) {

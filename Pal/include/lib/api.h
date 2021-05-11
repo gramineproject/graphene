@@ -369,6 +369,7 @@ int toml_sizestring_in(const toml_table_t* root, const char* key, uint64_t defau
 
 #define TIME_US_IN_S 1000000ul
 #define TIME_NS_IN_US 1000ul
+#define TIME_NS_IN_S (TIME_NS_IN_US * TIME_US_IN_S)
 
 #ifdef __x86_64__
 static inline bool __range_not_ok(uintptr_t addr, size_t size) {

@@ -22,7 +22,7 @@ void DkEventClear(PAL_HANDLE handle) {
     _DkEventClear(handle);
 }
 
-int DkEventWait(PAL_HANDLE handle, int64_t timeout_us) {
+int DkEventWait(PAL_HANDLE handle, uint64_t* timeout_us) {
     assert(handle && IS_HANDLE_TYPE(handle, event));
     return _DkEventWait(handle, timeout_us);
 }

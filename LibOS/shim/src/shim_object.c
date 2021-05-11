@@ -4,7 +4,7 @@
 int object_wait_with_retry(PAL_HANDLE handle) {
     int ret;
     do {
-        ret = DkEventWait(handle, NO_TIMEOUT);
+        ret = DkEventWait(handle, /*timeout=*/NULL);
     } while (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN);
 
     if (ret < 0) {
