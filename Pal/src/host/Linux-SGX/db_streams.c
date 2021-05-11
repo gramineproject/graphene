@@ -17,9 +17,9 @@
 #include <linux/wait.h>
 
 #include "api.h"
+#include "crypto.h"
 #include "enclave_pages.h"
 #include "pal.h"
-#include "pal_crypto.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -29,7 +29,6 @@
 #include "pal_linux_error.h"
 #include "perm.h"
 #include "stat.h"
-
 
 #define DUMMYPAYLOAD     "dummypayload"
 #define DUMMYPAYLOADSIZE (sizeof(DUMMYPAYLOAD))

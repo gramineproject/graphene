@@ -12,8 +12,8 @@
 
 #include "api.h"
 #include "cpu.h"
+#include "crypto.h"
 #include "pal.h"
-#include "pal_crypto.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -22,7 +22,6 @@
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
 #include "pal_security.h"
-
 
 static int pipe_addr(const char* name, struct sockaddr_un* addr) {
     /* use abstract UNIX sockets for pipes, with name format "@/graphene/<pipename>" */

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2017 Fortanix, Inc. */
-
-#include "mbedtls_adapter.h"
+/* Copyright (C) 2019 Texas A&M University */
 
 #include <errno.h>
 #include <limits.h>
@@ -9,6 +8,7 @@
 
 #include "api.h"
 #include "assert.h"
+#include "crypto.h"
 #include "mbedtls/aes.h"
 #include "mbedtls/cmac.h"
 #include "mbedtls/entropy_poll.h"
@@ -17,13 +17,12 @@
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha256.h"
-#include "pal.h"
-#include "pal_crypto.h"
-#include "pal_debug.h"
 #include "pal_error.h"
-#include "rng-arch.h"
 
-int mbedtls_to_pal_error(int error) {
+/* This is declared in pal_internal.h, but that can't be included here. */
+int _DkRandomBitsRead(void* buffer, size_t size);
+
+static int mbedtls_to_pal_error(int error) {
     switch (error) {
         case 0:
             return 0;
@@ -108,13 +107,6 @@ int mbedtls_to_pal_error(int error) {
     }
 }
 
-#define BITS_PER_BYTE 8
-
-/* This is declared in pal_internal.h, but that can't be included here. */
-int _DkRandomBitsRead(void* buffer, size_t size);
-
-#define BITS_PER_BYTE 8
-
 int lib_SHA256Init(LIB_SHA256_CONTEXT* context) {
     mbedtls_sha256_init(context);
     mbedtls_sha256_starts(context, 0 /* 0 = use SSH256 */);
@@ -151,7 +143,7 @@ int lib_AESGCMEncrypt(const uint8_t* key, size_t key_size, const uint8_t* iv, co
     if (key_size != 16 && key_size != 24 && key_size != 32)
         goto out;
 
-    ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, key_size * BITS_PER_BYTE);
+    ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, key_size * BITS_IN_BYTE);
     ret = mbedtls_to_pal_error(ret);
     if (ret != 0)
         goto out;
@@ -179,7 +171,7 @@ int lib_AESGCMDecrypt(const uint8_t* key, size_t key_size, const uint8_t* iv, co
     if (key_size != 16 && key_size != 24 && key_size != 32)
         goto out;
 
-    ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, key_size * BITS_PER_BYTE);
+    ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, key_size * BITS_IN_BYTE);
     ret = mbedtls_to_pal_error(ret);
     if (ret != 0)
         goto out;
@@ -220,7 +212,7 @@ int lib_AESCMAC(const uint8_t* key, size_t key_size, const uint8_t* input, size_
         return -PAL_ERROR_INVAL;
     }
 
-    int ret = mbedtls_cipher_cmac(cipher_info, key, key_size * BITS_PER_BYTE, input, input_size,
+    int ret = mbedtls_cipher_cmac(cipher_info, key, key_size * BITS_IN_BYTE, input, input_size,
                                   mac);
     return mbedtls_to_pal_error(ret);
 }
@@ -246,7 +238,7 @@ int lib_AESCMACInit(LIB_AESCMAC_CONTEXT* context, const uint8_t* key, size_t key
     if (ret != 0)
         return mbedtls_to_pal_error(ret);
 
-    ret = mbedtls_cipher_cmac_starts(&context->ctx, key, key_size * BITS_PER_BYTE);
+    ret = mbedtls_cipher_cmac_starts(&context->ctx, key, key_size * BITS_IN_BYTE);
     return mbedtls_to_pal_error(ret);
 }
 
@@ -275,12 +267,9 @@ int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t*
     assert(output && olen);
     *olen = 0;
 
-    unsigned long long rand64;
-    for (size_t i = 0; i < len; i += sizeof(rand64)) {
-        rand64 = get_rand64();
-        size_t over = i + sizeof(rand64) < len ? 0 : i + sizeof(rand64) - len;
-        memcpy(output + i, &rand64, sizeof(rand64) - over);
-    }
+    int ret = _DkRandomBitsRead(output, len);
+    if (ret < 0)
+        return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
 
     *olen = len;
     return 0;
@@ -430,4 +419,69 @@ int lib_SSLSave(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t buf_size, size_t*
         return -PAL_ERROR_DENIED;
     }
     return 0;
+}
+
+/* Wrapper to provide mbedtls the RNG interface it expects. It passes an extra context parameter,
+ * and expects a return value of 0 for success and nonzero for failure. */
+static int RandomWrapper(void* private, unsigned char* data, size_t size) {
+    __UNUSED(private);
+    return _DkRandomBitsRead(data, size);
+}
+
+int lib_DhInit(LIB_DH_CONTEXT* context) {
+    int ret;
+    mbedtls_dhm_init(context);
+
+    /* Configure parameters. Note that custom Diffie-Hellman parameters are considered more secure,
+     * but require more data be exchanged between the two parties to establish the parameters, so we
+     * haven't implemented that yet. */
+    ret = mbedtls_mpi_read_string(&context->P, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_P);
+    if (ret < 0)
+        return mbedtls_to_pal_error(ret);
+
+    ret = mbedtls_mpi_read_string(&context->G, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_G);
+    if (ret < 0)
+        return mbedtls_to_pal_error(ret);
+
+    context->len = mbedtls_mpi_size(&context->P);
+
+    return 0;
+}
+
+int lib_DhCreatePublic(LIB_DH_CONTEXT* context, uint8_t* public, size_t* public_size) {
+    int ret;
+
+    if (*public_size != DH_SIZE)
+        return -PAL_ERROR_INVAL;
+
+    /* The RNG here is used to generate secret exponent X. */
+    ret = mbedtls_dhm_make_public(context, context->len, public, *public_size, RandomWrapper, NULL);
+    if (ret < 0)
+        return mbedtls_to_pal_error(ret);
+
+    /* mbedtls writes leading zeros in the big-endian output to pad to public_size, so leave
+     * caller's public_size unchanged */
+    return 0;
+}
+
+int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, size_t peer_size, uint8_t* secret,
+                     size_t* secret_size) {
+    int ret;
+
+    if (*secret_size != DH_SIZE)
+        return -PAL_ERROR_INVAL;
+
+    ret = mbedtls_dhm_read_public(context, peer, peer_size);
+    if (ret < 0)
+        return mbedtls_to_pal_error(ret);
+
+    /* The RNG here is used for blinding against timing attacks if X is reused and not used
+     * otherwise. mbedtls recommends always passing in an RNG. */
+    ret = mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size, RandomWrapper, NULL);
+    return mbedtls_to_pal_error(ret);
+}
+
+void lib_DhFinal(LIB_DH_CONTEXT* context) {
+    /* This call zeros out context for us. */
+    mbedtls_dhm_free(context);
 }
