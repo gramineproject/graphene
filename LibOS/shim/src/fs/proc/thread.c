@@ -118,9 +118,10 @@ static int find_thread_link(const char* name, struct shim_qstr* link,
         dent = next_dent;
     }
 
-    if (link && !dentry_abs_path_into_qstr(dent, link)) {
-        ret = -ENOMEM;
-        goto out;
+    if (link) {
+        ret = dentry_abs_path_into_qstr(dent, link);
+        if (ret < 0)
+            goto out;
     }
 
     if (dentptr) {
@@ -352,9 +353,10 @@ static int find_thread_each_fd(const char* name, struct shim_qstr* link,
         dent = next_dent;
     }
 
-    if (link && !dentry_abs_path_into_qstr(dent, link)) {
-        ret = -ENOMEM;
-        goto out;
+    if (link) {
+        ret = dentry_abs_path_into_qstr(dent, link);
+        if (ret < 0)
+            goto out;
     }
 
     if (dentptr) {

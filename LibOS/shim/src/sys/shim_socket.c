@@ -288,7 +288,6 @@ static int unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* dent) {
         return -ENOMEM;
 
     if (size > ARRAY_SIZE(un->sun_path)) {
-
         log_warning("unix_copy_addr(): path too long, truncating: %s\n", path);
         memcpy(un->sun_path, path, ARRAY_SIZE(un->sun_path) - 1);
         un->sun_path[ARRAY_SIZE(un->sun_path) - 1] = 0;

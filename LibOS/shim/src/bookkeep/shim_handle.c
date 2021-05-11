@@ -86,8 +86,13 @@ static inline int init_exec_handle(void) {
             log_error("init_exec_handle: cannot find executable in filesystem: %d\n", ret);
             return ret;
         }
+        if ((exec->dentry->state & DENTRY_ISDIRECTORY) ||
+                (exec->dentry->state & DENTRY_SYNTHETIC)) {
+            log_error("init_exec_handle: executable is not a regular file\n");
+            return -EINVAL;
+        }
         if (exec->dentry->fs != fs) {
-            log_error("init_exec_handle: cannot find executable in filesystem, "
+            log_error("init_exec_handle: cannot find executable in filesystem,"
                       "it seems to be shadowed by a mount\n");
             return -EINVAL;
         }

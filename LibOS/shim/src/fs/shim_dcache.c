@@ -168,8 +168,10 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
         dent->fs = fs;
     }
 
-    if (!qstrsetstr(&dent->name, name, name_len))
+    if (!qstrsetstr(&dent->name, name, name_len)) {
+        free_dentry(dent);
         return NULL;
+    }
 
     if (parent) {
         get_dentry(parent);
@@ -247,17 +249,23 @@ static size_t dentry_path_size(struct shim_dentry* dent, bool relative) {
     /* initial size is 1 for null terminator */
     size_t size = 1;
 
-    while (dent && dent->parent) {
+    while (dent->parent) {
+        /* If the path is relative, also finish when encountering a mountpoint */
         if (relative && (dent->state & DENTRY_MOUNTPOINT))
             break;
 
+        /* Add '/' after name, except the first one */
         if (!first)
             size++;
         first = false;
+
+        /* Add name */
         size += dent->name.len;
+
         dent = dent->parent;
     }
 
+    /* Add beginning '/' if absolute path */
     if (!relative)
         size++;
 
@@ -267,13 +275,16 @@ static size_t dentry_path_size(struct shim_dentry* dent, bool relative) {
 /* Compute dentry path, filling an existing buffer. Returns a pointer inside `buf`, possibly after
  * the beginning, because it constructs the path from the end. */
 static char* dentry_path_into_buf(struct shim_dentry* dent, bool relative, char* buf, size_t size) {
+    if (size == 0)
+        return NULL;
+
     bool first = true;
     size_t pos = size - 1;
 
     buf[pos] = '\0';
 
     /* Add names, starting from the last one, until we encounter root */
-    while (dent && dent->parent) {
+    while (dent->parent) {
         /* If the path is relative, also finish when encountering a mountpoint */
         if (relative && (dent->state & DENTRY_MOUNTPOINT))
             break;
@@ -307,7 +318,7 @@ static char* dentry_path_into_buf(struct shim_dentry* dent, bool relative, char*
     return &buf[pos];
 }
 
-char* _dentry_path(struct shim_dentry* dent, bool relative, size_t* sizep) {
+static char* _dentry_path(struct shim_dentry* dent, bool relative, size_t* sizep) {
     size_t size = dentry_path_size(dent, relative);
     if (sizep)
         *sizep = size;
@@ -329,15 +340,17 @@ char* dentry_rel_path(struct shim_dentry* dent, size_t* sizep) {
     return _dentry_path(dent, /*relative=*/true, sizep);
 }
 
-char* dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str) {
+int dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str) {
     size_t size;
     char* path = dentry_abs_path(dent, &size);
     if (!path)
-        return NULL;
+        return -ENOMEM;
 
     char* retval = qstrsetstr(str, path, size - 1);
     free(path);
-    return retval;
+    if (!retval)
+        return -ENOMEM;
+    return 0;
 }
 
 static int dump_dentry_write_all(const char* str, size_t size, void* arg) {

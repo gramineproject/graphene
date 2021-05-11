@@ -485,32 +485,38 @@ void put_dentry(struct shim_dentry* dent);
 void dentry_gc(struct shim_dentry* dent);
 
 /*!
- * \brief Compute absolute/relative path for dentry, allocating memory for it
+ * \brief Compute an absolute path for dentry, allocating memory for it
  *
  * \param dent the dentry
- * \param relative if true, the path will be relative to mount root
  * \param[out] sizep if not NULL, will be set to path size, including null terminator
  *
- * \returns pointer to the path, or NULL if out of memory
+ * \return pointer to the path, or NULL if out of memory
  *
- * This function computes a path for dentry, allocating a new buffer for it. The returned string
- * should be freed using `free`.
+ * This function computes an absolute path for dentry, allocating a new buffer for it. The returned
+ * string should be freed using `free`.
  *
  * An absolute path is a combination of all names up to the root (not including the root, which by
  * convention has an empty name), separated by `/`, and beginning with `/`.
+ */
+char* dentry_abs_path(struct shim_dentry* dent, size_t* sizep);
+
+/*!
+ * \brief Compute a relative path for dentry, allocating memory for it
+ *
+ * \param dent the dentry
+ * \param[out] sizep if not NULL, will be set to path size, including null terminator
+ *
+ * \return pointer to the path, or NULL if out of memory
+ *
+ * This function computes a relative path for dentry, allocating a new buffer for it. The returned
+ * string should be freed using `free`.
  *
  * A relative path is a combination of all names up to the mountpoint (not including the
  * mountpoint), separated by `/`. A relative path never begins with `/`.
- *
- * Instead of using this function directly, you should use `dentry_abs_path` or `dentry_rel_path`,
- * which are convenience variants with `relative` parameter already set.
  */
-char* _dentry_path(struct shim_dentry* dent, bool relative, size_t* sizep);
-
-char* dentry_abs_path(struct shim_dentry* dent, size_t* sizep);
 char* dentry_rel_path(struct shim_dentry* dent, size_t* sizep);
 
-char* dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str);
+int dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str);
 
 static inline const char* dentry_get_name(struct shim_dentry* dent) {
     return qstrgetstr(&dent->name);
@@ -524,7 +530,7 @@ static inline const char* dentry_get_name(struct shim_dentry* dent) {
  * \param name name of the new dentry
  * \param name_len length of the name
  *
- * \returns the new dentry, or NULL in case of allocation failure
+ * \return the new dentry, or NULL in case of allocation failure
  *
  * The caller should hold `g_dcache_lock`.
  *
@@ -547,7 +553,7 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
  * \param name name of searched dentry
  * \param name_len length of the name
  *
- * \returns the dentry, or NULL if not found
+ * \return the dentry, or NULL if not found
  *
  * The caller should hold `g_dcache_lock`.
  *

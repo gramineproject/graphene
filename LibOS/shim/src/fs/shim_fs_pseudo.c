@@ -287,6 +287,7 @@ out:
 int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
                    const struct pseudo_ent* root_ent) {
     int ret;
+    struct shim_dirent* buf = NULL;
     char* path = dentry_rel_path(dent, /*sizep=*/NULL);
     if (!path)
         return -ENOMEM;
@@ -295,14 +296,13 @@ int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
 
     ret = pseudo_findent(path, root_ent, &ent);
     if (ret < 0)
-        goto err;
+        goto out;
 
     if (!ent->dir) {
         ret = -ENOTDIR;
-        goto err;
+        goto out;
     }
 
-    struct shim_dirent* buf = NULL;
     size_t buf_size = READDIR_BUF_SIZE;
 
     while (true) {
@@ -321,16 +321,15 @@ int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
         } else {
             /* unrecoverable error */
             free(buf);
-            goto err;
+            goto out;
         }
     }
 
+out:
     free(path);
-    *dirent = buf;
-    return 0;
-
-err:
-    free(path);
+    if (ret == 0) {
+        *dirent = buf;
+    }
     return ret;
 }
 
