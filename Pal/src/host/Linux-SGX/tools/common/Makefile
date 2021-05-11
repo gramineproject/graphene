@@ -51,7 +51,7 @@ lru_cache.o: ../../protected-files/lru_cache.c
 cJSON.o: cJSON.c cJSON.h
 
 libsgx_util.so: attestation.o cJSON.o ias.o lru_cache.o pf_util.o protected_files.o util.o
-	$(CC) $^ $(LDFLAGS) ../../.lib/crypto/adapters/mbedtls_encoding.o -lmbedcrypto -lcurl -shared -o $@
+	$(CC) $^ $(LDFLAGS) -lmbedcrypto -lcurl -shared -o $@
 
 .PHONY: install
 install:

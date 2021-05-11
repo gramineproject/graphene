@@ -5,7 +5,7 @@
 
 #include <linux/fs.h>
 
-#include "pal_crypto.h"
+#include "crypto.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_error.h"

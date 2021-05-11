@@ -92,11 +92,6 @@ int lib_AESCMACInit(LIB_AESCMAC_CONTEXT* context, const uint8_t* key, size_t key
 int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT* context, const uint8_t* input, size_t input_size);
 int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT* context, uint8_t* mac, size_t mac_size);
 
-// Encode and decode Base64 messages.
-// These two functions can be used to query encode and decode sizes if dst is given NULL
-int lib_Base64Encode(const uint8_t* src, size_t src_size, char* dst, size_t* dst_size);
-int lib_Base64Decode(const char* src, size_t src_size, uint8_t* dst, size_t* dst_size);
-
 /* SSL/TLS */
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server, const uint8_t* psk,
                 size_t psk_size, ssize_t (*pal_recv_cb)(int fd, void* buf, size_t buf_size),
