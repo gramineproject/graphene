@@ -19,14 +19,7 @@ CFLAGS += \
 
 CRYPTO_PROVIDER ?= mbedtls
 
-# Select which crypto adpater you want to use here. This has to match
-# the #define in pal_crypto.h.
-#
-# Unfortunately, we cannot use just one .c file for the adapter. The LibOS
-# shim links against the crypto library, but it doesn't use Diffie-Hellman.
-# If the Diffie-Hellman stubs are in the same .o file as the SHA1 stubs,
-# this pulls Diffie-Hellman code into LibOS shim, resulting in unsatisfied
-# symbols.
+# Select which crypto adapater you want to use here. This has to match the #define in crypto.h.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 crypto_mbedtls_library_objs = \
 	crypto/mbedtls/library/aes.o \
@@ -114,16 +107,11 @@ objs += \
 	string/utils.o \
 	toml.o
 
-$(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/library/aes.c
+$(addprefix $(target),crypto/adapters/mbedtls_adapter.o): crypto/mbedtls/library/aes.c
 
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 CFLAGS += -DCRYPTO_USE_MBEDTLS
-ifeq ($(ARCH),x86_64)
-CFLAGS += -mrdrnd
-endif
 objs += crypto/adapters/mbedtls_adapter.o
-objs += crypto/adapters/mbedtls_dh.o
-objs += crypto/adapters/mbedtls_encoding.o
 endif
 
 .PHONY: all

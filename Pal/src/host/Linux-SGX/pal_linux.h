@@ -9,10 +9,10 @@
 
 #include "api.h"
 #include "assert.h"
+#include "crypto.h"
 #include "enclave_ocalls.h"
 #include "linux_types.h"
 #include "pal.h"
-#include "pal_crypto.h"
 #include "pal_defs.h"
 #include "pal_internal.h"
 #include "pal_linux_defs.h"

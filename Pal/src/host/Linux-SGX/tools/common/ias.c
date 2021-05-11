@@ -8,13 +8,14 @@
 #include <ctype.h>
 #include <curl/curl.h>
 #include <errno.h>
+#include <mbedtls/base64.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 
 #include "assert.h"
-#include "pal_crypto.h"
+#include "crypto.h"
 #include "util.h"
 
 #define CURL_FAIL(action, ret)                                                 \
@@ -334,14 +335,26 @@ int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_s
     /* SigRL is base64-encoded, decode if not empty. */
     *sigrl_size = 0;
     if (ias_resp->data) {
-        lib_Base64Decode(ias_resp->data, strlen(ias_resp->data), NULL, sigrl_size);
+        ret = mbedtls_base64_decode(/*dst=*/NULL, /*dlen=*/0, sigrl_size, (uint8_t*)ias_resp->data,
+                                    strlen(ias_resp->data));
+        if (ret < 0) {
+            ERROR("Failed to base64 decode SigRL\n");
+            goto out;
+        }
+
         *sigrl = malloc(*sigrl_size);
         if (!*sigrl) {
             ERROR("No memory\n");
             goto out;
         }
 
-        lib_Base64Decode(ias_resp->data, strlen(ias_resp->data), *sigrl, sigrl_size);
+        ret = mbedtls_base64_decode(*sigrl, *sigrl_size, sigrl_size, (uint8_t*)ias_resp->data,
+                                    strlen(ias_resp->data));
+        if (ret < 0) {
+            ERROR("Failed to base64 decode SigRL\n");
+            goto out;
+        }
+
         if (!*sigrl_size) {
             ERROR("Failed to base64-decode SigRL\n");
             goto out;
@@ -377,14 +390,15 @@ static int ias_send_request(struct ias_context_t* context, struct ias_request_re
     }
 
     /* get needed base64 buffer size */
-    ret = lib_Base64Encode(quote, quote_size, NULL, &quote_b64_size);
+    ret = mbedtls_base64_encode(/*dest=*/NULL, /*dlen=*/0, &quote_b64_size, quote, quote_size);
     if (ret < 0) {
         ERROR("Failed to base64 encode the quote\n");
         goto out;
     }
 
     quote_b64 = malloc(quote_b64_size);
-    ret = lib_Base64Encode(quote, quote_size, quote_b64, &quote_b64_size);
+    ret = mbedtls_base64_encode((uint8_t*)quote_b64, quote_b64_size, &quote_b64_size, quote,
+                                quote_size);
     if (ret < 0) {
         ERROR("Failed to base64 encode the quote\n");
         goto out;

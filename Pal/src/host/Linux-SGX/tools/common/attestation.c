@@ -5,6 +5,7 @@
 
 #include "attestation.h"
 
+#include <mbedtls/base64.h>
 #include <mbedtls/md.h>
 #include <mbedtls/pk.h>
 #include <stdalign.h>
@@ -12,7 +13,7 @@
 #include <string.h>
 
 #include "cJSON.h"
-#include "pal_crypto.h"
+#include "crypto.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
 #include "util.h"
@@ -155,7 +156,8 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
     while (ias_sig_b64[ias_sig_b64_size - 1] == '\n' || ias_sig_b64[ias_sig_b64_size - 1] == '\r')
         ias_sig_b64[--ias_sig_b64_size] = '\0';
 
-    ret = lib_Base64Decode((const char*)ias_sig_b64, ias_sig_b64_size, NULL, &ias_sig_size);
+    ret = mbedtls_base64_decode(/*dest=*/NULL, /*dlen=*/0, &ias_sig_size, ias_sig_b64,
+                                ias_sig_b64_size);
     if (ret != 0) {
         ERROR("Failed to base64-decode IAS signature\n");
         goto out;
@@ -168,7 +170,8 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
         goto out;
     }
 
-    ret = lib_Base64Decode((const char*)ias_sig_b64, ias_sig_b64_size, ias_sig, &ias_sig_size);
+    ret = mbedtls_base64_decode(ias_sig, ias_sig_size, &ias_sig_size, ias_sig_b64,
+                                ias_sig_b64_size);
     if (ret != 0) {
         ERROR("Failed to base64-decode IAS signature\n");
         goto out;
@@ -267,7 +270,8 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
     }
 
     size_t quote_size = 0;
-    ret = lib_Base64Decode(node->valuestring, strlen(node->valuestring), NULL, &quote_size);
+    ret = mbedtls_base64_decode(/*dest=*/NULL, /*dlen=*/0, &quote_size, (uint8_t*)node->valuestring,
+                                strlen(node->valuestring));
     if (ret != 0) {
         ERROR("IAS report: failed to decode report quote\n");
         goto out;
@@ -280,7 +284,8 @@ int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report
         goto out;
     }
 
-    ret = lib_Base64Decode(node->valuestring, strlen(node->valuestring), report_quote, &quote_size);
+    ret = mbedtls_base64_decode(report_quote, quote_size, &quote_size, (uint8_t*)node->valuestring,
+                                strlen(node->valuestring));
     if (ret != 0) {
         ERROR("IAS report: failed to decode report quote\n");
         goto out;
