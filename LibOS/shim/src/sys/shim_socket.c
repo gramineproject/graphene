@@ -282,10 +282,11 @@ static int inet_create_uri(int domain, char* buf, size_t buf_size, int sock_type
 static int unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* dent) {
     struct sockaddr_un* un = (struct sockaddr_un*)saddr;
     un->sun_family = AF_UNIX;
+    char* path;
     size_t size;
-    char* path = dentry_abs_path(dent, &size);
-    if (!path)
-        return -ENOMEM;
+    int ret = dentry_abs_path(dent, &path, &size);
+    if (ret < 0)
+        return ret;
 
     if (size > ARRAY_SIZE(un->sun_path)) {
         log_warning("unix_copy_addr(): path too long, truncating: %s\n", path);

@@ -794,15 +794,6 @@ BEGIN_RS_FUNC(handle) {
 
     if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->checkin)
         hdl->fs->fs_ops->checkin(hdl);
-
-#if DEBUG_RESUME == 1
-    const char* path = NULL;
-    if (hdl->dentry)
-        path = dentry_abs_path(hdl->dentry, /*sizep=*/NULL);
-    DEBUG_RS("path=%s,type=%s,uri=%s,flags=%03o", path, hdl->fs_type, qstrgetstr(&hdl->uri),
-             hdl->flags);
-    free(path);
-#endif
 }
 END_RS_FUNC(handle)
 

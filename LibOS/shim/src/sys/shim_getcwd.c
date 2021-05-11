@@ -34,13 +34,13 @@ long shim_do_getcwd(char* buf, size_t buf_size) {
     get_dentry(cwd);
     unlock(&g_process.fs_lock);
 
+    char* path;
     size_t size;
-    char* path = dentry_abs_path(cwd, &size);
+    int ret = dentry_abs_path(cwd, &path, &size);
+    if (ret < 0)
+        return ret;
 
-    int ret;
-    if (!path) {
-        ret = -ENOMEM;
-    } else if (size > PATH_MAX) {
+    if (size > PATH_MAX) {
         ret = -ENAMETOOLONG;
     } else if (size > buf_size) {
         ret = -ERANGE;
@@ -89,7 +89,8 @@ long shim_do_fchdir(int fd) {
     struct shim_dentry* dent = hdl->dentry;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
-        char* path = dentry_abs_path(dent, /*sizep=*/NULL);
+        char* path;
+        dentry_abs_path(dent, &path, /*size=*/NULL);
         log_debug("%s is not a directory\n", path);
         free(path);
         put_handle(hdl);

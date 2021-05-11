@@ -322,9 +322,8 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
                 ret = -ENOENT;
                 break;
             }
-            if (!(data = dentry_abs_path(dent, &bufsize))) {
+            if ((ret = dentry_abs_path(dent, (char**)&data, &bufsize)) < 0) {
                 unlock(&g_process.fs_lock);
-                ret = -ENOMEM;
                 goto out;
             }
             datasize = bufsize - 1;

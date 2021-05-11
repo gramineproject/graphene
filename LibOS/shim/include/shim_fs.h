@@ -488,33 +488,35 @@ void dentry_gc(struct shim_dentry* dent);
  * \brief Compute an absolute path for dentry, allocating memory for it
  *
  * \param dent the dentry
- * \param[out] sizep if not NULL, will be set to path size, including null terminator
+ * \param[out] path will be set to computed path
+ * \param[out] size if not NULL, will be set to path size, including null terminator
  *
- * \return pointer to the path, or NULL if out of memory
+ * This function computes an absolute path for dentry, allocating a new buffer for it. The path
+ * should later be freed using `free`.
  *
- * This function computes an absolute path for dentry, allocating a new buffer for it. The returned
- * string should be freed using `free`.
+ * On failure, `*path` will be set to NULL.
  *
  * An absolute path is a combination of all names up to the root (not including the root, which by
  * convention has an empty name), separated by `/`, and beginning with `/`.
  */
-char* dentry_abs_path(struct shim_dentry* dent, size_t* sizep);
+int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size);
 
 /*!
  * \brief Compute a relative path for dentry, allocating memory for it
  *
  * \param dent the dentry
- * \param[out] sizep if not NULL, will be set to path size, including null terminator
+ * \param[out] path will be set to computed path
+ * \param[out] size if not NULL, will be set to path size, including null terminator
  *
- * \return pointer to the path, or NULL if out of memory
+ * This function computes a relative path for dentry, allocating a new buffer for it. The path
+ * should later be freed using `free`.
  *
- * This function computes a relative path for dentry, allocating a new buffer for it. The returned
- * string should be freed using `free`.
+ * On failure, `*path` will be set to NULL.
  *
  * A relative path is a combination of all names up to the mountpoint (not including the
  * mountpoint), separated by `/`. A relative path never begins with `/`.
  */
-char* dentry_rel_path(struct shim_dentry* dent, size_t* sizep);
+int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size);
 
 int dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str);
 

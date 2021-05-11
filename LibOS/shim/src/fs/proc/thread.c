@@ -506,7 +506,7 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
             char* path = NULL;
 
             if (vma->file->dentry)
-                path = dentry_abs_path(vma->file->dentry, /*sizep=*/NULL);
+                dentry_abs_path(vma->file->dentry, &path, /*size=*/NULL);
 
             EMIT(ADDR_FMT(start), start);
             EMIT("-");

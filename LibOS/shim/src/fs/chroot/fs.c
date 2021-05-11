@@ -147,13 +147,14 @@ static int make_uri(struct shim_dentry* dent) {
     char* uri = NULL;
     size_t uri_len = 0;
 
+    char* rel_path;
     size_t rel_path_size;
-    char* rel_path = dentry_rel_path(dent, &rel_path_size);
-    if (!rel_path) {
-        return -ENOMEM;
+    int ret = dentry_rel_path(dent, &rel_path, &rel_path_size);
+    if (ret < 0) {
+        return ret;
     }
 
-    int ret = alloc_concat_uri(data->type, mdata->root_uri, mdata->root_uri_len,
+    ret = alloc_concat_uri(data->type, mdata->root_uri, mdata->root_uri_len,
                                rel_path, rel_path_size - 1, &uri, &uri_len);
     free(rel_path);
     if (ret < 0) {

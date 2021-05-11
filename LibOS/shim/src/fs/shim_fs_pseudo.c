@@ -190,12 +190,13 @@ int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent*
         return pseudo_dir_mode(/*name=*/NULL, mode);
     }
 
-    char* rel_path = dentry_rel_path(dent, /*sizep=*/NULL);
-    if (!rel_path)
-        return -ENOMEM;
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
+    if (ret < 0)
+        return ret;
 
     const struct pseudo_ent* ent = NULL;
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
     if (ret < 0)
         goto out;
 
@@ -219,12 +220,13 @@ int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent) {
         return 0;
     }
 
-    char* rel_path = dentry_rel_path(dent, /*sizep=*/NULL);
-    if (!rel_path)
-        return -ENOMEM;
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
+    if (ret < 0)
+        return ret;
 
     const struct pseudo_ent* ent = NULL;
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
     if (ret < 0)
         goto out;
 
@@ -244,13 +246,14 @@ out:
 /*! Generic callback to open an entry in a pseudo-filesystem (and populate \p hdl). */
 int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
                 const struct pseudo_ent* root_ent) {
-    char* rel_path = dentry_rel_path(dent, /*sizep=*/NULL);
-    if (!rel_path)
-        return -ENOMEM;
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
+    if (ret < 0)
+        return ret;
 
     const struct pseudo_ent* ent = NULL;
 
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
     if (ret < 0)
         goto out;
 
@@ -286,15 +289,15 @@ out:
  */
 int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
                    const struct pseudo_ent* root_ent) {
-    int ret;
     struct shim_dirent* buf = NULL;
-    char* path = dentry_rel_path(dent, /*sizep=*/NULL);
-    if (!path)
-        return -ENOMEM;
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
+    if (ret < 0)
+        return ret;
 
     const struct pseudo_ent* ent = NULL;
 
-    ret = pseudo_findent(path, root_ent, &ent);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
     if (ret < 0)
         goto out;
 
@@ -308,7 +311,7 @@ int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
     while (true) {
         buf = malloc(buf_size);
 
-        ret = populate_dirent(dent, path, ent->dir, buf, buf_size);
+        ret = populate_dirent(dent, rel_path, ent->dir, buf, buf_size);
         if (!ret) {
             /* successfully listed all entries */
             break;
@@ -326,7 +329,7 @@ int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
     }
 
 out:
-    free(path);
+    free(rel_path);
     if (ret == 0) {
         *dirent = buf;
     }
@@ -340,13 +343,14 @@ int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_
         return pseudo_dir_stat(/*name=*/NULL, buf);
     }
 
-    char* rel_path = dentry_rel_path(dent, /*sizep=*/NULL);
-    if (!rel_path)
-        return -ENOMEM;
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
+    if (ret < 0)
+        return ret;
 
     const struct pseudo_ent* ent = NULL;
 
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
     if (ret < 0)
         goto out;
 
@@ -372,13 +376,14 @@ int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_
 /*! Generic callback to obtain a target string of a link entry in a pseudo-filesystem. */
 int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link,
                        const struct pseudo_ent* root_ent) {
-    char* rel_path = dentry_rel_path(dent, /*sizep=*/NULL);
-    if (!rel_path)
-        return -ENOMEM;
+    char* rel_path;
+    int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
+    if (ret < 0)
+        return ret;
 
     const struct pseudo_ent* ent = NULL;
 
-    int ret = pseudo_findent(rel_path, root_ent, &ent);
+    ret = pseudo_findent(rel_path, root_ent, &ent);
     if (ret < 0)
         goto out;
 
