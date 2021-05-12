@@ -155,7 +155,7 @@ static int make_uri(struct shim_dentry* dent) {
     }
 
     ret = alloc_concat_uri(data->type, mdata->root_uri, mdata->root_uri_len,
-                               rel_path, rel_path_size - 1, &uri, &uri_len);
+                           rel_path, rel_path_size - 1, &uri, &uri_len);
     free(rel_path);
     if (ret < 0) {
         return ret;

@@ -87,7 +87,7 @@ void get_dentry(struct shim_dentry* dent) {
 #ifdef DEBUG_REF
     int64_t count = REF_INC(dent->ref_count);
 
-    const char* path;
+    const char* path = NULL;
     dentry_abs_path(dent, &path, /*size=*/NULL);
     log_debug("get dentry %p(%s) (ref_count = %lld)\n", dent, path, count);
     free(path);
@@ -126,7 +126,7 @@ static void free_dentry(struct shim_dentry* dent) {
 void put_dentry(struct shim_dentry* dent) {
     int64_t count = REF_DEC(dent->ref_count);
 #ifdef DEBUG_REF
-    const char* path;
+    const char* path = NULL;
     dentry_abs_path(dent, &path, /*size=*/NULL);
     log_debug("put dentry %p(%s) (ref_count = %lld)\n", dent, path, count);
     free(path);
@@ -320,28 +320,19 @@ static char* dentry_path_into_buf(struct shim_dentry* dent, bool relative, char*
     return &buf[pos];
 }
 
-static int dentry_path(struct shim_dentry* dent, bool relative, char** pathp, size_t* sizep) {
-    int ret;
-    size_t size = dentry_path_size(dent, relative);
-    char* buf = malloc(size);
-    if (!buf) {
-        ret = -ENOMEM;
-        goto err;
-    }
+static int dentry_path(struct shim_dentry* dent, bool relative, char** path, size_t* size) {
+    size_t _size = dentry_path_size(dent, relative);
+    char* buf = malloc(_size);
+    if (!buf)
+        return -ENOMEM;
 
-    char* path = dentry_path_into_buf(dent, relative, buf, size);
-    assert(path == buf);
+    char* _path = dentry_path_into_buf(dent, relative, buf, _size);
+    assert(_path == buf);
 
-    *pathp = path;
-    if (sizep)
-        *sizep = size;
+    *path = _path;
+    if (size)
+        *size = _size;
     return 0;
-
-err:
-    *pathp = NULL;
-    if (sizep)
-        *sizep = 0;
-    return ret;
 }
 
 int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size) {
