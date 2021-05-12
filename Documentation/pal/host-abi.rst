@@ -320,7 +320,7 @@ Synchronization
 .. doxygenfunction:: DkEventClear
    :project: pal
 
-.. doxygenfunction:: DkEventtWait
+.. doxygenfunction:: DkEventWait
    :project: pal
 
 Objects
