@@ -293,11 +293,14 @@ static long sgx_ocall_futex(void* pms) {
     ODEBUG(OCALL_FUTEX, ms);
 
     struct timespec timeout = { 0 };
-    bool have_timeout = ms->ms_timeout_us != (uint64_t)-1l;
+    bool have_timeout = ms->ms_timeout_us != (uint64_t)-1;
     if (have_timeout) {
         time_get_now_plus_ns(&timeout, ms->ms_timeout_us * TIME_NS_IN_US);
     }
 
+    /* `FUTEX_WAIT` treats timeout parameter as a relative value. We want to have an absolute one
+     * (since we need to get start time anyway, to calculate remaining time later on), hence we use
+     * `FUTEX_WAIT_BITSET` with `FUTEX_BITSET_MATCH_ANY`. */
     uint32_t val3 = 0;
     int priv_flag = ms->ms_op & FUTEX_PRIVATE_FLAG;
     int op = ms->ms_op & ~FUTEX_PRIVATE_FLAG;
