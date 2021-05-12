@@ -34,7 +34,7 @@ long shim_do_getcwd(char* buf, size_t buf_size) {
     get_dentry(cwd);
     unlock(&g_process.fs_lock);
 
-    char* path;
+    char* path = NULL;
     size_t size;
     int ret = dentry_abs_path(cwd, &path, &size);
     if (ret < 0)
