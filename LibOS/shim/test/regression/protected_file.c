@@ -1,4 +1,4 @@
-/* This test opens the same file twice, reads from one FD, reads from another FD, and closes both
+/* This test opens the same file twice, writes to one FD, reads from another FD, and closes both
  * FDs. This test exists mainly to test Protected Files Linux-SGX feature. */
 
 #include <err.h>
