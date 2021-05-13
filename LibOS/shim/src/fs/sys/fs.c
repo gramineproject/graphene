@@ -99,9 +99,8 @@ out:
     return ret;
 }
 
-int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t size) {
+int sys_list_resource_num(const char* pathname, readdir_callback_t callback, void* arg) {
     int totalcnt;
-    struct shim_dirent* dirent_in_buf = *buf;
 
     char filename[32];
     size_t fsize = sizeof(filename);
@@ -120,25 +119,13 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
         return -EINVAL;
     }
 
-    size_t total_size = 0;
     for (int i = 0; i < totalcnt; i++) {
         char ent_name[42];
         snprintf(ent_name, sizeof(ent_name), "%s%d", filename, i);
-        size_t name_size   = strlen(ent_name) + 1;
-        size_t dirent_size = ALIGN_UP(sizeof(struct shim_dirent) + name_size,
-                                      alignof(struct shim_dirent));
-
-        total_size += dirent_size;
-        if (total_size > size)
-            return -ENOMEM;
-
-        memcpy(dirent_in_buf->name, ent_name, name_size);
-        dirent_in_buf->next = (void*)dirent_in_buf + dirent_size;
-        dirent_in_buf->type = LINUX_DT_DIR;
-        dirent_in_buf = dirent_in_buf->next;
+        if ((ret = callback(ent_name, arg)) < 0)
+            return ret;
     }
 
-    *buf = dirent_in_buf;
     return 0;
 }
 
@@ -238,8 +225,8 @@ static int sys_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags
     return pseudo_open(hdl, dent, flags, &sys_root_ent);
 }
 
-static int sys_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
-    return pseudo_readdir(dent, dirent, &sys_root_ent);
+static int sys_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
+    return pseudo_readdir(dent, callback, arg, &sys_root_ent);
 }
 
 static int sys_stat(struct shim_dentry* dent, struct stat* buf) {

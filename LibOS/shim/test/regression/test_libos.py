@@ -354,6 +354,12 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('getdents64: file2 [0x8]', stdout)
         self.assertIn('getdents64: dir3 [0x4]', stdout)
 
+        # Directory listing across fork (we don't guarantee the exact names, just that there be at
+        # least one of each)
+        self.assertIn('getdents64 before fork:', stdout)
+        self.assertIn('parent getdents64:', stdout)
+        self.assertIn('child getdents64:', stdout)
+
     def test_021_getdents_large_dir(self):
         if os.path.exists("tmp/large_dir"):
             shutil.rmtree("tmp/large_dir")

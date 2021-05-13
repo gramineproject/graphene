@@ -65,8 +65,8 @@ static int proc_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
     return pseudo_open(hdl, dent, flags, &proc_root_ent);
 }
 
-static int proc_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
-    return pseudo_readdir(dent, dirent, &proc_root_ent);
+static int proc_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
+    return pseudo_readdir(dent, callback, arg, &proc_root_ent);
 }
 
 static int proc_stat(struct shim_dentry* dent, struct stat* buf) {

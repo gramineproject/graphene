@@ -371,21 +371,7 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
         hdl->is_dir = true;
         memcpy(hdl->fs_type, fs->type, sizeof(fs->type));
 
-        /* Set `dot` and `dotdot` so that we later know to list them */
-        get_dentry(dent);
-        hdl->dir_info.dot = dent;
-
-        if (dent->parent) {
-            get_dentry(dent->parent);
-            hdl->dir_info.dotdot = dent->parent;
-        } else {
-            hdl->dir_info.dotdot = NULL;
-        }
-
-        // Let's defer setting the DENTRY_LISTED flag until we need it
-        // Use -1 to indicate that the buf/ptr isn't initialized
-        hdl->dir_info.buf = (void*)-1;
-        hdl->dir_info.ptr = (void*)-1;
+        hdl->dir_info.dents = NULL;
     }
 
     /* truncate regular writable file if O_TRUNC is given */
@@ -539,139 +525,138 @@ err:
     return ret;
 }
 
-/* This function enumerates a directory and caches the results in the cache.
+/* A list for `populate_directory` to hold file names from `readdir`. */
+DEFINE_LIST(temp_dirent);
+DEFINE_LISTP(temp_dirent);
+struct temp_dirent {
+    LIST_TYPE(temp_dirent) list;
+
+    size_t name_len;
+    char name[];
+};
+
+static int add_name(const char* name, void* arg) {
+    LISTP_TYPE(temp_dirent)* ents = arg;
+
+    size_t name_len = strlen(name);
+    struct temp_dirent* ent = malloc(sizeof(*ent) + name_len + 1);
+    if (!ent)
+        return -ENOMEM;
+
+    memcpy(&ent->name, name, name_len + 1);
+    ent->name_len = name_len;
+    LISTP_ADD(ent, ents, list);
+    return 0;
+}
+
+/*
+ * Ensure that a directory has a complete list of dentries, by calling `readdir` and then
+ * `lookup_dentry` on every name.
  *
- * Input: A dentry for a directory in the DENTRY_ISDIRECTORY and not in the
- * DENTRY_LISTED state.  The dentry DENTRY_LISTED flag is set upon success.
- *
- * Return value: 0 on success, <0 on error
- *
- * DEP 7/9/17: This work was once done as part of open, but, since getdents*
- * have no consistency semantics, we can apply the principle of laziness and
- * not do the work until we are sure we really need to.
+ * While `readdir` is callback-based, we don't look up the names inside of callback, but first
+ * finish `readdir`. Otherwise, the two filesystem operations (`readdir` and `lookup`) might
+ * deadlock.
  */
-int list_directory_dentry(struct shim_dentry* dent) {
-    int ret = 0;
-    struct shim_mount* fs = dent->fs;
-    lock(&g_dcache_lock);
+static int populate_directory(struct shim_dentry* dent) {
+    assert(locked(&g_dcache_lock));
 
-    /* DEP 8/4/17: Another process could list this directory
-     * while we are waiting on the dcache lock.  This is ok,
-     * no need to blow an assert.
-     */
-    if (dent->state & DENTRY_LISTED) {
-        unlock(&g_dcache_lock);
-        return 0;
-    }
+    if (dent->state & DENTRY_NEGATIVE)
+        return -ENOENT;
 
-    // DEP 7/9/17: In yet another strange turn of events in POSIX-land,
-    // you can do a readdir on a rmdir-ed directory handle.  What you
-    // expect to learn is beyond me, but be careful with blowing assert
-    // and tell the program something to keep it moving.
-    if (dent->state & DENTRY_NEGATIVE) {
-        unlock(&g_dcache_lock);
-        return 0;
-    }
+    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->readdir)
+        return -EINVAL;
 
-    assert(dent->state & DENTRY_ISDIRECTORY);
+    LISTP_TYPE(temp_dirent) ents = LISTP_INIT;
+    int ret = dent->fs->d_ops->readdir(dent, &add_name, &ents);
+    if (ret < 0)
+        log_error("readdir error: %d\n", ret);
 
-    struct shim_dirent* dirent = NULL;
+    struct temp_dirent* ent;
+    struct temp_dirent* tmp;
 
-    if ((ret = fs->d_ops->readdir(dent, &dirent)) < 0 || !dirent) {
-        dirent = NULL;
-        goto done_read;
-    }
-
-    struct shim_dirent* d = dirent;
-    for (; d; d = d->next) {
+    LISTP_FOR_EACH_ENTRY(ent, &ents, list) {
         struct shim_dentry* child;
-        if ((ret = lookup_dentry(dent, d->name, strlen(d->name), &child)) < 0) {
-            /* -ENOENT from underlying lookup should be handled as DENTRY_NEGATIVE */
-            assert(ret != -ENOENT);
-
-            /* Ignore inaccessible files: the underlying lookup can fail with -EACCES, for example
-             * for host symlinks pointing to inaccessible target (since the "chroot" filesystem
-             * transparently follows symlinks instead of reporting them to Graphene). */
-            if (ret == -EACCES)
-                continue;
-
-            /* Other errors fail the lookup */
-            goto done_read;
-        }
-
-        if (child->state & DENTRY_NEGATIVE) {
+        ret = lookup_dentry(dent, ent->name, ent->name_len, &child);
+        if (ret == 0) {
             put_dentry(child);
-            continue;
+        } else if (ret != -EACCES) {
+            /* Fail on underlying lookup errors, except -EACCES (for which we will just ignore the
+             * file). The lookup might fail with -EACCES for host symlinks pointing to inaccessible
+             * target, since the "chroot" filesystem transparently follows symlinks instead of
+             * reporting them to Graphene. */
+            goto out;
         }
-
-        if (!(child->state & DENTRY_VALID)) {
-            child->state |= DENTRY_VALID | DENTRY_RECENTLY;
-        }
-
-        put_dentry(child);
     }
 
-    dent->state |= DENTRY_LISTED;
     ret = 0;
-
-done_read:
-    unlock(&g_dcache_lock);
-    free(dirent);
+out:
+    LISTP_FOR_EACH_ENTRY_SAFE(ent, tmp, &ents, list) {
+        LISTP_DEL(ent, &ents, list);
+        free(ent);
+    }
     return ret;
 }
 
-/* This function caches the contents of a directory (dent), already
- * in the listed state, in a buffer associated with a handle (hdl).
- *
- * This function should only be called once on a handle.
- *
- * Returns 0 on success, <0 on failure.
- */
-int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl) {
-    struct shim_dentry** children = NULL;
+int populate_directory_handle(struct shim_handle* hdl) {
+    struct shim_dir_handle* dirhdl = &hdl->dir_info;
 
-    int nchildren = dent->nchildren, count = 0;
-    struct shim_dentry* child;
-    struct shim_dentry* tmp;
+    assert(locked(&hdl->lock));
+    assert(locked(&g_dcache_lock));
+    assert(hdl->dentry);
 
-    assert(hdl->dir_info.buf == (void*)-1);
-    assert(hdl->dir_info.ptr == (void*)-1);
+    int ret;
 
-    // Handle the case where the handle is on a rmdir-ed directory
-    // Handle is already locked by caller, so these values shouldn't change
-    // after dcache lock is acquired
-    if (dent->state & DENTRY_NEGATIVE) {
-        hdl->dir_info.buf = NULL;
-        hdl->dir_info.ptr = NULL;
+    if (dirhdl->dents)
         return 0;
+
+    if ((ret = populate_directory(hdl->dentry)) < 0)
+        goto err;
+
+    size_t capacity = hdl->dentry->nchildren + 2; // +2 for ".", ".."
+
+    dirhdl->dents = malloc(sizeof(struct shim_dentry) * capacity);
+    if (!dirhdl->dents) {
+        ret = -ENOMEM;
+        goto err;
     }
+    dirhdl->count = 0;
 
-    children = malloc(sizeof(struct shim_dentry*) * (nchildren + 1));
-    if (!children)
-        return -ENOMEM;
+    struct shim_dentry* dot = hdl->dentry;
+    get_dentry(dot);
+    dirhdl->dents[dirhdl->count++] = dot;
 
-    lock(&g_dcache_lock);
-    LISTP_FOR_EACH_ENTRY_SAFE(child, tmp, &dent->children, siblings) {
-        if (count >= nchildren)
-            break;
+    struct shim_dentry* dotdot = hdl->dentry->parent ?: hdl->dentry;
+    get_dentry(dotdot);
+    dirhdl->dents[dirhdl->count++] = dotdot;
 
-        struct shim_dentry* c = child;
-
-        if (c->state & DENTRY_VALID) {
-            get_dentry(c);
-            children[count++] = c;
+    struct shim_dentry* tmp;
+    struct shim_dentry* dent;
+    LISTP_FOR_EACH_ENTRY_SAFE(dent, tmp, &hdl->dentry->children, siblings) {
+        if ((dent->state & DENTRY_VALID) && !(dent->state & DENTRY_NEGATIVE)) {
+            get_dentry(dent);
+            assert(dirhdl->count < capacity);
+            dirhdl->dents[dirhdl->count++] = dent;
         }
-
-        dentry_gc(child);
+        dentry_gc(dent);
     }
-    children[count] = NULL;
-
-    hdl->dir_info.buf = children;
-    hdl->dir_info.ptr = children;
-
-    unlock(&g_dcache_lock);
 
     return 0;
+
+err:
+    clear_directory_handle(hdl);
+    return ret;
+}
+
+void clear_directory_handle(struct shim_handle* hdl) {
+    struct shim_dir_handle* dirhdl = &hdl->dir_info;
+    if (!dirhdl->dents)
+        return;
+
+    for (size_t i = 0; i < dirhdl->count; i++)
+        put_dentry(dirhdl->dents[i]);
+    free(dirhdl->dents);
+    dirhdl->dents = NULL;
+    dirhdl->count = 0;
 }
 
 int get_dirfd_dentry(int dirfd, struct shim_dentry** dir) {

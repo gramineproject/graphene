@@ -197,7 +197,7 @@ static int create_data(struct shim_dentry* dent, const char* uri, size_t len) {
     return 0;
 }
 
-static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent);
+static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg);
 
 static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
                         PAL_HANDLE pal_handle) {
@@ -249,39 +249,25 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
     __atomic_store_n(&data->size.counter, pal_attr.pending_size, __ATOMIC_SEQ_CST);
 
     if (data->type == FILE_DIR) {
-        int ret;
         /* Move up the uri update; need to convert manifest-level file:
          * directives to 'dir:' uris */
         if (old_type != FILE_DIR) {
             dent->state |= DENTRY_ISDIRECTORY;
-            if ((ret = make_uri(dent)) < 0) {
-                unlock(&data->lock);
+            if ((ret = make_uri(dent)) < 0)
                 return ret;
-            }
         }
-
-        /* DEP 3/18/17: If we have a directory, we need to find out how many
-         * children it has by hand. */
-        /* XXX: Keep coherent with rmdir/mkdir/creat, etc */
-        struct shim_dirent *d, *dbuf = NULL;
-        size_t nlink = 0;
-        int rv = chroot_readdir(dent, &dbuf);
-        if (rv != 0)
-            return rv;
-        if (dbuf) {
-            for (d = dbuf; d; d = d->next)
-                nlink++;
-            free(dbuf);
-        } else {
-            nlink = 2; // Educated guess...
-        }
-        data->nlink = nlink;
-    } else {
-        /* DEP 3/18/17: Right now, we don't support hard links,
-         * so just return 1;
-         */
-        data->nlink = 1;
     }
+
+    /*
+     * Pretend `nlink` is 2 for directories (to account for "." and ".."), 1 for other files.
+     *
+     * Applications are unlikely to depend on exact value of `nlink`, and for us, it's inconvenient
+     * to keep track of the exact value (we would have to list the directory, and also take into
+     * account synthetic files created by Graphene, such as named pipes and sockets).
+     *
+     * TODO: Make this a default for filesystems that don't provide `nlink`?
+     */
+    data->nlink = data->type == FILE_DIR ? 2 : 1;
 
     data->queried = true;
 
@@ -434,6 +420,8 @@ static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
 
 static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct shim_dentry* dent,
                         int flags, mode_t mode) {
+    __UNUSED(dir);
+
     int ret = 0;
     struct shim_file_data* data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
@@ -457,18 +445,12 @@ static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct
     file->size   = size;
     qstrcopy(&hdl->uri, &data->host_uri);
 
-    /* Increment the parent's link count */
-    struct shim_file_data* parent_data = FILE_DENTRY_DATA(dir);
-    if (parent_data) {
-        lock(&parent_data->lock);
-        if (parent_data->queried)
-            parent_data->nlink++;
-        unlock(&parent_data->lock);
-    }
     return 0;
 }
 
 static int chroot_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t mode) {
+    __UNUSED(dir);
+
     int ret = 0;
     struct shim_file_data* data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
@@ -483,14 +465,6 @@ static int chroot_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_
 
     ret = __chroot_open(dent, NULL, O_CREAT | O_EXCL, mode, NULL, data);
 
-    /* Increment the parent's link count */
-    struct shim_file_data* parent_data = FILE_DENTRY_DATA(dir);
-    if (parent_data) {
-        lock(&parent_data->lock);
-        if (parent_data->queried)
-            parent_data->nlink++;
-        unlock(&parent_data->lock);
-    }
     return ret;
 }
 
@@ -779,14 +753,12 @@ static int chroot_dput(struct shim_dentry* dent) {
     return 0;
 }
 
-static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
+static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
     struct shim_file_data* data = NULL;
     int ret = 0;
     PAL_HANDLE pal_hdl = NULL;
     size_t buf_size = READDIR_BUF_SIZE;
-    size_t dirent_buf_size = 0;
     char* buf = NULL;
-    char* dirent_buf = NULL;
 
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
@@ -814,94 +786,36 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
             goto out;
         } else if (bytes == 0) {
             /* End of directory listing */
-            assert(ret == 0);
             break;
         }
         /* Last entry must be null-terminated */
         assert(buf[bytes - 1] == '\0');
 
-        size_t dirent_cur_off = dirent_buf_size;
-        /* Calculate needed buffer size */
-        size_t len = buf[0] != '\0' ? 1 : 0;
-        for (size_t i = 1; i < bytes; i++) {
-            if (buf[i] == '\0') {
-                /* The PAL convention: if a name ends with '/', it is a directory.
-                 * struct shim_dirent has a field for a type, hence trailing slash
-                 * can be safely discarded. */
-                if (buf[i - 1] == '/') {
-                    len--;
-                }
-                dirent_buf_size += SHIM_DIRENT_ALIGNED_SIZE(len + 1);
-                len = 0;
-            } else {
-                len++;
-            }
-        }
+        size_t start = 0;
+        while (start < bytes - 1) {
+            size_t end = start;
+            while (buf[end] != '\0')
+                end++;
 
-        /* TODO: If realloc gets enabled delete following and uncomment rest */
-        char* tmp = malloc(dirent_buf_size);
-        if (!tmp) {
-            ret = -ENOMEM;
-            goto out;
-        }
-        memcpy(tmp, dirent_buf, dirent_cur_off);
-        free(dirent_buf);
-        dirent_buf = tmp;
-        /*
-        dirent_buf = realloc(dirent_buf, dirent_buf_size);
-        if (!dirent_buf) {
-            ret = -ENOMEM;
-            goto out;
-        }
-        */
-
-        size_t i = 0;
-        while (i < bytes) {
-            char* name = buf + i;
-            size_t len = strnlen(name, bytes - i);
-            i += len + 1;
-            bool is_dir = false;
-
-            /* Skipping trailing slash - explained above */
-            if (name[len - 1] == '/') {
-                is_dir = true;
-                name[--len] = '\0';
+            if (end == start) {
+                log_error("chroot_readdir: empty name returned from PAL\n");
+                die_or_inf_loop();
             }
 
-            struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-            dptr->type = is_dir ? LINUX_DT_DIR : LINUX_DT_REG;
-            memcpy(dptr->name, name, len + 1);
+            /* By the PAL convention, if a name ends with '/', it is a directory. However, we ignore
+             * that distinction here and pass the name without '/' to the callback. */
+            if (buf[end - 1] == '/')
+                buf[end - 1] = '\0';
 
-            dirent_cur_off += SHIM_DIRENT_ALIGNED_SIZE(len + 1);
+            if ((ret = callback(&buf[start], arg)) < 0)
+                goto out;
+
+            start = end + 1;
         }
     }
 
-    *dirent = (struct shim_dirent*)dirent_buf;
-
-    /*
-     * Fix next field of struct shim_dirent to point to the next entry.
-     * Since all entries are assumed to come from single allocation
-     * (as free gets called just on the head of this list) this should have
-     * been just entry size instead of a pointer (and probably needs to be
-     * rewritten as such one day).
-     */
-    struct shim_dirent** last = NULL;
-    for (size_t dirent_cur_off = 0; dirent_cur_off < dirent_buf_size;) {
-        struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-        size_t len = SHIM_DIRENT_ALIGNED_SIZE(strlen(dptr->name) + 1);
-        dptr->next = (struct shim_dirent*)(dirent_buf + dirent_cur_off + len);
-        last = &dptr->next;
-        dirent_cur_off += len;
-    }
-    if (last) {
-        *last = NULL;
-    }
-
+    ret = 0;
 out:
-    /* Need to free output buffer if error is returned */
-    if (ret) {
-        free(dirent_buf);
-    }
     free(buf);
     DkObjectClose(pal_hdl);
     return ret;
@@ -952,6 +866,8 @@ static int chroot_migrate(void* checkpoint, void** mount_data) {
 }
 
 static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
+    __UNUSED(dir);
+
     int ret;
     struct shim_file_data* data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
@@ -973,15 +889,6 @@ static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
 
     __atomic_add_fetch(&data->version.counter, 1, __ATOMIC_SEQ_CST);
     __atomic_store_n(&data->size.counter, 0, __ATOMIC_SEQ_CST);
-
-    /* Drop the parent's link count */
-    struct shim_file_data* parent_data = FILE_DENTRY_DATA(dir);
-    if (parent_data) {
-        lock(&parent_data->lock);
-        if (parent_data->queried)
-            parent_data->nlink--;
-        unlock(&parent_data->lock);
-    }
 
     return 0;
 }

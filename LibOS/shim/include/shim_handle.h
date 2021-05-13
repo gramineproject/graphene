@@ -196,24 +196,11 @@ struct shim_sock_handle {
     }* peek_buffer;
 };
 
-struct shim_dirent {
-    struct shim_dirent* next;
-    unsigned char type;
-    char name[]; /* File name (null-terminated) */
-};
-
-#define SHIM_DIRENT_SIZE      offsetof(struct shim_dirent, name)
-#define SHIM_DIRENT_ALIGNMENT alignof(struct shim_dirent)
-/* Size of struct shim_dirent instance together with alignment,
- * which might be different depending on the length of the name field */
-#define SHIM_DIRENT_ALIGNED_SIZE(len) ALIGN_UP(SHIM_DIRENT_SIZE + (len), SHIM_DIRENT_ALIGNMENT)
-
 struct shim_dir_handle {
-    int offset;
-    struct shim_dentry* dotdot;
-    struct shim_dentry* dot;
-    struct shim_dentry** buf;
-    struct shim_dentry** ptr;
+    /* The first two dentries are always "." and ".." */
+    struct shim_dentry** dents;
+    size_t count;
+    size_t pos;
 };
 
 struct msg_type;

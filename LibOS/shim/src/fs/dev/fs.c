@@ -79,8 +79,8 @@ static int dev_mode(struct shim_dentry* dent, mode_t* mode) {
     return pseudo_mode(dent, mode, &dev_root_ent);
 }
 
-static int dev_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
-    return pseudo_readdir(dent, dirent, &dev_root_ent);
+static int dev_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
+    return pseudo_readdir(dent, callback, arg, &dev_root_ent);
 }
 
 static int dev_stat(struct shim_dentry* dent, struct stat* buf) {

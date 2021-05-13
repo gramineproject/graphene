@@ -224,7 +224,7 @@ static int proc_match_thread_each_fd(const char* name) {
     return parse_thread_fd(name, NULL, NULL) == 0 ? 1 : 0;
 }
 
-static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, size_t count) {
+static int proc_list_thread_each_fd(const char* name, readdir_callback_t callback, void* arg) {
     const char* next;
     size_t next_len;
     IDTYPE pid;
@@ -241,43 +241,20 @@ static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, 
 
     struct shim_handle_map* handle_map = get_thread_handle_map(thread);
     int err = 0;
-    size_t bytes = 0;
-    struct shim_dirent* dirent = *buf;
-    struct shim_dirent** last  = NULL;
 
     lock(&handle_map->lock);
 
     for (int i = 0; i < handle_map->fd_size; i++)
         if (handle_map->map[i] && handle_map->map[i]->handle) {
-            int d = i, l = 0;
-            for (; d; d /= 10, l++)
-                ;
-            l = l ?: 1;
-
-            bytes += sizeof(struct shim_dirent) + l + 1;
-            if (bytes > count) {
-                err = -ENOMEM;
+            char name[11];
+            snprintf(name, sizeof(name), "%u", pid);
+            if ((err = callback(name, arg)) < 0)
                 break;
-            }
-
-            dirent->next      = (void*)(dirent + 1) + l + 1;
-            dirent->type      = LINUX_DT_LNK;
-            dirent->name[0]   = '0';
-            dirent->name[l--] = 0;
-            for (d = i; d; d /= 10) {
-                dirent->name[l--] = '0' + d % 10;
-            }
-            last   = &dirent->next;
-            dirent = dirent->next;
         }
 
     unlock(&handle_map->lock);
     put_thread(thread);
 
-    if (last)
-        *last = NULL;
-
-    *buf = dirent;
     return err;
 }
 
@@ -701,47 +678,33 @@ static int proc_match_thread(const char* name) {
 }
 
 struct walk_thread_arg {
-    struct shim_dirent *buf, *buf_end;
+    readdir_callback_t callback;
+    void* arg;
 };
 
 static int walk_cb(struct shim_thread* thread, void* arg) {
-    struct walk_thread_arg* args = (struct walk_thread_arg*)arg;
-    IDTYPE pid                   = thread->tid;
-    int p = pid, l = 0;
-    for (; p; p /= 10, l++)
-        ;
+    struct walk_thread_arg* args = arg;
 
-    /* buf->next below must be properly aligned */
-    size_t buflen = ALIGN_UP(l + 1, alignof(struct shim_dirent));
-
-    if ((void*)(args->buf + 1) + buflen > (void*)args->buf_end)
-        return -ENOMEM;
-
-    struct shim_dirent* buf = args->buf;
-
-    buf->next      = (void*)(buf + 1) + buflen;
-    buf->type      = LINUX_DT_DIR;
-    buf->name[l--] = 0;
-    for (p = pid; p; p /= 10) {
-        buf->name[l--] = p % 10 + '0';
-    }
-
-    args->buf = buf->next;
+    IDTYPE pid = thread->tid;
+    char name[11];
+    snprintf(name, sizeof(name), "%u", pid);
+    int ret = args->callback(name, args->arg);
+    if (ret < 0)
+        return ret;
     return 1;
 }
 
-static int proc_list_thread(const char* name, struct shim_dirent** buf, size_t size) {
+static int proc_list_thread(const char* name, readdir_callback_t callback, void* arg) {
     __UNUSED(name);  // We know this is for "/proc/self"
     struct walk_thread_arg args = {
-        .buf     = *buf,
-        .buf_end = (void*)*buf + size,
+        .callback = callback,
+        .arg = arg,
     };
 
     int ret = walk_thread_list(&walk_cb, &args, /*one_shot=*/false);
     if (ret < 0)
         return ret;
 
-    *buf = args.buf;
     return 0;
 }
 

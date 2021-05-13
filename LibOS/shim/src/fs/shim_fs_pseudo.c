@@ -79,54 +79,6 @@ static int pseudo_findent(const char* path, const struct pseudo_ent* root_ent,
     return 0;
 }
 
-/*! Populate supplied buffer with dirents (see pseudo_readdir() for details). */
-static int populate_dirent(const char* path, const struct pseudo_dir* dir, struct shim_dirent* buf,
-                           size_t buf_size) {
-    if (!dir->size)
-        return 0;
-
-    struct shim_dirent* dirent_in_buf = buf;
-    size_t total_size = 0;
-
-    for (const struct pseudo_ent* ent = dir->ent; ent < dir->ent + dir->size; ent++) {
-        if (ent->name) {
-            /* directory entry has a hardcoded name */
-            size_t name_size   = strlen(ent->name) + 1;
-            /* all directory entries must be aligned on the *dirent::next alignment */
-            size_t dirent_size = ALIGN_UP(sizeof(struct shim_dirent) + name_size,
-                                          alignof(*dirent_in_buf->next));
-
-            total_size += dirent_size;
-            if (total_size > buf_size)
-                return -ENOMEM;
-
-            memcpy(dirent_in_buf->name, ent->name, name_size);
-            dirent_in_buf->next = (void*)dirent_in_buf + dirent_size;
-            dirent_in_buf->type = ent->dir ? LINUX_DT_DIR : ent->type;
-
-            dirent_in_buf = dirent_in_buf->next;
-        } else if (ent->name_ops && ent->name_ops->list_name) {
-            /* directory entry has a list of entries calculated at runtime (via list_name) */
-            struct shim_dirent* old_dirent_in_buf = dirent_in_buf;
-            int ret = ent->name_ops->list_name(path, &dirent_in_buf, buf_size - total_size);
-            if (ret < 0)
-                return ret;
-
-            /* dirent_in_buf now contains the address past all added entries */
-            total_size += (void*)dirent_in_buf - (void*)old_dirent_in_buf;
-        }
-    }
-
-    /* above logic set the last dirent's `next` to point past the buffer, find this last dirent
-     * and unset its `next` */
-    dirent_in_buf = buf;
-    while ((void*)dirent_in_buf->next < (void*)buf + total_size)
-        dirent_in_buf = dirent_in_buf->next;
-
-    dirent_in_buf->next = NULL;
-    return 0;
-}
-
 /*! Generic callback to mount a pseudo-filesystem. */
 int pseudo_mount(const char* uri, void** mount_data) {
     __UNUSED(uri);
@@ -272,20 +224,20 @@ out:
 }
 
 /*!
- * \brief Create and populate buffer with dirents.
+ * \brief `readdir` implementation for pseudo-filesystems.
  *
- * Generic function for pseudo-filesystems. Example usage for the `/proc` FS is
- * `pseudo_readdir("/proc/3", &dirents_of_third_thread, proc_root_ent)` -- this
- * returns a dirent list with "root", "cwd", "exe", "fd", etc.
+ * Generic function for pseudo-filesystems. For example, if in `/proc` FS the function is called
+ * with `pseudo_readdir("/proc/3", callback, arg, proc_root_ent)`, it will call `callback` on
+ * "root", "cwd", "exe", "fd", etc.
  *
  * \param[in]  dent       Dentry with path to the requested directory.
- * \param[out] dirent     Pointer to newly created buffer with dirents.
+ * \param[in]  callback   Callback to call on each name.
+ * \param[in]  arg        Argument to pass to the callback.
  * \param[in]  root_ent   Root entry to start search from (e.g., `proc_root_ent`).
- * \return                0 if populated the buffer, negative Linux error code otherwise.
+ * \return                0 on success, negative Linux error code otherwise.
  */
-int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
+int pseudo_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg,
                    const struct pseudo_ent* root_ent) {
-    struct shim_dirent* buf = NULL;
     char* rel_path;
     int ret = dentry_rel_path(dent, &rel_path, /*size=*/NULL);
     if (ret < 0)
@@ -302,33 +254,23 @@ int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
         goto out;
     }
 
-    size_t buf_size = READDIR_BUF_SIZE;
-
-    while (true) {
-        buf = malloc(buf_size);
-
-        ret = populate_dirent(rel_path, ent->dir, buf, buf_size);
-        if (!ret) {
-            /* successfully listed all entries */
-            break;
-        } else if (ret == -ENOMEM) {
-            /* reallocate bigger buffer and try again */
-            free(buf);
-            buf = NULL;
-            buf_size *= 2;
-            continue;
+    const struct pseudo_dir* dir = ent->dir;
+    for (const struct pseudo_ent* child = dir->ent; child < dir->ent + dir->size; child++) {
+        if (child->name) {
+            /* directory entry has a hardcoded name */
+            ret = callback(child->name, arg);
+            if (ret < 0)
+                goto out;
         } else {
-            /* unrecoverable error */
-            free(buf);
-            goto out;
+            /* directory entry has a list of entries calculated at runtime (via list_name) */
+            ret = child->name_ops->list_name(rel_path, callback, arg);
+            if (ret < 0)
+                goto out;
         }
     }
 
 out:
     free(rel_path);
-    if (ret == 0) {
-        *dirent = buf;
-    }
     return ret;
 }
 
