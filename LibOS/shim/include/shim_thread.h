@@ -182,35 +182,25 @@ static inline void set_cur_thread(struct shim_thread* thread) {
     log_setprefix(tcb);
 }
 
-static inline void thread_setwait(struct shim_thread** queue, struct shim_thread* thread) {
-    if (!thread)
-        thread = get_cur_thread();
-    DkEventClear(thread->scheduler_event);
-    if (queue) {
-        get_thread(thread);
-        *queue = thread;
-    }
+static inline void thread_prepare_wait(void) {
+    struct shim_thread* cur_thread = get_cur_thread();
+    assert(!is_internal(cur_thread));
+    DkEventClear(cur_thread->scheduler_event);
 }
 
-static inline int thread_sleep(uint64_t timeout_us, bool ignore_pending_signals) {
+static inline int thread_wait(uint64_t* timeout_us, bool ignore_pending_signals) {
     struct shim_thread* cur_thread = get_cur_thread();
-
-    if (!cur_thread)
-        return -EINVAL;
-
-    PAL_HANDLE event = cur_thread->scheduler_event;
-    if (!event)
-        return -EINVAL;
+    assert(!is_internal(cur_thread));
 
     if (!ignore_pending_signals && have_pending_signals()) {
         return -EINTR;
     }
 
-    return pal_to_unix_errno(DkEventWait(event, &timeout_us));
+    int ret = DkEventWait(cur_thread->scheduler_event, timeout_us);
+    return ret == -PAL_ERROR_TRYAGAIN ? -ETIMEDOUT : pal_to_unix_errno(ret);
 }
 
 static inline void thread_wakeup(struct shim_thread* thread) {
-    // TODO: handle errors
     DkEventSet(thread->scheduler_event);
 }
 

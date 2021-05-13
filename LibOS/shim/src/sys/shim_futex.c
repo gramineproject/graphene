@@ -218,15 +218,15 @@ static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_fut
  * You need to make sure that this futex is still on `g_futex_tree`, but in most cases it follows
  * from the program control flow.
  *
- * Increases refcount of current thread by 1 (in thread_setwait)
- * and of `futex` by 1.
  * `futex->lock` needs to be held.
  */
 static void add_futex_waiter(struct futex_waiter* waiter, struct shim_futex* futex,
                              uint32_t bitset) {
     assert(spinlock_is_locked(&futex->lock));
 
-    thread_setwait(&waiter->thread, NULL);
+    waiter->thread = get_cur_thread();
+    get_thread(waiter->thread);
+
     INIT_LIST_HEAD(waiter, list);
     waiter->bitset = bitset;
     get_futex(futex);
@@ -343,6 +343,8 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
         goto out_with_futex_lock;
     }
 
+    thread_prepare_wait();
+
     struct futex_waiter waiter = {0};
     add_futex_waiter(&waiter, futex, bitset);
 
@@ -353,11 +355,7 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
     put_futex(futex);
     futex = NULL;
 
-    ret = thread_sleep(timeout, /*ignore_pending_signals=*/false);
-    /* On timeout thread_sleep returns -EAGAIN. */
-    if (ret == -EAGAIN) {
-        ret = -ETIMEDOUT;
-    }
+    ret = thread_wait(timeout != NO_TIMEOUT ? &timeout : NULL, /*ignore_pending_signals=*/false);
 
     spinlock_lock(&g_futex_tree_lock);
     /* We might have been requeued. Grab the (possibly new) futex reference. */

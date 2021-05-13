@@ -243,11 +243,11 @@ void ipc_msg_response_handle(IDTYPE src, unsigned long seq,
 int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dst, unsigned long* seq) {
     int ret = 0;
 
-    struct shim_thread* thread = get_cur_thread();
-    assert(thread);
-
     assert(!msg->thread);
-    thread_setwait(&msg->thread, thread);
+    msg->thread = get_cur_thread();
+    get_thread(msg->thread);
+
+    thread_prepare_wait();
 
     static unsigned long ipc_seq_counter = 0;
     msg->msg.seq = __atomic_add_fetch(&ipc_seq_counter, 1, __ATOMIC_RELAXED);
@@ -267,10 +267,10 @@ int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dst, uns
 
     /* TODO: this should be `wait_event` on a special purpose event embedded in `msg`. */
     do {
-        ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/true);
-        if (ret < 0 && ret != -EINTR && ret != -EAGAIN)
+        ret = thread_wait(/*timeout_us=*/NULL, /*ignore_pending_signals=*/true);
+        if (ret < 0 && ret != -EINTR)
             goto out;
-    } while (ret != 0);
+    } while (ret == -EINTR);
 
     log_debug("Finished waiting for response (seq = %lu, ret = %d)\n", msg->msg.seq, msg->retval);
     ret = 0;
@@ -284,7 +284,7 @@ out:
         ret = msg->retval;
     }
 
-    assert(msg->thread == thread);
+    assert(msg->thread == get_cur_thread());
     put_thread(msg->thread);
     msg->thread = NULL;
 

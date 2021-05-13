@@ -82,7 +82,7 @@ int _DkEventWait(PAL_HANDLE handle, uint64_t* timeout_us) {
             /* We might have slept a bit too long. */
             diff = 0;
         }
-        assert(ret != -ETIMEDOUT || diff == 0);
+        assert(ret != -PAL_ERROR_TRYAGAIN || diff == 0);
         *timeout_us = (uint64_t)diff / TIME_NS_IN_US;
     }
     return ret;
