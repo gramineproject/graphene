@@ -16,11 +16,11 @@ setup it this way:
 
    sudo apt-get install clang-format
 
-Usage: (assuming you're in the project's top directory)
+Usage: (assuming you've configured your build into ``build`` directory)
 
 .. code-block:: sh
 
-   make format
+   ninja -C build clang-format
 
 This :command:`make` target **reformats all source files in-place**, so we
 recommend you first commit them (or add to `git index

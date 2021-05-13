@@ -32,3 +32,5 @@ subdir('Scripts')
 subdir('LibOS')
 subdir('Runtime')
 subdir('python')
+
+run_target('clang-format', command: [meson_clang_format_prog])

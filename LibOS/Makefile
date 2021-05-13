@@ -216,10 +216,6 @@ clean:
 distclean: clean
 endif
 
-.PHONY: format
-format:
-	$(MAKE) -C $(SHIM_DIR) format
-
 .PHONY: test
 test:
 	$(MAKE) -C $(SHIM_DIR) test

@@ -19,7 +19,3 @@ clean_targets = clean distclean
 $(clean_targets):
 	$(MAKE) -C src $@
 	$(MAKE) -C test $@
-
-.PHONY: format
-format:
-	clang-format -i $(shell find . -path ./test/ltp -prune -o \( -name '*.h' -o -name '*.c' \) -print)

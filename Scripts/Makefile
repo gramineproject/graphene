@@ -8,9 +8,6 @@ clean:
 .PHONY: distclean
 distclean: clean
 
-.PHONY: format
-format: ;
-
 .PHONY: test
 test: ;
 

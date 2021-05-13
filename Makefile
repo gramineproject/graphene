@@ -1,6 +1,6 @@
 include Scripts/Makefile.configs
 
-targets = all clean format test sgx-tokens distclean
+targets = all clean test sgx-tokens distclean
 
 ifneq ($(filter sgx-tokens,$(MAKECMDGOALS)),)
 ifneq ($(SGX),1)

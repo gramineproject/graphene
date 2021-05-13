@@ -7,10 +7,6 @@ all: argv_serializer
 .PHONY: test sgx-tokens
 test sgx-tokens:
 
-.PHONY: format
-format:
-	clang-format -i $(shell find . \( -name '*.h' -o -name '*.c' \) -print)
-
 %: %.c
 	$(call cmd,csingle)
 
