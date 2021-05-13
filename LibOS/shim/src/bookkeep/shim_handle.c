@@ -429,23 +429,10 @@ void put_handle(struct shim_handle* hdl) {
 
         if (hdl->is_dir) {
             struct shim_dir_handle* dir = &hdl->dir_info;
-
-            if (dir->dot) {
-                put_dentry(dir->dot);
-                dir->dot = NULL;
-            }
-
-            if (dir->dotdot) {
-                put_dentry(dir->dotdot);
-                dir->dotdot = NULL;
-            }
-
-            if (dir->ptr != (void*)-1) {
-                while (dir->ptr && *dir->ptr) {
-                    struct shim_dentry* dent = *dir->ptr;
-                    put_dentry(dent);
-                    *(dir->ptr++) = NULL;
-                }
+            if (dir->dents) {
+                for (size_t i = 0; i < dir->count; i++)
+                    put_dentry(dir->dents[i]);
+                free(dir->dents);
             }
         }
 
@@ -695,8 +682,7 @@ BEGIN_CP_FUNC(handle) {
             if (hdl->dentry->state & DENTRY_ISDIRECTORY) {
                 /* we don't checkpoint children dentries of a directory dentry, so need to list
                  * directory again in child process; mark handle to indicate no cached dentries */
-                hdl->dir_info.buf = (void*)-1;
-                hdl->dir_info.ptr = (void*)-1;
+                hdl->dir_info.dents = NULL;
             }
             DO_CP_MEMBER(dentry, hdl, new_hdl, dentry);
         }

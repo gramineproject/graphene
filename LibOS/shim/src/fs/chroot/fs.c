@@ -197,7 +197,15 @@ static int create_data(struct shim_dentry* dent, const char* uri, size_t len) {
     return 0;
 }
 
-static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent);
+static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg);
+
+static int count_child(const char* name, void* arg) {
+    __UNUSED(name);
+
+    size_t* count = arg;
+    (*count)++;
+    return 0;
+}
 
 static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
                         PAL_HANDLE pal_handle) {
@@ -263,18 +271,10 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
         /* DEP 3/18/17: If we have a directory, we need to find out how many
          * children it has by hand. */
         /* XXX: Keep coherent with rmdir/mkdir/creat, etc */
-        struct shim_dirent *d, *dbuf = NULL;
-        size_t nlink = 0;
-        int rv = chroot_readdir(dent, &dbuf);
+        size_t nlink = dent->parent ? 2 : 1;
+        int rv = chroot_readdir(dent, &count_child, &nlink);
         if (rv != 0)
             return rv;
-        if (dbuf) {
-            for (d = dbuf; d; d = d->next)
-                nlink++;
-            free(dbuf);
-        } else {
-            nlink = 2; // Educated guess...
-        }
         data->nlink = nlink;
     } else {
         /* DEP 3/18/17: Right now, we don't support hard links,
@@ -779,14 +779,12 @@ static int chroot_dput(struct shim_dentry* dent) {
     return 0;
 }
 
-static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
+static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
     struct shim_file_data* data = NULL;
     int ret = 0;
     PAL_HANDLE pal_hdl = NULL;
     size_t buf_size = READDIR_BUF_SIZE;
-    size_t dirent_buf_size = 0;
     char* buf = NULL;
-    char* dirent_buf = NULL;
 
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
@@ -814,94 +812,31 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
             goto out;
         } else if (bytes == 0) {
             /* End of directory listing */
-            assert(ret == 0);
             break;
         }
         /* Last entry must be null-terminated */
         assert(buf[bytes - 1] == '\0');
 
-        size_t dirent_cur_off = dirent_buf_size;
-        /* Calculate needed buffer size */
-        size_t len = buf[0] != '\0' ? 1 : 0;
-        for (size_t i = 1; i < bytes; i++) {
-            if (buf[i] == '\0') {
-                /* The PAL convention: if a name ends with '/', it is a directory.
-                 * struct shim_dirent has a field for a type, hence trailing slash
-                 * can be safely discarded. */
-                if (buf[i - 1] == '/') {
-                    len--;
-                }
-                dirent_buf_size += SHIM_DIRENT_ALIGNED_SIZE(len + 1);
-                len = 0;
-            } else {
-                len++;
-            }
-        }
+        size_t start = 0;
+        while (start < bytes - 1) {
+            size_t end = start + 1;
+            while (buf[end] != '\0')
+                end++;
 
-        /* TODO: If realloc gets enabled delete following and uncomment rest */
-        char* tmp = malloc(dirent_buf_size);
-        if (!tmp) {
-            ret = -ENOMEM;
-            goto out;
-        }
-        memcpy(tmp, dirent_buf, dirent_cur_off);
-        free(dirent_buf);
-        dirent_buf = tmp;
-        /*
-        dirent_buf = realloc(dirent_buf, dirent_buf_size);
-        if (!dirent_buf) {
-            ret = -ENOMEM;
-            goto out;
-        }
-        */
+            /* By the PAL convention, if a name ends with '/', it is a directory. However, we ignore
+             * that distinction here and pass the name without '/' to the callback. */
+            if (buf[end - 1] == '/')
+                buf[end - 1] = '\0';
 
-        size_t i = 0;
-        while (i < bytes) {
-            char* name = buf + i;
-            size_t len = strnlen(name, bytes - i);
-            i += len + 1;
-            bool is_dir = false;
+            if ((ret = callback(&buf[start], arg)) < 0)
+                goto out;
 
-            /* Skipping trailing slash - explained above */
-            if (name[len - 1] == '/') {
-                is_dir = true;
-                name[--len] = '\0';
-            }
-
-            struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-            dptr->type = is_dir ? LINUX_DT_DIR : LINUX_DT_REG;
-            memcpy(dptr->name, name, len + 1);
-
-            dirent_cur_off += SHIM_DIRENT_ALIGNED_SIZE(len + 1);
+            start = end + 1;
         }
     }
 
-    *dirent = (struct shim_dirent*)dirent_buf;
-
-    /*
-     * Fix next field of struct shim_dirent to point to the next entry.
-     * Since all entries are assumed to come from single allocation
-     * (as free gets called just on the head of this list) this should have
-     * been just entry size instead of a pointer (and probably needs to be
-     * rewritten as such one day).
-     */
-    struct shim_dirent** last = NULL;
-    for (size_t dirent_cur_off = 0; dirent_cur_off < dirent_buf_size;) {
-        struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-        size_t len = SHIM_DIRENT_ALIGNED_SIZE(strlen(dptr->name) + 1);
-        dptr->next = (struct shim_dirent*)(dirent_buf + dirent_cur_off + len);
-        last = &dptr->next;
-        dirent_cur_off += len;
-    }
-    if (last) {
-        *last = NULL;
-    }
-
+    ret = 0;
 out:
-    /* Need to free output buffer if error is returned */
-    if (ret) {
-        free(dirent_buf);
-    }
     free(buf);
     DkObjectClose(pal_hdl);
     return ret;

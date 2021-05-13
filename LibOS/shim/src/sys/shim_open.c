@@ -271,7 +271,7 @@ out:
     return ret;
 }
 
-static inline int get_dirent_type(mode_t type) {
+static int get_dirent_type(mode_t type) {
     switch (type) {
         case S_IFLNK:
             return LINUX_DT_LNK;
@@ -292,8 +292,8 @@ static inline int get_dirent_type(mode_t type) {
     }
 }
 
-long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
-    if (test_user_memory(buf, count, true))
+static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64) {
+    if (test_user_memory(buf, buf_size, true))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -307,91 +307,82 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
         goto out_no_unlock;
     }
 
-    /* DEP 3/3/17: Properly handle an unlinked directory */
     if (hdl->dentry->state & DENTRY_NEGATIVE) {
         ret = -ENOENT;
         goto out_no_unlock;
     }
 
-    /* we are grabbing the lock because the handle content is actually
-       updated */
     lock(&hdl->lock);
 
     struct shim_dir_handle* dirhdl = &hdl->dir_info;
-    struct shim_dentry* dent = hdl->dentry;
-    struct linux_dirent* b = buf;
-    int bytes = 0;
-
-    /* If we haven't listed the directory, do this first */
-    if (!(dent->state & DENTRY_LISTED)) {
-        ret = list_directory_dentry(dent);
-        if (ret < 0)
+    if (!dirhdl->dents) {
+        if ((ret = list_directory_handle(hdl)) < 0)
             goto out;
     }
 
-/* Size calculation for dirent considering alignment restrictions for b->d_ino */
-// TODO: This "+ 1" below is most likely not needed (NULL byte is already included in
-//       linux_dirent_tail).
-#define DIRENT_SIZE(len) \
-    ALIGN_UP(sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + (len) + 1, \
-             alignof(struct linux_dirent))
+    size_t buf_pos = 0;
+    while (dirhdl->pos < dirhdl->count) {
+        struct shim_dentry* dent = dirhdl->dents[dirhdl->pos];
+        const char* name;
+        size_t name_len;
 
-#define ASSIGN_DIRENT(dent, name, type)                                                  \
-    do {                                                                                 \
-        int len = strlen(name);                                                          \
-        if (bytes + DIRENT_SIZE(len) > count)                                            \
-            goto done;                                                                   \
-                                                                                         \
-        struct linux_dirent_tail* bt = (void*)b + DIRENT_SIZE(len) - sizeof(*bt);        \
-                                                                                         \
-        b->d_ino    = dentry_ino(dent);                                                  \
-        b->d_off    = ++dirhdl->offset;                                                  \
-        b->d_reclen = DIRENT_SIZE(len);                                                  \
-                                                                                         \
-        memcpy(b->d_name, name, len + 1);                                                \
-                                                                                         \
-        bt->pad    = 0;                                                                  \
-        bt->d_type = (type);                                                             \
-                                                                                         \
-        bytes += b->d_reclen;                                                            \
-        b = (void*)b + b->d_reclen;                                                      \
-    } while (0)
+        if (dent == hdl->dentry) {
+            name = ".";
+            name_len = 1;
+        } else if (dent == hdl->dentry->parent) {
+            name = "..";
+            name_len = 2;
+        } else {
+            name = qstrgetstr(&dent->name);
+            name_len = dent->name.len;
+        }
 
-    if (dirhdl->dot) {
-        ASSIGN_DIRENT(dirhdl->dot, ".", LINUX_DT_DIR);
-        put_dentry(dirhdl->dot);
-        dirhdl->dot = NULL;
+        uint64_t d_ino = dentry_ino(dent);
+        char d_type = get_dirent_type(dent->type);
+
+        size_t ent_size;
+
+        if (is_getdents64) {
+            ent_size = ALIGN_UP(sizeof(struct linux_dirent64) + name_len + 1,
+                                alignof(struct linux_dirent));
+            if (buf_pos + ent_size > buf_size)
+                break;
+
+            struct linux_dirent64* ent = (struct linux_dirent64*)(buf + buf_pos);
+            memset(ent, 0, ent_size);
+
+            ent->d_ino = d_ino;
+            ent->d_off = dirhdl->pos;
+            ent->d_reclen = ent_size;
+            ent->d_type = d_type;
+            memcpy(&ent->d_name, name, name_len);
+        } else {
+            ent_size = ALIGN_UP(
+                sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + name_len,
+                alignof(struct linux_dirent)
+            );
+            if (buf_pos + ent_size > buf_size)
+                break;
+
+            struct linux_dirent* ent = (struct linux_dirent*)(buf + buf_pos);
+            struct linux_dirent_tail* tail =
+                (struct linux_dirent_tail*)(buf + buf_pos + ent_size - sizeof(*tail));
+            memset(ent, 0, ent_size);
+
+            ent->d_ino = d_ino;
+            ent->d_off = dirhdl->pos;
+            ent->d_reclen = ent_size;
+            memcpy(&ent->d_name, name, name_len);
+            tail->d_type = d_type;
+        }
+
+        buf_pos += ent_size;
+        dirhdl->pos++;
     }
 
-    if (dirhdl->dotdot) {
-        ASSIGN_DIRENT(dirhdl->dotdot, "..", LINUX_DT_DIR);
-        put_dentry(dirhdl->dotdot);
-        dirhdl->dotdot = NULL;
-    }
-
-    if (dirhdl->ptr == (void*)-1) {
-        ret = list_directory_handle(dent, hdl);
-        if (ret < 0)
-            goto out;
-    }
-
-    while (dirhdl->ptr && *dirhdl->ptr) {
-        dent = *dirhdl->ptr;
-        /* DEP 3/3/17: We need to filter negative dentries */
-        if (!(dent->state & DENTRY_NEGATIVE))
-            ASSIGN_DIRENT(dent, dentry_get_name(dent), get_dirent_type(dent->type));
-        put_dentry(dent);
-        *(dirhdl->ptr++) = NULL;
-    }
-
-#undef DIRENT_SIZE
-#undef ASSIGN_DIRENT
-
-done:
-    ret = bytes;
-    /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
-     * hold anything */
-    if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || (dirhdl->ptr && *dirhdl->ptr)))
+    ret = buf_pos;
+    /* Return EINVAL if buffer is too small to hold anything */
+    if (buf_pos == 0 && dirhdl->pos < dirhdl->count)
         ret = -EINVAL;
 out:
     unlock(&hdl->lock);
@@ -400,103 +391,12 @@ out_no_unlock:
     return ret;
 }
 
+long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
+    return do_getdents(fd, (uint8_t*)buf, count, /*is_getdents64=*/false);
+}
+
 long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
-    if (test_user_memory(buf, count, true))
-        return -EFAULT;
-
-    struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
-    if (!hdl)
-        return -EBADF;
-
-    int ret = -EACCES;
-
-    if (!hdl->is_dir) {
-        ret = -ENOTDIR;
-        goto out_no_unlock;
-    }
-
-    /* DEP 3/3/17: Properly handle an unlinked directory */
-    if (hdl->dentry->state & DENTRY_NEGATIVE) {
-        ret = -ENOENT;
-        goto out_no_unlock;
-    }
-
-    lock(&hdl->lock);
-
-    struct shim_dir_handle* dirhdl = &hdl->dir_info;
-    struct shim_dentry* dent = hdl->dentry;
-    struct linux_dirent64* b = buf;
-    int bytes = 0;
-
-    /* If we haven't listed the directory, do this first */
-    if (!(dent->state & DENTRY_LISTED)) {
-        ret = list_directory_dentry(dent);
-        if (ret)
-            goto out;
-    }
-
-/* Size calculation for dirent considering alignment restrictions for b->d_ino */
-#define DIRENT_SIZE(len) ALIGN_UP(sizeof(struct linux_dirent64) + (len) + 1, \
-                                  alignof(struct linux_dirent64))
-
-#define ASSIGN_DIRENT(dent, name, type)       \
-    do {                                      \
-        int len = strlen(name);               \
-        if (bytes + DIRENT_SIZE(len) > count) \
-            goto done;                        \
-                                              \
-        b->d_ino    = dentry_ino(dent);       \
-        b->d_off    = ++dirhdl->offset;       \
-        b->d_reclen = DIRENT_SIZE(len);       \
-        b->d_type   = (type);                 \
-                                              \
-        memcpy(b->d_name, name, len + 1);     \
-                                              \
-        bytes += b->d_reclen;                 \
-        b = (void*)b + b->d_reclen;           \
-    } while (0)
-
-    if (dirhdl->dot) {
-        ASSIGN_DIRENT(dirhdl->dot, ".", LINUX_DT_DIR);
-        put_dentry(dirhdl->dot);
-        dirhdl->dot = NULL;
-    }
-
-    if (dirhdl->dotdot) {
-        ASSIGN_DIRENT(dirhdl->dotdot, "..", LINUX_DT_DIR);
-        put_dentry(dirhdl->dotdot);
-        dirhdl->dotdot = NULL;
-    }
-
-    if (dirhdl->ptr == (void*)-1) {
-        ret = list_directory_handle(dent, hdl);
-        if (ret)
-            goto out;
-    }
-
-    while (dirhdl->ptr && *dirhdl->ptr) {
-        dent = *dirhdl->ptr;
-        /* DEP 3/3/17: We need to filter negative dentries */
-        if (!(dent->state & DENTRY_NEGATIVE))
-            ASSIGN_DIRENT(dent, dentry_get_name(dent), get_dirent_type(dent->type));
-        put_dentry(dent);
-        *(dirhdl->ptr++) = NULL;
-    }
-
-#undef DIRENT_SIZE
-#undef ASSIGN_DIRENT
-
-done:
-    ret = bytes;
-    /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
-     * hold anything */
-    if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || (dirhdl->ptr && *dirhdl->ptr)))
-        ret = -EINVAL;
-out:
-    unlock(&hdl->lock);
-out_no_unlock:
-    put_handle(hdl);
-    return ret;
+    return do_getdents(fd, (uint8_t*)buf, count, /*is_getdents64=*/true);
 }
 
 long shim_do_fsync(int fd) {

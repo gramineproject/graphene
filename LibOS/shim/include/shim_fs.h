@@ -140,6 +140,8 @@ struct shim_dentry {
     REFTYPE ref_count;
 };
 
+typedef int (*readdir_callback_t)(const char* name, void* arg);
+
 struct shim_d_ops {
     /* open: provide a filename relative to the mount point and flags,
        modify the shim handle, file_data is "inode" equivalent */
@@ -184,12 +186,10 @@ struct shim_d_ops {
     /* change the name of a dentry */
     int (*rename)(struct shim_dentry* old, struct shim_dentry* new);
 
-    /* readdir: given the path relative to the mount point, read the childs
-       into the the buffer.  This call always returns everything under
-       the directory in one big buffer; you do not need to try again
-       or keep a cursor in the directory.  You do need to free the
-       returned buffer. */
-    int (*readdir)(struct shim_dentry* dent, struct shim_dirent** dirent);
+    /* List all files in the directory. Calls `callback` on all file names, passing the `arg`
+     * pointer. If the callback returns a negative error code, it's interpreted as a failure and
+     * `readdir` stops, returning the same error code. */
+    int (*readdir)(struct shim_dentry* dent, readdir_callback_t callback, void* arg);
 };
 
 /*
@@ -372,7 +372,7 @@ int check_permissions(struct shim_dentry* dent, mode_t mask);
 int _path_lookupat(struct shim_dentry* start, const char* path, int flags,
                    struct shim_dentry** found);
 
-/*
+/*!
  * \brief Look up a path, retrieving a dentry
  *
  * This is a version of `_path_lookupat` that does not require caller to hold `g_dcache_lock`, but
@@ -381,7 +381,7 @@ int _path_lookupat(struct shim_dentry* start, const char* path, int flags,
 int path_lookupat(struct shim_dentry* start, const char* path, int flags,
                   struct shim_dentry** found);
 
-/*
+/*!
  * This function returns a dentry (in *dir) from a handle corresponding to dirfd.
  * If dirfd == AT_FDCWD returns current working directory.
  *
@@ -391,7 +391,7 @@ int path_lookupat(struct shim_dentry* start, const char* path, int flags,
  */
 int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
 
-/*
+/*!
  * \brief Open a file under a given path, similar to Unix open
  *
  * \param hdl handle to associate with dentry, can be NULL
@@ -433,7 +433,7 @@ int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
 int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* path, int flags,
                int mode, struct shim_dentry** found);
 
-/*
+/*!
  * \brief Open an already retrieved dentry, and associate a handle with it
  *
  * \param hdl handle to associate with dentry
@@ -447,23 +447,16 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
  */
 int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags);
 
-/* This function enumerates a directory and caches the results in the dentry.
+/*!
+ * \brief Prepare a list of dentries for a handle
  *
- * Input: A dentry for a directory in the DENTRY_ISDIRECTORY and not in the DENTRY_LISTED state.
- * The dentry DENTRY_LISTED flag is set upon success.
+ * \param hdl a directory handle
  *
- * Return value: 0 on success, <0 on error
+ * This function initializes the `hdl->dir_info` for a structure, so that the directory can be
+ * listed using `getdents/getdents64` syscalls. It should only be called once, i.e. only if
+ * `hdl->dir_info->dents` is NULL.
  */
-int list_directory_dentry(struct shim_dentry* dir);
-
-/* This function caches the contents of a directory (dent), already in the listed state, in a buffer
- * associated with a handle (hdl).
- *
- * This function should only be called once on a handle.
- *
- * Returns 0 on success, <0 on failure.
- */
-int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl);
+int list_directory_handle(struct shim_handle* hdl);
 
 /* Increment the reference count on dent */
 void get_dentry(struct shim_dentry* dent);
@@ -639,7 +632,7 @@ extern struct shim_d_ops sys_d_ops;
 
 struct pseudo_name_ops {
     int (*match_name)(const char* name);
-    int (*list_name)(const char* name, struct shim_dirent** buf, size_t count);
+    int (*list_name)(const char* name, readdir_callback_t callback, void* arg);
 };
 
 static inline dev_t makedev(unsigned int major, unsigned int minor) {
@@ -683,7 +676,7 @@ int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent*
 int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent);
 int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
                 const struct pseudo_ent* root_ent);
-int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
+int pseudo_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg,
                    const struct pseudo_ent* root_ent);
 int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_ent* root_ent);
 int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_ent* root_ent);
@@ -713,8 +706,7 @@ int sys_dir_mode(const char* name, mode_t* mode);
 int sys_dir_stat(const char* name, struct stat* buf);
 /* Checks if pathname is a valid path under /sys/; returns 1 on success and 0 on failure */
 int sys_match_resource_num(const char* pathname);
-/* Fills buf with an array of dirents for the given pathname (path under /sys/); returns 0 on
- * success and negative error code otherwise */
-int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t size);
+/* Lists path under /sys/, same as readdir */
+int sys_list_resource_num(const char* pathname, readdir_callback_t callback, void* arg);
 
 #endif /* _SHIM_FS_H_ */

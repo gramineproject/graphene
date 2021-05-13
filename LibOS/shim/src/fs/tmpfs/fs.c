@@ -419,10 +419,8 @@ static int tmpfs_truncate(struct shim_handle* hdl, off_t len) {
     return ret;
 }
 
-static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
+static int tmpfs_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
     int ret = 0;
-    size_t dirent_buf_size = 0;
-    char* dirent_buf = NULL;
 
     struct shim_tmpfs_data* tmpfs_data = dent->data;
     assert(tmpfs_data);
@@ -440,42 +438,11 @@ static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) 
         tmp_data = tmp_dent->data;
         if (!tmp_data || (tmp_data->type != FILE_DIR && tmp_data->type != FILE_REGULAR))
             continue;
-        dirent_buf_size += SHIM_DIRENT_ALIGNED_SIZE(tmp_dent->name.len + 1);
-    }
 
-    dirent_buf = malloc(dirent_buf_size);
-    if (!dirent_buf) {
-        ret = -ENOMEM;
-        goto out;
+        if ((ret = callback(qstrgetstr(&tmp_dent->name), arg)) < 0)
+            return ret;
     }
-
-    size_t dirent_cur_off = 0;
-    struct shim_dirent** last = NULL;
-    LISTP_FOR_EACH_ENTRY(tmp_dent, &dent->children, siblings) {
-        if (tmp_dent->state & DENTRY_NEGATIVE)
-            continue;
-        tmp_data = tmp_dent->data;
-        if (!tmp_data || (tmp_data->type != FILE_DIR && tmp_data->type != FILE_REGULAR))
-            continue;
-
-        struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-        dptr->type = tmp_data->type == FILE_DIR ? LINUX_DT_DIR : LINUX_DT_REG;
-        memcpy(dptr->name, qstrgetstr(&tmp_dent->name), tmp_dent->name.len + 1);
-        size_t len = SHIM_DIRENT_ALIGNED_SIZE(tmp_dent->name.len + 1);
-        dptr->next = (struct shim_dirent*)(dirent_buf + dirent_cur_off + len);
-        last = &dptr->next;
-        dirent_cur_off += len;
-    }
-    if (last) {
-        *last = NULL;
-    }
-    *dirent = (struct shim_dirent*)dirent_buf;
-
-out:
-    if (ret) {
-        free(dirent_buf);
-    }
-    return ret;
+    return 0;
 }
 
 static int tmpfs_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {

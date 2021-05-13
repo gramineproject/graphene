@@ -220,7 +220,7 @@ static int proc_ipc_thread_dir_stat(const char* name, struct stat* buf) {
     return -ENOENT;
 }
 
-static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, size_t size) {
+static int proc_list_ipc_thread(const char* name, readdir_callback_t callback, void* arg) {
     // Only one valid name
     __UNUSED(name);
     struct pid_status_cache* status = NULL;
@@ -274,34 +274,17 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, size
     if (!status->nstatus)
         goto success;
 
-    struct shim_dirent* ptr = (*buf);
-    void* buf_end           = (void*)ptr + size;
-
     for (size_t i = 0; i < status->nstatus; i++) {
         if (status->status[i].pid != status->status[i].tgid)
             continue;
 
         IDTYPE pid = status->status[i].pid;
-        int p = pid, l = 0;
-        for (; p; p /= 10, l++)
-            ;
-
-        if ((void*)(ptr + 1) + l + 1 > buf_end) {
-            ret = -ENOMEM;
+        char name[10];
+        snprintf(name, sizeof(name), "%u", pid);
+        if ((ret = callback(name, arg)) < 0)
             goto err;
-        }
-
-        ptr->next      = (void*)(ptr + 1) + l + 1;
-        ptr->type      = LINUX_DT_DIR;
-        ptr->name[l--] = 0;
-        for (p = pid; p; p /= 10) {
-            ptr->name[l--] = p % 10 + '0';
-        }
-
-        ptr = ptr->next;
     }
 
-    *buf = ptr;
 success:
     lock(&status_lock);
     status->dirty = true;
