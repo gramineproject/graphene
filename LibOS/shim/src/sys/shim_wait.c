@@ -79,15 +79,18 @@ static void remove_qnode_from_wait_queue(struct shim_thread_queue* qnode) {
     unlock(&g_process.children_lock);
 
     while (!seen) {
-        DkEventClear(get_cur_thread()->scheduler_event);
+        thread_prepare_wait();
         /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
         COMPILER_BARRIER();
         /* Check if `qnode` is no longer used. */
         if (!__atomic_load_n(&qnode->in_use, __ATOMIC_ACQUIRE)) {
             break;
         }
-        /* We cannot handle any errors here. */
-        (void)thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/true);
+        int ret = thread_wait(/*timeout_us=*/NULL, /*ignore_pending_signals=*/true);
+        if (ret < 0 && ret != -EINTR) {
+            /* We cannot handle any errors here. */
+            log_error("remove_qnode_from_wait_queue: thread_wait failed with: %d\n", ret);
+        }
     }
 }
 
@@ -176,7 +179,7 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
 
         unlock(&g_process.children_lock);
 
-        DkEventClear(self->scheduler_event);
+        thread_prepare_wait();
         /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
         COMPILER_BARRIER();
         /* Check that we are still supposed to sleep. */
@@ -185,9 +188,9 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
             ret = -ERESTARTSYS;
             break;
         }
-        ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/false);
-        if (ret < 0 && ret != -EINTR && ret != -EAGAIN) {
-            log_warning("thread_sleep failed in waitid\n");
+        ret = thread_wait(/*timeout_us=*/NULL, /*ignore_pending_signals=*/false);
+        if (ret < 0 && ret != -EINTR) {
+            log_warning("thread_wait failed in waitid\n");
             remove_qnode_from_wait_queue(&qnode);
             /* `ret` is already set. */
             goto out;
