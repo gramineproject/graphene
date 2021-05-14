@@ -12,28 +12,34 @@ int main(int argc, char** argv) {
     size_t bufsize = sizeof(buffer);
     ssize_t bytes;
 
+    puts("A");
     if (pipe(pipefds) < 0) {
         perror("pipe error\n");
         return 1;
     }
 
+    puts("B");
     int pid = fork();
 
     if (pid < 0) {
         perror("fork error\n");
         return 1;
     } else if (pid == 0) {
+        puts("C 1");
         /* client */
         close(pipefds[0]);
 
         snprintf(buffer, bufsize, "Hello from write end of pipe!");
+        puts("C 2");
         if (write(pipefds[1], &buffer, strlen(buffer) + 1) < 0) {
             perror("write error\n");
             close(pipefds[1]);
             return 1;
         }
+        puts("C 3");
         close(pipefds[1]);
     } else {
+        puts("P 1");
         /* server */
         close(pipefds[1]);
 
@@ -43,6 +49,7 @@ int main(int argc, char** argv) {
         /* parent (server) expects to receive one message from client (via POLLIN) and
          * then get an error (via POLLHUP) because the client connection was closed */
         for (;;) {
+            puts("P 2");
             ret = poll(infds, 1, -1);
             if (ret <= 0) {
                 perror("poll with POLLIN failed\n");
@@ -51,6 +58,7 @@ int main(int argc, char** argv) {
             }
 
             if (infds[0].revents & POLLIN) {
+                puts("P 3");
                 bytes = read(pipefds[0], &buffer, bufsize - 1);
                 if (bytes < 0) {
                     perror("read error\n");
@@ -60,13 +68,16 @@ int main(int argc, char** argv) {
                     buffer[bytes] = '\0';
                     printf("read on pipe: %s\n", buffer);
                 }
+                puts("P 4");
             }
             if (infds[0].revents & (POLLHUP | POLLERR | POLLNVAL)) {
                 printf("the peer closed its end of the pipe\n");
                 break;
             }
+            puts("P 5");
         }
         int wstatus;
+        puts("P 6");
         if (wait(&wstatus) < 0) {
             perror("wait error\n");
             close(pipefds[0]);
@@ -76,8 +87,10 @@ int main(int argc, char** argv) {
             close(pipefds[0]);
             return 1;
         }
+        puts("P 7");
         close(pipefds[0]);
     }
 
+    puts("FINITO");
     return 0;
 }
