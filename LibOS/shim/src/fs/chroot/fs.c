@@ -184,6 +184,7 @@ static int create_data(struct shim_dentry* dent, const char* uri, size_t len) {
     assert(mdata);
     data->type = (dent->state & DENTRY_ISDIRECTORY) ? FILE_DIR : mdata->base_type;
     data->mode = NO_MODE;
+    data->queried = false;
 
     if (uri) {
         qstrsetstr(&data->host_uri, uri, len);
@@ -1008,6 +1009,7 @@ static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
 
     dent->mode = NO_MODE;
     data->mode = 0;
+    data->queried = false;
 
     __atomic_add_fetch(&data->version.counter, 1, __ATOMIC_SEQ_CST);
     __atomic_store_n(&data->size.counter, 0, __ATOMIC_SEQ_CST);
@@ -1085,6 +1087,7 @@ static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
     new->mode = new_data->mode = old_data->mode;
     old->mode = NO_MODE;
     old_data->mode = 0;
+    old_data->queried = false;
 
     new->type = old->type;
 
