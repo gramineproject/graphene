@@ -9,6 +9,7 @@ int main(void) {
         "movq %1, %%rdx\n"
         "int3\n"
         "movq %%rdx, %0\n"
+        "int3\n"
         : "=m"(val)
         : "m"(val)
         : "rdx");
@@ -18,6 +19,7 @@ int main(void) {
         "movlps %1, %%xmm0\n"
         "int3\n"
         "movlps %%xmm0, %0\n"
+        "int3\n"
         : "=m"(val)
         : "m"(val)
         : "xmm0");
