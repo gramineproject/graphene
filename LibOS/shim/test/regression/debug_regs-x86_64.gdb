@@ -13,7 +13,7 @@ echo <RDX end>\n\n
 
 # Check RDX register write
 set $rdx = 0x2000200020002000
-next
+continue
 echo \n<RDX result start>\n
 print/x val
 echo <RDX result end>\n\n
@@ -27,7 +27,7 @@ echo <XMM0 end>\n\n
 
 # Check XMM0 register write
 set $xmm0.uint128 = 0x4000400040004000
-next
+continue
 echo \n<XMM0 result start>\n
 print/x val
 echo <XMM0 result end>\n\n
