@@ -525,13 +525,6 @@ int DkStreamChangeName(PAL_HANDLE handle, PAL_STR uri);
 int DkThreadCreate(PAL_PTR addr, PAL_PTR param, PAL_HANDLE* handle);
 
 /*!
- * \brief Suspend the current thread for a certain duration
- *
- * \param duration the duration in microseconds
- */
-PAL_NUM DkThreadDelayExecution(PAL_NUM duration);
-
-/*!
  * \brief Yield the current thread such that the host scheduler can reschedule it.
  */
 void DkThreadYieldExecution(void);

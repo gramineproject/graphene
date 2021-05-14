@@ -55,7 +55,7 @@ enum {
     OCALL_SETSOCKOPT,
     OCALL_SHUTDOWN,
     OCALL_GETTIME,
-    OCALL_SLEEP,
+    OCALL_SCHED_YIELD,
     OCALL_POLL,
     OCALL_RENAME,
     OCALL_DELETE,
@@ -262,10 +262,6 @@ typedef struct {
 typedef struct {
     uint64_t ms_microsec;
 } ms_ocall_gettime_t;
-
-typedef struct {
-    uint64_t ms_microsec;
-} ms_ocall_sleep_t;
 
 typedef struct {
     struct pollfd* ms_fds;

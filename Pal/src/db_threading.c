@@ -18,12 +18,6 @@ int DkThreadCreate(PAL_PTR addr, PAL_PTR param, PAL_HANDLE* handle) {
     return _DkThreadCreate(handle, (int (*)(void*))addr, (const void*)param);
 }
 
-/* PAL call DkThreadDelayExecution. Delay the current thread (sleep) for the given duration */
-PAL_NUM DkThreadDelayExecution(PAL_NUM duration) {
-    (void)_DkThreadDelayExecution(&duration);
-    return duration;
-}
-
 /* PAL call DkThreadYieldExecution. Yield the execution of the current thread. */
 void DkThreadYieldExecution(void) {
     _DkThreadYieldExecution();

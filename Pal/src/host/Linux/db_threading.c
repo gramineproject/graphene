@@ -183,31 +183,6 @@ err:
     return ret;
 }
 
-int _DkThreadDelayExecution(uint64_t* duration_us) {
-    struct timespec sleeptime;
-    struct timespec remainingtime;
-
-    const uint64_t VERY_LONG_TIME_IN_US = (uint64_t)1000000 * 60 * 60 * 24 * 365 * 128;
-    if (*duration_us > VERY_LONG_TIME_IN_US) {
-        /* avoid overflow with time_t */
-        sleeptime.tv_sec  = VERY_LONG_TIME_IN_US / 1000000;
-        sleeptime.tv_nsec = 0;
-    } else {
-        sleeptime.tv_sec  = *duration_us / 1000000;
-        sleeptime.tv_nsec = (*duration_us - sleeptime.tv_sec * (uint64_t)1000000) * 1000;
-    }
-
-    int ret = INLINE_SYSCALL(nanosleep, 2, &sleeptime, &remainingtime);
-
-    if (ret < 0) {
-        PAL_NUM remaining = remainingtime.tv_sec * 1000000 + remainingtime.tv_nsec / 1000;
-        *duration_us -= remaining;
-        return -PAL_ERROR_INTERRUPTED;
-    }
-
-    return 0;
-}
-
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
 void _DkThreadYieldExecution(void) {

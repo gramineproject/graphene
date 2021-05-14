@@ -128,15 +128,10 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     return 0;
 }
 
-int _DkThreadDelayExecution(uint64_t* duration_us) {
-    int ret = ocall_sleep(duration_us);
-    return ret < 0 ? unix_to_pal_error(ret) : ret;
-}
-
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
 void _DkThreadYieldExecution(void) {
-    ocall_sleep(NULL);
+    ocall_sched_yield();
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
