@@ -55,9 +55,7 @@ stage('test') {
                 then
                     make ${MAKEOPTS} sgx-tokens
                 fi
-                make test
-                # TODO: after resolving deps problem (or rewriting makefiles):
-#               python3 -m pytest -v --junit-xml fs.xml test_fs.py test_tmpfs.py test_pf.py
+                python3 -m pytest -v --junit-xml fs.xml test_fs.py test_tmpfs.py test_pf.py
             '''
         } finally {
             junit 'LibOS/shim/test/fs/*.xml'

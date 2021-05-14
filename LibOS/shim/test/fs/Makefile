@@ -21,13 +21,13 @@ execs = \
 	stat \
 	truncate
 
-manifests = $(addsuffix .manifest,$(execs))
+all_manifests = $(addsuffix .manifest,$(execs))
 
 exec_target = $(execs)
 
 target = \
 	$(exec_target) \
-	$(manifests)
+	$(all_manifests)
 
 clean-extra += clean-tmp
 
@@ -85,5 +85,5 @@ pf-test.xml: test_pf.py $(call expand_target_to_token,$(target))
 
 .PHONY: clean-tmp
 clean-tmp:
-	$(RM) -r *.tmp *.cached $(manifests) *.manifest.sgx *~ *.sig *.token *.o \
+	$(RM) -r *.tmp *.cached $(all_manifests) *.manifest.sgx *~ *.sig *.token *.o \
 	         __pycache__ .pytest_cache .cache *.xml bin lib
