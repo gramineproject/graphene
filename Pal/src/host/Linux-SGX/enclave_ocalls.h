@@ -81,7 +81,7 @@ int ocall_futex(uint32_t* uaddr, int op, int val, uint64_t* timeout_us);
 
 int ocall_gettime(uint64_t* microsec);
 
-int ocall_sleep(uint64_t* microsec);
+void ocall_sched_yield(void);
 
 int ocall_socketpair(int domain, int type, int protocol, int sockfds[2]);
 

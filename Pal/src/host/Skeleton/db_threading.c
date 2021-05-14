@@ -19,10 +19,6 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkThreadDelayExecution(uint64_t* duration) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
 void _DkThreadYieldExecution(void) {

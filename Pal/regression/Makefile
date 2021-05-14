@@ -43,14 +43,11 @@ executables = \
 	Process4 \
 	Select \
 	SendHandle \
-	Sleep \
 	Socket \
 	Symbols \
 	Tcp \
 	Thread2 \
 	Udp \
-	Wait \
-	Yield \
 	normalize_path \
 	$(executables-$(ARCH))
 

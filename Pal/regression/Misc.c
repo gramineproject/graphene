@@ -1,5 +1,6 @@
 #include "api.h"
 #include "pal.h"
+#include "pal_error.h"
 #include "pal_regression.h"
 
 int main(int argc, const char** argv, const char** envp) {
@@ -20,12 +21,25 @@ int main(int argc, const char** argv, const char** envp) {
     if (time1 <= time2)
         pal_printf("Query System Time OK\n");
 
+    PAL_HANDLE sleep_handle = NULL;
+    if (DkEventCreate(&sleep_handle, /*init_signaled=*/false, /*auto_clear=*/false) < 0) {
+        pal_printf("DkEventCreate failed\n");
+        return 1;
+    }
+
     uint64_t time3 = 0;
     if (DkSystemTimeQuery(&time3) < 0) {
         pal_printf("DkSystemTimeQuery failed\n");
         return 1;
     }
-    DkThreadDelayExecution(10000);
+
+    uint64_t timeout = 10000;
+    int ret = DkEventWait(sleep_handle, &timeout);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        pal_printf("DkEventWait failed\n");
+        return 1;
+    }
+
     uint64_t time4 = 0;
     if (DkSystemTimeQuery(&time4) < 0) {
         pal_printf("DkSystemTimeQuery failed\n");
@@ -42,7 +56,14 @@ int main(int argc, const char** argv, const char** envp) {
         pal_printf("DkSystemTimeQuery failed\n");
         return 1;
     }
-    DkThreadDelayExecution(3000000);
+
+    timeout = 3000000;
+    ret = DkEventWait(sleep_handle, &timeout);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        pal_printf("DkEventWait failed\n");
+        return 1;
+    }
+
     uint64_t time6 = 0;
     if (DkSystemTimeQuery(&time6) < 0) {
         pal_printf("DkSystemTimeQuery failed\n");
@@ -58,7 +79,7 @@ int main(int argc, const char** argv, const char** envp) {
     memset(data, 0, sizeof(data));
 
     for (int i = 0; i < 100; i++) {
-        int ret = DkRandomBitsRead(&data[i], sizeof(unsigned long));
+        ret = DkRandomBitsRead(&data[i], sizeof(unsigned long));
         if (ret < 0) {
             pal_printf("DkRandomBitsRead() failed!\n");
             return 1;

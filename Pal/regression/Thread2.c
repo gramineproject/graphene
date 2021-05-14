@@ -1,6 +1,7 @@
 #include <stdatomic.h>
 
 #include "pal.h"
+#include "pal_error.h"
 #include "pal_regression.h"
 
 volatile bool dummy_true = true;
@@ -52,6 +53,12 @@ static int thread4_run(void* args) {
 int main(void) {
     pal_printf("Thread 1 (main) started.\n");
 
+    PAL_HANDLE sleep_handle = NULL;
+    if (DkEventCreate(&sleep_handle, /*init_signaled=*/false, /*auto_clear=*/false) < 0) {
+        pal_printf("DkEventCreate failed\n");
+        return 1;
+    }
+
     PAL_HANDLE thread2 = NULL;
     int ret = DkThreadCreate(thread2_run, NULL, &thread2);
     if (ret < 0) {
@@ -61,7 +68,12 @@ int main(void) {
 
     // 1 s should be enough even on a very busy system to start a thread and
     // then exit it again including all cleanup.
-    DkThreadDelayExecution(1000000);
+    uint64_t timeout = 1000000;
+    ret = DkEventWait(sleep_handle, &timeout);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        pal_printf("DkEventWait failed\n");
+        return 1;
+    }
 
     if (thread2_started) {
         pal_printf("Thread 2 ok.\n");
@@ -74,7 +86,12 @@ int main(void) {
         return 1;
     }
 
-    DkThreadDelayExecution(1000000);
+    timeout = 1000000;
+    ret = DkEventWait(sleep_handle, &timeout);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        pal_printf("DkEventWait failed\n");
+        return 1;
+    }
 
     if (thread3_started && thread3_exit_ok) {
         pal_printf("Thread 3 ok.\n");
@@ -87,7 +104,12 @@ int main(void) {
         return 1;
     }
 
-    DkThreadDelayExecution(1000000);
+    timeout = 1000000;
+    ret = DkEventWait(sleep_handle, &timeout);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        pal_printf("DkEventWait failed\n");
+        return 1;
+    }
 
     if (thread4_started) {
         pal_printf("Thread 4 ok.\n");

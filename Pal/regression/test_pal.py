@@ -80,12 +80,6 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('Leave main thread', stderr)
         self.assertIn('Leave thread', stderr)
 
-    def test_Sleep(self):
-        _, stderr = self.run_binary(['Sleep'], timeout=3)
-        self.assertIn('Enter Main Thread', stderr)
-        self.assertIn('Sleeping 3000000 microsecond...', stderr)
-        self.assertIn('Leave Main Thread', stderr)
-
     def test_Tcp(self):
         _, stderr = self.run_binary(['Tcp'])
         self.assertIn('start time = ', stderr)
@@ -101,22 +95,6 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('read on server (from udp:127.0.0.1:', stderr)
         self.assertIn('Hello World', stderr)
         self.assertIn('wall time = ', stderr)
-
-    def test_Wait(self):
-        _, stderr = self.run_binary(['Wait'])
-        self.assertIn('Enter Main Thread', stderr)
-        self.assertIn('DkStreamsWaitEvents did not return any events', stderr)
-        self.assertIn('Enter thread 2', stderr)
-        self.assertIn('Enter thread 1', stderr)
-        self.assertIn('Leave thread 2', stderr)
-        self.assertIn('Leave thread 1', stderr)
-
-    def test_Yield(self):
-        _, stderr = self.run_binary(['Yield'])
-        self.assertIn('Enter Parent Thread', stderr)
-        self.assertIn('Enter Child Thread', stderr)
-        self.assertIn('child yielded', stderr)
-        self.assertIn('parent yielded', stderr)
 
 
 class TC_01_Bootstrap(RegressionTestCase):
@@ -222,7 +200,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkStreamGetName',
         'DkStreamChangeName',
         'DkThreadCreate',
-        'DkThreadDelayExecution',
         'DkThreadYieldExecution',
         'DkThreadExit',
         'DkThreadResume',

@@ -603,30 +603,11 @@ static long sgx_ocall_gettime(void* pms) {
     return 0;
 }
 
-static long sgx_ocall_sleep(void* pms) {
-    ms_ocall_sleep_t* ms = (ms_ocall_sleep_t*)pms;
-    long ret;
-    ODEBUG(OCALL_SLEEP, ms);
-    if (!ms->ms_microsec) {
-        INLINE_SYSCALL(sched_yield, 0);
-        return 0;
-    }
-    struct timespec req, rem;
-    uint64_t microsec = ms->ms_microsec;
-    const uint64_t VERY_LONG_TIME_IN_US = (uint64_t)1000000 * 60 * 60 * 24 * 365 * 128;
-    if (ms->ms_microsec > VERY_LONG_TIME_IN_US) {
-        /* avoid overflow with time_t */
-        req.tv_sec  = VERY_LONG_TIME_IN_US / 1000000;
-        req.tv_nsec = 0;
-    } else {
-        req.tv_sec  = ms->ms_microsec / 1000000;
-        req.tv_nsec = (microsec - req.tv_sec * (uint64_t)1000000) * 1000;
-    }
-
-    ret = INLINE_SYSCALL(nanosleep, 2, &req, &rem);
-    if (ret == -EINTR)
-        ms->ms_microsec = rem.tv_sec * 1000000UL + rem.tv_nsec / 1000UL;
-    return ret;
+static long sgx_ocall_sched_yield(void* pms) {
+    __UNUSED(pms);
+    ODEBUG(OCALL_SCHED_YIELD, pms);
+    INLINE_SYSCALL(sched_yield, 0);
+    return 0;
 }
 
 static long sgx_ocall_poll(void* pms) {
@@ -743,7 +724,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_SETSOCKOPT]       = sgx_ocall_setsockopt,
     [OCALL_SHUTDOWN]         = sgx_ocall_shutdown,
     [OCALL_GETTIME]          = sgx_ocall_gettime,
-    [OCALL_SLEEP]            = sgx_ocall_sleep,
+    [OCALL_SCHED_YIELD]      = sgx_ocall_sched_yield,
     [OCALL_POLL]             = sgx_ocall_poll,
     [OCALL_RENAME]           = sgx_ocall_rename,
     [OCALL_DELETE]           = sgx_ocall_delete,
