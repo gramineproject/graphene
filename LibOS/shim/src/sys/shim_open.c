@@ -159,6 +159,13 @@ long shim_do_lseek(int fd, off_t offset, int origin) {
         goto out;
     }
 
+    if (hdl->type == TYPE_DIR && origin == SEEK_SET && offset == 0) {
+        hdl->dir_info.buf = (void*)-1;
+        hdl->dir_info.ptr = (void*)-1;
+        put_handle(hdl);
+        return 0;
+    }
+
     if (hdl->type == TYPE_DIR) {
         /* TODO: handle lseek'ing of directories */
         ret = -ENOSYS;
