@@ -344,7 +344,7 @@ long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
                                                                                          \
         struct linux_dirent_tail* bt = (void*)b + DIRENT_SIZE(len) - sizeof(*bt);        \
                                                                                          \
-        b->d_ino    = (dent)->ino;                                                       \
+        b->d_ino    = dentry_ino(dent);                                                  \
         b->d_off    = ++dirhdl->offset;                                                  \
         b->d_reclen = DIRENT_SIZE(len);                                                  \
                                                                                          \
@@ -445,7 +445,7 @@ long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count) {
         if (bytes + DIRENT_SIZE(len) > count) \
             goto done;                        \
                                               \
-        b->d_ino    = (dent)->ino;            \
+        b->d_ino    = dentry_ino(dent);       \
         b->d_off    = ++dirhdl->offset;       \
         b->d_reclen = DIRENT_SIZE(len);       \
         b->d_type   = (type);                 \

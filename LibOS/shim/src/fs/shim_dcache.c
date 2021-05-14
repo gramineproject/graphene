@@ -244,6 +244,10 @@ bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent) {
     return false;
 }
 
+ino_t dentry_ino(struct shim_dentry* dent) {
+    return hash_abs_path(dent);
+}
+
 static size_t dentry_path_size(struct shim_dentry* dent, bool relative) {
     /* The following code should mirror `dentry_path_into_buf`. */
 
@@ -374,7 +378,6 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
 
     DUMP_FLAG(DENTRY_VALID, "V", ".");
     DUMP_FLAG(DENTRY_LISTED, "L", ".");
-    DUMP_FLAG(DENTRY_INO_UPDATED, "I", ".");
     DUMP_FLAG(DENTRY_SYNTHETIC, "S", ".");
     buf_printf(&buf, "%3d] ", (int)REF_GET(dent->ref_count));
 

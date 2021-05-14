@@ -113,16 +113,6 @@ static inline int get_or_create_tmpfs_data(struct shim_dentry* dent,
     return 0;
 }
 
-static void tmpfs_update_ino(struct shim_dentry* dent) {
-    if (dent->state & DENTRY_INO_UPDATED)
-        return;
-
-    unsigned long ino = hash_abs_path(dent);
-
-    dent->ino = ino;
-    dent->state |= DENTRY_INO_UPDATED;
-}
-
 static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     int ret = 0;
     struct shim_tmpfs_data* data;
@@ -136,7 +126,6 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
         data->type = FILE_DIR;
         data->mode = PERM_rwxrwxrwx;
         dent->type = S_IFDIR;
-        tmpfs_update_ino(dent);
     }
 
     if (data->type == FILE_UNKNOWN) {
@@ -147,7 +136,6 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
         data->type = FILE_REGULAR;
         data->mode = PERM_rwxrwxrwx;
         dent->type = S_IFREG;
-        tmpfs_update_ino(dent);
         /* always keep data for tmpfs until unlink */
         REF_INC(data->str_data.ref_count);
     }
@@ -309,7 +297,6 @@ static int query_dentry(struct shim_dentry* dent, mode_t* mode, struct stat* sta
 
         stat->st_mode  = (mode_t)data->mode;
         stat->st_dev   = 0;
-        stat->st_ino   = dent->ino;
         stat->st_size  = data->str_data.len;
         stat->st_atime = (time_t)data->atime;
         stat->st_mtime = (time_t)data->mtime;
@@ -352,7 +339,6 @@ static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
 static int tmpfs_lookup(struct shim_dentry* dent) {
     if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
-        dent->ino = 1;
         dent->state |= DENTRY_ISDIRECTORY;
         return 0;
     }
@@ -403,8 +389,6 @@ static int tmpfs_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t
     data->mode = mode;
 
     dent->type = S_IFDIR;
-
-    tmpfs_update_ino(dent);
 
     /* Increment the parent's link count */
     struct shim_tmpfs_data* parent_data = (struct shim_tmpfs_data*)dir->data;
@@ -473,7 +457,6 @@ static int tmpfs_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) 
             continue;
 
         struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-        dptr->ino  = tmp_dent->ino;
         dptr->type = tmp_data->type == FILE_DIR ? LINUX_DT_DIR : LINUX_DT_REG;
         memcpy(dptr->name, qstrgetstr(&tmp_dent->name), tmp_dent->name.len + 1);
         size_t len = SHIM_DIRENT_ALIGNED_SIZE(tmp_dent->name.len + 1);

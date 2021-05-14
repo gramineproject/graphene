@@ -57,7 +57,7 @@ struct shim_fs_ops {
     /* Returns 0 on success, -errno on error */
     int (*truncate)(struct shim_handle* hdl, off_t len);
 
-    /* hstat: get status of the file */
+    /* hstat: get status of the file; `st_ino` will be taken from dentry, if there's one */
     int (*hstat)(struct shim_handle* hdl, struct stat* buf);
 
     /* setflags: set flags of the file */
@@ -101,7 +101,6 @@ struct shim_fs_ops {
 //#define DENTRY_REACHABLE    0x0400  /* permission checked to be reachable */
 //#define DENTRY_UNREACHABLE  0x0800  /* permission checked to be unreachable */
 #define DENTRY_LISTED      0x1000 /* children in directory listed */
-#define DENTRY_INO_UPDATED 0x2000 /* ino updated */
 #define DENTRY_SYNTHETIC   0x4000 /* Auto-generated dentry to connect a mount point in the        \
                                    * manifest to the root, when one or more intermediate          \
                                    * directories do not exist on the underlying FS. The semantics \
@@ -129,7 +128,6 @@ struct shim_dentry {
 
     struct shim_mount* mounted;
     void* data;
-    unsigned long ino;
     mode_t type;
     mode_t mode;
 
@@ -166,7 +164,7 @@ struct shim_d_ops {
     /* create a directory inside a directory */
     int (*mkdir)(struct shim_dentry* dir, struct shim_dentry* dent, mode_t mode);
 
-    /* stat: get status of the file */
+    /* stat: get status of the file; `st_ino` will be taken from dentry */
     int (*stat)(struct shim_dentry* dent, struct stat* buf);
 
     /* extracts the symlink name and saves in link */
@@ -536,6 +534,8 @@ int dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str);
 static inline const char* dentry_get_name(struct shim_dentry* dent) {
     return qstrgetstr(&dent->name);
 }
+
+ino_t dentry_ino(struct shim_dentry* dent);
 
 /*!
  * \brief Allocate and initialize a new dentry

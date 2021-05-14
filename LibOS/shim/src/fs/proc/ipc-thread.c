@@ -243,11 +243,11 @@ static int proc_ipc_thread_dir_stat(const char* name, struct stat* buf) {
         for (size_t i = 0; i < pid_status_cache->nstatus; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 memset(buf, 0, sizeof(struct stat));
-                buf->st_dev = buf->st_ino = 1;
-                buf->st_mode              = PERM_r_x______ | S_IFDIR;
-                buf->st_uid               = 0; /* XXX */
-                buf->st_gid               = 0; /* XXX */
-                buf->st_size              = 4096;
+                buf->st_dev  = 1;
+                buf->st_mode = PERM_r_x______ | S_IFDIR;
+                buf->st_uid  = 0; /* XXX */
+                buf->st_gid  = 0; /* XXX */
+                buf->st_size = 4096;
                 unlock(&status_lock);
                 return 0;
             }
@@ -328,7 +328,6 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, size
         }
 
         ptr->next      = (void*)(ptr + 1) + l + 1;
-        ptr->ino       = 1;
         ptr->type      = LINUX_DT_DIR;
         ptr->name[l--] = 0;
         for (p = pid; p; p /= 10) {

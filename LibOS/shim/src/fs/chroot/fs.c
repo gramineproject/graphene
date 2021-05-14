@@ -26,7 +26,7 @@
 struct mount_data {
     size_t data_size;
     enum shim_file_type base_type;
-    unsigned long ino_base;
+    unsigned long dev;
     size_t root_uri_len;
     char root_uri[];
 };
@@ -59,7 +59,7 @@ static int chroot_mount(const char* uri, void** mount_data) {
 
     mdata->data_size    = data_size;
     mdata->base_type    = type;
-    mdata->ino_base     = hash_str(uri);
+    mdata->dev          = hash_str(uri);
     mdata->root_uri_len = uri_len;
     memcpy(mdata->root_uri, uri, uri_len + 1);
 
@@ -280,15 +280,6 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
     return 0;
 }
 
-/* do not need any lock */
-static void chroot_update_ino(struct shim_dentry* dent) {
-    if (dent->state & DENTRY_INO_UPDATED)
-        return;
-
-    dent->ino = hash_abs_path(dent);
-    dent->state |= DENTRY_INO_UPDATED;
-}
-
 static inline int try_create_data(struct shim_dentry* dent, const char* uri, size_t len,
                                   struct shim_file_data** dataptr) {
     struct shim_file_data* data = FILE_DENTRY_DATA(dent);
@@ -327,13 +318,11 @@ static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, mode_t*
 
     if (stat) {
         struct mount_data* mdata = DENTRY_MOUNT_DATA(dent);
-        chroot_update_ino(dent);
 
         memset(stat, 0, sizeof(struct stat));
 
         stat->st_mode  = (mode_t)data->mode;
-        stat->st_dev   = (dev_t)mdata->ino_base;
-        stat->st_ino   = (ino_t)dent->ino;
+        stat->st_dev   = (dev_t)mdata->dev;
         stat->st_size  = (off_t)__atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
         stat->st_atime = (time_t)data->atime;
         stat->st_mtime = (time_t)data->mtime;
@@ -403,11 +392,6 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
             if (ret < 0)
                 return pal_to_unix_errno(ret);
         }
-
-        /* If DENTRY_LISTED is set on the parent dentry, list_directory_dentry() will not update
-         * dent's ino, so ino will be actively updated here. */
-        if (create)
-            chroot_update_ino(dent);
     }
 
     if (!data->queried) {
@@ -593,13 +577,9 @@ static int chroot_hstat(struct shim_handle* hdl, struct stat* stat) {
         struct shim_dentry* dent = hdl->dentry;
         struct mount_data* mdata = dent ? DENTRY_MOUNT_DATA(dent) : NULL;
 
-        if (dent)
-            chroot_update_ino(dent);
-
         if (stat) {
             memset(stat, 0, sizeof(struct stat));
-            stat->st_dev  = mdata ? (dev_t)mdata->ino_base : 0;
-            stat->st_ino  = dent ? (ino_t)dent->ino : 0;
+            stat->st_dev  = mdata ? (dev_t)mdata->dev : 0;
             stat->st_size = file->size;
             stat->st_mode |= (file->type == FILE_REGULAR) ? S_IFREG : S_IFCHR;
         }
@@ -825,8 +805,6 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
-    chroot_update_ino(dent);
-
     const char* uri = qstrgetstr(&data->host_uri);
     assert(strstartswith(uri, URI_PREFIX_DIR));
 
@@ -905,7 +883,6 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
             }
 
             struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
-            dptr->ino  = hash_name(dent->ino, name);
             dptr->type = is_dir ? LINUX_DT_DIR : LINUX_DT_REG;
             memcpy(dptr->name, name, len + 1);
 

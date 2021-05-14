@@ -176,11 +176,11 @@ static int proc_thread_link_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
 
-    buf->st_dev = buf->st_ino = 1;
-    buf->st_mode              = PERM_r________ | S_IFLNK;
-    buf->st_uid               = 0;
-    buf->st_gid               = 0;
-    buf->st_size              = 0;
+    buf->st_dev  = 1;
+    buf->st_mode = PERM_r________ | S_IFLNK;
+    buf->st_uid  = 0;
+    buf->st_gid  = 0;
+    buf->st_size = 0;
 
     return 0;
 }
@@ -292,7 +292,6 @@ static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, 
             }
 
             dirent->next      = (void*)(dirent + 1) + l + 1;
-            dirent->ino       = 1;
             dirent->type      = LINUX_DT_LNK;
             dirent->name[0]   = '0';
             dirent->name[l--] = 0;
@@ -502,7 +501,7 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
     retry_emit_vma:
         if (vma->file) {
             int dev_major = 0, dev_minor = 0;
-            unsigned long ino = vma->file->dentry ? vma->file->dentry->ino : 0;
+            unsigned long ino = vma->file->dentry ? dentry_ino(vma->file->dentry) : 0;
             char* path = NULL;
 
             if (vma->file->dentry)
@@ -578,11 +577,11 @@ static int proc_thread_maps_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(struct stat));
 
-    buf->st_dev = buf->st_ino = 1;
-    buf->st_mode              = PERM_r________ | S_IFREG;
-    buf->st_uid               = 0;
-    buf->st_gid               = 0;
-    buf->st_size              = 0;
+    buf->st_dev  = 1;
+    buf->st_mode = PERM_r________ | S_IFREG;
+    buf->st_uid  = 0;
+    buf->st_gid  = 0;
+    buf->st_size = 0;
 
     return 0;
 }
@@ -642,11 +641,11 @@ static int proc_thread_cmdline_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
 
-    buf->st_dev = buf->st_ino = 1;
-    buf->st_mode              = PERM_r________ | S_IFREG;
-    buf->st_uid               = 0;
-    buf->st_gid               = 0;
-    buf->st_size              = 0;
+    buf->st_dev  = 1;
+    buf->st_mode = PERM_r________ | S_IFREG;
+    buf->st_uid  = 0;
+    buf->st_gid  = 0;
+    buf->st_size = 0;
 
     return 0;
 }
@@ -696,8 +695,8 @@ static int proc_thread_dir_stat(const char* name, struct stat* buf) {
         return -ENOENT;
 
     memset(buf, 0, sizeof(struct stat));
-    buf->st_dev = buf->st_ino = 1;
-    buf->st_mode              = PERM_r_x______ | S_IFDIR;
+    buf->st_dev = 1;
+    buf->st_mode = PERM_r_x______ | S_IFDIR;
     lock(&thread->lock);
     buf->st_uid = thread->uid;
     buf->st_gid = thread->gid;
@@ -752,7 +751,6 @@ static int walk_cb(struct shim_thread* thread, void* arg) {
     struct shim_dirent* buf = args->buf;
 
     buf->next      = (void*)(buf + 1) + buflen;
-    buf->ino       = 1;
     buf->type      = LINUX_DT_DIR;
     buf->name[l--] = 0;
     for (p = pid; p; p /= 10) {

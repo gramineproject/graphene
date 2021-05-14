@@ -70,7 +70,6 @@ static int dev_attestation_readonly_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
     buf->st_dev  = 1; /* dummy ID of device containing file */
-    buf->st_ino  = 1; /* dummy inode number */
     buf->st_mode = FILE_R_MODE | S_IFREG;
     return 0;
 }
@@ -79,7 +78,6 @@ static int dev_attestation_readwrite_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
     buf->st_dev  = 1; /* dummy ID of device containing file */
-    buf->st_ino  = 1; /* dummy inode number */
     buf->st_mode = FILE_RW_MODE | S_IFREG;
     return 0;
 }

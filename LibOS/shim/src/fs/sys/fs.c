@@ -134,7 +134,6 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, size_t
 
         memcpy(dirent_in_buf->name, ent_name, name_size);
         dirent_in_buf->next = (void*)dirent_in_buf + dirent_size;
-        dirent_in_buf->ino  = 1;
         dirent_in_buf->type = LINUX_DT_DIR;
         dirent_in_buf = dirent_in_buf->next;
     }
@@ -153,7 +152,6 @@ int sys_info_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
     buf->st_dev  = 1;    /* dummy ID of device containing file */
-    buf->st_ino  = 1;    /* dummy inode number */
     buf->st_mode = FILE_R_MODE | S_IFREG;
     return 0;
 }

@@ -199,7 +199,6 @@ struct shim_sock_handle {
 
 struct shim_dirent {
     struct shim_dirent* next;
-    unsigned long ino; /* Inode number */
     unsigned char type;
     char name[]; /* File name (null-terminated) */
 };

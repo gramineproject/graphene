@@ -16,6 +16,38 @@
 #include "shim_process.h"
 #include "shim_table.h"
 
+static int do_stat(struct shim_dentry* dent, struct stat* stat) {
+    struct shim_mount* fs = dent->fs;
+
+    if (!fs || !fs->d_ops || !fs->d_ops->stat)
+        return -EACCES;
+
+    int ret = fs->d_ops->stat(dent, stat);
+    if (ret < 0)
+        return ret;
+
+    /* Update `st_ino` from dentry */
+    stat->st_ino = dentry_ino(dent);
+    return 0;
+}
+
+static int do_hstat(struct shim_handle* hdl, struct stat* stat) {
+    struct shim_mount* fs = hdl->fs;
+
+    if (!fs || !fs->fs_ops || !fs->fs_ops->hstat)
+        return -EACCES;
+
+    int ret = fs->fs_ops->hstat(hdl, stat);
+    if (ret < 0)
+        return ret;
+
+    /* Update `st_ino` from dentry */
+    if (hdl->dentry)
+        stat->st_ino = dentry_ino(hdl->dentry);
+
+    return 0;
+}
+
 long shim_do_stat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
         return -EFAULT;
@@ -27,19 +59,10 @@ long shim_do_stat(const char* file, struct stat* stat) {
     struct shim_dentry* dent = NULL;
 
     if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_FOLLOW, &dent)) < 0)
-        goto out;
+        return ret;
 
-    struct shim_mount* fs = dent->fs;
-
-    if (!fs->d_ops || !fs->d_ops->stat) {
-        ret = -EACCES;
-        goto out_dentry;
-    }
-
-    ret = fs->d_ops->stat(dent, stat);
-out_dentry:
+    ret = do_stat(dent, stat);
     put_dentry(dent);
-out:
     return ret;
 }
 
@@ -54,19 +77,10 @@ long shim_do_lstat(const char* file, struct stat* stat) {
     struct shim_dentry* dent = NULL;
 
     if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_NO_FOLLOW, &dent)) < 0)
-        goto out;
+        return ret;
 
-    struct shim_mount* fs = dent->fs;
-
-    if (!fs->d_ops || !fs->d_ops->stat) {
-        ret = -EACCES;
-        goto out_dentry;
-    }
-
-    ret = fs->d_ops->stat(dent, stat);
-out_dentry:
+    ret = do_stat(dent, stat);
     put_dentry(dent);
-out:
     return ret;
 }
 
@@ -75,17 +89,7 @@ long shim_do_fstat(int fd, struct stat* stat) {
     if (!hdl)
         return -EBADF;
 
-    int ret = -EACCES;
-    struct shim_mount* fs = hdl->fs;
-
-    if (!fs || !fs->fs_ops)
-        goto out;
-
-    if (!fs->fs_ops->hstat)
-        goto out;
-
-    ret = fs->fs_ops->hstat(hdl, stat);
-out:
+    int ret = do_hstat(hdl, stat);
     put_handle(hdl);
     return ret;
 }

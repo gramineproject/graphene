@@ -80,12 +80,10 @@ static int pseudo_findent(const char* path, const struct pseudo_ent* root_ent,
 }
 
 /*! Populate supplied buffer with dirents (see pseudo_readdir() for details). */
-static int populate_dirent(struct shim_dentry* dent, const char* path, const struct pseudo_dir* dir,
-                           struct shim_dirent* buf, size_t buf_size) {
+static int populate_dirent(const char* path, const struct pseudo_dir* dir, struct shim_dirent* buf,
+                           size_t buf_size) {
     if (!dir->size)
         return 0;
-
-    HASHTYPE dir_hash = hash_abs_path(dent);
 
     struct shim_dirent* dirent_in_buf = buf;
     size_t total_size = 0;
@@ -104,7 +102,6 @@ static int populate_dirent(struct shim_dentry* dent, const char* path, const str
 
             memcpy(dirent_in_buf->name, ent->name, name_size);
             dirent_in_buf->next = (void*)dirent_in_buf + dirent_size;
-            dirent_in_buf->ino  = hash_name(dir_hash, ent->name);
             dirent_in_buf->type = ent->dir ? LINUX_DT_DIR : ent->type;
 
             dirent_in_buf = dirent_in_buf->next;
@@ -156,7 +153,6 @@ int pseudo_dir_stat(const char* name, struct stat* buf) {
     memset(buf, 0, sizeof(*buf));
 
     buf->st_dev     = 1;    /* dummy ID of device containing file */
-    buf->st_ino     = 1;    /* dummy inode number */
     buf->st_size    = 4096; /* dummy total size, in bytes */
     buf->st_blksize = 4096; /* dummy bulk size, in bytes */
     buf->st_mode    = DIR_RX_MODE | S_IFDIR;
@@ -215,7 +211,6 @@ out:
 int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent) {
     if (dent->state & DENTRY_MOUNTPOINT) {
         /* root of pseudo-FS */
-        dent->ino    = 1;
         dent->state |= DENTRY_ISDIRECTORY;
         return 0;
     }
@@ -311,7 +306,7 @@ int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
     while (true) {
         buf = malloc(buf_size);
 
-        ret = populate_dirent(dent, rel_path, ent->dir, buf, buf_size);
+        ret = populate_dirent(rel_path, ent->dir, buf, buf_size);
         if (!ret) {
             /* successfully listed all entries */
             break;
