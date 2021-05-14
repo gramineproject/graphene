@@ -177,6 +177,7 @@ clean-tmp:
 		*.sig \
 		*.tmp \
 		*.token \
+		*.dat \
 		*~ \
 		.cache \
 		.pytest_cache \
