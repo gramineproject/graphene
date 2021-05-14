@@ -29,18 +29,7 @@ cflags_libos += cc.get_supported_arguments(
 # use TLS-based stack protector of GCC (we rely on the fact that LibOS reuses the same TCB as its
 # underlying PAL which must have a canary in its PAL_TCB at offset 0x8, so no additional enabling
 # is required in the LibOS code);
-# not all compilers support mstack-protector-guard, so use stack protector only if supported
-cflags_libos_stack_protector = [
-    '-fstack-protector-strong',
-    '-mstack-protector-guard=tls',
-    '-mstack-protector-guard-reg=%gs',
-    '-mstack-protector-guard-offset=8',
-]
-if cc.has_multi_arguments(cflags_libos_stack_protector)
-    cflags_libos += cflags_libos_stack_protector
-else
-    cflags_libos += '-fno-stack-protector'
-endif
+cflags_libos += cflags_stack_protector
 
 if host_machine.cpu_family() == 'x86_64'
     cflags_libos += ['-mfxsr', '-mxsave']

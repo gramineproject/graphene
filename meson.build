@@ -1,3 +1,7 @@
+#
+# Project configuration, options, modules, scripts
+#
+
 project(
     'graphene', 'c',
     version: '1.0',
@@ -39,6 +43,25 @@ python3mod = import('python3')
 python3 = python3mod.find_python()
 
 subdir('Scripts')
+
+#
+# Common checks and flags
+#
+
+# not all compilers support mstack-protector-guard, so use stack protector only if supported
+cflags_stack_protector = [
+    '-fstack-protector-strong',
+    '-mstack-protector-guard=tls',
+    '-mstack-protector-guard-reg=%gs',
+    '-mstack-protector-guard-offset=8',
+]
+if not cc.has_multi_arguments(cflags_stack_protector)
+    cflags_stack_protector = '-fno-stack-protector'
+endif
+
+#
+# The compilation
+#
 
 subdir('LibOS')
 subdir('Runtime')
