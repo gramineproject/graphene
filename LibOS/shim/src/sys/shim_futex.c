@@ -16,7 +16,6 @@
  */
 
 #include <linux/futex.h>
-#include <linux/time.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -30,6 +29,7 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_types.h"
+#include "shim_utils.h"
 #include "spinlock.h"
 
 struct shim_futex;
@@ -307,10 +307,6 @@ static struct shim_futex* find_futex(uint32_t* uaddr) {
     futex = container_of(node, struct shim_futex, tree_node);
     get_futex(futex);
     return futex;
-}
-
-static uint64_t timespec_to_us(const struct timespec* ts) {
-    return (uint64_t)ts->tv_sec * 1000000u + (uint64_t)ts->tv_nsec / 1000u;
 }
 
 static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t bitset) {
@@ -715,10 +711,11 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
 
     if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_WAIT_BITSET || cmd == FUTEX_LOCK_PI ||
                   cmd == FUTEX_WAIT_REQUEUE_PI)) {
-        if (test_user_memory(utime, sizeof(struct timespec), /*write=*/false)) {
+        struct __kernel_timespec* user_timeout = utime;
+        if (test_user_memory(user_timeout, sizeof(*user_timeout), /*write=*/false)) {
             return -EFAULT;
         }
-        timeout = timespec_to_us((struct timespec*)utime);
+        timeout = timespec_to_us(user_timeout);
         if (cmd != FUTEX_WAIT) {
             /* For FUTEX_WAIT, timeout is interpreted as a relative value, which differs from other
              * futex operations, where timeout is interpreted as an absolute value. */

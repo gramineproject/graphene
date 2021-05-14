@@ -9,6 +9,7 @@
 #include "pal.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
+#include "shim_types.h"
 #include "toml.h"
 
 struct shim_handle;
@@ -168,5 +169,9 @@ extern const toml_table_t* g_manifest_root;
 
 int read_exact(PAL_HANDLE handle, void* buf, size_t size);
 int write_exact(PAL_HANDLE handle, void* buf, size_t size);
+
+static inline uint64_t timespec_to_us(const struct __kernel_timespec* ts) {
+    return ts->tv_sec * TIME_US_IN_S + ts->tv_nsec / TIME_NS_IN_US;
+}
 
 #endif /* _SHIM_UTILS_H */

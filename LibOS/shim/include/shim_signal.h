@@ -2,6 +2,7 @@
 #define _SHIM_SIGNAL_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "shim_defs.h"
 #include "shim_types.h"
@@ -145,5 +146,7 @@ int do_kill_proc(IDTYPE sender, IDTYPE pid, int sig);
 int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig);
 
 void fill_siginfo_code_and_status(siginfo_t* info, int signal, int exit_code);
+
+int do_nanosleep(uint64_t timeout_us, struct __kernel_timespec* rem);
 
 #endif /* _SHIM_SIGNAL_H_ */

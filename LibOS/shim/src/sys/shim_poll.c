@@ -14,6 +14,7 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_signal.h"
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
@@ -215,10 +216,7 @@ long shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfd
             return shim_do_pause();
 
         /* special case of select(0, ..., tsv) used for sleep */
-        struct __kernel_timespec tsp;
-        tsp.tv_sec  = tsv->tv_sec;
-        tsp.tv_nsec = tsv->tv_usec * 1000;
-        return shim_do_nanosleep(&tsp, NULL);
+        return do_nanosleep(tsv->tv_sec * TIME_US_IN_S + tsv->tv_usec, NULL);
     }
 
     if (nfds < __NFDBITS) {
