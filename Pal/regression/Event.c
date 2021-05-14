@@ -27,12 +27,17 @@ static int g_clear_thread_exit = 1;
 static int g_ready = 0;
 
 static void thread_func(void* arg) {
+    PAL_HANDLE sleep_handle = NULL;
+    CHECK(DkEventCreate(&sleep_handle, /*init_signaled=*/false, /*auto_clear=*/false));
+
     PAL_HANDLE event = (PAL_HANDLE)arg;
     set(&g_ready, 1);
     wait_for(&g_ready, 2);
 
-    if (DkThreadDelayExecution(TIME_US_IN_S) != TIME_US_IN_S) {
-        pal_printf("Error: unexpected short sleep\n");
+    uint64_t timeout = TIME_US_IN_S;
+    int ret = DkEventWait(sleep_handle, &timeout);
+    if (ret != -PAL_ERROR_TRYAGAIN || timeout != 0) {
+        pal_printf("Error: unexpected short sleep, remaining time: %lu\n", timeout);
         DkProcessExit(1);
     }
 

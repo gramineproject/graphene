@@ -1,4 +1,5 @@
 #include "pal.h"
+#include "pal_error.h"
 #include "pal_regression.h"
 
 PAL_HANDLE wakeup;
@@ -6,7 +7,19 @@ PAL_HANDLE wakeup;
 static int thread_func(void* args) {
     pal_printf("Enter thread\n");
 
-    DkThreadDelayExecution(3000000);
+    PAL_HANDLE sleep_handle = NULL;
+    if (DkEventCreate(&sleep_handle, /*init_signaled=*/false, /*auto_clear=*/false) < 0) {
+        pal_printf("DkEventCreate failed\n");
+        DkProcessExit(1);
+    }
+
+    uint64_t timeout = 3000000;
+    int ret = DkEventWait(sleep_handle, &timeout);
+    if (ret != -PAL_ERROR_TRYAGAIN) {
+        pal_printf("DkEventWait failed\n");
+        DkProcessExit(1);
+    }
+
     pal_printf("Thread sets event\n");
 
     char byte = 0;

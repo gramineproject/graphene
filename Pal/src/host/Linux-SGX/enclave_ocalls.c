@@ -1356,35 +1356,13 @@ int ocall_gettime(uint64_t* microsec) {
     return retval;
 }
 
-int ocall_sleep(uint64_t* microsec) {
-    int retval = 0;
-    ms_ocall_sleep_t* ms;
-
+void ocall_sched_yield(void) {
     void* old_ustack = sgx_prepare_ustack();
-    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
-    if (!ms) {
-        retval = -EPERM;
-        goto out;
-    }
 
-    WRITE_ONCE(ms->ms_microsec, microsec ? *microsec : 0);
+    /* NOTE: no reason to use exitless for `sched_yield` and it always succeeds. */
+    (void)sgx_ocall(OCALL_SCHED_YIELD, NULL);
 
-    /* NOTE: no reason to use exitless for sleep() */
-    retval = sgx_ocall(OCALL_SLEEP, ms);
-    if (microsec) {
-        if (retval) {
-            uint64_t untrusted_microsec_remaining = READ_ONCE(ms->ms_microsec);
-            if (*microsec < untrusted_microsec_remaining) {
-                retval = -EPERM;
-                goto out;
-            }
-            *microsec -= untrusted_microsec_remaining;
-        }
-    }
-
-out:
     sgx_reset_ustack(old_ustack);
-    return retval;
 }
 
 int ocall_poll(struct pollfd* fds, size_t nfds, int64_t timeout_us) {

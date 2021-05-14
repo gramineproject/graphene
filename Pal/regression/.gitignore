@@ -42,7 +42,6 @@
 /Segment
 /Select
 /SendHandle
-/Sleep
 /Socket
 /Symbols
 /Tcp
@@ -50,8 +49,6 @@
 /Thread2
 /Thread2_exitless
 /Udp
-/Wait
-/Yield
 /normalize_path
 
 /test_file_0

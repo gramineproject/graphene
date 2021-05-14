@@ -2,7 +2,6 @@ DkVirtualMemoryAlloc
 DkVirtualMemoryFree
 DkVirtualMemoryProtect
 DkThreadCreate
-DkThreadDelayExecution
 DkThreadYieldExecution
 DkThreadExit
 DkThreadResume

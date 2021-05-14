@@ -273,9 +273,6 @@ seven calls to create, signal, and block on synchronization objects.
 .. doxygenfunction:: DkThreadCreate
    :project: pal
 
-.. doxygenfunction:: DkThreadDelayExecution
-   :project: pal
-
 .. doxygenfunction:: DkThreadYieldExecution
    :project: pal
 
