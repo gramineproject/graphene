@@ -11,7 +11,7 @@ libos_sources = files(
 	'shim_utils.c',
 )
 
-precompiled_libgraphene = cc.find_library('graphene-lib',
+precompiled_libgraphene_libos = cc.find_library('graphene-lib',
     dirs: join_paths(meson.current_source_dir(), '.lib'))
 
 if direct
@@ -51,7 +51,7 @@ shared_library('sysdb',
     ],
     link_depends: [shim_map, shim_lds],
     dependencies: [
-        precompiled_libgraphene,
+        precompiled_libgraphene_libos,
         precompiled_libpal,
     ],
 
