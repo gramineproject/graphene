@@ -106,58 +106,23 @@ out:
     return ret;
 }
 
-static int proc_ipc_thread_link_open(struct shim_handle* hdl, const char* name, int flags) {
-    struct shim_dentry* dent;
-
-    int ret = find_ipc_thread_link(name, NULL, &dent);
-    if (ret < 0)
-        return ret;
-
-    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->open) {
-        ret = -EACCES;
-        goto out;
-    }
-
-    ret = dent->fs->d_ops->open(hdl, dent, flags);
-out:
-    put_dentry(dent);
+static int proc_ipc_thread_link_mode(const char* name, mode_t* mode) {
+    __UNUSED(name);
+    *mode = PERM_r________ | S_IFLNK;
     return 0;
 }
 
-static int proc_ipc_thread_link_mode(const char* name, mode_t* mode) {
-    struct shim_dentry* dent;
-
-    int ret = find_ipc_thread_link(name, NULL, &dent);
-    if (ret < 0)
-        return ret;
-
-    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->mode) {
-        ret = -EACCES;
-        goto out;
-    }
-
-    ret = dent->fs->d_ops->mode(dent, mode);
-out:
-    put_dentry(dent);
-    return ret;
-}
-
 static int proc_ipc_thread_link_stat(const char* name, struct stat* buf) {
-    struct shim_dentry* dent;
+    __UNUSED(name);
+    memset(buf, 0, sizeof(*buf));
 
-    int ret = find_ipc_thread_link(name, NULL, &dent);
-    if (ret < 0)
-        return ret;
+    buf->st_dev  = 1;
+    buf->st_mode = PERM_r________ | S_IFLNK;
+    buf->st_uid  = 0;
+    buf->st_gid  = 0;
+    buf->st_size = 0;
 
-    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->stat) {
-        ret = -EACCES;
-        goto out;
-    }
-
-    ret = dent->fs->d_ops->stat(dent, buf);
-out:
-    put_dentry(dent);
-    return ret;
+    return 0;
 }
 
 static int proc_ipc_thread_link_follow_link(const char* name, struct shim_qstr* link) {
@@ -165,7 +130,6 @@ static int proc_ipc_thread_link_follow_link(const char* name, struct shim_qstr* 
 }
 
 static const struct pseudo_fs_ops fs_ipc_thread_link = {
-    .open        = &proc_ipc_thread_link_open,
     .mode        = &proc_ipc_thread_link_mode,
     .stat        = &proc_ipc_thread_link_stat,
     .follow_link = &proc_ipc_thread_link_follow_link,
@@ -218,7 +182,7 @@ static int proc_ipc_thread_dir_mode(const char* name, mode_t* mode) {
         for (size_t i = 0; i < pid_status_cache->nstatus; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 unlock(&status_lock);
-                *mode = PERM_r_x______;
+                *mode = PERM_r_x______ | S_IFDIR;
                 return 0;
             }
 

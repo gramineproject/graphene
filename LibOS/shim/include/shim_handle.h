@@ -63,7 +63,6 @@ struct shim_file_data {
     struct atomic_int version;
     bool queried;
     enum shim_file_type type;
-    mode_t mode;
     struct atomic_int size;
     struct shim_qstr host_uri;
     unsigned long atime;

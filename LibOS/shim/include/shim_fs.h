@@ -127,9 +127,14 @@ struct shim_dentry {
     LIST_TYPE(shim_dentry) siblings;
 
     struct shim_mount* mounted;
-    void* data;
+
+    /* file type: S_IFREG, S_IFDIR, S_IFLNK etc. */
     mode_t type;
-    mode_t mode;
+
+    /* file permissions: PERM_rwxrwxrwx, etc. */
+    mode_t perm;
+
+    void* data;
 
     struct shim_lock lock;
     REFTYPE ref_count;
@@ -172,7 +177,7 @@ struct shim_d_ops {
     /* set up symlink name to a dentry */
     int (*set_link)(struct shim_dentry* dent, const char* link);
 
-    /* change the mode or owner of a dentry */
+    /* change the mode or owner of a file; the caller has to update dentry */
     int (*chmod)(struct shim_dentry* dent, mode_t mode);
     int (*chown)(struct shim_dentry* dent, int uid, int gid);
 
@@ -242,8 +247,6 @@ extern struct shim_dentry* g_dentry_root;
 #if 0
 #define MAY_APPEND 010
 #endif
-
-#define NO_MODE ((mode_t)-1)
 
 #define ACC_MODE(x)                                        \
     ((((x) == O_RDONLY || (x) == O_RDWR) ? MAY_READ : 0) | \
