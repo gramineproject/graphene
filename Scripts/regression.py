@@ -73,9 +73,9 @@ class RegressionTestCase(unittest.TestCase):
             else self.DEFAULT_TIMEOUT)
 
         if not self.loader_path.exists():
-            self.skipTest('loader ({}) not found'.format(self.loader_path))
+            self.fail('loader ({}) not found'.format(self.loader_path))
         if not self.libpal_path.exists():
-            self.skipTest('libpal ({}) not found'.format(self.libpal_path))
+            self.fail('libpal ({}) not found'.format(self.libpal_path))
 
         if prefix is None:
             prefix = []
