@@ -355,6 +355,13 @@ static inline int open_flags_to_lookup_flags(int flags) {
     return retval;
 }
 
+static void assoc_handle_with_dentry(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
+    set_handle_fs(hdl, dent->fs);
+    get_dentry(dent);
+    hdl->dentry = dent;
+    hdl->flags = flags;
+}
+
 int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     assert(dent->state & DENTRY_VALID);
     assert(!(dent->state & DENTRY_NEGATIVE));
@@ -372,10 +379,7 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     if (ret < 0)
         goto err;
 
-    set_handle_fs(hdl, fs);
-    get_dentry(dent);
-    hdl->dentry = dent;
-    hdl->flags = flags;
+    assoc_handle_with_dentry(hdl, dent, flags);
 
     if (dent->state & DENTRY_ISDIRECTORY) {
         /* Initialize directory handle */
@@ -435,6 +439,10 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
     int ret = 0;
     struct shim_dentry* dent = NULL;
 
+    /* O_CREAT on a normal file triggers creat(), which needs a handle */
+    if ((flags & O_CREAT) && !(flags & O_DIRECTORY))
+        assert(hdl);
+
     if (hdl)
         assert(!hdl->dentry);
 
@@ -464,6 +472,7 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
         goto err;
     }
 
+    bool need_open = true;
     if (dent->state & DENTRY_NEGATIVE) {
         if (!(flags & O_CREAT)) {
             ret = -ENOENT;
@@ -503,6 +512,8 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
             if (ret < 0)
                 goto err;
             dent->state &= ~DENTRY_NEGATIVE;
+            assoc_handle_with_dentry(hdl, dent, flags);
+            need_open = false;
         }
     } else {
         /* The file exists. This is not permitted if both O_CREAT and O_EXCL are set. */
@@ -518,7 +529,7 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
             goto err;
     }
 
-    if (hdl) {
+    if (hdl && need_open) {
         ret = dentry_open(hdl, dent, flags);
         if (ret < 0)
             goto err;
