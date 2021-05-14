@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "pal.h"
+#include "perm.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
@@ -37,41 +38,8 @@ int check_permissions(struct shim_dentry* dent, mode_t mask) {
     if (mask == F_OK)
         return 0;
 
-    /*
-     * Synthetic directories don't really have permissions.
-     *
-     * TODO: current mount operation marks the mount root as synthetic. Once that's fixed, we'll be
-     * able to disallow W_OK here.
-     */
-    if (dent->state & DENTRY_SYNTHETIC)
-        return 0;
-
-    /* A dentry may not have the mode stored yet. Query the underlying filesystem. */
-    if (dent->mode == NO_MODE) {
-        assert(dent->fs);
-        if (!dent->fs->d_ops || !dent->fs->d_ops->mode) {
-            /* dentry is emulated in LibOS (AF_UNIX socket or FIFO pipe): no permission check */
-            return 0;
-        }
-
-        /* Fall back to the low-level file system */
-        mode_t mode = 0;
-        int err = dent->fs->d_ops->mode(dent, &mode);
-
-        /*
-         * DEP 6/16/17: I think the low-level file system should be
-         * setting modes, rather than defaulting to open here.
-         * I'm ok with a file system that doesn't care setting the
-         * permission to all.
-         */
-        if (err < 0)
-            return err;
-
-        dent->mode = mode;
-    }
-
     /* Check the "user" part of mode against mask */
-    if (((dent->mode >> 6) & mask) == mask)
+    if (((dent->perm >> 6) & mask) == mask)
         return 0;
 
     return -EACCES;
@@ -124,7 +92,22 @@ static int lookup_dentry(struct shim_dentry* parent, const char* name, size_t na
         ret = dent->fs->d_ops->lookup(dent);
 
         if (ret == 0) {
-            /* Lookup succeeded */
+            /*
+             * Lookup succeeded. Now, ensure `dent->perm` and `dent->type` are valid.
+             *
+             * TODO: remove `mode()` as a separate operation, and make sure this is always done by
+             * `lookup()`.
+             */
+            assert(dent->fs->d_ops->mode);
+            mode_t mode;
+            ret = dent->fs->d_ops->mode(dent, &mode);
+            if (ret < 0) {
+                goto err;
+            }
+
+            dent->perm = mode & ~S_IFMT;
+            dent->type = mode & S_IFMT;
+
             dent->state |= DENTRY_VALID;
         } else if (ret == -ENOENT) {
             /* File not found, we will return a negative dentry */
@@ -286,6 +269,8 @@ static int do_path_lookupat(struct shim_dentry* start, const char* path, int fla
                     /* Create a synthetic directory */
                     next_dent->state &= ~DENTRY_NEGATIVE;
                     next_dent->state |= DENTRY_VALID | DENTRY_SYNTHETIC | DENTRY_ISDIRECTORY;
+                    next_dent->type = S_IFDIR;
+                    next_dent->perm = PERM_rwxr_xr_x;
                 } else if (!(is_final && (flags & LOOKUP_CREATE))) {
                     ret = -ENOENT;
                     goto err;
@@ -554,35 +539,6 @@ err:
     return ret;
 }
 
-static inline void set_dirent_type(mode_t* type, int d_type) {
-    switch (d_type) {
-        case LINUX_DT_DIR:
-            *type = S_IFDIR;
-            return;
-        case LINUX_DT_FIFO:
-            *type = S_IFIFO;
-            return;
-        case LINUX_DT_CHR:
-            *type = S_IFCHR;
-            return;
-        case LINUX_DT_BLK:
-            *type = S_IFBLK;
-            return;
-        case LINUX_DT_REG:
-            *type = S_IFREG;
-            return;
-        case LINUX_DT_LNK:
-            *type = S_IFLNK;
-            return;
-        case LINUX_DT_SOCK:
-            *type = S_IFSOCK;
-            return;
-        default:
-            *type = 0;
-            return;
-    }
-}
-
 /* This function enumerates a directory and caches the results in the cache.
  *
  * Input: A dentry for a directory in the DENTRY_ISDIRECTORY and not in the
@@ -652,7 +608,6 @@ int list_directory_dentry(struct shim_dentry* dent) {
             child->state |= DENTRY_VALID | DENTRY_RECENTLY;
         }
 
-        set_dirent_type(&child->type, d->type);
         put_dentry(child);
     }
 

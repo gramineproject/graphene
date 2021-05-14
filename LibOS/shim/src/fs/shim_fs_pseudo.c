@@ -196,12 +196,13 @@ int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent*
     if (ret < 0)
         goto out;
 
-    if (!ent->fs_ops || !ent->fs_ops->mode) {
+    if (ent->fs_ops && ent->fs_ops->mode) {
+        ret = ent->fs_ops->mode(rel_path, mode);
+    } else if (ent->dir) {
+        ret = pseudo_dir_mode(rel_path, mode);
+    } else {
         ret = -EACCES;
-        goto out;
     }
-
-    ret = ent->fs_ops->mode(rel_path, mode);
 out:
     free(rel_path);
     return ret;

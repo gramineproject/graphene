@@ -136,40 +136,10 @@ out:
     return ret;
 }
 
-static int proc_thread_link_open(struct shim_handle* hdl, const char* name, int flags) {
-    struct shim_dentry* dent;
-
-    int ret = find_thread_link(name, NULL, &dent);
-    if (ret < 0)
-        return ret;
-
-    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->open) {
-        ret = -EACCES;
-        goto out;
-    }
-
-    ret = dent->fs->d_ops->open(hdl, dent, flags);
-out:
-    put_dentry(dent);
-    return 0;
-}
-
 static int proc_thread_link_mode(const char* name, mode_t* mode) {
-    struct shim_dentry* dent;
-
-    int ret = find_thread_link(name, NULL, &dent);
-    if (ret < 0)
-        return ret;
-
-    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->mode) {
-        ret = -EACCES;
-        goto out;
-    }
-
-    ret = dent->fs->d_ops->mode(dent, mode);
-out:
-    put_dentry(dent);
-    return ret;
+    __UNUSED(name);
+    *mode = PERM_r________ | S_IFLNK;
+    return 0;
 }
 
 static int proc_thread_link_stat(const char* name, struct stat* buf) {
@@ -190,7 +160,6 @@ static int proc_thread_link_follow_link(const char* name, struct shim_qstr* link
 }
 
 static const struct pseudo_fs_ops fs_thread_link = {
-    .open        = &proc_thread_link_open,
     .mode        = &proc_thread_link_mode,
     .stat        = &proc_thread_link_stat,
     .follow_link = &proc_thread_link_follow_link,
@@ -568,7 +537,7 @@ err:
 static int proc_thread_maps_mode(const char* name, mode_t* mode) {
     // Only used by one file
     __UNUSED(name);
-    *mode = PERM_r________;
+    *mode = PERM_r________ | S_IFREG;
     return 0;
 }
 
@@ -632,7 +601,7 @@ static int proc_thread_cmdline_open(struct shim_handle* hdl, const char* name, i
 static int proc_thread_cmdline_mode(const char* name, mode_t* mode) {
     // Only used by one file
     __UNUSED(name);
-    *mode = PERM_r________;
+    *mode = PERM_r________ | S_IFREG;
     return 0;
 }
 
@@ -677,7 +646,7 @@ static int proc_thread_dir_mode(const char* name, mode_t* mode) {
     if (ret < 0)
         return ret;
 
-    *mode = PERM_r_x______;
+    *mode = PERM_r_x______ | S_IFDIR;
     return 0;
 }
 

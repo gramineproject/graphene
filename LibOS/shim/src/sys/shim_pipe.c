@@ -294,6 +294,8 @@ long shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     }
 
     dent->fs = &fifo_builtin_fs;
+    dent->type = mode & S_IFMT;
+    dent->perm = mode & ~S_IFMT;
 
     /* create two pipe ends */
     hdl1 = get_new_handle();

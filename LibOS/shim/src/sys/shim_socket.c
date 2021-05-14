@@ -15,6 +15,7 @@
 #include "hex.h"
 #include "pal.h"
 #include "pal_error.h"
+#include "perm.h"
 #include "shim_checkpoint.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"
@@ -25,6 +26,7 @@
 #include "shim_signal.h"
 #include "shim_table.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 /*
  * User-settable options (used with setsockopt).
@@ -519,6 +521,8 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
         dent->state ^= DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID | DENTRY_RECENTLY;
         dent->fs   = &socket_builtin_fs;
+        dent->type = S_IFSOCK;
+        dent->perm = PERM_rw_______;
         dent->data = NULL;
     }
 
@@ -793,6 +797,8 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
         dent->state ^= DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID | DENTRY_RECENTLY;
         dent->fs   = &socket_builtin_fs;
+        dent->type = S_IFSOCK;
+        dent->perm = PERM_rw_______;
         dent->data = NULL;
         unlock(&dent->lock);
     }

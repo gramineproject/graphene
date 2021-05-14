@@ -183,7 +183,6 @@ static int create_data(struct shim_dentry* dent, const char* uri, size_t len) {
     struct mount_data* mdata = DENTRY_MOUNT_DATA(dent);
     assert(mdata);
     data->type = (dent->state & DENTRY_ISDIRECTORY) ? FILE_DIR : mdata->base_type;
-    data->mode = NO_MODE;
     data->queried = false;
 
     if (uri) {
@@ -215,29 +214,38 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
         return pal_to_unix_errno(ret);
     }
 
+    mode_t type;
     /* need to correct the data type */
-    if (data->type == FILE_UNKNOWN)
-        switch (pal_attr.handle_type) {
-            case pal_type_file:
-                data->type = FILE_REGULAR;
-                if (dent)
-                    dent->type = S_IFREG;
-                break;
-            case pal_type_dir:
-                data->type = FILE_DIR;
-                if (dent)
-                    dent->type = S_IFDIR;
-                break;
-            case pal_type_dev:
+    switch (pal_attr.handle_type) {
+        case pal_type_file:
+            data->type = FILE_REGULAR;
+            type = S_IFREG;
+            break;
+        case pal_type_dir:
+            data->type = FILE_DIR;
+            type = S_IFDIR;
+            break;
+        case pal_type_dev:
+            if (strstartswith(qstrgetstr(&data->host_uri) + static_strlen(URI_PREFIX_DEV), "tty")) {
+                data->type = FILE_TTY;
+            } else {
                 data->type = FILE_DEV;
-                if (dent)
-                    dent->type = S_IFCHR;
-                break;
-        }
+            }
+            type = S_IFCHR;
+            break;
+        default:
+            log_warning("unknown PAL handle type");
+            type = S_IFREG;
+            break;
+    }
 
-    data->mode = (pal_attr.readable ? S_IRUSR : 0) |
-                 (pal_attr.writable ? S_IWUSR : 0) |
-                 (pal_attr.runnable ? S_IXUSR : 0);
+    mode_t perm = (pal_attr.readable ? S_IRUSR : 0) |
+                  (pal_attr.writable ? S_IWUSR : 0) |
+                  (pal_attr.runnable ? S_IXUSR : 0);
+    if (dent) {
+        dent->type = type;
+        dent->perm = perm;
+    }
 
     __atomic_store_n(&data->size.counter, pal_attr.pending_size, __ATOMIC_SEQ_CST);
 
@@ -315,36 +323,21 @@ static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, mode_t*
     }
 
     if (mode)
-        *mode = data->mode;
+        *mode = dent->type | dent->perm;
 
     if (stat) {
         struct mount_data* mdata = DENTRY_MOUNT_DATA(dent);
 
         memset(stat, 0, sizeof(struct stat));
 
-        stat->st_mode  = (mode_t)data->mode;
+        stat->st_mode  = dent->type | dent->perm;
         stat->st_dev   = (dev_t)mdata->dev;
         stat->st_size  = (off_t)__atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
         stat->st_atime = (time_t)data->atime;
         stat->st_mtime = (time_t)data->mtime;
         stat->st_ctime = (time_t)data->ctime;
         stat->st_nlink = data->nlink;
-
-        switch (data->type) {
-            case FILE_REGULAR:
-                stat->st_mode |= S_IFREG;
-                break;
-            case FILE_DIR:
-                stat->st_mode |= S_IFDIR;
-                break;
-            case FILE_DEV:
-            case FILE_TTY:
-                stat->st_mode |= S_IFCHR;
-                break;
-            default:
-                break;
-        }
-    }
+   }
 
     unlock(&data->lock);
     return 0;
@@ -422,14 +415,7 @@ static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
-    if (dent->mode == NO_MODE) {
-        lock(&data->lock);
-        ret = __query_attr(dent, data, NULL);
-        dent->mode = data->mode;
-        unlock(&data->lock);
-    }
-
-    if ((ret = __chroot_open(dent, NULL, flags, dent->mode, hdl, data)) < 0)
+    if ((ret = __chroot_open(dent, NULL, flags, dent->perm, hdl, data)) < 0)
         return ret;
 
     assert(hdl->type == TYPE_FILE);
@@ -984,8 +970,6 @@ static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
         return pal_to_unix_errno(ret);
     }
 
-    dent->mode = NO_MODE;
-    data->mode = 0;
     data->queried = false;
 
     __atomic_add_fetch(&data->version.counter, 1, __ATOMIC_SEQ_CST);
@@ -1061,12 +1045,9 @@ static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
         return pal_to_unix_errno(ret);
     }
 
-    new->mode = new_data->mode = old_data->mode;
-    old->mode = NO_MODE;
-    old_data->mode = 0;
-    old_data->queried = false;
-
+    new->perm = old->perm;
     new->type = old->type;
+    old_data->queried = false;
 
     DkObjectClose(pal_hdl);
 
@@ -1098,8 +1079,6 @@ static int chroot_chmod(struct shim_dentry* dent, mode_t mode) {
     }
 
     DkObjectClose(pal_hdl);
-    dent->mode = data->mode = mode;
-
     return 0;
 }
 

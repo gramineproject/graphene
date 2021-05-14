@@ -8,12 +8,14 @@
  */
 
 #include "list.h"
+#include "perm.h"
 #include "shim_checkpoint.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_types.h"
+#include "stat.h"
 
 static struct shim_lock dcache_mgr_lock;
 
@@ -41,7 +43,6 @@ static struct shim_dentry* alloc_dentry(void) {
     memset(dent, 0, sizeof(struct shim_dentry));
 
     REF_SET(dent->ref_count, 1);
-    dent->mode = NO_MODE;
 
     INIT_LISTP(&dent->children);
     INIT_LIST_HEAD(dent, siblings);
@@ -76,6 +77,8 @@ int init_dcache(void) {
 
     /* The root should be a directory too*/
     g_dentry_root->state |= DENTRY_ISDIRECTORY;
+    g_dentry_root->perm = PERM_rwx______;
+    g_dentry_root->type = S_IFDIR;
 
     qstrsetstr(&g_dentry_root->name, "", 0);
 
@@ -367,6 +370,29 @@ static int dump_dentry_write_all(const char* str, size_t size, void* arg) {
     return 0;
 }
 
+static void dump_dentry_mode(struct print_buf* buf, mode_t type, mode_t perm) {
+    buf_printf(buf, "%06o ", type | perm);
+    
+    char c;
+    switch (type) {
+        case S_IFSOCK: c = 's'; break;
+        case S_IFLNK: c = 'l'; break;
+        case S_IFREG: c = '-'; break;
+        case S_IFBLK: c = 'b'; break;
+        case S_IFDIR: c = 'd'; break;
+        case S_IFCHR: c = 'c'; break;
+        case S_IFIFO: c = 'f'; break;
+        default: c = '?'; break;
+    }
+    buf_putc(buf, c);
+
+    /* ignore suid/sgid bits; display just user permissions */
+    buf_putc(buf, (perm & 0400) ? 'r' : '-');
+    buf_putc(buf, (perm & 0200) ? 'w' : '-');
+    buf_putc(buf, (perm & 0100) ? 'x' : '-');
+    buf_putc(buf, ' ');
+}
+
 #define DUMP_FLAG(flag, s, empty) buf_puts(&buf, (dent->state & (flag)) ? (s) : (empty))
 
 static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
@@ -380,6 +406,8 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
     DUMP_FLAG(DENTRY_LISTED, "L", ".");
     DUMP_FLAG(DENTRY_SYNTHETIC, "S", ".");
     buf_printf(&buf, "%3d] ", (int)REF_GET(dent->ref_count));
+
+    dump_dentry_mode(&buf, dent->type, dent->perm);
 
     DUMP_FLAG(DENTRY_MOUNTPOINT, "*", " ");
     DUMP_FLAG(DENTRY_NEGATIVE, "-", " ");

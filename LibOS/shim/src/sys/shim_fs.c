@@ -186,7 +186,7 @@ long shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
         dent->state |= DENTRY_PERSIST;
     }
 
-    dent->mode = mode;
+    dent->perm = mode;
 out_dent:
     put_dentry(dent);
 out:
@@ -218,7 +218,7 @@ long shim_do_fchmod(int fd, mode_t mode) {
         dent->state |= DENTRY_PERSIST;
     }
 
-    dent->mode = mode;
+    dent->perm = mode;
 out:
     put_handle(hdl);
     return ret;
