@@ -332,11 +332,7 @@ struct linux_file_handle {
     unsigned char f_handle[0];
 };
 
-#ifdef __x86_64__
 typedef Elf64_auxv_t elf_auxv_t;
-#else
-typedef Elf64_auxv_t elf_auxv_t;
-#endif
 
 /* typedef for shim internal types */
 typedef unsigned int IDTYPE;

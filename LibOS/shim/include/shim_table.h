@@ -54,7 +54,7 @@ long shim_do_madvise(unsigned long start, size_t len_in, int behavior);
 long shim_do_dup(unsigned int fd);
 long shim_do_dup2(unsigned int oldfd, unsigned int newfd);
 long shim_do_pause(void);
-long shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp);
+long shim_do_nanosleep(struct __kernel_timespec* req, struct __kernel_timespec* rem);
 long shim_do_getitimer(int which, struct __kernel_itimerval* value);
 long shim_do_alarm(unsigned int seconds);
 long shim_do_setitimer(int which, struct __kernel_itimerval* value,
@@ -164,8 +164,8 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
 long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* event);
 long shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp);
 long shim_do_clock_getres(clockid_t which_clock, struct timespec* tp);
-long shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
-                             struct __kernel_timespec* rmtp);
+long shim_do_clock_nanosleep(clockid_t clock_id, int flags, struct __kernel_timespec* req,
+                             struct __kernel_timespec* rem);
 long shim_do_exit_group(int error_code);
 long shim_do_tgkill(int tgid, int pid, int sig);
 long shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,

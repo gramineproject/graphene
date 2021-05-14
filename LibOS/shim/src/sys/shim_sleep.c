@@ -1,59 +1,104 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
-
-/*
- * Implementation of system calls "pause" and "nanosleep".
+/* Copyright (C) 2021 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
-#include <errno.h>
-
+#include "api.h"
+#include "cpu.h"
 #include "pal.h"
-#include "pal_error.h"
-#include "shim_handle.h"
 #include "shim_internal.h"
+#include "shim_signal.h"
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
-#include "shim_vma.h"
 
 long shim_do_pause(void) {
-    /* ~0ULL micro sec ~= 805675 years */
-    DkThreadDelayExecution(~((PAL_NUM)0));
-    return -EINTR;
+    thread_prepare_wait();
+    while (!have_pending_signals()) {
+        int ret = thread_wait(/*timeout_us=*/NULL, /*ignore_pending_signals=*/false);
+        __UNUSED(ret);
+        assert(ret == 0 || ret == -EINTR);
+    }
+    return -ERESTARTNOHAND;
 }
 
-long shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp) {
-    if (!rqtp)
-        return -EFAULT;
-
-    if (!(rqtp->tv_sec >= 0 && 0 <= rqtp->tv_nsec && rqtp->tv_nsec < 1000000000L))
-        return -EINVAL;
-
-    unsigned long time = rqtp->tv_sec * 1000000L + rqtp->tv_nsec / 1000;
-    unsigned long ret = DkThreadDelayExecution(time);
-
-    if (ret < time) {
-        if (rmtp) {
-            unsigned long remtime = time - ret;
-            rmtp->tv_sec  = remtime / 1000000L;
-            rmtp->tv_nsec = (remtime - rmtp->tv_sec * 1000) * 1000;
+int do_nanosleep(uint64_t timeout_us, struct __kernel_timespec* rem) {
+    int ret = -EINTR;
+    thread_prepare_wait();
+    while (!have_pending_signals()) {
+        ret = thread_wait(&timeout_us, /*ignore_pending_signals=*/false);
+        if (ret == -ETIMEDOUT) {
+            ret = 0;
+            break;
         }
-        return -EINTR;
+        ret = -EINTR;
+    }
+    /*
+     * If `have_pending_signals` spotted a signal, we just pray it was targeted directly at this
+     * thread or no other thread handles it first.
+     * Ideally, we could have something like the Linux kernel: restart block, which holds a pointer
+     * to a function to be called instead of restarting the syscall.
+     */
+
+    if (rem) {
+        rem->tv_sec = timeout_us / TIME_US_IN_S;
+        rem->tv_nsec = (timeout_us % TIME_US_IN_S) * TIME_NS_IN_US;
+    }
+
+    return ret;
+}
+
+static int check_params(struct __kernel_timespec* req, struct __kernel_timespec* rem) {
+    if (test_user_memory(req, sizeof(*req), /*write=*/false)) {
+        return -EFAULT;
+    }
+    if (rem && test_user_memory(rem, sizeof(*rem), /*write=*/true)) {
+        return -EFAULT;
+    }
+
+    if (req->tv_sec < 0 || req->tv_nsec < 0 || (uint64_t)req->tv_nsec >= TIME_NS_IN_S) {
+        return -EINVAL;
     }
 
     return 0;
 }
 
-long shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
-                            struct __kernel_timespec* rmtp) {
-    /* all clocks are the same */
-    if (!(0 <= clock_id && clock_id < MAX_CLOCKS))
-        return -EINVAL;
+long shim_do_nanosleep(struct __kernel_timespec* req, struct __kernel_timespec* rem) {
+    int ret = check_params(req, rem);
+    if (ret < 0) {
+        return ret;
+    }
+    return do_nanosleep(timespec_to_us(req), rem);;
+}
 
-    if (flags) {
-        log_warning("Graphene's clock_nanosleep does not support non-zero flags (0x%x)\n", flags);
+long shim_do_clock_nanosleep(clockid_t clock_id, int flags, struct __kernel_timespec* req,
+                             struct __kernel_timespec* rem) {
+    /* In Graphene all cloks are the same. */
+    if (clock_id < 0 || clock_id >= MAX_CLOCKS) {
         return -EINVAL;
     }
 
-    return shim_do_nanosleep(rqtp, rmtp);
+    int ret = check_params(req, rem);
+    if (ret < 0) {
+        return ret;
+    }
+
+    uint64_t timeout_us = timespec_to_us(req);
+    if (flags & TIMER_ABSTIME) {
+        uint64_t current_time = 0;
+        ret = DkSystemTimeQuery(&current_time);
+        if (ret < 0) {
+            ret = pal_to_unix_errno(ret);
+            log_error("clock_nanosleep: DkSystemTimeQuery failed with: %d\n", ret);
+            die_or_inf_loop();
+        }
+        if (timeout_us < current_time) {
+            /* We timed out even before reaching this point. */
+            return 0;
+        }
+        timeout_us -= current_time;
+        rem = NULL;
+    }
+
+    return do_nanosleep(timeout_us, rem);
 }
