@@ -553,7 +553,6 @@ def generate_measurement(enclave_base, attr, areas):
                     area.addr = area.addr + area.size - preheat_enclave_sz
                     area.size = preheat_enclave_sz
 
-
             for addr in range(area.addr, area.addr + area.size, offs.PAGESIZE):
                 data = ZERO_PAGE
                 if area.content is not None:
@@ -710,7 +709,7 @@ def read_manifest(path):
     sgx.setdefault('preheat_enclave_sz', '0')
     sgx.setdefault('edmm_enable_heap', 0)
     sgx.setdefault('edmm_batch_allocation', 0)
-
+    sgx.setdefault('edmm_lazyfree_th', 0)
 
     loader = manifest.setdefault('loader', {})
     loader.setdefault('preload', '')
@@ -740,10 +739,15 @@ def main_sign(manifest, args):
     attr['preheat_enclave_sz'] = parse_size(manifest_sgx['preheat_enclave_sz'])
     attr['edmm_enable_heap'] = manifest_sgx['edmm_enable_heap']
     attr['edmm_batch_allocation'] = manifest_sgx['edmm_batch_allocation']
+    attr['edmm_lazyfree_th'] = manifest_sgx['edmm_lazyfree_th']
 
     if attr['preheat_enclave_sz'] < 0:
         raise Exception("preheat_enclave_sz: {0} should be greater than or equal to 0!"
                         .format(attr['preheat_enclave_sz']))
+
+    if attr['edmm_lazyfree_th'] < 0 or attr['edmm_lazyfree_th'] > 100:
+        raise Exception("edmm_lazyfree_th: {0} is a percent value and so ranges between 0 and 100!"
+                        .format(attr['edmm_lazyfree_th']))
 
     print('Attributes:')
     print(f'    size:                  {attr["enclave_size"]:#x}')
@@ -757,6 +761,7 @@ def main_sign(manifest, args):
     print(f'    edmm_enable_heap:      {attr["edmm_enable_heap"]}')
     print(f'    preheat_enclave_sz:    {attr["preheat_enclave_sz"]}')
     print(f'    edmm_batch_allocation: {attr["edmm_batch_allocation"]}')
+    print(f'    edmm_lazyfree_th:      {attr["edmm_lazyfree_th"]}')
 
     if manifest_sgx['remote_attestation']:
         spid = manifest_sgx.get('ra_client_spid', '')

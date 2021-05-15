@@ -610,6 +610,9 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* Extract the mmap'd region to share addr and number of EPC pages requested with driver. */
     g_pal_sec.eaug_base = sec_info.eaug_base;
 
+    /* Extract enclave heap lazy free threshold */
+    g_pal_sec.edmm_lazyfree_th = sec_info.edmm_lazyfree_th;
+
     /* For {p,u,g}ids we can at least do some minimal checking. */
 
     /* ppid should be positive when interpreted as signed. It's 0 if we don't

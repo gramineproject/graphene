@@ -441,6 +441,7 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
             return -ENOMEM;
         }
 
+        memset((void*)eaug_base, 0, sizeof(struct sgx_eaug_range_param) * num_threads);
         g_pal_enclave.pal_sec.eaug_base = eaug_base;
 
         struct sgx_eaug_base_init init_param = {
