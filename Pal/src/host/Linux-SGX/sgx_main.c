@@ -783,6 +783,15 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     }
     enclave_info->pal_sec.edmm_batch_alloc = edmm_batch_alloc;
 
+    int64_t edmm_lazyfree_th = 0;
+    ret = toml_int_in(manifest_root, "sgx.edmm_lazyfree_th", /*defaultval=*/0, &edmm_lazyfree_th);
+    if (ret < 0 || (edmm_lazyfree_th < 0)) {
+        log_error("Cannot parse 'sgx.edmm_lazyfree_th' (the value must be 0 or greater)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->pal_sec.edmm_lazyfree_th = edmm_lazyfree_th;
+
     char* profile_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);
     if (ret < 0) {

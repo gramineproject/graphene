@@ -460,6 +460,19 @@ the pages requested.
    New SGX driver IOCTL is experimental and is not yet available as part of official
    Intel SGX OOT driver release. This option is not yet ready for public usage.
 
+EDMM Lazy Free optimization (Experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.edmm_lazyfree_th = [NUM]
+    (Default: 0)
+
+This syntax specifies the **percentage** of total heap that can be freed in a lazy manner.
+Until this threshold is met, graphene doesn't release any dynamically allocated memory.
+This optimization helps reduce the expensive enclave entries/exits associated with dynamic
+freeing of EPC pages.
+
 Optional CPU features (AVX, AVX512, MPX, PKRU)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

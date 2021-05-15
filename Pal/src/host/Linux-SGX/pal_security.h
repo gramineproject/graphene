@@ -29,6 +29,7 @@ struct pal_sec {
     PAL_NUM preheat_enclave_sz;
     bool edmm_batch_alloc;
     PAL_NUM eaug_base;
+    PAL_NUM edmm_lazyfree_th;
 
     /* child's stream FD created and sent over by parent */
     PAL_IDX stream_fd;

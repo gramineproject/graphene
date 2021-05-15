@@ -4,6 +4,7 @@
 #include <stdalign.h>
 
 #include "api.h"
+#include "edmm_pages.h"
 #include "list.h"
 #include "pal_error.h"
 #include "pal_internal.h"
@@ -11,10 +12,12 @@
 #include "pal_security.h"
 #include "spinlock.h"
 
+extern uint64_t g_edmm_lazyfree_th_bytes;
+
 struct atomic_int g_allocated_pages;
 
-static void* g_heap_bottom;
-static void* g_heap_top;
+void* g_heap_bottom;
+void* g_heap_top;
 
 static size_t g_pal_internal_mem_used = 0;
 
@@ -30,18 +33,11 @@ struct heap_vma {
 };
 DEFINE_LISTP(heap_vma);
 
-struct edmm_heap_range {
-    void* addr;
-    size_t size;
-};
-
 static LISTP_TYPE(heap_vma) g_heap_vma_list = LISTP_INIT;
-static spinlock_t g_heap_vma_lock = INIT_SPINLOCK_UNLOCKED;
+spinlock_t g_heap_vma_lock = INIT_SPINLOCK_UNLOCKED;
 
 /* heap_vma objects are taken from pre-allocated pool to avoid recursive mallocs */
 #define MAX_HEAP_VMAS 100000
-/* TODO: Setting this as 64 to start with, but will need to revisit */
-#define EDMM_HEAP_RANGE_CNT 64
 static struct heap_vma g_heap_vma_pool[MAX_HEAP_VMAS];
 static size_t g_heap_vma_num = 0;
 static struct heap_vma* g_free_vma = NULL;
@@ -88,142 +84,12 @@ static void __free_vma(struct heap_vma* vma) {
 int init_enclave_pages(void) {
     g_heap_bottom = g_pal_sec.heap_min;
     g_heap_top    = g_pal_sec.heap_max;
-    log_debug("%s: g_heap_bottom: %p, g_heap_top: %p\n", __func__, g_heap_bottom, g_heap_top);
-    return 0;
-}
 
-/* Returns size that is non overlapping with the pre-allocated heap when preheat option is turned on.
- * 0 means entire request overlaps with the pre-allocated region. */
-static size_t find_preallocated_heap_nonoverlap(void* addr, size_t size) {
-    size_t non_overlapping_sz = size;
-
-    if (g_pal_sec.preheat_enclave_sz > 0) {
-        if ((char*)addr >= (char*)g_heap_top - g_pal_sec.preheat_enclave_sz)
-            /* Full overlap: Entire request lies in the pre-allocated region */
-            non_overlapping_sz = 0;
-        else if ((char*)addr + size > (char*)g_heap_top - g_pal_sec.preheat_enclave_sz)
-            /* Partial overlap: Update size to skip the overlapped region. */
-            non_overlapping_sz = (char*)g_heap_top - g_pal_sec.preheat_enclave_sz - (char*)addr;
-        else
-            /* No overlap */
-            non_overlapping_sz = size;
-    }
-
-    return non_overlapping_sz;
-}
-
-/* This function trims EPC pages on enclave's request. The sequence is as below:
- * 1. Enclave calls SGX driver IOCTL to change the page's type to PT_TRIM.
- * 2. Driver invokes ETRACK to track page's address on all CPUs and issues IPI to flush stale TLB
- * entries.
- * 3. Enclave issues an EACCEPT to accept changes to each EPC page.
- * 4. Enclave notifies the driver to remove EPC pages (using an IOCTL).
- * 5. Driver issues EREMOVE to complete the request. */
-static int free_edmm_page_range(void* start, size_t size) {
-    void* addr = ALLOC_ALIGN_DOWN_PTR(start);
-    size_t non_overlapping_sz = find_preallocated_heap_nonoverlap(addr, size);
-    log_debug("%s: preallocated heap addr = %p, org_size = %lx, updated_size=%lx\n", __func__, addr,
-              size, non_overlapping_sz);
-
-    /* Entire request overlaps with preallocated heap, so simply return. */
-    if (non_overlapping_sz == 0)
-        return 0;
-    else
-        size = non_overlapping_sz;
-
-    void* end = (void*)((char*)addr + size);
-    int ret = 0;
-
-    alignas(64) sgx_arch_sec_info_t secinfo;
-    secinfo.flags = SGX_SECINFO_FLAGS_TRIM | SGX_SECINFO_FLAGS_MODIFIED;
-    memset(&secinfo.reserved, 0, sizeof(secinfo.reserved));
-
-    size_t nr_pages = size / g_pal_state.alloc_align;
-    ret = ocall_trim_epc_pages(addr, nr_pages);
-    if (ret < 0) {
-        log_debug("EPC trim page on [%p, %p) failed (%d)\n", addr, end, ret);
-        return ret;
-    }
-
-    for (void* page_addr = addr; page_addr < end;
-        page_addr = (void*)((char*)page_addr + g_pal_state.alloc_align)) {
-        ret = sgx_accept(&secinfo, page_addr);
-        if (ret) {
-            log_debug("EDMM accept page failed while trimming: %p %d\n", page_addr, ret);
-            return -EFAULT;
-        }
-    }
-
-    ret = ocall_notify_accept(addr, nr_pages);
-    if (ret < 0) {
-        log_debug("EPC notify_accept on [%p, %p), %ld pages failed (%d)\n", addr, end, nr_pages, ret);
-        return ret;
-    }
-
-    return 0;
-}
-
-/* This function allocates EPC pages within ELRANGE of an enclave. If EPC pages contain
- * executable code, page permissions are extended once the page is in a valid state. The
- * allocation sequence is described below:
- * 1. Enclave invokes EACCEPT on a new page request which triggers a page fault (#PF) as the page
- * is not available yet.
- * 2. Driver catches this #PF and issues EAUG for the page (at this point the page becomes VALID and
- * may be used by the enclave). The control returns back to enclave.
- * 3. Enclave continues the same EACCEPT and the instruction succeeds this time. */
-static int get_edmm_page_range(void* start, size_t size, bool executable) {
-    size_t non_overlapping_sz = find_preallocated_heap_nonoverlap(start, size);
-    log_debug("%s: preallocated heap addr = %p, org_size = %lx, updated_size=%lx\n", __func__,
-              start, size, non_overlapping_sz);
-
-    /* Entire request overlaps with preallocated heap, so simply return. */
-    if (non_overlapping_sz == 0)
-        return 0;
-    else
-        size = non_overlapping_sz;
-
-    if (g_pal_sec.edmm_batch_alloc) {
-        /* Pass faulting address to the driver for EAUGing the range */
-        int tid = pal_get_cur_tid();
-        assert(tid);
-
-        struct sgx_eaug_range_param *eaug_range = (struct sgx_eaug_range_param*)g_pal_sec.eaug_base;
-        eaug_range[tid-1].fault_addr = (unsigned long)((char*)start + size -
-                                                       g_pal_state.alloc_align);
-        eaug_range[tid-1].mem_seg = HEAP;
-        eaug_range[tid-1].num_pages = size / g_pal_state.alloc_align;
-
-        log_debug("fault_addr = 0x%lx, mem_seg = %d, num_pages = %d\n",
-                  eaug_range[tid-1].fault_addr, eaug_range[tid-1].mem_seg,
-                  eaug_range[tid-1].num_pages);
-    }
-
-    void* lo = start;
-    void* addr = (void*)((char*)lo + size);
-
-    alignas(64) sgx_arch_sec_info_t secinfo;
-    secinfo.flags = SGX_SECINFO_FLAGS_R | SGX_SECINFO_FLAGS_W | SGX_SECINFO_FLAGS_REG |
-                    SGX_SECINFO_FLAGS_PENDING;
-    memset(&secinfo.reserved, 0, sizeof(secinfo.reserved));
-
-    while (lo < addr) {
-        int ret;
-        addr = (void*)((char*)addr - g_pal_state.alloc_align);
-
-        ret = sgx_accept(&secinfo, addr);
-        if (ret) {
-            log_debug("EDMM accept page failed: %p %d\n", addr, ret);
-            return -EFAULT;
-        }
-
-        /* All new pages will have RW permissions initially, so after EAUG/EACCEPT, extend
-         * permission of a VALID enclave page (if needed). */
-        if (executable) {
-            alignas(64) sgx_arch_sec_info_t secinfo_extend = secinfo;
-
-            secinfo_extend.flags |= SGX_SECINFO_FLAGS_X;
-            sgx_modpe(&secinfo_extend, addr);
-        }
+    /* Extract EDMM lazy free threashold from the percentage */
+    if (g_pal_sec.edmm_enable_heap && g_pal_sec.edmm_lazyfree_th > 0) {
+        g_edmm_lazyfree_th_bytes = (g_heap_top - g_heap_bottom) * g_pal_sec.edmm_lazyfree_th / 100;
+        log_debug("g_heap_bottom: %p, g_heap_top: %p, g_edmm_lazyfree_th_bytes= 0x%lx\n",
+                   g_heap_bottom, g_heap_top, g_edmm_lazyfree_th_bytes);
     }
 
     return 0;
@@ -231,7 +97,7 @@ static int get_edmm_page_range(void* start, size_t size, bool executable) {
 
 static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_internal,
                                     struct heap_vma* vma_above,
-                                    struct edmm_heap_range* heap_ranges_to_alloc) {
+                                    struct edmm_heap_pool* heap_ranges_to_alloc) {
     assert(spinlock_is_locked(&g_heap_vma_lock));
     assert(addr && size);
 
@@ -354,11 +220,9 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
     void* ret = NULL;
     /* TODO: Should we introduce a compiler switch for EDMM? */
-    struct edmm_heap_range heap_ranges_to_alloc[EDMM_HEAP_RANGE_CNT] = {0};
-
+    struct edmm_heap_pool heap_ranges_to_alloc[EDMM_HEAP_RANGE_CNT] = {0};
     if (!size)
         return NULL;
-
     size = ALIGN_UP(size, g_page_size);
     addr = ALIGN_DOWN_PTR(addr, g_page_size);
 
@@ -414,11 +278,36 @@ out:
         for (int i = 0; i < EDMM_HEAP_RANGE_CNT; i++) {
             if (!heap_ranges_to_alloc[i].size)
                 break;
-            int retval = get_edmm_page_range(heap_ranges_to_alloc[i].addr,
-                                             heap_ranges_to_alloc[i].size, /*executable=*/true);
-            if (retval < 0) {
-                ret = NULL;
-                break;
+
+            void* start_addr = heap_ranges_to_alloc[i].addr;
+            size_t req_sz = heap_ranges_to_alloc[i].size;
+            size_t non_overlapping_sz = find_preallocated_heap_nonoverlap(start_addr, req_sz);
+
+            log_debug("%s: preallocated heap addr = %p, org_size = %lx, updated_size=%lx\n",
+                      __func__, start_addr, req_sz, non_overlapping_sz);
+
+            /* Entire request overlaps with preallocated heap, so simply continue. */
+            if (non_overlapping_sz == 0)
+                continue;
+
+            /* Check if the req. range is available in the pending_free EPC list, if so update the
+             * list and continue to the next reqested range. */
+            struct edmm_heap_pool updated_heap_alloc[EDMM_HEAP_RANGE_CNT] = {0};
+            int req_cnt = remove_from_pending_free_epc(start_addr, non_overlapping_sz,
+                                                       updated_heap_alloc);
+            if (req_cnt < 0 ) {
+                return NULL;
+            }
+
+            for (int j= 0; j < req_cnt; j++) {
+                log_debug("%s: updated_start = %p, updated_size = 0x%lx\n", __func__,
+                          updated_heap_alloc[j].addr, updated_heap_alloc[j].size);
+                int retval = get_edmm_page_range(updated_heap_alloc[j].addr,
+                                                 updated_heap_alloc[j].size, /*executable=*/true);
+                if (retval < 0) {
+                    ret = NULL;
+                    break;
+                }
             }
         }
     }
@@ -429,7 +318,7 @@ out:
 int free_enclave_pages(void* addr, size_t size) {
     int ret = 0;
     /* TODO: Should we introduce a compiler switch for EDMM? */
-    struct edmm_heap_range heap_ranges_to_free[EDMM_HEAP_RANGE_CNT] = {0};
+    struct edmm_heap_pool heap_ranges_to_free[EDMM_HEAP_RANGE_CNT] = {0};
     int free_cnt = 0;
 
     if (!size)
@@ -486,7 +375,6 @@ int free_enclave_pages(void* addr, size_t size) {
                 free_heap_top == heap_ranges_to_free[free_cnt-1].addr) {
                 heap_ranges_to_free[free_cnt-1].addr = free_heap_bottom;
                 heap_ranges_to_free[free_cnt-1].size += range;
-                assert(0);
             } else {
                 assert(free_cnt < EDMM_HEAP_RANGE_CNT);
                 /* found a new non-contiguous range */
@@ -530,7 +418,23 @@ int free_enclave_pages(void* addr, size_t size) {
 out:
     if (ret >=0 && g_pal_sec.edmm_enable_heap) {
         for (int i = 0; i < free_cnt; i++) {
-            ret = free_edmm_page_range(heap_ranges_to_free[i].addr, heap_ranges_to_free[i].size);
+            void* start_addr = heap_ranges_to_free[i].addr;
+            size_t req_sz = heap_ranges_to_free[i].size;
+
+            size_t non_overlapping_sz = find_preallocated_heap_nonoverlap(start_addr, req_sz);
+            log_debug("%s: preallocated heap addr = %p, org_size = %lx, updated_size=%lx\n",
+                      __func__, start_addr, req_sz, non_overlapping_sz);
+
+            /* Entire request overlaps with preallocated heap, so simply continue. */
+            if (non_overlapping_sz == 0)
+                continue;
+
+            if (g_pal_sec.edmm_lazyfree_th > 0) {
+                ret = add_to_pending_free_epc(start_addr, non_overlapping_sz);
+            } else {
+                ret = free_edmm_page_range(start_addr, non_overlapping_sz);
+            }
+
             if (ret < 0) {
                 ret = -PAL_ERROR_INVAL;
                 break;
