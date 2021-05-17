@@ -7,9 +7,9 @@
 #include <linux/un.h>
 #include <stdbool.h>
 
+#include "aesm.pb-c.h"
 #include "gsgx.h"
 #include "linux_utils.h"
-#include "quote/aesm.pb-c.h"
 #include "sgx_attest.h"
 #include "sgx_internal.h"
 #include "sgx_log.h"
