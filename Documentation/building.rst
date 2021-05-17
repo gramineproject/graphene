@@ -68,6 +68,7 @@ running, and Intel SGX SDK/PSW/DCAP must be installed.
 Run the following commands on Ubuntu to install SGX-related dependencies::
 
     sudo apt-get install -y \
+        libcjson-dev \
         libcurl4-openssl-dev \
         libprotobuf-c-dev \
         protobuf-c-compiler \

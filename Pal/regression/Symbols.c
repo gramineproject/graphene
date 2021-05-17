@@ -10,7 +10,7 @@
 
 #define PRINT_SYMBOL(sym) pal_printf("symbol: %s = %p\n", #sym, SYMBOL_ADDR(sym))
 
-int main(int argc, char** argv, char** envp) {
+int main(void) {
     PRINT_SYMBOL(DkVirtualMemoryAlloc);
     PRINT_SYMBOL(DkVirtualMemoryFree);
     PRINT_SYMBOL(DkVirtualMemoryProtect);

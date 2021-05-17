@@ -9,12 +9,17 @@
  * creation.
  */
 
+#define _GNU_SOURCE
+
+#include "sgx_process.h"
+
 #include <asm/errno.h>
 #include <asm/fcntl.h>
 #include <linux/fs.h>
+#include <sched.h>
+#include <sys/socket.h>
 
 #include "linux_utils.h"
-#include "pal_linux.h"
 #include "pal_rtld.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"

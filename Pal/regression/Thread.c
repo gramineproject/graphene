@@ -34,7 +34,7 @@ static void callback(void* args) {
     /* UNREACHABLE */
 }
 
-int main() {
+int main(void) {
     if (DkSegmentRegisterSet(PAL_SEGMENT_FS, &private1) < 0) {
         pal_printf("Failed to set FS\n");
         return 1;

@@ -15,6 +15,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     jq \
     libapr1-dev \
     libaprutil1-dev \
+    libcjson-dev \
     libcurl4-openssl-dev \
     libelf-dev \
     libevent-dev \
@@ -66,8 +67,9 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     zlib1g \
     zlib1g-dev
 
-RUN python3 -m pip install \
-    asv
+RUN python3 -m pip install -U \
+    asv \
+    'meson<0.56'
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN \

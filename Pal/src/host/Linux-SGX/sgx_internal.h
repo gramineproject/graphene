@@ -11,8 +11,8 @@
 #include <sys/syscall.h>
 
 #include "api.h"
-#include "pal_linux.h"
 #include "pal_security.h"
+#include "sgx_attest.h"
 #include "sgx_syscall.h"
 #include "toml.h"
 

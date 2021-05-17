@@ -20,8 +20,8 @@ class TC_50_ProtectedFiles(test_fs.TC_00_FileSystem):
     def setUpClass(cls):
         super().setUpClass()
 
-        cls.PF_CRYPT = 'bin/pf_crypt'
-        cls.PF_TAMPER = 'bin/pf_tamper'
+        cls.PF_CRYPT = 'graphene-sgx-pf-crypt'
+        cls.PF_TAMPER = 'graphene-sgx-pf-tamper'
         cls.WRAP_KEY = os.path.join(cls.TEST_DIR, 'wrap-key')
         # CONST_WRAP_KEY must match the one in manifest
         cls.CONST_WRAP_KEY = [0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88,

@@ -7,7 +7,7 @@
 
 char zerobuf[sizeof(sgx_report_t)] = {0};
 
-int main(int argc, char** argv) {
+int main(void) {
     int ret;
 
     size_t user_report_data_size;

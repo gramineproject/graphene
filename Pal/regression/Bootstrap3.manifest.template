@@ -1,0 +1,7 @@
+pal.entrypoint = "file:{{ graphene.pkglibdir }}/Bootstrap3"
+loader.log_level = "debug"
+loader.preload = "file:{{ graphene.pkglibdir }}/Preload1.so,file:{{ graphene.pkglibdir }}/Preload2.so"
+loader.argv0_override = "Bootstrap3"
+
+sgx.trusted_files.entrypoint = "file:{{ graphene.pkglibdir }}/Bootstrap3"
+sgx.nonpie_binary = true
