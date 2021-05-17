@@ -756,7 +756,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     pal_set_tcb_stack_canary(stack_protector_canary);
 
-    g_pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
+    assert(!g_pal_sec.enclave_flags); /* currently only PAL_ENCLAVE_INITIALIZED */
+    g_pal_sec.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
 
     /* call main function */
     pal_main(g_pal_sec.instance_id, parent, first_thread, arguments, environments);

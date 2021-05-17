@@ -12,6 +12,7 @@
 #include "api.h"
 #include "cpu.h"
 #include "gsgx.h"
+#include "hex.h"
 #include "linux_utils.h"
 #include "pal.h"
 #include "pal_defs.h"
