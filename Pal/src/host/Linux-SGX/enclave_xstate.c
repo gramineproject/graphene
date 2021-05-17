@@ -41,7 +41,7 @@
 #include "crypto.h"
 #include "enclave_pages.h"
 #include "list.h"
-#include "pal_debug.h"
+#include "pal.h"
 #include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"

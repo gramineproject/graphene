@@ -12,7 +12,6 @@
 #include <asm/mman.h>
 
 #include "pal.h"
-#include "pal_debug.h"
 #include "shim_checkpoint.h"
 #include "shim_internal.h"
 #include "shim_lock.h"

@@ -10,7 +10,6 @@
 #include "api.h"
 #include "list.h"
 #include "pal.h"
-#include "pal_debug.h"
 #include "pal_error.h"
 #include "shim_checkpoint.h"
 #include "shim_fs.h"

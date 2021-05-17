@@ -15,9 +15,8 @@ the host. The implemented PAL must support :doc:`host-abi`.
 
 In fact, even in the PAL source code, we expect part of the code to be
 host-generic. To make porting Graphene easier, we deliberately separate the
-source code of PAL into three parts:
+source code of PAL into two parts:
 
-* :file:`Pal/lib`: All the library APIs used internally by PAL.
 * :file:`Pal/src`: Host-generic implementation.
 * :file:`Pal/src/host/{host name}`: Host-specific implementation.
 

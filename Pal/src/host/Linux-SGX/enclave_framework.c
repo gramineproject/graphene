@@ -5,7 +5,6 @@
 #include "enclave_pages.h"
 #include "hex.h"
 #include "list.h"
-#include "pal_debug.h"
 #include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"

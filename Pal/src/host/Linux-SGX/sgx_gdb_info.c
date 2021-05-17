@@ -3,7 +3,6 @@
  *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
  */
 
-#include "pal_debug.h"
 #include "sgx_internal.h"
 
 /* This function is hooked by our gdb integration script and should be left as is. */

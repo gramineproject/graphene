@@ -11,6 +11,8 @@
 #include "api.h"
 #include "assert.h"
 #include "atomic.h"
+#include "pal.h"
+#include "pal_error.h"
 #include "shim_defs.h"
 #include "shim_internal-arch.h"
 #include "shim_tcb.h"
@@ -25,10 +27,6 @@ void* shim_init(int argc, void* args);
 static inline bool is_internal_tid(unsigned int tid) {
     return tid >= INTERNAL_TID_BASE;
 }
-
-#include "pal.h"
-#include "pal_debug.h"
-#include "pal_error.h"
 
 extern int g_log_level;
 

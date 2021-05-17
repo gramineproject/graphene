@@ -1,21 +1,17 @@
 include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
-include ../src/host/$(PAL_HOST)/Makefile.am
-
-# FIXME: currently disable GCC's stack protector in the common libs because they are linked with
-#        different libraries/executables including those that do not provide __stack_chk_fail(),
-#        e.g. PAL regression tests (in particular, avl_tree_test.c)
-CFLAGS += -fno-stack-protector
 
 CFLAGS += \
 	-I../include \
 	-I../include/arch/$(ARCH) \
-	-I../include/arch/$(ARCH)/$(PAL_HOST) \
-	-I../include/host/$(PAL_HOST) \
-	-I../include/lib \
-	-I../include/pal \
-	-I../src/host/$(PAL_HOST) \
 	-Icrypto/mbedtls/include
+
+CFLAGS += -fPIC -fno-builtin -Wextra
+
+# FIXME: currently disable GCC's stack protector in the common lib because it is linked with
+#        different libraries/executables including those that do not provide __stack_chk_fail(),
+#        e.g. PAL regression tests (in particular, avl_tree_test.c)
+CFLAGS += -fno-stack-protector
 
 CRYPTO_PROVIDER ?= mbedtls
 
@@ -139,7 +135,7 @@ uthash.h:
 
 uthash.patched: uthash.h
 	patch -p2 < uthash.patch || exit 255
-	cp uthash.h ../include/lib/uthash.h
+	cp uthash.h ../include/uthash.h
 	touch $@
 
 TOML_COMMIT ?= 5be06807ad5f2230cad99e15380c4f4076c9dd83
@@ -160,7 +156,7 @@ toml.c:
 
 toml.patched: toml.h toml.c
 	patch -p1 -l < toml.patch || exit 255
-	cp toml.h ../include/lib/toml.h
+	cp toml.h ../include/toml.h
 	touch $@
 
 .PHONY: clean
@@ -170,5 +166,5 @@ clean:
 .PHONY: distclean
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/mbedtls
-	$(RM) ../include/lib/uthash.h uthash.h uthash.patched
-	$(RM) ../include/lib/toml.h toml.h toml.c toml.patched
+	$(RM) ../include/uthash.h uthash.h uthash.patched
+	$(RM) ../include/toml.h toml.h toml.c toml.patched

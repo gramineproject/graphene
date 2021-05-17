@@ -14,7 +14,6 @@
 #include "api.h"
 #include "assert.h"
 #include "list.h"
-#include "pal_debug.h"
 
 // Before calling any of `system_malloc` and `system_free` this library will
 // acquire `SYSTEM_LOCK` (the systen_* implementation must not do it).
@@ -354,7 +353,7 @@ static inline size_t slab_get_buf_size(const void* ptr) {
     }
 
     if (level >= SLAB_LEVEL) {
-        log_error("Heap corruption detected: invalid heap level %u\n", level);
+        warn("Heap corruption detected: invalid heap level %u\n", level);
         __abort();
     }
 
@@ -390,7 +389,7 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
      * more likely to be detected by adding a non-zero offset to the level,
      * so a level of 0 in the header would no longer be a valid level. */
     if (level >= SLAB_LEVEL) {
-        log_error("Heap corruption detected: invalid heap level %d\n", level);
+        warn("Heap corruption detected: invalid heap level %d\n", level);
         __abort();
     }
 

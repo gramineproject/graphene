@@ -17,7 +17,6 @@
 #include "api.h"
 #include "crypto.h"
 #include "pal.h"
-#include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
 #include "pal_internal.h"

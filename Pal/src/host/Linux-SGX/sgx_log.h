@@ -12,7 +12,6 @@
 #define SGX_LOG_H_
 
 #include "pal.h"
-#include "pal_debug.h"
 
 extern int g_urts_log_level;
 extern int g_urts_log_fd;

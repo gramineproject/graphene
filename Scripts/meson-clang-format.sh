@@ -13,7 +13,7 @@ else
 fi
 
 find Pal LibOS Tools \
-    -path Pal/lib/crypto/mbedtls -prune -o \
+    -path Common/src/crypto/mbedtls -prune -o \
     -path Pal/src/host/Linux-SGX/tools/common/cJSON.c -prune -o \
     -path Pal/src/host/Linux-SGX/tools/common/cJSON.h -prune -o \
     -path Pal/src/host/Linux-SGX/tools/common/cJSON-\*/cJSON.c -prune -o \

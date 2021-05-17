@@ -6,7 +6,7 @@
 
 #include "assert.h"
 #include "linux_utils.h"
-#include "pal_debug.h"
+#include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "perm.h"

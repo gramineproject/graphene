@@ -4,11 +4,12 @@ include Makefile.am
 CFLAGS  += \
 	-I. \
 	-I../.. \
+	-I../../../../Common/include \
+	-I../../../../Common/include/arch/$(ARCH) \
 	-I../../../include  \
 	-I../../../include/arch/$(ARCH) \
 	-I../../../include/arch/$(ARCH)/$(PAL_HOST) \
 	-I../../../include/host/Skeleton \
-	-I../../../include/lib \
 	-I../../../include/pal
 
 ASFLAGS += \
