@@ -44,7 +44,7 @@ PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' 
 #     (2) Generic targets are in "host/{Host Name}/.obj".
 #     (3) API library targets are in "host/{Host Name}/.lib".
 
-ifneq ($(PAL_HOST),Linux)
+ifeq ($(PAL_HOST),Skeleton)
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader)
 endif
@@ -81,7 +81,7 @@ ifneq ($(pal_lib),)
 	runtime_lib += $(RUNTIME_DIR)/libpal-$(PAL_HOST)$(suffix $(pal_lib))
 endif
 
-ifneq ($(PAL_HOST),Linux)
+ifeq ($(PAL_HOST),Skeleton)
 files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
 endif
 
@@ -118,7 +118,7 @@ ifneq ($(pal_lib),)
 $(pal_lib): $(addprefix $(OBJ_DIR)/,$(objs)) \
 	    $(host_lib) $(graphene_lib) $(pal_lib_deps)
 	$(call cmd,ld_so_o)
-ifeq ($(PAL_HOST),Linux)
+ifneq ($(PAL_HOST),Skeleton)
 	@if readelf -a $@ | grep -q NEEDED; then              \
 		echo Error: $@ should not be dynamically linked ; \
 		mv $@ $@.dynamic;                                 \
@@ -161,7 +161,7 @@ clean_targets = clean distclean
 .PHONY: $(clean_targets) clean_
 
 $(clean_targets): clean_
-ifneq ($(PAL_HOST),Linux)
+ifeq ($(PAL_HOST),Skeleton)
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) $@
 endif
 

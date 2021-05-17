@@ -17,7 +17,7 @@ foreach inc : includes_libos
 endforeach
 includes_libos = include_directories(includes_libos)
 
-libos_generated_offsets_s = custom_target('generated-offsets.s',
+libos_generated_offsets_s = custom_target('generated-offsets-libos.s',
     command: [
         cc.cmd_array(),
         cflags_libos, includes_libos_i, '-S',
@@ -25,12 +25,12 @@ libos_generated_offsets_s = custom_target('generated-offsets.s',
         '@INPUT@',
         '-o', '@OUTPUT@'
     ],
-    output: 'generated-offsets.s',
+    output: 'generated-offsets-libos.s',
     input: 'generated-offsets.c',
-    depfile: 'generated-offsets.s.d',
+    depfile: 'generated-offsets.c.d',
 )
 
-libos_asm_offsets_h = custom_target('asm-offsets.h',
+libos_asm_offsets_h = custom_target('asm-offsets.h[libos]',
     command: [gen_offsets_prog, '--output-h', '@OUTPUT@', '@INPUT@'],
     input: libos_generated_offsets_s,
     output: 'asm-offsets.h',

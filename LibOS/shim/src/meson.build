@@ -4,8 +4,7 @@ libgraphene_libos = cc.find_library('graphene-lib',
 if direct
     libpal = libpal_direct_dep
 elif sgx
-    libpal = cc.find_library('pal-Linux-SGX',
-        dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))
+    libpal = libpal_sgx_dep
 else
     error('need to link libsysdb against either PAL')
 endif
