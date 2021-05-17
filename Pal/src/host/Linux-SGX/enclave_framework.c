@@ -14,8 +14,6 @@
 #include "spinlock.h"
 #include "toml.h"
 
-__sgx_mem_aligned struct pal_enclave_state g_pal_enclave_state;
-
 void* g_enclave_base;
 void* g_enclave_top;
 
@@ -132,22 +130,6 @@ static void print_report(sgx_report_t* r) {
     log_debug("  report_data: %s\n",     ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
     log_debug("  key_id:      %s\n",     ALLOCA_BYTES2HEXSTR(r->key_id.id));
     log_debug("  mac:         %s\n",     ALLOCA_BYTES2HEXSTR(r->mac));
-}
-
-static int __sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
-                            sgx_report_t* report) {
-    __sgx_mem_aligned struct pal_enclave_state state;
-    memcpy(&state, &g_pal_enclave_state, sizeof(state));
-    memcpy(&state.enclave_data, data, sizeof(*data));
-
-    int ret = sgx_report(target_info, &state, report);
-    if (ret) {
-        log_error("sgx_report failed: ret = %d)\n", ret);
-        return -PAL_ERROR_DENIED;
-    }
-
-    print_report(report);
-    return 0;
 }
 
 int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t* data,
@@ -874,11 +856,9 @@ int init_enclave(void) {
     // Since this report is only read by ourselves we can
     // leave targetinfo zeroed.
     __sgx_mem_aligned sgx_target_info_t targetinfo = {0};
-    __sgx_mem_aligned struct pal_enclave_state reportdata = {0};
+    __sgx_mem_aligned sgx_report_data_t reportdata = {0};
     __sgx_mem_aligned sgx_report_t report;
 
-    static_assert(sizeof(reportdata) == sizeof(sgx_report_data_t),
-                  "incompatible `reportdata` size");
     int ret = sgx_report(&targetinfo, &reportdata, &report);
     if (ret) {
         log_error("failed to get self report: %d\n", ret);
@@ -888,18 +868,6 @@ int init_enclave(void) {
     memcpy(&g_pal_sec.mr_enclave, &report.body.mr_enclave, sizeof(g_pal_sec.mr_enclave));
     memcpy(&g_pal_sec.mr_signer, &report.body.mr_signer, sizeof(g_pal_sec.mr_signer));
     g_pal_sec.enclave_attributes = report.body.attributes;
-
-    /*
-     * The enclave id is uniquely created for each enclave as a token
-     * for authenticating the enclave as the sender of attestation.
-     * See 'host/Linux-SGX/db_process.c' for further explanation.
-     */
-    ret = _DkRandomBitsRead(&g_pal_enclave_state.enclave_id,
-                            sizeof(g_pal_enclave_state.enclave_id));
-    if (ret < 0) {
-        log_error("Failed to generate a random id: %d\n", ret);
-        return ret;
-    }
 
     return 0;
 }
@@ -1000,8 +968,7 @@ out_no_final:
  * parent enclave and B is the child enclave in the fork case (for more info,
  * see comments in db_process.c).
  */
-int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           mr_enclave_check_t is_mr_enclave_ok) {
+int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1050,8 +1017,8 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
         goto out;
     }
 
-    struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    if (!is_mr_enclave_ok(stream, &report.body.mr_enclave, remote_state)) {
+    if (!is_remote_enclave_ok(&stream->process.session_key, &report.body.mr_enclave,
+                              &report.body.report_data)) {
         log_error("Not an allowed enclave (mr_enclave = %s)\n",
                   ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
@@ -1064,7 +1031,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     memcpy(&target_info.mr_enclave, &report.body.mr_enclave, sizeof(sgx_measurement_t));
     memcpy(&target_info.attributes, &report.body.attributes, sizeof(sgx_attributes_t));
 
-    ret = __sgx_get_report(&target_info, data, &report);
+    ret = sgx_get_report(&target_info, sgx_report_data, &report);
     if (ret < 0) {
         log_error("Failed to get local report from CPU: %ld\n", ret);
         goto out;
@@ -1096,8 +1063,7 @@ out:
  * child enclave and A is the parent enclave in the fork case (for more info,
  * see comments in db_process.c).
  */
-int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           mr_enclave_check_t is_mr_enclave_ok) {
+int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1122,7 +1088,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     /* B -> A: report[B -> A] */
-    ret = __sgx_get_report(&target_info, data, &report);
+    ret = sgx_get_report(&target_info, sgx_report_data, &report);
     if (ret < 0) {
         log_error("Failed to get local report from CPU: %ld\n", ret);
         goto out;
@@ -1163,8 +1129,8 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
         goto out;
     }
 
-    struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    if (!is_mr_enclave_ok(stream, &report.body.mr_enclave, remote_state)) {
+    if (!is_remote_enclave_ok(&stream->process.session_key, &report.body.mr_enclave,
+                              &report.body.report_data)) {
         log_error("Not an allowed enclave (mr_enclave = %s)\n",
                   ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
