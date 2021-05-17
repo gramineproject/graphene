@@ -124,7 +124,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         }
 
         // Only allow THREAD_START after successful enclave initialization.
-        if (!(g_pal_enclave_state.enclave_flags & PAL_ENCLAVE_INITIALIZED)) {
+        if (!(g_pal_sec.enclave_flags & PAL_ENCLAVE_INITIALIZED)) {
             return;
         }
 
