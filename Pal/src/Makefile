@@ -20,13 +20,14 @@ include host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += \
 	-I. \
+	-I../../common/include \
+	-I../../common/include/arch/$(ARCH) \
 	-I$(HOST_DIR) \
 	-I../include \
 	-I../include/pal \
 	-I../include/$(HOST_DIR) \
 	-I../include/arch/$(ARCH) \
-	-I../include/arch/$(ARCH)/$(PAL_HOST) \
-	-I../include/lib
+	-I../include/arch/$(ARCH)/$(PAL_HOST)
 
 # use TLS-based stack protector of GCC (all PALs must have a canary in its PAL_TCB at offset 0x8);
 # not all compilers support mstack-protector-guard, so use stack protector only if supported
@@ -91,7 +92,7 @@ all: $(files_to_build) $(files_to_install)
 .PHONY: host_lib_recurse graphene_lib_recurse
 
 graphene_lib_recurse:
-	$(MAKE) -C ../lib target=$(abspath $(LIB_DIR))/
+	$(MAKE) -C ../../common/src target=$(abspath $(LIB_DIR))/
 
 $(graphene_lib): graphene_lib_recurse
 	@true

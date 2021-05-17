@@ -4,14 +4,15 @@ include Makefile.am
 CFLAGS += \
 	-I. \
 	-Iinclude \
+	-I../../../../common/include \
+	-I../../../../common/include/arch/$(ARCH) \
 	-I../.. \
 	-I../../../include \
 	-I../../../include/pal \
 	-I../../../include/arch/$(ARCH) \
 	-I../../../include/arch/$(ARCH)/Linux \
 	-I../../../include/host/Linux \
-	-I../../../include/host/Linux-common \
-	-I../../../include/lib
+	-I../../../include/host/Linux-common
 
 # use TLS-based stack protector of GCC (Linux PAL must have a canary in its PAL_TCB at offset 0x8);
 # not all compilers support mstack-protector-guard, so use stack protector only if supported

@@ -1,5 +1,6 @@
 /* Attestation API test. Only works for SGX PAL. */
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -9,8 +10,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <mbedtls/base64.h>
-#include <mbedtls/cmac.h>
+#include "mbedtls/base64.h"
+#include "mbedtls/cmac.h"
 
 #include "sgx_api.h"
 #include "sgx_arch.h"

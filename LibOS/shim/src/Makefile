@@ -9,11 +9,12 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -fno-builtin -Wno-inline \
 	  -I../include \
 	  -I../include/arch/$(ARCH) \
+	  -I../../../common/include \
+	  -I../../../common/include/arch/$(ARCH) \
 	  -I../../../Pal/include \
 	  -I../../../Pal/include/arch/$(ARCH) \
 	  -I../../../Pal/include/arch/$(ARCH)/$(PAL_HOST) \
 	  -I../../../Pal/include/elf \
-	  -I../../../Pal/include/lib \
 	  -I../../../Pal/include/pal
 
 CFLAGS += -Wextra
@@ -169,7 +170,7 @@ libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 
 .PHONY: graphene_lib_recurse
 graphene_lib_recurse:
-	$(MAKE) -C ../../../Pal/lib target=$(abspath .lib)/
+	$(MAKE) -C ../../../common/src target=$(abspath .lib)/
 
 $(graphene_lib): graphene_lib_recurse
 	@true

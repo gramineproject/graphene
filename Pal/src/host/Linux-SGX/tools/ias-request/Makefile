@@ -6,7 +6,7 @@ CFLAGS += -I../.. \
           -D_GNU_SOURCE
 
 LDLIBS += -L../common \
-          -L../../../../../lib/crypto/mbedtls/install/lib \
+          -L../../../../../../common/src/crypto/mbedtls/install/lib \
           -lsgx_util -lmbedcrypto
 
 PREFIX ?= /usr/local

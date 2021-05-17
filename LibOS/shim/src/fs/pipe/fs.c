@@ -12,7 +12,6 @@
 #include <linux/fcntl.h>
 
 #include "pal.h"
-#include "pal_debug.h"
 #include "pal_error.h"
 #include "perm.h"
 #include "shim_fs.h"

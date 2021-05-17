@@ -4,14 +4,15 @@ include Makefile.am
 CFLAGS += \
 	-I. \
 	-I../.. \
+	-I../../../../common/include \
+	-I../../../../common/include/arch/$(ARCH) \
+	-I../../../../common/src/crypto/mbedtls/include \
 	-I../../../include \
 	-I../../../include/pal \
 	-I../../../include/arch/$(ARCH) \
 	-I../../../include/arch/$(ARCH)/Linux \
 	-I../../../include/host/Linux-SGX \
 	-I../../../include/host/Linux-common \
-	-I../../../include/lib \
-	-I../../../lib/crypto/mbedtls/include \
 	-Iprotected-files
 
 # Some of the code uses alignof on expressions, which is a GNU extension.

@@ -3,9 +3,10 @@ include ../../Scripts/Makefile.rules
 
 CFLAGS	+= -fno-stack-protector -fno-builtin -nostdlib \
 	  -I. \
+	  -I../../common/include \
+	  -I../../common/include/arch/$(ARCH) \
 	  -I../include \
 	  -I../include/pal \
-	  -I../include/lib \
 	  -I../include/arch/$(ARCH) \
 	  -I../include/arch/$(ARCH)/$(PAL_HOST)
 
@@ -93,18 +94,18 @@ crt_init/user_shared_start.o crt_init/user_start.o: crt_init-recurse
 CFLAGS-Pie = -fPIC -pie
 CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 
-abort.o: CFLAGS += -fPIC
+utils.o: CFLAGS += -fPIC
 
 # workaround: File.manifest.template has strange reference
 # to ../regression/File
 ../regression/File: | File
 	@true
 
-LDLIBS-preloads = crt_init/user_shared_start.o abort.o $(graphene_lib) $(pal_lib)
+LDLIBS-preloads = crt_init/user_shared_start.o utils.o $(graphene_lib) $(pal_lib)
 $(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads)
 
-LDLIBS-executables = crt_init/user_start.o abort.o $(graphene_lib) $(pal_lib) $(preloads)
+LDLIBS-executables = crt_init/user_start.o utils.o $(graphene_lib) $(pal_lib) $(preloads)
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 
@@ -113,7 +114,7 @@ include $(wildcard *.d)
 endif
 
 $(graphene_lib):
-	$(MAKE) -C ../lib target=$(abspath .lib)/
+	$(MAKE) -C ../../common/src target=$(abspath .lib)/
 
 .PHONY: regression
 regression:

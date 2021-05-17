@@ -4,10 +4,10 @@ Graphene also includes the following third party sources (and licenses):
 
 mbedtls crypto libraries - Apache 2.0
 
-Internet Software Consortium (permissive license): Pal/lib/network/inet_pton.c
+Internet Software Consortium (permissive license): common/src/network/inet_pton.c
 
 MIT JOS (mix of MIT and BSD licenses):
-* Pal/lib/stdlib/printfmt.c
+* common/src/stdlib/printfmt.c
 
 cJSON - MIT
 uthash - BSD revised
@@ -21,14 +21,14 @@ A number of files taken from other C libraries:
  ** Pal/include/elf/elf.h
  ** Pal/include/sysdeps/generic/ldsodefs.h
  ** Pal/include/sysdeps/generic/sysdep.h
- ** Pal/lib/network/hton.c
- ** Pal/lib/string/atoi.c
- ** Pal/lib/string/strchr.c
- ** Pal/lib/string/strlen.c
- ** Pal/src/dynamic_link.h, do-rel.h , dl-machine-x86_64.h
+ ** common/src/network/hton.c
+ ** common/src/string/atoi.c
+ ** common/src/string/strchr.c
+ ** common/src/string/strlen.c
+ ** Pal/src/dynamic_link.h, do-rel.h, dl-machine-x86_64.h
  ** Pal/include/arch/x86_64/Linux/ - whole directory - for signal API definitions
  ** We also build a patched glibc
 
 * musl - MIT
- ** Pal/lib/string/strspn.c
- ** Pal/lib/string/ctype.c
+ ** common/src/string/strspn.c
+ ** common/src/string/ctype.c

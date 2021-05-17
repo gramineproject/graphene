@@ -4,7 +4,6 @@
 #ifndef SGX_API_H
 #define SGX_API_H
 
-#include "pal_error.h"
 #include "sgx_arch.h"
 
 long sgx_ocall(uint64_t code, void* ms);

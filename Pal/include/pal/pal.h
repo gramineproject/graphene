@@ -9,6 +9,7 @@
 #ifndef PAL_H
 #define PAL_H
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -827,7 +828,14 @@ int DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
  *
  * \param[out] values the array of the results
  */
-int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
+int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[CPUID_WORD_NUM]);
 #endif
+
+// TODO: Replace this with log_* everywhere
+void pal_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+void pal_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
+
+void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr);
+void DkDebugMapRemove(PAL_PTR start_addr);
 
 #endif /* PAL_H */

@@ -14,10 +14,14 @@
 #include "api.h"
 #include "assert.h"
 #include "list.h"
-#include "pal_debug.h"
+
+/* this header must be included after LibOS/PAL internal headers, so that log_error is available */
+#ifndef log_error
+#error "macro \"log_error\" not declared"
+#endif
 
 // Before calling any of `system_malloc` and `system_free` this library will
-// acquire `SYSTEM_LOCK` (the systen_* implementation must not do it).
+// acquire `SYSTEM_LOCK` (the system_* implementation must not do it).
 #ifndef system_malloc
 #error "macro \"void* system_malloc(size_t size)\" not declared"
 #endif

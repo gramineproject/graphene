@@ -3,7 +3,7 @@
 
 #include "api.h"
 #include "assert.h"
-#include "pal_debug.h"
+#include "pal.h"
 #include "pal_internal.h"
 
 static const char* log_level_to_prefix[] = {

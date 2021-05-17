@@ -15,7 +15,6 @@
 #include "elf-arch.h"
 #include "elf/elf.h"
 #include "pal.h"
-#include "pal_debug.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_rtld.h"
