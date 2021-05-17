@@ -391,8 +391,12 @@ int ocall_close(int fd) {
 
     WRITE_ONCE(ms->ms_fd, fd);
 
-    /* note that close() must not be retried on -EINTR, see e.g. https://lwn.net/Articles/576478 */
-    retval = sgx_exitless_ocall(OCALL_CLOSE, ms);
+    /* We should never restart host-level `close` syscall on errors (including `EINTR`), but
+     * `sgx_ocall_close` does not forward any errors (always returns `0`), so this can only be
+     * an injected `EINTR`. */
+    do {
+        retval = sgx_exitless_ocall(OCALL_CLOSE, ms);
+    } while (retval == -EINTR);
 
     sgx_reset_ustack(old_ustack);
     return retval;
