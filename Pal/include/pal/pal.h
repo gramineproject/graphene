@@ -842,8 +842,6 @@ int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD
 void pal_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 void pal_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-void warn(const char* format, ...);
-
 void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr);
 void DkDebugMapRemove(PAL_PTR start_addr);
 
