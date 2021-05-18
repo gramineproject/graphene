@@ -57,14 +57,14 @@ class OutputHeader(AbstractOutput):
     def write_preamble(self):
         self.file.write('''\
 /* DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED. */
-#ifndef _ASM_OFFSETS_H_
-#define _ASM_OFFSETS_H_
+#ifndef ASM_OFFSETS_H_
+#define ASM_OFFSETS_H_
 
 ''')
 
     def write_footer(self):
         self.file.write('''
-#endif /* _ASM_OFFSETS_H_ */
+#endif /* ASM_OFFSETS_H_ */
 ''')
 
     def write_offset(self, name, offset):
@@ -80,8 +80,10 @@ class OutputPython(AbstractOutput):
 # DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.
 
 ''')
+
     def write_footer(self):
         pass
+
     def write_offset(self, name, offset):
         self.file.write(f'{name} = {offset}\n')
 
