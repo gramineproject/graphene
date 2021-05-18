@@ -367,9 +367,6 @@ and to obtain an attestation report and quote.
 .. doxygenfunction:: DkCpuIdRetrieve
    :project: pal
 
-.. doxygenenum:: PAL_CPUID_WORD
-   :project: pal
-
 .. doxygenfunction:: DkAttestationReport
    :project: pal
 

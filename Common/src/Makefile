@@ -161,7 +161,7 @@ toml.patched: toml.h toml.c
 
 .PHONY: clean
 clean:
-	$(RM) $(objs) graphene-lib.a
+	$(RM) $(objs) $(patsubst %.o,%.d,$(objs)) graphene-lib.a
 
 .PHONY: distclean
 distclean: clean
