@@ -1,5 +1,6 @@
 /* Attestation API test. Only works for SGX PAL. */
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
