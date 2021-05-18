@@ -8,22 +8,22 @@
 #define PAGE_SIZE       (1 << 12)
 #define PRESET_PAGESIZE PAGE_SIZE
 
-enum PAL_CPUID_WORD {
-    PAL_CPUID_WORD_EAX = 0,
-    PAL_CPUID_WORD_EBX = 1,
-    PAL_CPUID_WORD_ECX = 2,
-    PAL_CPUID_WORD_EDX = 3,
-    PAL_CPUID_WORD_NUM = 4,
+enum CPUID_WORD {
+    CPUID_WORD_EAX = 0,
+    CPUID_WORD_EBX = 1,
+    CPUID_WORD_ECX = 2,
+    CPUID_WORD_EDX = 3,
+    CPUID_WORD_NUM = 4,
 };
 
 #define INTEL_SGX_LEAF 0x12 /* Intel SGX Capabilities: CPUID Leaf 12H */
 
 static inline void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]) {
     __asm__("cpuid"
-            : "=a"(words[PAL_CPUID_WORD_EAX]),
-              "=b"(words[PAL_CPUID_WORD_EBX]),
-              "=c"(words[PAL_CPUID_WORD_ECX]),
-              "=d"(words[PAL_CPUID_WORD_EDX])
+            : "=a"(words[CPUID_WORD_EAX]),
+              "=b"(words[CPUID_WORD_EBX]),
+              "=c"(words[CPUID_WORD_ECX]),
+              "=d"(words[CPUID_WORD_EDX])
             : "a"(leaf),
               "c"(subleaf));
 }

@@ -7,8 +7,8 @@
  * by providing a small crypto library adaptor implementing these methods.
  */
 
-#ifndef PAL_CRYPTO_H
-#define PAL_CRYPTO_H
+#ifndef CRYPTO_H
+#define CRYPTO_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -102,4 +102,5 @@ int lib_SSLHandshake(LIB_SSL_CONTEXT* ssl_ctx);
 int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t buf_size);
 int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t buf_size);
 int lib_SSLSave(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t buf_size, size_t* out_size);
-#endif
+
+#endif /* CRYPTO_H */

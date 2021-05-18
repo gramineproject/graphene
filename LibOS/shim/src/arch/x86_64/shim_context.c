@@ -45,16 +45,15 @@ void shim_xstate_init(void) {
     if (DkCpuIdRetrieve(CPUID_LEAF_PROCINFO, 0, value) < 0)
         goto out;
 
-    if (!(value[PAL_CPUID_WORD_ECX] & CPUID_FEATURE_XSAVE) ||
-        !(value[PAL_CPUID_WORD_ECX] & CPUID_FEATURE_OSXSAVE))
+    if (!(value[CPUID_WORD_ECX] & CPUID_FEATURE_XSAVE) ||
+        !(value[CPUID_WORD_ECX] & CPUID_FEATURE_OSXSAVE))
         goto out;
 
     if (DkCpuIdRetrieve(CPUID_LEAF_XSAVE, 0, value) < 0)
         goto out;
 
-    uint32_t xsavesize = value[PAL_CPUID_WORD_ECX];
-    uint64_t xfeatures = value[PAL_CPUID_WORD_EAX] |
-                         ((uint64_t)value[PAL_CPUID_WORD_EDX] << 32);
+    uint32_t xsavesize = value[CPUID_WORD_ECX];
+    uint64_t xfeatures = value[CPUID_WORD_EAX] | ((uint64_t)value[CPUID_WORD_EDX] << 32);
     if (!xsavesize || !xfeatures) {
         /* could not read xfeatures; fall back to old-style FXSAVE */
         goto out;

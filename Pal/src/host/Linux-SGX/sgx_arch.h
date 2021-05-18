@@ -4,7 +4,7 @@
 #ifndef SGX_ARCH_H
 #define SGX_ARCH_H
 
-#include "pal_linux_defs.h"
+#define RED_ZONE_SIZE 128
 
 #ifndef __ASSEMBLER__
 

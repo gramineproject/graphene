@@ -835,7 +835,7 @@ int DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
  *
  * \param[out] values the array of the results
  */
-int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
+int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[CPUID_WORD_NUM]);
 #endif
 
 // TODO: Replace this with log_* everywhere

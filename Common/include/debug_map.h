@@ -10,8 +10,8 @@
  * the debug maps are maintained in an "outer" binary instead of the main PAL binary.
  */
 
-#ifndef PAL_DEBUG_MAP_H
-#define PAL_DEBUG_MAP_H
+#ifndef DEBUG_MAP_H
+#define DEBUG_MAP_H
 
 struct debug_map {
     char* name;
@@ -28,4 +28,4 @@ void debug_map_update_debugger(void);
 int debug_map_add(const char* name, void* addr);
 int debug_map_remove(void* addr);
 
-#endif /* PAL_DEBUG_MAP_H */
+#endif /* DEBUG_MAP_H */
