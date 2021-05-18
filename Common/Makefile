@@ -16,6 +16,3 @@ test:
 
 .PHONY: sgx-tokens
 sgx-tokens:
-
-.PHONY: distclean
-distclean: clean

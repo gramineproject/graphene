@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
-#include <unistd.h>
 #include <sys/syscall.h>
+#include <unistd.h>
 
 int main(int argc, char** argv) {
     const char buf[] = "Hello world\n";

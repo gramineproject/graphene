@@ -3,7 +3,7 @@
 
 /*
  * This file implements page allocation for the library OS-internal SLAB memory allocator. The slab
- * allocator is in Pal/lib/slabmgr.h.
+ * allocator is in Common/include/slabmgr.h.
  *
  * When existing slabs are not sufficient, or a large (4k or greater) allocation is requested, it
  * ends up here (__system_alloc and __system_free).
