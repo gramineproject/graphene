@@ -21,6 +21,8 @@ project(
 
     default_options: [
         'c_std=c11',
+        'warning_level=2',
+        'werror=true',
     ],
 )
 
@@ -31,16 +33,25 @@ pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
 
-if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
-    add_project_arguments('-DDEBUG', language: 'c')
-endif
-
 cc = meson.get_compiler('c')
 objcopy = find_program('objcopy')
 
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
 python3 = python3mod.find_python()
+
+add_project_arguments(
+    '-Wmissing-prototypes',
+
+    cc.get_supported_arguments(
+        '-Wtrampoline',
+    ),
+
+    language: 'c')
+
+if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
+    add_project_arguments('-DDEBUG', language: 'c')
+endif
 
 subdir('Scripts')
 

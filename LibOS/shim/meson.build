@@ -1,12 +1,11 @@
 cflags_libos = [
     '-fPIC',
     '-fmerge-all-constants',
+
+    # TODO: check all standard functions APIs and remove this
     '-fno-builtin',
 
-    '-Werror=implicit-function-declaration',
-    '-Wextra',
     '-Winline',
-    '-Wno-inline',
     '-Wstrict-prototypes',
     '-Wwrite-strings',
 
