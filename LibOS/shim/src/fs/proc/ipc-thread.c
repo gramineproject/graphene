@@ -57,10 +57,10 @@ static int parse_ipc_thread_name(const char* name, IDTYPE* pidptr, const char** 
 
 static int find_ipc_thread_link(const char* name, struct shim_qstr* link,
                                 struct shim_dentry** dentptr) {
-    const char* next;
-    const char* nextnext;
-    size_t next_len;
-    IDTYPE pid;
+    const char* next = NULL;
+    const char* nextnext = NULL;
+    size_t next_len = 0;
+    IDTYPE pid = 0;
 
     int ret = parse_ipc_thread_name(name, &pid, &next, &next_len, &nextnext);
     if (ret < 0)
