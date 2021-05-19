@@ -30,21 +30,14 @@ Quick start without SGX support
 Quick start with SGX support
 -------------------------------
 
-Graphene-SGX requires that the FSGSBASE feature of recent processors is enabled
-in the Linux kernel. For the ways to enable the FSGSBASE feature, please refer
-to :doc:`building`.
+Graphene requires several features from your system:
 
-Before you run any applications in Graphene-SGX, please make sure that Intel SGX
-SDK and the SGX driver are installed on your system. We recommend using Intel
-SGX SDK and the SGX driver no older than version 1.9 (or the DCAP SGX SDK and
-the driver version 1.4/1.5/1.6).
+- the FSGSBASE feature of recent processors must be enabled in the Linux kernel,
+- the Intel SGX driver must be built in the Linux kernel,
+- Intel SGX SDK/PSW and (optionally) Intel DCAP must be installed.
 
-If Intel SGX SDK and the SGX driver are not installed, please follow the READMEs
-in https://github.com/intel/linux-sgx and
-https://github.com/intel/linux-sgx-driver to download and install them.
-If you want to use the DCAP SDK and driver, please follow the README in
-https://github.com/intel/SGXDataCenterAttestationPrimitives. Please note, that
-the DCAP driver requires Graphene to run as a root user to access it.
+If your system doesn't meet these requirements, please refer to more detailed
+descriptions in :doc:`building`.
 
 #. Ensure that Intel SGX is enabled on your platform::
 
@@ -70,7 +63,7 @@ second command should list the process status of :command:`aesm_service`.
          python3-protobuf libprotobuf-c-dev protobuf-c-compiler python3-pip
       python3 -m pip install toml>=0.10
       make
-      make ISGX_DRIVER_PATH=<path-to-sgx-driver-sources> SGX=1
+      make ISGX_DRIVER_PATH="" SGX=1                  # this assumes Linux 5.11+
       meson build -Ddirect=enabled -Dsgx=enabled
       ninja -C build
       sudo ninja -C build install
