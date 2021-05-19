@@ -3,7 +3,7 @@ libos.entrypoint = "file:file_check_policy"
 loader.argv0_override = "file_check_policy"
 
 loader.env.LD_LIBRARY_PATH = "/lib"
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -16,4 +16,4 @@ sgx.trusted_files.file_check_policy = "file:file_check_policy"
 
 sgx.trusted_files.test = "file:trusted_testfile"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

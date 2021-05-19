@@ -3,7 +3,7 @@ libos.entrypoint = "file:attestation"
 loader.argv0_override = "attestation"
 
 loader.env.LD_LIBRARY_PATH = "/lib"
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -17,8 +17,8 @@ fs.mount.bin.uri = "file:/bin"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.attestation = "file:attestation"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
-sgx.remote_attestation = 1
+sgx.remote_attestation = true
 sgx.ra_client_spid = "{{ ra_client_spid }}"
 sgx.ra_client_linkable = {{ ra_client_linkable }}

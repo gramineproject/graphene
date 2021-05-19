@@ -12,13 +12,13 @@ loader.preload = "file:{{ graphene.libos }}"
 loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 # Forward environment variables from the host. Don't use this on production!
-loader.insecure__use_host_env = 1
+loader.insecure__use_host_env = true
 
 # Node.js requires eventfd2() emulation otherwise fails on `(uv_loop_init(&tracing_loop_)) == (0)'
-sys.insecure__allow_eventfd = 1
+sys.insecure__allow_eventfd = true
 
 # Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax applies. Paths must be in-
 # Graphene visible paths, not host-OS paths (i.e., paths must be taken from fs.mount.xxx.path, not
@@ -26,7 +26,7 @@ sys.insecure__allow_eventfd = 1
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
 # Allow for injecting SIGTERM signal from the host.
-sys.enable_sigterm_injection = 1
+sys.enable_sigterm_injection = true
 
 # Mount host-OS directory to required libraries (in 'uri') into in-Graphene visible directory /lib
 # (in 'path').
@@ -51,7 +51,7 @@ sgx.enclave_size = "2G"
 sgx.thread_num = 32
 
 # Node.js is a non-PIE binary
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 # Specify all files used by Node.js and its dependencies (including all libs which can be loaded at
 # runtime via dlopen).

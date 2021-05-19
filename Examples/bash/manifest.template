@@ -6,7 +6,7 @@ loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "file:{{ execdir }}/bash"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 loader.log_level = "{{ log_level }}"
 
@@ -60,4 +60,4 @@ sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 sgx.allowed_files.scripts = "file:scripts/"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

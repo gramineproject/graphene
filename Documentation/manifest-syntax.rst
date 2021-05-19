@@ -92,7 +92,7 @@ invocation.
 
 ::
 
-   loader.insecure__use_cmdline_argv = 1
+   loader.insecure__use_cmdline_argv = true
 
 or
 
@@ -117,7 +117,7 @@ Environment variables
 
 ::
 
-   loader.insecure__use_host_env = 1
+   loader.insecure__use_host_env = [true|false]
 
 By default, environment variables from the host will *not* be passed to the app.
 This can be overridden by the option above, but most applications and runtime
@@ -153,8 +153,8 @@ Disabling ASLR
 
 ::
 
-    loader.insecure__disable_aslr = [1|0]
-    (Default: 0)
+    loader.insecure__disable_aslr = [true|false]
+    (Default: false)
 
 This specifies whether to disable Address Space Layout Randomization (ASLR).
 Since disabling ASLR worsens security of the application, ASLR is enabled by
@@ -165,14 +165,14 @@ Check invalid pointers
 
 ::
 
-    libos.check_invalid_pointers = [1|0]
-    (Default: 1)
+    libos.check_invalid_pointers = [true|false]
+    (Default: true)
 
 This specifies whether to enable checks of invalid pointers on syscall
-invocations. In particular, when this manifest option is set to ``1``,
+invocations. In particular, when this manifest option is set to ``true``,
 Graphene's LibOS will return an EFAULT error code if a user-supplied buffer
-points to an invalid memory region. Setting this manifest option to ``0`` may
-improve performance for certain workloads but may also generate
+points to an invalid memory region. Setting this manifest option to ``false``
+may improve performance for certain workloads but may also generate
 ``SIGSEGV/SIGBUS`` exceptions for some applications that specifically use
 invalid pointers (though this is not expected for most real-world applications).
 
@@ -228,8 +228,8 @@ Allowing eventfd
 
 ::
 
-    sys.insecure__allow_eventfd = [1|0]
-    (Default: 0)
+    sys.insecure__allow_eventfd = [true|false]
+    (Default: false)
 
 This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
 eventfd emulation currently relies on the host, these system calls are
@@ -240,8 +240,8 @@ External SIGTERM injection
 
 ::
 
-    sys.enable_sigterm_injection = [1|0]
-    (Default: 0)
+    sys.enable_sigterm_injection = [true|false]
+    (Default: false)
 
 This specifies whether to allow for a one-time injection of `SIGTERM` signal
 into Graphene. Could be useful to handle graceful shutdown.
@@ -318,11 +318,11 @@ Debug/production enclave
 
 ::
 
-    sgx.debug = [1|0]
-    (Default: 1)
+    sgx.debug = [true|false]
+    (Default: true)
 
-This syntax specifies whether the enclave can be debugged. Set it to ``1`` for
-a |~| debug enclave and to ``0`` for a |~| production enclave.
+This syntax specifies whether the enclave can be debugged. Set it to ``true``
+for a |~| debug enclave and to ``false`` for a |~| production enclave.
 
 Enclave size
 ^^^^^^^^^^^^
@@ -343,8 +343,8 @@ Non-PIE binaries
 
 ::
 
-    sgx.nonpie_binary = [1|0]
-    (Default: 0)
+    sgx.nonpie_binary = [true|false]
+    (Default: false)
 
 This setting tells Graphene whether to use a specially crafted memory layout,
 which is required to support non-relocatable binaries (non-PIE).
@@ -397,11 +397,11 @@ Optional CPU features (AVX, AVX512, MPX, PKRU)
 
 ::
 
-    sgx.require_avx    = [1|0]
-    sgx.require_avx512 = [1|0]
-    sgx.require_mpx    = [1|0]
-    sgx.require_pkru   = [1|0]
-    (Default: 0)
+    sgx.require_avx    = [true|false]
+    sgx.require_avx512 = [true|false]
+    sgx.require_mpx    = [true|false]
+    sgx.require_pkru   = [true|false]
+    (Default: false)
 
 This syntax ensures that the CPU features are available and enabled for the
 enclave. If the options are set in the manifest but the features are unavailable
@@ -495,14 +495,14 @@ Attestation and quotes
 
 ::
 
-    sgx.remote_attestation = [1|0]
-    (Default: 0)
+    sgx.remote_attestation = [true|false]
+    (Default: false)
 
-    sgx.ra_client_linkable = [1|0]
+    sgx.ra_client_linkable = [true|false]
     sgx.ra_client_spid     = "[HEX]"
 
 This syntax specifies the parameters for remote attestation. To enable it,
-``remote_attestation`` must be set to ``1``.
+``remote_attestation`` must be set to ``true``.
 
 For EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
 be filled with your registered Intel SGX EPID Attestation Service credentials
@@ -517,8 +517,8 @@ Pre-heating enclave
 
 ::
 
-    sgx.preheat_enclave = [1|0]
-    (Default: 0)
+    sgx.preheat_enclave = [true|false]
+    (Default: false)
 
 When enabled, this option instructs Graphene to pre-fault all heap pages during
 initialization. This has a negative impact on the total run time, but shifts the
@@ -535,8 +535,8 @@ Enabling per-thread and process-wide SGX stats
 
 ::
 
-    sgx.enable_stats = [1|0]
-    (Default: 0)
+    sgx.enable_stats = [true|false]
+    (Default: false)
 
 This syntax specifies whether to enable SGX enclave-specific statistics:
 
@@ -555,8 +555,8 @@ This syntax specifies whether to enable SGX enclave-specific statistics:
    initializing the enclave.
 
 *Note:* this option is insecure and cannot be used with production enclaves
-(``sgx.debug = 0``). If the production enclave is started with this option set,
-Graphene will fail initialization of the enclave.
+(``sgx.debug = false``). If the production enclave is started with this option
+set, Graphene will fail initialization of the enclave.
 
 SGX profiling
 ^^^^^^^^^^^^^
@@ -580,8 +580,8 @@ sgx-perf.data``.
 See :ref:`sgx-profile` for more information.
 
 *Note:* this option is insecure and cannot be used with production enclaves
-(``sgx.debug = 0``). If the production enclave is started with this option set,
-Graphene will fail initialization of the enclave.
+(``sgx.debug = false``). If the production enclave is started with this option
+set, Graphene will fail initialization of the enclave.
 
 ::
 
@@ -597,15 +597,15 @@ Specifies what events to record:
 
 * ``ocall_outer``: Records the outer OCALL function, i.e. what OCALL handlers
   are going to be executed. Does not include stack information (cannot be used
-  with ``sgx.profile.with_stack = 1``).
+  with ``sgx.profile.with_stack = true``).
 
 See also :ref:`sgx-profile-ocall` for more detailed advice regarding the OCALL
 modes.
 
 ::
 
-    sgx.profile.with_stack = [1|0]
-    (Default: 0)
+    sgx.profile.with_stack = [true|false]
+    (Default: false)
 
 This syntax specifies whether to include stack information with the profiling
 data. This will enable ``perf report`` to show call chains. However, it will

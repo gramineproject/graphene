@@ -674,23 +674,22 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         goto out;
     }
 
-    int64_t nonpie_binary;
-    ret = toml_int_in(manifest_root, "sgx.nonpie_binary", /*defaultval=*/0, &nonpie_binary);
-    if (ret < 0 || (nonpie_binary != 0 && nonpie_binary != 1)) {
-        log_error("Cannot parse 'sgx.nonpie_binary' (the value must be 0 or 1)\n");
+    bool nonpie_binary;
+    ret = toml_bool_in(manifest_root, "sgx.nonpie_binary", /*defaultval=*/false, &nonpie_binary);
+    if (ret < 0) {
+        log_error("Cannot parse 'sgx.nonpie_binary' (the value must be `true` or `false`)\n");
         ret = -EINVAL;
         goto out;
     }
-    enclave_info->nonpie_binary = !!nonpie_binary;
+    enclave_info->nonpie_binary = nonpie_binary;
 
-    int64_t enable_stats_int64;
-    ret = toml_int_in(manifest_root, "sgx.enable_stats", /*defaultval=*/0, &enable_stats_int64);
-    if (ret < 0 || (enable_stats_int64 != 0 && enable_stats_int64 != 1)) {
-        log_error("Cannot parse 'sgx.enable_stats' (the value must be 0 or 1)\n");
+    ret = toml_bool_in(manifest_root, "sgx.enable_stats", /*defaultval=*/false,
+                       &g_sgx_enable_stats);
+    if (ret < 0) {
+        log_error("Cannot parse 'sgx.enable_stats' (the value must be `true` or `false`)\n");
         ret = -EINVAL;
         goto out;
     }
-    g_sgx_enable_stats = !!enable_stats_int64;
 
     char* dummy_sigfile_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.sigfile", &dummy_sigfile_str);
@@ -702,15 +701,15 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     }
     free(dummy_sigfile_str);
 
-    int64_t sgx_remote_attestation_int;
-    ret = toml_int_in(manifest_root, "sgx.remote_attestation", /*defaultval=*/0,
-                      &sgx_remote_attestation_int);
-    if (ret < 0 || (sgx_remote_attestation_int != 0 && sgx_remote_attestation_int != 1)) {
-        log_error("Cannot parse 'sgx.remote_attestation' (the value must be 0 or 1)\n");
+    bool sgx_remote_attestation_enabled;
+    ret = toml_bool_in(manifest_root, "sgx.remote_attestation", /*defaultval=*/false,
+                       &sgx_remote_attestation_enabled);
+    if (ret < 0) {
+        log_error("Cannot parse 'sgx.remote_attestation' (the value must be `true` or `false`)\n");
         ret = -EINVAL;
         goto out;
     }
-    enclave_info->remote_attestation_enabled = !!sgx_remote_attestation_int;
+    enclave_info->remote_attestation_enabled = sgx_remote_attestation_enabled;
 
     ret = toml_string_in(manifest_root, "sgx.ra_client_spid", &sgx_ra_client_spid_str);
     if (ret < 0) {
@@ -719,21 +718,15 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         goto out;
     }
 
-    int64_t sgx_ra_client_linkable_int;
-    ret = toml_int_in(manifest_root, "sgx.ra_client_linkable", /*defaultval=*/-1,
-                      &sgx_ra_client_linkable_int);
-    if (ret < 0) {
-        log_error("Cannot parse 'sgx.ra_client_linkable'\n");
-        ret = -EINVAL;
-        goto out;
-    }
+    bool sgx_ra_client_linkable_specified =
+        toml_key_exists(manifest_root, "sgx.ra_client_linkable");
 
     if (!enclave_info->remote_attestation_enabled &&
-            (sgx_ra_client_spid_str || sgx_ra_client_linkable_int >= 0)) {
+            (sgx_ra_client_spid_str || sgx_ra_client_linkable_specified)) {
         log_error(
             "Detected EPID remote attestation parameters 'ra_client_spid' and/or "
             "'ra_client_linkable' in the manifest but no 'remote_attestation' parameter. "
-            "Please add 'sgx.remote_attestation = 1' to the manifest.\n");
+            "Please add 'sgx.remote_attestation = true' to the manifest.\n");
         ret = -EINVAL;
         goto out;
     }
@@ -796,11 +789,11 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         goto out;
     }
 
-    int64_t profile_with_stack;
-    ret = toml_int_in(manifest_root, "sgx.profile.with_stack", /*defaultval=*/0,
-                      &profile_with_stack);
-    if (ret < 0 || (profile_with_stack != 0 && profile_with_stack != 1)) {
-        log_error("Cannot parse 'sgx.profile.with_stack' (the value must be 0 or 1)\n");
+    bool profile_with_stack;
+    ret = toml_bool_in(manifest_root, "sgx.profile.with_stack", /*defaultval=*/false,
+                       &profile_with_stack);
+    if (ret < 0) {
+        log_error("Cannot parse 'sgx.profile.with_stack' (the value must be `true` or `false`)\n");
         ret = -EINVAL;
         goto out;
     }

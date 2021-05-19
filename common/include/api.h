@@ -309,10 +309,31 @@ int get_base_name(const char* path, char* buf, size_t* size);
 int64_t parse_size_str(const char* str);
 
 /*!
- * \brief Find an integer key-value in TOML manifest.
+ * \brief Check if a key was specified in TOML manifest.
  *
  * \param root       Root table of the TOML manifest.
  * \param key        Dotted key (e.g. "loader.insecure__use_cmdline_argv").
+ */
+bool toml_key_exists(const toml_table_t* root, const char* key);
+
+/*!
+ * \brief Find a bool key-value in TOML manifest.
+ *
+ * \param root       Root table of the TOML manifest.
+ * \param key        Dotted key (e.g. "loader.insecure__use_cmdline_argv").
+ * \param defaultval `retval` is set to this value if not found in the manifest.
+ * \param retval     Pointer to output bool.
+ *
+ * Returns 0 if there were no errors (but value may have not been found in manifest and was set to
+ * default one) or -1 if there were errors during conversion to bool.
+ */
+int toml_bool_in(const toml_table_t* root, const char* key, bool defaultval, bool* retval);
+
+/*!
+ * \brief Find an integer key-value in TOML manifest.
+ *
+ * \param root       Root table of the TOML manifest.
+ * \param key        Dotted key (e.g. "sgx.thread_num").
  * \param defaultval `retval` is set to this value if not found in the manifest.
  * \param retval     Pointer to output integer.
  *

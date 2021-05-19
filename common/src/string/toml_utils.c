@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "assert.h"
 #include "toml.h"
 
 /* returns a pointer to next occurrence of `ch` in `s`, or null byte ending the string if it wasn't
@@ -60,6 +61,38 @@ static toml_raw_t toml_raw_in_dottedkey(const toml_table_t* root, const char* _k
 out:
     free(key);
     return res;
+}
+
+bool toml_key_exists(const toml_table_t* root, const char* key) {
+    toml_raw_t raw = toml_raw_in_dottedkey(root, key);
+    return !!raw;
+}
+
+int toml_bool_in(const toml_table_t* root, const char* key, bool defaultval, bool* retval) {
+    toml_raw_t raw = toml_raw_in_dottedkey(root, key);
+    if (!raw) {
+        *retval = defaultval;
+        return 0;
+    }
+    int intval;
+    int ret = toml_rtob(raw, &intval);
+    if (ret == 0) {
+        *retval = (bool)intval;
+    } else {
+        // Maybe someone used the old syntax?
+        // TODO: remove this fallback after some time.
+        int64_t int64_val;
+        ret = toml_int_in(root, key, (int)defaultval, &int64_val);
+        if (ret == 0 && (int64_val == 0 || int64_val == 1)) {
+            log_warning("Manifest contains a deprecated syntax for '%s' key. Please use true/false "
+                        "instead of 1/0\n", key);
+            *retval = (bool)int64_val;
+        } else {
+            ret = -1;
+        }
+    }
+
+    return ret;
 }
 
 int toml_int_in(const toml_table_t* root, const char* key, int64_t defaultval, int64_t* retval) {

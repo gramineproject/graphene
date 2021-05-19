@@ -11,7 +11,7 @@ loader.preload = "file:{{ graphene.libos }}"
 loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 # Environment variables
 loader.env.LD_LIBRARY_PATH = "/lib:{{ openvino_dir }}/inference-engine/temp/tbb/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"

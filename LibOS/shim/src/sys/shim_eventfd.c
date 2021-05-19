@@ -23,11 +23,12 @@ static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
     int ret;
 
     assert(g_manifest_root);
-    int64_t allow_eventfd;
-    ret = toml_int_in(g_manifest_root, "sys.insecure__allow_eventfd", /*defaultval=*/0,
-                      &allow_eventfd);
-    if (ret < 0 || (allow_eventfd != 0 && allow_eventfd != 1)) {
-        log_error("Cannot parse \'sys.insecure__allow_eventfd\' (the value must be 0 or 1)\n");
+    bool allow_eventfd;
+    ret = toml_bool_in(g_manifest_root, "sys.insecure__allow_eventfd", /*defaultval=*/false,
+                       &allow_eventfd);
+    if (ret < 0) {
+        log_error("Cannot parse \'sys.insecure__allow_eventfd\' (the value must be `true` or "
+                  "`false`)\n");
         return -ENOSYS;
     }
 

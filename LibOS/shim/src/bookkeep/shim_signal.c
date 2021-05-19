@@ -516,23 +516,21 @@ int init_signal_handling(void) {
         return -ENOMEM;
     }
 
-    int64_t allow_injection = 0;
-    int ret = toml_int_in(g_manifest_root, "sys.enable_sigterm_injection", /*defaultval=*/0,
-                          &allow_injection);
-    if (ret < 0 || (allow_injection != 0 && allow_injection != 1)) {
-        log_error("Cannot parse 'sys.enable_sigterm_injection' (the value must be 0 or 1)\n");
+    int ret = toml_bool_in(g_manifest_root, "sys.enable_sigterm_injection", /*defaultval=*/false,
+                           &g_inject_host_signal_enabled);
+    if (ret < 0) {
+        log_error("Cannot parse 'sys.enable_sigterm_injection' (the value must be `true` or "
+                  "`false`)\n");
         return -EINVAL;
     }
-    g_inject_host_signal_enabled = !!allow_injection;
 
-    int64_t check_invalid_ptrs_int;
-    ret = toml_int_in(g_manifest_root, "libos.check_invalid_pointers",
-                      /*defaultval=*/1, &check_invalid_ptrs_int);
-    if (ret < 0 || (check_invalid_ptrs_int != 0 && check_invalid_ptrs_int != 1)) {
-        log_error("Cannot parse 'libos.check_invalid_pointers' (the value must be 0 or 1)\n");
+    ret = toml_bool_in(g_manifest_root, "libos.check_invalid_pointers", /*defaultval=*/true,
+                       &g_check_invalid_ptrs);
+    if (ret < 0) {
+        log_error("Cannot parse 'libos.check_invalid_pointers' (the value must be `true` or "
+                  "`false`)\n");
         return -EINVAL;
     }
-    g_check_invalid_ptrs = !!check_invalid_ptrs_int;
 
     DkSetExceptionHandler(&arithmetic_error_upcall, PAL_EVENT_ARITHMETIC_ERROR);
     DkSetExceptionHandler(&memfault_upcall,         PAL_EVENT_MEMFAULT);

@@ -1,6 +1,6 @@
 loader.preload = file:@GRAPHENEDIR@/Runtime/libsysdb.so
 
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 loader.env.LD_LIBRARY_PATH = /lib:@ARCH_LIBDIR@:/usr@ARCH_LIBDIR@
 

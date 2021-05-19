@@ -12,13 +12,13 @@ loader.preload = "file:{{ graphene.libos }}"
 loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 # Environment variables for Python
 loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 
 # Allow for injecting SIGTERM signal from the host.
-sys.enable_sigterm_injection = 1
+sys.enable_sigterm_injection = true
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -77,7 +77,7 @@ sys.stack.size = "2M"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 32
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 # SGX trusted libraries
 

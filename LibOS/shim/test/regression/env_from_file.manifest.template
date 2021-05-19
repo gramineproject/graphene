@@ -13,4 +13,4 @@ sgx.allowed_files.env = "file:env_test_input"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.bootstrap = "file:bootstrap"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

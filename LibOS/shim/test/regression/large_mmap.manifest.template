@@ -6,7 +6,7 @@ loader.env.LD_LIBRARY_PATH = "/lib"
 
 # application allocates 2GB and 4GB memory regions which may occasionally fail
 # in an SGX enclave restricted to 8GB of virtual space if ASLR is enabled
-loader.insecure__disable_aslr = 1
+loader.insecure__disable_aslr = true
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -19,4 +19,4 @@ sgx.allowed_files.testfile = "file:testfile"
 
 sgx.enclave_size = "8G"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

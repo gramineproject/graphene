@@ -13,5 +13,5 @@ sgx.trusted_files.multi_pthread = "file:multi_pthread"
 # app runs with 4 parallel threads + Graphene has couple internal threads
 sgx.thread_num = 8
 
-sgx.nonpie_binary = 1
-sgx.enable_stats = 1
+sgx.nonpie_binary = true
+sgx.enable_stats = true

@@ -243,13 +243,13 @@ certificate. The library is *not* thread-safe.
 The library expects the following information in the manifest for EPID based
 attestation:
 
-- ``sgx.remote_attestation = 1`` -- remote attestation is enabled.
+- ``sgx.remote_attestation = true`` -- remote attestation is enabled.
 - ``sgx.ra_client_spid`` -- client SPID for EPID remote attestation.
 - ``sgx.ra_client_linkable`` -- client linkable/unlinkable attestation mode.
 
 For DCAP/ECDSA based attestation, the library expects instead:
 
-- ``sgx.remote_attestation = 1`` -- remote attestation is enabled.
+- ``sgx.remote_attestation = true`` -- remote attestation is enabled.
 - ``sgx.ra_client_spid = ""`` -- hints that this is a DCAP attestation, *not*
   EPID attestation.
 

@@ -20,7 +20,7 @@ loader.log_level = "{{ log_level }}"
 ################################# ARGUMENTS ###################################
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 ################################# ENV VARS ####################################
 
@@ -36,7 +36,7 @@ loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 ################################## SIGNALS ####################################
 
 # Allow for injecting SIGTERM signal from the host.
-sys.enable_sigterm_injection = 1
+sys.enable_sigterm_injection = true
 
 ################################# MOUNT FS  ###################################
 
@@ -80,7 +80,7 @@ fs.mount.etc.uri = "file:/etc"
 # typical Redis workloads.
 sgx.enclave_size = "1024M"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at

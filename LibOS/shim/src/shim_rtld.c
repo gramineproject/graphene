@@ -869,7 +869,7 @@ int init_loader(void) {
                 dentry_abs_path(exec->dentry, &path, /*size=*/NULL);
             log_error("Failed to load %s. This may be caused by the binary being non-PIE, in which "
                       "case Graphene requires a specially-crafted memory layout. You can enable it "
-                      "by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
+                      "by adding 'sgx.nonpie_binary = true' to the manifest.\n",
                       path ? path : "(unknown)");
             free(path);
             goto out;

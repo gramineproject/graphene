@@ -9,9 +9,9 @@ loader.argv0_override = "openmp"
 loader.env.LD_LIBRARY_PATH = "/lib:/usrlib"
 
 # the manifest options below are added only for testing, they have no significance for OpenMP
-libos.check_invalid_pointers = 0
-sys.enable_sigterm_injection = 1
-sgx.preheat_enclave = 1
+libos.check_invalid_pointers = false
+sys.enable_sigterm_injection = true
+sgx.preheat_enclave = true
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -32,4 +32,4 @@ sgx.trusted_files.openmp = "file:openmp"
 
 sgx.trusted_files.libgomp_native = "file:/usr{{ arch_libdir }}/libgomp.so.1"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

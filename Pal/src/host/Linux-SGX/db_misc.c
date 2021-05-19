@@ -491,15 +491,14 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         }
 
         /* read sgx.ra_client_linkable from manifest */
-        int64_t linkable_int64;
-        ret = toml_int_in(g_pal_state.manifest_root, "sgx.ra_client_linkable",
-                          /*defaultval=*/0, &linkable_int64);
-        if (ret < 0 || (linkable_int64 != 0 && linkable_int64 != 1)) {
-            log_error("Cannot parse \'sgx.ra_client_linkable\' (the value must be 0 or 1)\n");
+        ret = toml_bool_in(g_pal_state.manifest_root, "sgx.ra_client_linkable",
+                           /*defaultval=*/false, &linkable);
+        if (ret < 0) {
+            log_error("Cannot parse \'sgx.ra_client_linkable\' (the value must be `true` or "
+                      "`false`)\n");
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
         }
-        linkable = !!linkable_int64;
     }
 
     free(ra_client_spid_str);
