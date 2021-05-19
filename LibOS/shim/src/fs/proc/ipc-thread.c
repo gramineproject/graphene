@@ -182,7 +182,7 @@ static int proc_ipc_thread_dir_mode(const char* name, mode_t* mode) {
         for (size_t i = 0; i < pid_status_cache->nstatus; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 unlock(&status_lock);
-                *mode = PERM_r_x______ | S_IFREG;
+                *mode = PERM_r_x______ | S_IFDIR;
                 return 0;
             }
 

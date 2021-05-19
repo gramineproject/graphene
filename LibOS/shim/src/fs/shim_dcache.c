@@ -372,7 +372,7 @@ static int dump_dentry_write_all(const char* str, size_t size, void* arg) {
 
 static void dump_dentry_mode(struct print_buf* buf, mode_t type, mode_t perm) {
     buf_printf(buf, "%06o ", type | perm);
-    
+
     char c;
     switch (type) {
         case S_IFSOCK: c = 's'; break;
