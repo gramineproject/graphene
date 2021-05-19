@@ -282,6 +282,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     assert(g_pal_state.manifest_root);
     assert(g_pal_state.alloc_align && IS_POWER_OF_2(g_pal_state.alloc_align));
 
+    configure_logging();
+
     char* dummy_exec_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.exec", &dummy_exec_str);
     if (ret < 0 || dummy_exec_str)
@@ -289,15 +291,13 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                                    "manifest according to the current documentation.");
     free(dummy_exec_str);
 
-    bool disable_aslr = false;
-    int64_t disable_aslr_int64;
-    ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__disable_aslr",
-                      /*defaultval=*/0, &disable_aslr_int64);
-    if (ret < 0 || (disable_aslr_int64 != 0 && disable_aslr_int64 != 1)) {
+    bool disable_aslr;
+    ret = toml_bool_in(g_pal_state.manifest_root, "loader.insecure__disable_aslr",
+                       /*defaultval=*/false, &disable_aslr);
+    if (ret < 0) {
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.insecure__disable_aslr' "
-                                             "(the value must be 0 or 1)");
+                                             "(the value must be `true` or `false`)\n");
     }
-    disable_aslr = !!disable_aslr_int64;
 
     /* Load argv */
     /* TODO: Add an option to specify argv inline in the manifest. This requires an upgrade to the
@@ -322,12 +322,12 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         arguments[0] = argv0_override;
     }
 
-    int64_t use_cmdline_argv = 0;
-    ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_cmdline_argv",
-                      /*defaultval=*/0, &use_cmdline_argv);
-    if (ret < 0 || (use_cmdline_argv != 0 && use_cmdline_argv != 1)) {
-        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
-                           "'loader.insecure__use_cmdline_argv' (the value must be 0 or 1)");
+    bool use_cmdline_argv;
+    ret = toml_bool_in(g_pal_state.manifest_root, "loader.insecure__use_cmdline_argv",
+                       /*defaultval=*/false, &use_cmdline_argv);
+    if (ret < 0) {
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.insecure__use_cmdline_argv' "
+                                             "(the value must be `true` or `false`)\n");
     }
 
     if (use_cmdline_argv) {
@@ -361,12 +361,12 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         }
     }
 
-    int64_t use_host_env = 0;
-    ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_host_env",
-                      /*defaultval=*/0, &use_host_env);
-    if (ret < 0 || (use_host_env != 0 && use_host_env != 1)) {
-        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
-                           "'loader.insecure__use_host_env' (the value must be 0 or 1)");
+    bool use_host_env;
+    ret = toml_bool_in(g_pal_state.manifest_root, "loader.insecure__use_host_env",
+                       /*defaultval=*/false, &use_host_env);
+    if (ret < 0) {
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.insecure__use_host_env' "
+                                             "(the value must be `true` or `false`)\n");
     }
 
     if (use_host_env) {
@@ -423,8 +423,6 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         // directly, without LibOS.
         exec_uri = entrypoint;
     }
-
-    configure_logging();
 
     g_pal_control.host_type       = XSTRINGIFY(HOST_TYPE);
     g_pal_control.process_id      = _DkGetProcessId();

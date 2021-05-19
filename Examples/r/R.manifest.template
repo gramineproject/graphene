@@ -11,10 +11,10 @@ loader.preload = "file:{{ graphene.libos }}"
 loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 # Allow for injecting SIGTERM signal from the host.
-sys.enable_sigterm_injection = 1
+sys.enable_sigterm_injection = true
 
 # Environment variables for R
 loader.env.LD_LIBRARY_PATH = "{{ r_home }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
@@ -63,7 +63,7 @@ sys.stack.size = "8M"
 
 # SGX general options
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 # Set the virtual memory size of the SGX enclave. For SGX v1, the enclave size must be specified
 # during signing. If R needs more virtual memory than the enclave size, Graphene will not be able to

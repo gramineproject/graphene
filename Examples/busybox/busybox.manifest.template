@@ -8,7 +8,7 @@
 libos.entrypoint = "file:busybox"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded

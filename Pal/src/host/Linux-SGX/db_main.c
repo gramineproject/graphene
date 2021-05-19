@@ -708,14 +708,14 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_state.raw_manifest_data = manifest_addr;
     g_pal_state.manifest_root = manifest_root;
 
-    int64_t preheat_enclave = 0;
-    ret = toml_int_in(g_pal_state.manifest_root, "sgx.preheat_enclave", /*defaultval=*/0,
-                      &preheat_enclave);
-    if (ret < 0 || (preheat_enclave != 0 && preheat_enclave != 1)) {
-        log_error("Cannot parse \'sgx.preheat_enclave\' (the value must be 0 or 1)\n");
+    bool preheat_enclave;
+    ret = toml_bool_in(g_pal_state.manifest_root, "sgx.preheat_enclave", /*defaultval=*/false,
+                       &preheat_enclave);
+    if (ret < 0) {
+        log_error("Cannot parse \'sgx.preheat_enclave\' (the value must be `true` or `false`)\n");
         ocall_exit(1, true);
     }
-    if (preheat_enclave == 1) {
+    if (preheat_enclave) {
         for (uint8_t* i = g_pal_sec.heap_min; i < (uint8_t*)g_pal_sec.heap_max; i += g_page_size)
             READ_ONCE(*(size_t*)i);
     }

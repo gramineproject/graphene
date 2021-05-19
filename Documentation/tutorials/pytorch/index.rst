@@ -190,8 +190,8 @@ command-line arguments and environment variables into the enclave. We
 keep these work-arounds in this tutorial for simplicity, but this configuration
 must not be used in production::
 
-   loader.insecure__use_cmdline_argv = 1
-   loader.insecure__use_host_env = 1
+   loader.insecure__use_cmdline_argv = true
+   loader.insecure__use_host_env = true
 
 We mount the entire glibc host-level directory to the ``/lib`` directory seen
 inside Graphene. This trick allows to transparently replace standard C libraries
@@ -493,7 +493,7 @@ re-use the same ``certs/`` directory and specify ``localhost``. For more info on
 the used environment variables and other manifest options, see `here
 <https://github.com/oscarlab/graphene/tree/master/Pal/src/host/Linux-SGX/tools#secret-provisioning-libraries>`__::
 
-   sgx.remote_attestation = 1
+   sgx.remote_attestation = true
 
    loader.env.LD_PRELOAD = "libsecret_prov_attest.so"
    loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"

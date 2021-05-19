@@ -14,5 +14,5 @@ sgx.trusted_files.multi_pthread = "file:multi_pthread"
 sgx.thread_num = 8
 sgx.rpc_thread_num = 8
 
-sgx.nonpie_binary = 1
-sgx.enable_stats = 1
+sgx.nonpie_binary = true
+sgx.enable_stats = true

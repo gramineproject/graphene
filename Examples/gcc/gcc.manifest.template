@@ -5,7 +5,7 @@ loader.log_level = "{{ log_level }}"
 libos.entrypoint = "file:/usr/bin/gcc"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 fs.mount.lib1.type = "chroot"
 fs.mount.lib1.path = "/lib"
@@ -24,7 +24,7 @@ fs.mount.tmp.path = "/tmp"
 fs.mount.tmp.uri = "file:/tmp"
 
 sgx.enclave_size = "1G"
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 sgx.trusted_files.gcc = "file:/usr/bin/gcc"
 sgx.trusted_files.as = "file:/usr/bin/as"

@@ -4,4 +4,4 @@ loader.preload = "file:Preload1.so,file:Preload2.so"
 loader.argv0_override = "Bootstrap3"
 
 sgx.trusted_files.entrypoint = "file:Bootstrap3"
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

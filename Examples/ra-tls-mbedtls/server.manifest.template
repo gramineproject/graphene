@@ -9,13 +9,13 @@ loader.log_level = "{{ log_level }}"
 loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu:/libs"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 # Allow for injecting SIGTERM signal from the host.
-sys.enable_sigterm_injection = 1
+sys.enable_sigterm_injection = true
 
 # Request remote attestation functionality from Graphene
-sgx.remote_attestation = 1
+sgx.remote_attestation = true
 
 # Specify your SPID and linkable/unlinkable attestation policy
 sgx.ra_client_spid = "{{ ra_client_spid }}"

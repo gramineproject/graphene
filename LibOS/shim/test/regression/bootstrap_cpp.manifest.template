@@ -28,4 +28,4 @@ sgx.trusted_files.entrypoint = "file:bootstrap_cpp"
 
 sgx.thread_num = 8
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

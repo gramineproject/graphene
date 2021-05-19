@@ -21,7 +21,7 @@ Enabling per-thread and process-wide SGX stats
 
 See also :ref:`perf` below for installing ``perf``.
 
-Enable statistics using ``sgx.enable_stats = 1`` manifest option. Now your
+Enable statistics using ``sgx.enable_stats = true`` manifest option. Now your
 graphenized application correctly reports performance counters. This is useful
 when using e.g. ``perf stat`` to collect performance statistics. This manifest
 option also forces Graphene to dump SGX-related information on each
@@ -237,19 +237,20 @@ Optional CPU features (AVX, AVX512, MPX, PKRU)
 SGX technology allows to specify which CPU features are required to run the SGX
 enclave. Graphene "inherits" this and has the following manifest options:
 ``sgx.require_avx``, ``sgx.require_avx512``, ``sgx.require_mpx``,
-``sgx.require_pkru``. By default, all of them are set to zero – this means that
-SGX hardware will allow running the SGX enclave on any system, whether the
+``sgx.require_pkru``. By default, all of them are set to ``false`` – this means
+that SGX hardware will allow running the SGX enclave on any system, whether the
 system has the AVX/AVX512/MPX/PKRU feature or not.
 
 Graphene typically correctly identifies the features of the underlying platform
 and propagates the information on AVX/AVX512/MPX/PKRU inside the enclave and to
 the application. It is recommended to leave these manifest options as-is (set to
-zero). However, we observed on some platforms that the graphenized application
-cannot detect these features and falls back to a slow implementation. For
-example, some crypto libraries do not recognize AVX on the platform and use very
-slow functions, leading to 10-100x overhead over native (we still don't know the
-reason for this behavior). If you suspect this can be your case, enable the
-features in the manifest, e.g., set ``sgx.require_avx = 1``.
+``false``). However, we observed on some platforms that the graphenized
+application cannot detect these features and falls back to a slow
+implementation. For example, some crypto libraries do not recognize AVX on the
+platform and use very slow functions, leading to 10-100x overhead over native
+(we still don't know the reason for this behavior). If you suspect this can be
+your case, enable the features in the manifest, e.g., set
+``sgx.require_avx = true``.
 
 For more information on SGX logic regarding optional CPU features, see the Intel
 Software Developer Manual, Table 38-3 ("Layout of ATTRIBUTES Structure") under
@@ -382,10 +383,10 @@ Finally, disable the debug log of Graphene by specifying the manifest option
 There are several manifest options that may improve performance of some
 workloads. The manifest options include:
 
-- ``libos.check_invalid_pointers = 0`` -- disable checks of invalid pointers on
-  system call invocations. Most real-world applications never provide invalid
+- ``libos.check_invalid_pointers = false`` -- disable checks of invalid pointers
+  on system call invocations. Most real-world applications never provide invalid
   arguments to system calls, so there is no need in additional checks.
-- ``sgx.preheat_enclave = 1`` -- pre-fault all enclave pages during enclave
+- ``sgx.preheat_enclave = true`` -- pre-fault all enclave pages during enclave
   initialization. This shifts the overhead of page faults on non-present enclave
   pages from runtime to enclave startup time. Using this option makes sense only
   if the whole enclave memory fits into :term:`EPC`.
@@ -427,10 +428,11 @@ Finally, recall that by default Graphene doesn't propagate environment variables
 into the SGX enclave. Thus, environment variables like ``OMP_NUM_THREADS`` and
 ``MKL_NUM_THREADS`` are not visible to the graphenized application by default.
 To propagate them into the enclave, either use the insecure manifest option
-``loader.insecure__use_host_env = 1`` (don't use this in production!) or specify
-them explicitly in the manifest via ``loader.env.OMP_NUM_THREADS = "8"``. Also,
-it is always better to specify such environment variables explicitly because a
-graphenized application may determine the number of available CPUs incorrectly.
+``loader.insecure__use_host_env = true`` (don't use this in production!) or
+specify them explicitly in the manifest via
+``loader.env.OMP_NUM_THREADS = "8"``. Also, it is always better to specify such
+environment variables explicitly because a graphenized application may determine
+the number of available CPUs incorrectly.
 
 .. _perf:
 
@@ -540,7 +542,7 @@ use it:
    process), or ``sgx.profile.enable = "all"`` (to collect data for all
    processes).
 
-#. (Add ``sgx.profile.with_stack = 1`` for call chain information.)
+#. (Add ``sgx.profile.with_stack = true`` for call chain information.)
 
 #. Run your application. It should say something like ``Profile data written to
    sgx-perf.data`` on process exit (in case of ``sgx.profile.enable = "all"``,

@@ -4,7 +4,7 @@ loader.env.LD_LIBRARY_PATH = "/lib:."
 loader.env.PATH = "/bin:/usr/bin"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 loader.log_level = "{{ log_level }}"
 
@@ -15,7 +15,7 @@ fs.mount.lib1.uri = "file:{{ graphene.runtimedir() }}"
 # Minimum amount of memory to make it work.
 sgx.enclave_size = "512M"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 # We test with 4 TensorFlow threads, so over-approximate to 16 enclave threads.
 sgx.thread_num = 16

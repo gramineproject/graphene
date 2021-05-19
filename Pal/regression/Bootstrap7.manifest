@@ -2,7 +2,7 @@ pal.entrypoint = "file:Bootstrap7"
 loader.argv0_override = "Bootstrap7"
 
 sgx.trusted_files.entrypoint = "file:Bootstrap7"
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 loader.env.key1 = "na"
 loader.env.key2 = "na"

@@ -13,4 +13,4 @@ fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.bootstrap = "file:bootstrap"
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true

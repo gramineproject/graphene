@@ -14,7 +14,7 @@ sgx.allowed_files.blender_output = "file:{{ data_dir }}/images/"
 libos.entrypoint = "file:{{ blender_dir }}/blender"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 loader.preload = "file:{{ graphene.libos }}"
 loader.log_level = "{{ log_level }}"
@@ -53,7 +53,7 @@ sys.stack.size = "8M"
 
 sgx.enclave_size = "2048M"
 sgx.thread_num = 64
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
 sgx.trusted_files.blender = "file:{{ blender_dir }}/blender"
 sgx.trusted_files.libGL = "file:{{ blender_dir }}/lib/"
