@@ -12,10 +12,11 @@ DRIVER_VERSIONS = {
         'include/uapi/asm/sgx_oot.h': '/dev/sgx/enclave',
         # For DCAP driver 1.10+
         'include/sgx_user.h':         '/dev/sgx/enclave',
-        # For upstreamed in-kernel SGX driver, kernel version 5.11+
-        'include/uapi/asm/sgx.h':     '/dev/sgx_enclave',
-        # By default, using sgx_in_kernel.h in current dir of this script
-        'sgx_in_kernel.h':            '/dev/sgx/enclave',
+        # For custom-built Linux kernels (5.10-) with the Intel SGX driver
+        'include/uapi/asm/sgx.h':     '/dev/sgx/enclave',
+        # By default, using sgx_in_kernel.h in current dir of this script --
+        # this corresponds to the upstreamed in-kernel SGX driver (Linux 5.11+)
+        'sgx_in_kernel.h':            '/dev/sgx_enclave',
 }
 
 def find_intel_sgx_driver(isgx_driver_path):
@@ -27,10 +28,10 @@ def find_intel_sgx_driver(isgx_driver_path):
         (https://github.com/intel/SGXDataCenterAttestationPrimitives)
       - include/sgx_user.h for DCAP 1.10+ version of the driver
         (https://github.com/intel/SGXDataCenterAttestationPrimitives)
-      - include/uapi/asm/sgx.h for upstreamed SGX in-kernel driver from mainline kernel version 5.11
-        (https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git)
-      - default sgx_in_kernel.h for in-kernel 32+ version of the driver
+      - include/uapi/asm/sgx.h for in-kernel (but not upstreamed) version of the driver
         (https://lore.kernel.org/linux-sgx/20200716135303.276442-1-jarkko.sakkinen@linux.intel.com)
+      - default sgx_in_kernel.h for upstreamed in-kernel driver from mainline Linux kernel 5.11+
+        (https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git)
 
     This function returns the required header from the SGX driver.
     '''
@@ -72,9 +73,9 @@ def main(args=None):
     except KeyError:
         print(
             'ISGX_DRIVER_PATH environment variable is undefined. You can define\n'
-            'ISGX_DRIVER_PATH="" to use the in-kernel driver\'s C header from version\n'
-            '32 (bundled with Graphene but NOT upstreamed). For upstreamed\n'
-            'in-kernel driver (if you are using Linux kernel 5.11+), define\n'
+            'ISGX_DRIVER_PATH="" to use the upstreamed in-kernel driver (if you\n'
+            'are using Linux kernel 5.11+). For a custom-built Linux kernel\n'
+            '(versions 5.10-), specify a complete path to SGX driver headers:\n'
             'ISGX_DRIVER_PATH="/usr/src/linux-headers-$(uname -r)/arch/x86"\n',
             file=sys.stderr)
         sys.exit(1)

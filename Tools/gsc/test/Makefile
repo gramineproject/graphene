@@ -6,8 +6,11 @@ TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 
 GRAPHENE_REPO ?= https://github.com/oscarlab/graphene.git
 GRAPHENE_BRANCH ?= master
-SGXDRIVER_REPO ?= https://github.com/01org/linux-sgx-driver.git
-SGXDRIVER_BRANCH ?= sgx_driver_1.9
+
+# the below default values assume Linux 5.11+ with built-in SGX driver; see ../config.yaml.template
+# for different options (legacy driver, out-of-tree DCAP driver, in-kernel driver)
+SGXDRIVER_REPO ?=
+SGXDRIVER_BRANCH ?=
 
 DOCKER_BUILD_FLAGS ?= --rm --no-cache
 GSC_BUILD_FLAGS ?= --rm --no-cache
@@ -16,9 +19,9 @@ ENV_VARS ?=
 IMAGE_SUFFIX ?=
 
 # use "isgx" for legacy driver, "sgx/enclave" for DCAP driver, "sgx_enclave" for in-kernel driver
-INTEL_SGX_DEVICE ?= isgx
-# "gsgx" is needed on Linux before v5.9 (before FSGSBASE was merged), otherwise leave empty
-ADDITIONAL_DEVICES ?= --device=/dev/gsgx
+INTEL_SGX_DEVICE ?= sgx_enclave
+# use "--device=/dev/gsgx" on Linux 5.8- (before FSGSBASE was merged), otherwise leave empty
+ADDITIONAL_DEVICES ?=
 # use if AESM daemon from the host is needed (e.g. for remote attestation), otherwise leave empty
 ADDITIONAL_VOLUMES ?= --volume /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
 
