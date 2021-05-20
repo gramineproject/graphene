@@ -6,8 +6,8 @@
 /*
  * Internal debug maps, used to communicate with GDB.
  *
- * Note that this is part of a common library, and not part of libpal, to support setups in which
- * the debug maps are maintained in an "outer" binary instead of the main PAL binary.
+ * This functionality is placed in Linux-common to support setups in which the debug maps are
+ * maintained in an "outer" binary instead of the main PAL binary.
  */
 
 #ifndef DEBUG_MAP_H

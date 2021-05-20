@@ -37,6 +37,7 @@ ASFLAGS += $(defs)
 
 commons_objs = \
 	bogomips.o \
+	debug_map.o \
 	file_utils.o \
 	main_exec_path.o \
 	timespec_utils.o \
