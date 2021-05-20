@@ -177,7 +177,7 @@ struct shim_d_ops {
     /* set up symlink name to a dentry */
     int (*set_link)(struct shim_dentry* dent, const char* link);
 
-    /* change the mode or owner of a file; the caller will update dentry */
+    /* change the mode or owner of a file; the caller has to update dentry */
     int (*chmod)(struct shim_dentry* dent, mode_t mode);
     int (*chown)(struct shim_dentry* dent, int uid, int gid);
 

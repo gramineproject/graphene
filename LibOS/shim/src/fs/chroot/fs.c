@@ -235,8 +235,7 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
             break;
         default:
             log_warning("unknown PAL handle type");
-            type = S_IFREG;
-            break;
+            return -EINVAL;
     }
 
     mode_t perm = (pal_attr.readable ? S_IRUSR : 0) |
@@ -337,7 +336,7 @@ static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, mode_t*
         stat->st_mtime = (time_t)data->mtime;
         stat->st_ctime = (time_t)data->ctime;
         stat->st_nlink = data->nlink;
-   }
+    }
 
     unlock(&data->lock);
     return 0;
