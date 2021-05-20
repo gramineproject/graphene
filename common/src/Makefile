@@ -83,7 +83,6 @@ $(filter-out crypto/mbedtls/library/aes.c,$(patsubst %.o,%.c,$(crypto_mbedtls_li
 
 objs += \
 	avl_tree.o \
-	debug_map.o \
 	network/hton.o \
 	network/inet_pton.o \
 	path.o \
