@@ -4,8 +4,8 @@ include Makefile.am
 CFLAGS  += \
 	-I. \
 	-I../.. \
-	-I../../../../Common/include \
-	-I../../../../Common/include/arch/$(ARCH) \
+	-I../../../../common/include \
+	-I../../../../common/include/arch/$(ARCH) \
 	-I../../../include  \
 	-I../../../include/arch/$(ARCH) \
 	-I../../../include/arch/$(ARCH)/$(PAL_HOST) \

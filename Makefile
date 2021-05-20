@@ -11,7 +11,7 @@ endif
 .PHONY: $(targets)
 $(targets):
 	$(MAKE) -C Scripts $@
-	$(MAKE) -C Common $@
+	$(MAKE) -C common $@
 	$(MAKE) -C Pal $@
 	$(MAKE) -C LibOS $@
 	$(MAKE) -C Runtime $@

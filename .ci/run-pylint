@@ -11,7 +11,7 @@ if [ -z "$PYLINT" ]; then
 fi
 
 find . -name \*.py \
-    -and -not -path ./Common/src/crypto/mbedtls/\* \
+    -and -not -path ./common/src/crypto/mbedtls/\* \
     -and -not -path ./LibOS/glibc-build/\* \
     -and -not -path ./LibOS/glibc-\?.\?\?/\* \
     -and -not -path ./LibOS/shim/test/ltp/src/\* \

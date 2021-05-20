@@ -4,9 +4,9 @@ include Makefile.am
 CFLAGS += \
 	-I. \
 	-I../.. \
-	-I../../../../Common/include \
-	-I../../../../Common/include/arch/$(ARCH) \
-	-I../../../../Common/src/crypto/mbedtls/include \
+	-I../../../../common/include \
+	-I../../../../common/include/arch/$(ARCH) \
+	-I../../../../common/src/crypto/mbedtls/include \
 	-I../../../include \
 	-I../../../include/pal \
 	-I../../../include/arch/$(ARCH) \

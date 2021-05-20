@@ -48,7 +48,7 @@ CLEAN_FILES += generated-offsets.s generated-offsets.s.d
 # Convert inline assembly into preprocessor directives.
 # The source line is something like:
 #     .ascii "GENERATED_INTEGER SHIM_TCB_OFF $8 "
-# (see the DEFINE macro Common/include/generated-offsets-build.h)
+# (see the DEFINE macro common/include/generated-offsets-build.h)
 #
 # Because of clang compatibility, we need to:
 # - generate the numbers with prefix ($) and strip it here, as clang doesn't support "%p"

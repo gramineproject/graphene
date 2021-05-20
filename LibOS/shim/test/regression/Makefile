@@ -138,15 +138,15 @@ CFLAGS-futex_bitset = -pthread
 CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
 CFLAGS-proc_common = -pthread
-CFLAGS-spinlock += -iquote ../../../../Common/include -iquote ../../../../Common/include/arch/$(ARCH) -pthread
+CFLAGS-spinlock += -iquote ../../../../common/include -iquote ../../../../common/include/arch/$(ARCH) -pthread
 CFLAGS-sigaction_per_process += -pthread
 CFLAGS-signal_multithread += -pthread
 CFLAGS-pthread_set_get_affinity += -pthread
 CFLAGS-gettimeofday += -pthread
 
-CFLAGS-attestation += -iquote ../../../../Common/src/crypto/mbedtls/include \
+CFLAGS-attestation += -iquote ../../../../common/src/crypto/mbedtls/include \
                       -iquote $(PALDIR)/host/Linux-SGX
-LDLIBS-attestation += ../../../../Common/src/crypto/mbedtls/install/lib/libmbedcrypto.a
+LDLIBS-attestation += ../../../../common/src/crypto/mbedtls/install/lib/libmbedcrypto.a
 
 CFLAGS-fp_multithread += -pthread -fno-builtin  # see comment in the test's source
 LDLIBS-fp_multithread += -lm

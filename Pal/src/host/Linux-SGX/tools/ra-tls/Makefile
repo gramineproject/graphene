@@ -2,10 +2,10 @@ include ../../../../../../Scripts/Makefile.configs
 
 CFLAGS += -I../.. \
           -I../common \
-          -I../../../../../../Common/src/crypto/mbedtls/install/include \
+          -I../../../../../../common/src/crypto/mbedtls/install/include \
           -fPIC -fvisibility=hidden
 
-LDFLAGS += -L../../../../../../Common/src/crypto/mbedtls/install/lib -Wl,-rpath,.
+LDFLAGS += -L../../../../../../common/src/crypto/mbedtls/install/lib -Wl,-rpath,.
 
 .PHONY: all
 all: epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs

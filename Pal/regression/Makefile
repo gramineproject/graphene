@@ -3,8 +3,8 @@ include ../../Scripts/Makefile.rules
 
 CFLAGS	+= -fno-stack-protector -fno-builtin -nostdlib \
 	  -I. \
-	  -I../../Common/include \
-	  -I../../Common/include/arch/$(ARCH) \
+	  -I../../common/include \
+	  -I../../common/include/arch/$(ARCH) \
 	  -I../include \
 	  -I../include/pal \
 	  -I../include/arch/$(ARCH) \
@@ -117,7 +117,7 @@ include $(wildcard *.d)
 endif
 
 $(graphene_lib):
-	$(MAKE) -C ../../Common/src target=$(abspath .lib)/
+	$(MAKE) -C ../../common/src target=$(abspath .lib)/
 
 .PHONY: regression
 regression:
