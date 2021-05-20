@@ -36,30 +36,11 @@ static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
 const toml_table_t* g_manifest_root = NULL;
 const PAL_CONTROL* g_pal_control = NULL;
 
-/* TODO: Currently copied from log_always(). Ideally, LibOS's implementation of warn() should call a
- *       va_list version of log_always(). */
-static int buf_write_all(const char* str, size_t size, void* arg) {
-    __UNUSED(arg);
-    DkDebugLog((PAL_PTR)str, size);
-    return 0;
-}
-
-void warn(const char* format, ...) {
-    struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
-
-    buf_puts(&buf, shim_get_tcb()->log_prefix);
-
-    va_list ap;
-    va_start(ap, format);
-    buf_vprintf(&buf, format, ap);
-    va_end(ap);
-
-    buf_flush(&buf);
-}
-
-noreturn void __abort(void) {
+/* This function is used by stack protector's __stack_chk_fail(), _FORTIFY_SOURCE's *_chk()
+ * functions and by assert.h's assert() defined in the common library. Thus it might be called by
+ * any thread, even internal. */
+noreturn void shim_abort(void) {
     DEBUG_BREAK_ON_FAILURE();
-    /* `__abort` might be called by any thread, even internal. */
     DkProcessExit(1);
 }
 

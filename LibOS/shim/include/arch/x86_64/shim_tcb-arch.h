@@ -140,8 +140,6 @@ struct shim_xstate {
                          offsetof(shim_tcb_t, member))                  \
                     : "memory");                                        \
             break;                                                      \
-        default:                                                        \
-            __abort();                                                  \
         }                                                               \
     } while (0)
 

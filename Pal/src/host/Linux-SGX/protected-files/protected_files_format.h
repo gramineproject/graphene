@@ -7,9 +7,14 @@
 #ifndef PROTECTED_FILES_FORMAT_H_
 #define PROTECTED_FILES_FORMAT_H_
 
+#ifdef USE_STDLIB
+#include <assert.h>
+#else
+#include "assert.h"
+#endif
+
 #include <limits.h>
 
-#include "assert.h"
 #include "list.h"
 #include "protected_files.h"
 

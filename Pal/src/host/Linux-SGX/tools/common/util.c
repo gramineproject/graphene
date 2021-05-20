@@ -217,9 +217,3 @@ int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
     }
     return 0;
 }
-
-/* For PAL's assert compatibility */
-void __abort(void) {
-    ERROR("exiting\n");
-    exit(-1);
-}

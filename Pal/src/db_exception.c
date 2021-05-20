@@ -27,14 +27,9 @@ void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
     __atomic_store_n(&g_handlers[event], handler, __ATOMIC_RELEASE);
 }
 
-noreturn void __abort(void) {
+/* The below function is used by stack protector's __stack_chk_fail(), _FORTIFY_SOURCE's *_chk()
+ * functions and by assert.h's assert() defined in the common library. Thus it might be called by
+ * any PAL thread. */
+noreturn void pal_abort(void) {
     _DkProcessExit(ENOTRECOVERABLE);
-}
-
-// TODO: Remove this and always use log_*.
-void warn(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    pal_vprintf(format, args);
-    va_end(args);
 }

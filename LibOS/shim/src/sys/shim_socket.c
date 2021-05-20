@@ -328,6 +328,8 @@ static size_t inet_copy_addr(int domain, struct sockaddr* saddr, size_t saddr_le
     struct sockaddr_in6* in6;
     size_t len = 0;
 
+    assert(domain == AF_INET || domain == AF_INET6);
+
     switch (domain) {
         case AF_INET:
             in = (struct sockaddr_in*)&ss;
@@ -346,9 +348,6 @@ static size_t inet_copy_addr(int domain, struct sockaddr* saddr, size_t saddr_le
 
             len = MIN(saddr_len, sizeof(struct sockaddr_in6));
             break;
-
-        default:
-            __abort(); /* this function must accept only AF_INET/AF_INET6 */
     }
 
     memcpy(saddr, &ss, len);
