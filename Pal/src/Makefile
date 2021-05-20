@@ -92,7 +92,7 @@ all: $(files_to_build) $(files_to_install)
 .PHONY: host_lib_recurse graphene_lib_recurse
 
 graphene_lib_recurse:
-	$(MAKE) -C ../../common/src target=$(abspath $(LIB_DIR))/
+	CFLAGS="$(defs)" $(MAKE) -C ../../common/src target=$(abspath $(LIB_DIR))/
 
 $(graphene_lib): graphene_lib_recurse
 	@true
