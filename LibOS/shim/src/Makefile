@@ -170,7 +170,7 @@ libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 
 .PHONY: graphene_lib_recurse
 graphene_lib_recurse:
-	$(MAKE) -C ../../../common/src target=$(abspath .lib)/
+	CFLAGS="$(defs)" $(MAKE) -C ../../../common/src target=$(abspath .lib)/
 
 $(graphene_lib): graphene_lib_recurse
 	@true
