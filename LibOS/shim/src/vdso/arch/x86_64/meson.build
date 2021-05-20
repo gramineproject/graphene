@@ -33,7 +33,7 @@ vdso_not_checked_so = custom_target(
     output: 'vdso_not_checked.so',
 )
 
-# vdso.so is required to have no relocations. This rule checks it.
+# vdso.so is required to have no relocations. This rule checks it, and if good, copies to vdso.so.
 vdso_so = custom_target(
     'vdso.so',
     command: [check_no_reloc_prog, '@INPUT@', '@OUTPUT@'],
