@@ -133,7 +133,7 @@ uthash.h:
 	../../Scripts/download --output $@ --sha256 $(UTHASH_CHECKSUM) $(foreach mirror,$(UTHASH_URI),--url $(mirror))
 
 uthash.patched: uthash.h
-	patch -p2 < uthash.patch || exit 255
+	patch -p1 < uthash.patch || exit 255
 	cp uthash.h ../include/uthash.h
 	touch $@
 
