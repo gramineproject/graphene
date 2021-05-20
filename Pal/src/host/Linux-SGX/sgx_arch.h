@@ -8,10 +8,14 @@
 
 #ifndef __ASSEMBLER__
 
+#ifdef USE_STDLIB
+#include <assert.h>
+#else
+#include "assert.h"
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
-
-#include "assert.h"
 
 #pragma pack(push, 1)
 

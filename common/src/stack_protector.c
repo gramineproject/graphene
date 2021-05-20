@@ -6,6 +6,6 @@
 #include "assert.h"
 
 noreturn void __stack_chk_fail(void) {
-    warn("Stack protector: Graphene internal stack corruption detected\n");
-    __abort();
+    log_always("Stack protector: Graphene internal stack corruption detected\n");
+    abort();
 }

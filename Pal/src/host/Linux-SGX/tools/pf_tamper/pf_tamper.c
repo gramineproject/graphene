@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define USE_STDLIB
 #include "pf_util.h"
 #include "protected_files.h"
 #include "protected_files_format.h"

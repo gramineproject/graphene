@@ -5,15 +5,16 @@
 
 #include "attestation.h"
 
-#include <mbedtls/base64.h>
-#include <mbedtls/md.h>
-#include <mbedtls/pk.h>
+#include <assert.h>
 #include <stdalign.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <mbedtls/base64.h>
+#include <mbedtls/md.h>
+#include <mbedtls/pk.h>
+
 #include "cJSON.h"
-#include "crypto.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
 #include "util.h"

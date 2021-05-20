@@ -883,8 +883,3 @@ int ecall_thread_reset(void) {
     EDEBUG(ECALL_THREAD_RESET, NULL);
     return sgx_ecall(ECALL_THREAD_RESET, NULL);
 }
-
-noreturn void __abort(void) {
-    INLINE_SYSCALL(exit_group, 1, 1);
-    die_or_inf_loop();
-}

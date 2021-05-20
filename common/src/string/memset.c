@@ -28,8 +28,8 @@ void* memset(void* dest, int ch, size_t count) {
 
 void* __memset_chk(void* dest, int ch, size_t count, size_t dest_count) {
     if (count > dest_count) {
-        warn("memset() check failed\n");
-        __abort();
+        log_always("memset() check failed\n");
+        abort();
     }
     return memset(dest, ch, count);
 }

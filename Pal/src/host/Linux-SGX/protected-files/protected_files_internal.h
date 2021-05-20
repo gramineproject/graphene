@@ -9,7 +9,6 @@
 
 #include <limits.h>
 
-#include "assert.h"
 #include "list.h"
 #include "lru_cache.h"
 #include "protected_files.h"

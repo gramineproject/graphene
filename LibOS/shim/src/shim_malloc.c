@@ -88,7 +88,7 @@ void* malloc(size_t size) {
          * condition and must terminate the current process.
          */
         log_error("Out-of-memory in library OS\n");
-        __abort();
+        DkProcessExit(1);
     }
 
     return mem;
