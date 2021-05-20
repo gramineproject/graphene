@@ -5,6 +5,7 @@
 
 #include "ias.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -14,8 +15,6 @@
 #include <stdlib.h>
 #include <strings.h>
 
-#include "assert.h"
-#include "crypto.h"
 #include "util.h"
 
 #define CURL_FAIL(action, ret)                                                 \

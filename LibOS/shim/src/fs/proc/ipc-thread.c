@@ -62,6 +62,11 @@ static int find_ipc_thread_link(const char* name, struct shim_qstr* link,
     size_t next_len;
     IDTYPE pid;
 
+    if (dentptr) {
+        /* XXX: Not sure how to handle this case yet */
+        return -EINVAL;
+    }
+
     int ret = parse_ipc_thread_name(name, &pid, &next, &next_len, &nextnext);
     if (ret < 0)
         return ret;
@@ -94,11 +99,6 @@ do_ipc:
 
     if (link)
         qstrsetstr(link, (char*)ipc_data, strlen((char*)ipc_data));
-
-    if (dentptr) {
-        /* XXX: Not sure how to handle this case yet */
-        __abort();
-    }
 
 out:
     if (dent)

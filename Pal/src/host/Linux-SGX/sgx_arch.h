@@ -11,9 +11,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "assert.h"
-
 #pragma pack(push, 1)
+
+#define static_assert _Static_assert
 
 #define SE_KEY_SIZE      384
 #define SE_EXPONENT_SIZE 4

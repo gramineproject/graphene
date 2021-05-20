@@ -9,7 +9,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef USE_STDLIB
+#include <assert.h>
+#else
 #include "assert.h"
+#endif
+
 #include "list.h"
 #include "toml.h"
 

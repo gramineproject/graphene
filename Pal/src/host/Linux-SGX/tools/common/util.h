@@ -91,7 +91,4 @@ void hexdump_mem(const void* data, size_t size);
 /*! Parse hex string to buffer */
 int parse_hex(const char* hex, void* buffer, size_t buffer_size);
 
-/*! abort */
-void __abort(void);
-
 #endif /* UTIL_H */

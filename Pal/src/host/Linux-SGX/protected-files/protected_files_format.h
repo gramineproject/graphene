@@ -9,9 +9,10 @@
 
 #include <limits.h>
 
-#include "assert.h"
 #include "list.h"
 #include "protected_files.h"
+
+#define static_assert _Static_assert
 
 #define PF_FILE_ID       0x46505f4850415247 /* GRAPH_PF */
 #define PF_MAJOR_VERSION 0x01

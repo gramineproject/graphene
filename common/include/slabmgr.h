@@ -15,11 +15,6 @@
 #include "assert.h"
 #include "list.h"
 
-/* this header must be included after LibOS/PAL internal headers, so that log_error is available */
-#ifndef log_error
-#error "macro \"log_error\" not declared"
-#endif
-
 // Before calling any of `system_malloc` and `system_free` this library will
 // acquire `SYSTEM_LOCK` (the system_* implementation must not do it).
 #ifndef system_malloc
@@ -358,8 +353,8 @@ static inline size_t slab_get_buf_size(const void* ptr) {
     }
 
     if (level >= SLAB_LEVEL) {
-        log_error("Heap corruption detected: invalid heap level %u\n", level);
-        __abort();
+        log_always("Heap corruption detected: invalid heap level %u\n", level);
+        abort();
     }
 
 #ifdef SLAB_CANARY
@@ -394,8 +389,8 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
      * more likely to be detected by adding a non-zero offset to the level,
      * so a level of 0 in the header would no longer be a valid level. */
     if (level >= SLAB_LEVEL) {
-        log_error("Heap corruption detected: invalid heap level %d\n", level);
-        __abort();
+        log_always("Heap corruption detected: invalid heap level %d\n", level);
+        abort();
     }
 
 #ifdef SLAB_CANARY
