@@ -40,6 +40,8 @@ python3mod = import('python3')
 python3 = python3mod.find_python()
 
 add_project_arguments(
+    '-Wa,--noexecstack',
+
     '-Wall',
     '-Wextra',
 
@@ -48,7 +50,7 @@ add_project_arguments(
     '-Wwrite-strings',
 
     cc.get_supported_arguments(
-        '-Wtrampoline',
+        '-Wtrampolines',
         '-Wnull-dereference',
     ),
 
@@ -81,6 +83,8 @@ endif
 # The compilation
 #
 
+subdir('common')
+subdir('Pal')
 subdir('LibOS')
 subdir('Runtime')
 subdir('python')
