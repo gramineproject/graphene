@@ -82,7 +82,7 @@ void urts_log_always(const char* fmt, ...) {
     va_end(ap);
 }
 
-/* The below function is used by Stack Protector's __stack_chk_fail(), _FORTIFY_SOURCE's *_chk()
+/* The below function is used by stack protector's __stack_chk_fail(), _FORTIFY_SOURCE's *_chk()
  * functions and by assert.h's assert() defined in the common library. Do not use this function in
  * untrusted-PAL code, instead use urts_log_always() for readability! */
 void pal_log_always(const char* fmt, ...) {

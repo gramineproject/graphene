@@ -7,26 +7,7 @@
 
 #include <stdnoreturn.h>
 
-/* All environments should implement log_always(), which prints a non-optional debug message. All
- * environments should also implement abort(), which terminates the process. This file knows about
- * two such environments, LibOS (shim) and PAL, and aliases their implementations (we do this to
- * avoid clashes between LibOS and PAL symbols). */
-#ifdef IN_SHIM
-void shim_log_always(const char* format, ...) __attribute__((format(printf, 1, 2)));
-noreturn void shim_abort(void);
-#define log_always(format...) shim_log_always(format)
-#define abort() shim_abort()
-
-#elif IN_PAL
-void pal_log_always(const char* format, ...) __attribute__((format(printf, 1, 2)));
-noreturn void pal_abort(void);
-#define log_always(format...) pal_log_always(format)
-#define abort() pal_abort()
-
-#else
-void log_always(const char* format, ...) __attribute__((format(printf, 1, 2)));
-noreturn void abort(void);
-#endif
+#include "callbacks.h"
 
 noreturn void __stack_chk_fail(void);
 

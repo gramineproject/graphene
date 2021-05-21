@@ -36,7 +36,7 @@ static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
 const toml_table_t* g_manifest_root = NULL;
 const PAL_CONTROL* g_pal_control = NULL;
 
-/* This function is used by Stack Protector's __stack_chk_fail(), _FORTIFY_SOURCE's *_chk()
+/* This function is used by stack protector's __stack_chk_fail(), _FORTIFY_SOURCE's *_chk()
  * functions and by assert.h's assert() defined in the common library. Thus it might be called by
  * any thread, even internal. */
 noreturn void shim_abort(void) {

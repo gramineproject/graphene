@@ -21,7 +21,7 @@ void __attribute__((format(printf, 1, 2))) pal_printf(const char* fmt, ...) {
     va_end(ap);
 }
 
-/* The below two functions are used by Stack Protector's __stack_chk_fail(), _FORTIFY_SOURCE's
+/* The below two functions are used by stack protector's __stack_chk_fail(), _FORTIFY_SOURCE's
  * *_chk() functions and by assert.h's assert() defined in the common library. Thus they might be
  * called by any execution context, including these PAL tests. */
 void __attribute__((format(printf, 1, 2))) log_always(const char* fmt, ...) {
@@ -32,7 +32,5 @@ void __attribute__((format(printf, 1, 2))) log_always(const char* fmt, ...) {
 }
 
 noreturn void abort(void) {
-    log_always("ABORTED\n");
-    // ENOTRECOVERABLE = 131
-    DkProcessExit(131);
+    DkProcessExit(131); /* ENOTRECOVERABLE = 131 */
 }
