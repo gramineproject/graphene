@@ -436,7 +436,7 @@ static int relocate_elf_object(struct link_map* l);
 int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** out_loading_base) {
     struct link_map* map = NULL;
     char fb[FILEBUF_SIZE];
-    char* errstring;
+    const char* errstring;
     int ret = 0;
 
     /* Now we will start verify the file as a ELF header. This part of code was borrowed from
