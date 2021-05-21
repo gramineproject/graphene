@@ -9,6 +9,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define USE_STDLIB
+#include "api.h"
 #include "pf_util.h"
 #include "protected_files.h"
 #include "protected_files_format.h"
@@ -59,10 +61,10 @@ static void derive_main_key(const pf_key_t* kdk, const pf_keyid_t* key_id, pf_ke
 
     buf.index = 1;
     strncpy(buf.label, METADATA_KEY_NAME, MAX_LABEL_SIZE);
-    memcpy(&buf.nonce, key_id, sizeof(buf.nonce));
+    COPY_ARRAY(buf.nonce, *key_id);
     buf.output_len = 0x80;
 
-    status = mbedtls_aes_gcm_encrypt(kdk, &g_empty_iv, &buf, sizeof(buf), NULL, 0, NULL, out_key);
+    status = mbedtls_aes_cmac(kdk, &buf, sizeof(buf), out_key);
     if (PF_FAILURE(status))
         FATAL("key derivation failed\n");
 }

@@ -105,6 +105,18 @@ typedef pf_status_t (*pf_truncate_f)(pf_handle_t handle, uint64_t size);
 typedef void (*pf_debug_f)(const char* msg);
 
 /*!
+ * \brief AES-CMAC callback used for key derivation
+ *
+ * \param [in] key AES-GCM key
+ * \param [in] input Plaintext data
+ * \param [in] input_size Size of \a input in bytes
+ * \param [out] mac MAC computed for \a input
+ * \return PF status
+ */
+typedef pf_status_t (*pf_aes_cmac_f)(const pf_key_t* key, const void* input, size_t input_size,
+                                     pf_mac_t* mac);
+
+/*!
  * \brief AES-GCM encrypt callback
  *
  * \param [in] key AES-GCM key
@@ -153,6 +165,7 @@ typedef pf_status_t (*pf_random_f)(uint8_t* buffer, size_t size);
  * \param [in] read_f File read callback
  * \param [in] write_f File write callback
  * \param [in] truncate_f File truncate callback
+ * \param [in] aes_cmac_f AES-CMAC callback
  * \param [in] aes_gcm_encrypt_f AES-GCM encrypt callback
  * \param [in] aes_gcm_decrypt_f AES-GCM decrypt callback
  * \param [in] random_f Cryptographic random number generator callback
@@ -161,7 +174,7 @@ typedef pf_status_t (*pf_random_f)(uint8_t* buffer, size_t size);
  * \details Must be called before any actual APIs
  */
 void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f truncate_f,
-                      pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
+                      pf_aes_cmac_f aes_cmac_f, pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
                       pf_aes_gcm_decrypt_f aes_gcm_decrypt_f, pf_random_f random_f,
                       pf_debug_f debug_f);
 
