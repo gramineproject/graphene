@@ -32,6 +32,10 @@ int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* 
 int pf_decrypt_files(const char* input_dir, const char* output_dir, bool verify_path,
                      const char* wrap_key_path);
 
+/*! AES-CMAC */
+pf_status_t mbedtls_aes_cmac(const pf_key_t* key, const void* input, size_t input_size,
+                             pf_mac_t* mac);
+
 /*! AES-GCM encrypt */
 pf_status_t mbedtls_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv, const void* aad,
                                     size_t aad_size, const void* input, size_t input_size,

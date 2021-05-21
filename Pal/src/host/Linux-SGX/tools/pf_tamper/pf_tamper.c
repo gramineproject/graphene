@@ -62,7 +62,7 @@ static void derive_main_key(const pf_key_t* kdk, const pf_keyid_t* key_id, pf_ke
     memcpy(&buf.nonce, key_id, sizeof(buf.nonce));
     buf.output_len = 0x80;
 
-    status = mbedtls_aes_gcm_encrypt(kdk, &g_empty_iv, &buf, sizeof(buf), NULL, 0, NULL, out_key);
+    status = mbedtls_aes_cmac(kdk, &buf, sizeof(buf), out_key);
     if (PF_FAILURE(status))
         FATAL("key derivation failed\n");
 }

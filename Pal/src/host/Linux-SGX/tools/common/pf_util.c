@@ -11,14 +11,16 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/gcm.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <mbedtls/cmac.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/gcm.h>
 
 #define USE_STDLIB
 #include "api.h"
@@ -108,6 +110,21 @@ static pf_status_t linux_truncate(pf_handle_t handle, uint64_t size) {
 
 /* Crypto callbacks for mbedTLS */
 
+pf_status_t mbedtls_aes_cmac(const pf_key_t* key, const void* input, size_t input_size,
+                             pf_mac_t* mac) {
+    const mbedtls_cipher_info_t* cipher_info =
+        mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB);
+
+    int ret = mbedtls_cipher_cmac(cipher_info, (const unsigned char*)key, PF_KEY_SIZE * 8, input,
+                                  input_size, (unsigned char*)mac);
+    if (ret != 0) {
+        ERROR("mbedtls_cipher_cmac failed: %d\n", ret);
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    return PF_STATUS_SUCCESS;
+}
+
 pf_status_t mbedtls_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv, const void* aad,
                                     size_t aad_size, const void* input, size_t input_size,
                                     void* output, pf_mac_t* mac) {
@@ -190,8 +207,8 @@ static int pf_set_linux_callbacks(pf_debug_f debug_f) {
         return -1;
     }
 
-    pf_set_callbacks(linux_read, linux_write, linux_truncate, mbedtls_aes_gcm_encrypt,
-                     mbedtls_aes_gcm_decrypt, mbedtls_random, debug_f);
+    pf_set_callbacks(linux_read, linux_write, linux_truncate, mbedtls_aes_cmac,
+                     mbedtls_aes_gcm_encrypt, mbedtls_aes_gcm_decrypt, mbedtls_random, debug_f);
     return 0;
 }
 

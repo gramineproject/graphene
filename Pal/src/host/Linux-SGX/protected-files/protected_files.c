@@ -35,6 +35,7 @@ static pf_write_f    g_cb_write    = NULL;
 static pf_truncate_f g_cb_truncate = NULL;
 static pf_debug_f    g_cb_debug    = NULL;
 
+static pf_aes_cmac_f        g_cb_aes_cmac        = NULL;
 static pf_aes_gcm_encrypt_f g_cb_aes_gcm_encrypt = NULL;
 static pf_aes_gcm_decrypt_f g_cb_aes_gcm_decrypt = NULL;
 static pf_random_f          g_cb_random          = NULL;
@@ -124,8 +125,7 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* ou
     // length of output (128 bits)
     buf.output_len = 0x80;
 
-    status = g_cb_aes_gcm_encrypt(&pf->user_kdk_key, &g_empty_iv, &buf, sizeof(buf), NULL, 0, NULL,
-                                  output);
+    status = g_cb_aes_cmac(&pf->user_kdk_key, &buf, sizeof(buf), output);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -1204,12 +1204,13 @@ static file_node_t* ipf_read_mht_node(pf_context_t* pf, uint64_t mht_node_number
 // public API
 
 void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f truncate_f,
-                      pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
+                      pf_aes_cmac_f aes_cmac_f, pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
                       pf_aes_gcm_decrypt_f aes_gcm_decrypt_f, pf_random_f random_f,
                       pf_debug_f debug_f) {
     g_cb_read            = read_f;
     g_cb_write           = write_f;
     g_cb_truncate        = truncate_f;
+    g_cb_aes_cmac        = aes_cmac_f;
     g_cb_aes_gcm_encrypt = aes_gcm_encrypt_f;
     g_cb_aes_gcm_decrypt = aes_gcm_decrypt_f;
     g_cb_random          = random_f;

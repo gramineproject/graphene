@@ -102,6 +102,17 @@ static void cb_debug(const char* msg) {
 }
 #endif
 
+static pf_status_t cb_aes_cmac(const pf_key_t* key, const void* input, size_t input_size,
+                               pf_mac_t* mac) {
+    int ret = lib_AESCMAC((const uint8_t*)key, sizeof(*key), input, input_size, (uint8_t*)mac,
+                          sizeof(*mac));
+    if (ret != 0) {
+        log_error("lib_AESCMAC failed: %d\n", ret);
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+    return PF_STATUS_SUCCESS;
+}
+
 static pf_status_t cb_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv, const void* aad,
                                       size_t aad_size, const void* input, size_t input_size,
                                       void* output, pf_mac_t* mac) {
@@ -467,8 +478,8 @@ int init_protected_files(void) {
     debug_callback = cb_debug;
 #endif
 
-    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_gcm_encrypt, cb_aes_gcm_decrypt,
-                     cb_random, debug_callback);
+    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_cmac, cb_aes_gcm_encrypt,
+                     cb_aes_gcm_decrypt, cb_random, debug_callback);
 
     /* if wrap key is not hard-coded in the manifest, assume that it was received from parent or
      * it will be provisioned after local/remote attestation; otherwise read it from manifest */
