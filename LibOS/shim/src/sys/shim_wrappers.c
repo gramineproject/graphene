@@ -59,6 +59,9 @@ long shim_do_readv(int fd, const struct iovec* vec, int vlen) {
     ret = bytes;
 out:
     put_handle(hdl);
+    if (ret == -EINTR) {
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }
 
@@ -121,5 +124,8 @@ long shim_do_writev(int fd, const struct iovec* vec, int vlen) {
     ret = bytes;
 out:
     put_handle(hdl);
+    if (ret == -EINTR) {
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }

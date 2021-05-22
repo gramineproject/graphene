@@ -841,6 +841,11 @@ out:
 
     unlock(&hdl->lock);
     put_handle(hdl);
+    if (ret == -EINTR) {
+        /* TODO: in case of sockets with `SO_RCVTIMEO` or `SO_SNDTIMEO` set we should return
+         * `-ERESTARTNOHAND` here. */
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }
 
@@ -984,6 +989,11 @@ out:
     if (accepted)
         DkObjectClose(accepted);
     unlock(&hdl->lock);
+    if (ret == -EINTR) {
+        /* TODO: in case of sockets with `SO_RCVTIMEO` or `SO_SNDTIMEO` set we should return
+         * `-ERESTARTNOHAND` here. */
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }
 
@@ -1150,6 +1160,11 @@ out_locked:
     unlock(&hdl->lock);
 out:
     put_handle(hdl);
+    if (ret == -EINTR) {
+        /* TODO: in case of sockets with `SO_RCVTIMEO` or `SO_SNDTIMEO` set and once we support
+         * `timeout` argument to `sendmmsg` we should sometimes return `-ERESTARTNOHAND` here. */
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }
 
@@ -1354,6 +1369,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
             size_t left_to_read = expected_size - (peek_buffer->end - peek_buffer->start);
             ret = DkStreamRead(pal_hdl, /*offset=*/0, &left_to_read,
                                &peek_buffer->buf[peek_buffer->end], uri, uri ? SOCK_URI_SIZE : 0);
+            /* TODO: shouldn't we call `maybe_epoll_et_trigger` here? */
             if (ret < 0) {
                 ret = ret == -PAL_ERROR_STREAMNOTEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
                 lock(&hdl->lock);
@@ -1478,6 +1494,11 @@ out_locked:
     free(peek_buffer);
 out:
     put_handle(hdl);
+    if (ret == -EINTR) {
+        /* TODO: in case of sockets with `SO_RCVTIMEO` or `SO_SNDTIMEO` set and once we support
+         * `timeout` argument to `recvmmsg` we should sometimes return `-ERESTARTNOHAND` here. */
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }
 

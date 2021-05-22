@@ -54,6 +54,9 @@ long shim_do_read(int fd, void* buf, size_t count) {
 
     int ret = do_handle_read(hdl, buf, count);
     put_handle(hdl);
+    if (ret == -EINTR) {
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }
 
@@ -83,6 +86,9 @@ long shim_do_write(int fd, const void* buf, size_t count) {
 
     int ret = do_handle_write(hdl, buf, count);
     put_handle(hdl);
+    if (ret == -EINTR) {
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }
 
@@ -119,8 +125,13 @@ long shim_do_openat(int dfd, const char* filename, int flags, int mode) {
     }
 
     ret = open_namei(hdl, dir, filename, flags, mode, NULL);
-    if (ret < 0)
+    if (ret < 0) {
+        /* If this was blocking `open` (e.g. on FIFO), it might have returned `-EINTR`. */
+        if (ret == -EINTR) {
+            ret = -ERESTARTSYS;
+        }
         goto out_hdl;
+    }
 
     ret = set_new_fd_handle(hdl, flags & O_CLOEXEC ? FD_CLOEXEC : 0, NULL);
 

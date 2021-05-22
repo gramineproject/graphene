@@ -115,5 +115,8 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
     }
 
     put_handle(hdl);
+    if (ret == -EINTR) {
+        ret = -ERESTARTSYS;
+    }
     return ret;
 }

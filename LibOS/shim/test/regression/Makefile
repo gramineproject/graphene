@@ -83,6 +83,7 @@ c_executables = \
 	spinlock \
 	stat_invalid_args \
 	syscall \
+	syscall_restart \
 	sysfs_common \
 	tcp_ipv6_v6only \
 	tcp_msg_peek \
