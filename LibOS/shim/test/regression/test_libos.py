@@ -543,16 +543,24 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['gettimeofday'])
         self.assertIn('TEST OK', stdout)
 
-@unittest.skipUnless(HAS_SGX,
-    'This test is only meaningful on SGX PAL because only SGX catches raw '
-    'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
-    'Linux PAL, then we should allow this test on Linux PAL as well.')
-class TC_31_SyscallSGX(RegressionTestCase):
+class TC_31_Syscall(RegressionTestCase):
+    @unittest.skipUnless(HAS_SGX,
+        'This test is only meaningful on SGX PAL because only SGX catches raw '
+        'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
+        'Linux PAL, then we should allow this test on Linux PAL as well.')
     def test_000_syscall_redirect(self):
         stdout, _ = self.run_binary(['syscall'])
 
         # Syscall Instruction Redirection
         self.assertIn('Hello world', stdout)
+
+    def test_010_syscall_restart(self):
+        stdout, _ = self.run_binary(['syscall_restart'])
+        self.assertIn('Got: R', stdout)
+        self.assertIn('TEST 1 OK', stdout)
+        self.assertIn('Handling signal 15', stdout)
+        self.assertIn('Got: P', stdout)
+        self.assertIn('TEST 2 OK', stdout)
 
 class TC_40_FileSystem(RegressionTestCase):
     def test_000_proc(self):

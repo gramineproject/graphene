@@ -414,6 +414,11 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
         if (error && error != -EAGAIN) {
             unlock(&epoll_hdl->lock);
             put_handle(epoll_hdl);
+            if (error == -EINTR) {
+                /* `epoll_wait` and `epoll_pwait` are not restarted after being interrupted by
+                 * a signal handler. */
+                error = -ERESTARTNOHAND;
+            }
             return error;
         } else if (event_handle_update) {
             /* retry if epoll was updated concurrently (similar to Linux semantics) */

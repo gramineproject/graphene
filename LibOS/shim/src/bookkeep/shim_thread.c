@@ -192,7 +192,7 @@ static int init_main_thread(void) {
     unlock(&cur_thread->lock);
 
     int ret = DkEventCreate(&cur_thread->scheduler_event, /*init_signaled=*/false,
-                            /*auto_clear=*/false);
+                            /*auto_clear=*/true);
     if (ret < 0) {
         put_thread(cur_thread);
         return pal_to_unix_errno(ret);;
@@ -304,7 +304,7 @@ struct shim_thread* get_new_thread(void) {
     unlock(&cur_thread->lock);
 
     int ret = DkEventCreate(&thread->scheduler_event, /*init_signaled=*/false,
-                            /*auto_clear=*/false);
+                            /*auto_clear=*/true);
     if (ret < 0) {
         put_thread(thread);
         return NULL;
@@ -641,7 +641,7 @@ BEGIN_RS_FUNC(thread) {
     }
 
     int ret = DkEventCreate(&thread->scheduler_event, /*init_signaled=*/false,
-                            /*auto_clear=*/false);
+                            /*auto_clear=*/true);
     if (ret < 0) {
         return pal_to_unix_errno(ret);
     }

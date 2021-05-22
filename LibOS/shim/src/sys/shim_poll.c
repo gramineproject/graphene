@@ -183,6 +183,10 @@ static long _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     if (error == -EAGAIN) {
         /* `poll` returns 0 on timeout. */
         error = 0;
+    } else if (error == -EINTR) {
+        /* `poll`, `ppoll`, `select` and `pselect` are not restarted after being interrupted by
+         * a signal handler. */
+        error = -ERESTARTNOHAND;
     }
     return nrevents ? (long)nrevents : error;
 }
