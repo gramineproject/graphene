@@ -558,7 +558,14 @@ class TC_31_Syscall(RegressionTestCase):
         'layer translating EINTR to EAGAIN')
     def test_010_syscall_restart(self):
         stdout, _ = self.run_binary(['syscall_restart'])
-        self.assertIn('TEST OK', stdout)
+        expected_output = """\
+Got: R
+TEST 1 OK
+Handling signal 15
+Got: P
+TEST 2 OK
+"""
+        self.assertEqual(expected_output, stdout)
 
 class TC_40_FileSystem(RegressionTestCase):
     def test_000_proc(self):
