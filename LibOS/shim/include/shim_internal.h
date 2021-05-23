@@ -355,8 +355,9 @@ void reset_brk(void);
 int init_loader(void);
 int init_rlimit(void);
 
-bool test_user_memory(void* addr, size_t size, bool write);
-bool test_user_string(const char* addr);
+bool is_user_memory_readable(const void* addr, size_t size);
+bool is_user_memory_writable(const void* addr, size_t size);
+bool is_user_string_readable(const char* addr);
 
 uint64_t get_rlimit_cur(int resource);
 void set_rlimit_cur(int resource, uint64_t rlim);

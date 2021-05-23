@@ -5,6 +5,7 @@ CFLAGS += -I../.. \
           -I../common \
           -I../../protected-files \
           -I../../../../../../common/include \
+          -I../../../../../../common/include/arch/$(ARCH) \
           -D_GNU_SOURCE
 
 LDLIBS += -L../common \

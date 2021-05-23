@@ -74,7 +74,7 @@ long shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
         return 0;
     }
 
-    if (test_user_memory(grouplist, gidsetsize * sizeof(gid_t), /*write=*/false))
+    if (!is_user_memory_readable(grouplist, gidsetsize * sizeof(gid_t)))
         return -EFAULT;
 
     size_t groups_len = (size_t)gidsetsize;
@@ -100,7 +100,7 @@ long shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
     if (gidsetsize < 0)
         return -EINVAL;
 
-    if (gidsetsize && test_user_memory(grouplist, gidsetsize * sizeof(gid_t), /*write=*/true))
+    if (!is_user_memory_writable(grouplist, gidsetsize * sizeof(gid_t)))
         return -EFAULT;
 
     struct shim_thread* current = get_cur_thread();

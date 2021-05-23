@@ -898,13 +898,13 @@ static void parse_exec_args(struct print_buf* buf, va_list* ap) {
     buf_puts(buf, "[");
 
     for (;; args++) {
-        if (test_user_memory(args, sizeof(*args), false)) {
+        if (!is_user_memory_readable(args, sizeof(*args))) {
             buf_printf(buf, "(invalid-argv %p)", args);
             break;
         }
         if (*args == NULL)
             break;
-        if (test_user_string(*args)) {
+        if (!is_user_string_readable(*args)) {
             buf_printf(buf, "(invalid-addr %p),", *args);
             continue;
         }
@@ -927,13 +927,13 @@ static void parse_exec_envp(struct print_buf* buf, va_list* ap) {
 
     int cnt = 0;
     for (; cnt < 2; cnt++, envp++) {
-        if (test_user_memory(envp, sizeof(*envp), false)) {
+        if (!is_user_memory_readable(envp, sizeof(*envp))) {
             buf_printf(buf, "(invalid-envp %p)", envp);
             break;
         }
         if (*envp == NULL)
             break;
-        if (test_user_string(*envp)) {
+        if (!is_user_string_readable(*envp)) {
             buf_printf(buf, "(invalid-addr %p),", *envp);
             continue;
         }
@@ -950,7 +950,7 @@ static void parse_exec_envp(struct print_buf* buf, va_list* ap) {
 static void parse_pipe_fds(struct print_buf* buf, va_list* ap) {
     int* fds = va_arg(*ap, int*);
 
-    if (test_user_memory(fds, 2 * sizeof(*fds), false)) {
+    if (!is_user_memory_readable(fds, 2 * sizeof(*fds))) {
         buf_printf(buf, "[invalid-addr %p]", fds);
         return;
     }
@@ -971,7 +971,7 @@ static void parse_sigmask(struct print_buf* buf, va_list* ap) {
         return;
     }
 
-    if (test_user_memory(sigset, sizeof(*sigset), false)) {
+    if (!is_user_memory_readable(sigset, sizeof(*sigset))) {
         buf_printf(buf, "(invalid-addr %p)", sigset);
         return;
     }
@@ -1081,7 +1081,7 @@ static void parse_timespec(struct print_buf* buf, va_list* ap) {
         return;
     }
 
-    if (test_user_memory((void*)tv, sizeof(*tv), false)) {
+    if (!is_user_memory_readable((void*)tv, sizeof(*tv))) {
         buf_printf(buf, "(invalid-addr %p)", tv);
         return;
     }
@@ -1097,7 +1097,7 @@ static void parse_sockaddr(struct print_buf* buf, va_list* ap) {
         return;
     }
 
-    if (test_user_memory((void*)addr, sizeof(*addr), false)) {
+    if (!is_user_memory_readable((void*)addr, sizeof(*addr))) {
         buf_printf(buf, "(invalid-addr %p)", addr);
         return;
     }
@@ -1496,7 +1496,7 @@ static void parse_getrandom_flags(struct print_buf* buf, va_list* ap) {
 
 static void parse_string_arg(struct print_buf* buf, va_list* ap) {
     const char* arg = va_arg(*ap, const char*);
-    if (!test_user_string(arg)) {
+    if (is_user_string_readable(arg)) {
         buf_printf(buf, "\"%s\"", arg);
     } else {
         /* invalid memory region, print arg as ptr not string */

@@ -26,7 +26,7 @@
 
 /* this macro is used to emulate mmap() via pread() in chunks of 128MB (mmapped files may be many
  * GBs in size, and a pread OCALL could fail with -ENOMEM, so we cap to reasonably small size) */
-#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024L * 32)
+#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024 * 32)
 
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
@@ -404,7 +404,13 @@ out:
 
 /* 'map' operation for file stream. */
 static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
+    assert(IS_ALLOC_ALIGNED(offset) && IS_ALLOC_ALIGNED(size));
     int ret;
+
+    uint64_t dummy;
+    if (__builtin_add_overflow(offset, size, &dummy)) {
+        return -PAL_ERROR_INVAL;
+    }
 
     if (size > SIZE_MAX) {
         /* for compatibility with 32-bit systems */
@@ -464,23 +470,11 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         }
     } else {
         /* case of allowed file: simply read from underlying file descriptor into enclave memory */
-        off_t end            = offset + size;
-        off_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
-        off_t aligned_end    = ALLOC_ALIGN_UP(end);
-        off_t total_size     = aligned_end - aligned_offset;
-
-        if ((uint64_t)total_size > SIZE_MAX) {
-            /* for compatibility with 32-bit systems */
-            ret = -PAL_ERROR_INVAL;
-            goto out;
-        }
-
-        ssize_t bytes_read = 0;
-        while (bytes_read < total_size) {
-            size_t read_size = total_size - bytes_read < MAX_READ_SIZE ?
-                               total_size - bytes_read : MAX_READ_SIZE;
+        size_t bytes_read = 0;
+        while (bytes_read < size) {
+            size_t read_size = MIN(size - bytes_read, MAX_READ_SIZE);
             ssize_t bytes = ocall_pread(handle->file.fd, mem + bytes_read, read_size,
-                                        aligned_offset + bytes_read);
+                                        offset + bytes_read);
             if (bytes > 0) {
                 bytes_read += bytes;
             } else if (bytes == 0) {
@@ -494,10 +488,10 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
             }
         }
 
-        if (total_size - bytes_read > 0) {
+        if (size - bytes_read > 0) {
             /* file ended before all requested memory was filled -- remaining memory has to be
              * zeroed */
-            memset(mem + bytes_read, 0, total_size - bytes_read);
+            memset(mem + bytes_read, 0, size - bytes_read);
         }
     }
 

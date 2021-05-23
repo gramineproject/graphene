@@ -42,7 +42,7 @@ int do_handle_read(struct shim_handle* hdl, void* buf, int count) {
 }
 
 long shim_do_read(int fd, void* buf, size_t count) {
-    if (test_user_memory(buf, count, true))
+    if (!is_user_memory_writable(buf, count))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -80,7 +80,7 @@ int do_handle_write(struct shim_handle* hdl, const void* buf, int count) {
 }
 
 long shim_do_write(int fd, const void* buf, size_t count) {
-    if (test_user_memory((void*)buf, count, false))
+    if (!is_user_memory_readable((void*)buf, count))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -104,7 +104,7 @@ long shim_do_creat(const char* path, mode_t mode) {
 }
 
 long shim_do_openat(int dfd, const char* filename, int flags, int mode) {
-    if (!filename || test_user_string(filename))
+    if (!is_user_string_readable(filename))
         return -EFAULT;
 
     if (!(flags & O_CREAT)) {
@@ -186,7 +186,7 @@ out:
 }
 
 long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
-    if (test_user_memory(buf, count, true))
+    if (!is_user_memory_writable(buf, count))
         return -EFAULT;
 
     if (pos < 0)
@@ -236,7 +236,7 @@ out:
 }
 
 long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
-    if (test_user_memory(buf, count, false))
+    if (!is_user_memory_readable(buf, count))
         return -EFAULT;
 
     if (pos < 0)
@@ -307,7 +307,7 @@ static int get_dirent_type(mode_t type) {
 }
 
 static ssize_t do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64) {
-    if (test_user_memory(buf, buf_size, true))
+    if (!is_user_memory_writable(buf, buf_size))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -466,7 +466,7 @@ long shim_do_truncate(const char* path, loff_t length) {
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
-    if (!path || test_user_string(path))
+    if (!is_user_string_readable(path))
         return -EFAULT;
 
     if ((ret = path_lookupat(/*start=*/NULL, path, LOOKUP_FOLLOW, &dent)) < 0)

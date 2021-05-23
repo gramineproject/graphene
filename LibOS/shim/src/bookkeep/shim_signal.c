@@ -343,17 +343,6 @@ static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) 
     assert(!is_in_pal);
     assert(context);
 
-    shim_tcb_t* tcb = shim_get_tcb();
-    assert(tcb);
-
-    if (tcb->test_range.cont_addr && (void*)addr >= tcb->test_range.start &&
-            (void*)addr <= tcb->test_range.end) {
-        assert(context_is_libos(context));
-        tcb->test_range.has_fault = true;
-        pal_context_set_ip(context, (PAL_NUM)tcb->test_range.cont_addr);
-        return;
-    }
-
     if (is_internal_tid(get_cur_tid()) || context_is_libos(context)) {
         internal_fault("Internal memory fault", addr, context);
     }
@@ -398,176 +387,68 @@ static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) 
 }
 
 /*
- * Helper function for test_user_memory / test_user_string; they behave
- * differently for different PALs:
- *
- * - For Linux-SGX, the faulting address is not propagated in memfault
- *   exception (SGX v1 does not write address in SSA frame, SGX v2 writes
- *   it only at a granularity of 4K pages). Thus, we cannot rely on
- *   exception handling to compare against tcb.test_range.start/end.
- *   Instead, traverse VMAs to see if [addr, addr+size) is addressable;
- *   before traversing VMAs, grab a VMA lock.
- *
- * - For other PALs, we touch one byte of each page in [addr, addr+size).
- *   If some byte is not addressable, exception is raised. memfault_upcall
- *   handles this exception and resumes execution from ret_fault.
- *
- * The second option is faster in fault-free case but cannot be used under
- * SGX PAL. We use the best option for each PAL for now. */
-static bool is_sgx_pal(void) {
-    static int sgx_pal = 0;
-    static int inited  = 0;
-
-    if (!__atomic_load_n(&inited, __ATOMIC_RELAXED)) {
-        /* Ensure that `sgx_pal` is updated before `inited`. */
-        __atomic_store_n(&sgx_pal, !strcmp(g_pal_control->host_type, "Linux-SGX"),
-                         __ATOMIC_RELAXED);
-        COMPILER_BARRIER();
-        __atomic_store_n(&inited, 1, __ATOMIC_RELAXED);
-    }
-
-    return __atomic_load_n(&sgx_pal, __ATOMIC_RELAXED) != 0;
-}
-
-/*
- * 'test_user_memory' and 'test_user_string' are helper functions for testing
- * if a user-given buffer or data structure is readable / writable (according
- * to the system call semantics). If the memory test fails, the system call
- * should return -EFAULT or -EINVAL accordingly. These helper functions cannot
- * guarantee further corruption of the buffer, or if the buffer is unmapped
- * with a concurrent system call. The purpose of these functions is simply for
- * the compatibility with programs that rely on the error numbers, such as the
- * LTP test suite. */
-#ifdef UBSAN
-__attribute__((no_sanitize("undefined")))
-#endif
-bool test_user_memory(void* addr, size_t size, bool write) {
-    if (!size)
-        return false;
-
-    if (!access_ok(addr, size))
-        return true;
-
-    if (!g_check_invalid_ptrs)
-        return false;
-
-    /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
-    if (is_sgx_pal())
-        return !is_in_adjacent_user_vmas(addr, size);
-
-    /* Non-SGX path: check if [addr, addr+size) is addressable by touching
-     * a byte of each page; invalid access will be caught in memfault_upcall */
-    shim_tcb_t* tcb = shim_get_tcb();
-    assert(tcb && tcb->tp);
-
-    /* Add the memory region to the watch list. This is not racy because
-     * each thread has its own record. */
-    assert(!tcb->test_range.cont_addr);
-    tcb->test_range.has_fault = false;
-    tcb->test_range.cont_addr = &&ret_fault;
-    tcb->test_range.start     = addr;
-    tcb->test_range.end       = addr + size - 1;
-    /* enforce compiler to store tcb->test_range into memory */
-    COMPILER_BARRIER();
-
-    /* Try to read or write into one byte inside each page */
-    void* tmp = addr;
-    while (tmp <= addr + size - 1) {
-        if (write) {
-            *(volatile char*)tmp = *(volatile char*)tmp;
-        } else {
-            *(volatile char*)tmp;
-        }
-        tmp = ALLOC_ALIGN_UP_PTR(tmp + 1);
-    }
-
-ret_fault:
-    /* enforce compiler to load tcb->test_range.has_fault below */
-    COMPILER_BARRIER();
-
-    /* If any read or write into the target region causes an exception,
-     * the control flow will immediately jump to here. */
-    bool has_fault = tcb->test_range.has_fault;
-    tcb->test_range.has_fault = false;
-    tcb->test_range.cont_addr = NULL;
-    tcb->test_range.start = tcb->test_range.end = NULL;
-    return has_fault;
-}
-
-/*
- * This function tests a user string with unknown length. It only tests
- * whether the memory is readable.
+ * Tests whether whole range of memory `[addr; addr+size)` is readable, or, if `writable` is true,
+ * writable. The intended usage of this function is checking memory pointers passed to system calls.
+ * Note that this does not check the accesses to the memory themselves and is only meant to handle
+ * invalid syscall arguments (e.g. LTP test suite checks syscall arguments validation).
  */
-#ifdef UBSAN
-__attribute__((no_sanitize("undefined")))
-#endif
-bool test_user_string(const char* addr) {
-    if (!access_ok(addr, 1))
+static bool test_user_memory(const void* addr, size_t size, bool writable) {
+    if (!g_check_invalid_ptrs) {
         return true;
+    }
 
-    if (!g_check_invalid_ptrs)
-        return false;
-
-    size_t size, maxlen;
-    const char* next = ALLOC_ALIGN_UP_PTR(addr + 1);
-
-    /* SGX path: check if [addr, addr+size) is addressable (in some VMA). */
-    if (is_sgx_pal()) {
-        /* We don't know length but using unprotected strlen() is dangerous
-         * so we check string in chunks of 4K pages. */
-        do {
-            maxlen = next - addr;
-
-            if (!access_ok(addr, maxlen) || !is_in_adjacent_user_vmas((void*)addr, maxlen))
-                return true;
-
-            size = strnlen(addr, maxlen);
-            addr = next;
-            next = ALLOC_ALIGN_UP_PTR(addr + 1);
-        } while (size == maxlen);
-
+    if (!access_ok(addr, size)) {
         return false;
     }
 
-    /* Non-SGX path: check if [addr, addr+size) is addressable by touching
-     * a byte of each page; invalid access will be caught in memfault_upcall. */
-    shim_tcb_t* tcb = shim_get_tcb();
-    assert(tcb && tcb->tp);
+    return is_in_adjacent_user_vmas(addr, size, writable ? PROT_WRITE : PROT_READ);
+}
 
-    assert(!tcb->test_range.cont_addr);
-    tcb->test_range.has_fault = false;
-    tcb->test_range.cont_addr = &&ret_fault;
-    /* enforce compiler to store tcb->test_range into memory */
-    COMPILER_BARRIER();
+bool is_user_memory_readable(const void* addr, size_t size) {
+    return test_user_memory(addr, size, /*writable=*/false);
+}
 
-    do {
-        /* Add the memory region to the watch list. This is not racy because
-         * each thread has its own record. */
-        tcb->test_range.start = (void*)addr;
-        tcb->test_range.end   = (void*)(next - 1);
+bool is_user_memory_writable(const void* addr, size_t size) {
+    return test_user_memory(addr, size, /*writable=*/true);
+}
 
-        maxlen = next - addr;
+/*
+ * Equivalent to `is_user_memory_readable(addr, strlen(addr) + 1)`, but the string length does not
+ * need to be known in advance.
+ */
+bool is_user_string_readable(const char* addr) {
+    if (!g_check_invalid_ptrs) {
+        return true;
+    }
 
-        if (!access_ok(addr, maxlen))
+    const char* next_page_addr = ALIGN_UP_PTR(addr + 1, PAGE_SIZE);
+    assert(next_page_addr != addr);
+
+    /* `next_page_addr` could wrap around which by itself might not be an error, let `access_ok`
+     * decide that. Subtracting these two pointers would be illegal in C though, hence the casts. */
+    size_t len = (uintptr_t)next_page_addr - (uintptr_t)addr;
+    while (1) {
+        if (!access_ok(addr, len)) {
+            return false;
+        }
+        if (!is_in_adjacent_user_vmas(addr, len, PROT_READ)) {
+            return false;
+        }
+
+        if (strnlen(addr, len) != len) {
+            /* String ended. */
             return true;
-        *(volatile char*)addr; /* try to read one byte from the page */
+        }
 
-        size = strnlen(addr, maxlen);
-        addr = next;
-        next = ALLOC_ALIGN_UP_PTR(addr + 1);
-    } while (size == maxlen);
+        if (next_page_addr <= addr) {
+            /* Do not wrap around address space. */
+            return false;
+        }
 
-ret_fault:
-    /* enforce compiler to load tcb->test_range.has_fault below */
-    COMPILER_BARRIER();
-
-    /* If any read or write into the target region causes an exception,
-     * the control flow will immediately jump to here. */
-    bool has_fault = tcb->test_range.has_fault;
-    tcb->test_range.has_fault = false;
-    tcb->test_range.cont_addr = NULL;
-    tcb->test_range.start = tcb->test_range.end = NULL;
-    return has_fault;
+        addr = next_page_addr;
+        next_page_addr += PAGE_SIZE;
+        len = PAGE_SIZE;
+    }
 }
 
 static void illegal_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {

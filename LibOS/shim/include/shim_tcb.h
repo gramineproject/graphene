@@ -34,16 +34,6 @@ struct shim_tcb {
     void*               syscall_scratch_pc;
     void*               vma_cache;
     char                log_prefix[32];
-
-    /* This record is for testing the memory of user inputs.
-     * If a segfault occurs with the range [start, end],
-     * the code addr is set to cont_addr to alert the caller. */
-    struct {
-        void* start;
-        void* end;
-        void* cont_addr;
-        bool has_fault;
-    } test_range;
 };
 
 static_assert(

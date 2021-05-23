@@ -108,8 +108,9 @@ int bkeep_mmap_any_aslr(size_t length, int prot, int flags, struct shim_handle* 
  * This function increases ref-count of `vma_info->file` by one (if it is not NULL). */
 int lookup_vma(void* addr, struct shim_vma_info* vma_info);
 
-/* Returns true if the whole range [`addr`, `addr` + `length`) is mapped as user memory. */
-bool is_in_adjacent_user_vmas(void* addr, size_t length);
+/* Returns true if the whole range [`addr`, `addr` + `length`) is mapped as user memory and allows
+ * for `prot` type of access. */
+bool is_in_adjacent_user_vmas(const void* addr, size_t length, int prot);
 
 /*
  * Dumps all non-internal and mapped VMAs.

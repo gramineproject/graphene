@@ -16,14 +16,14 @@
 #include "shim_utils.h"
 
 long shim_do_readv(int fd, const struct iovec* vec, int vlen) {
-    if (test_user_memory((void*)vec, sizeof(*vec) * vlen, false))
+    if (!is_user_memory_readable(vec, sizeof(*vec) * vlen))
         return -EINVAL;
 
     for (int i = 0; i < vlen; i++) {
         if (vec[i].iov_base) {
             if (!access_ok(vec[i].iov_base, vec[i].iov_len))
                 return -EINVAL;
-            if (test_user_memory(vec[i].iov_base, vec[i].iov_len, true))
+            if (!is_user_memory_writable(vec[i].iov_base, vec[i].iov_len))
                 return -EFAULT;
         }
     }
@@ -81,14 +81,14 @@ out:
  * shall remain unchanged, and errno shall be set to indicate an error
  */
 long shim_do_writev(int fd, const struct iovec* vec, int vlen) {
-    if (test_user_memory((void*)vec, sizeof(*vec) * vlen, false))
+    if (!is_user_memory_readable(vec, sizeof(*vec) * vlen))
         return -EINVAL;
 
     for (int i = 0; i < vlen; i++) {
         if (vec[i].iov_base) {
             if (!access_ok(vec[i].iov_base, vec[i].iov_len))
                 return -EINVAL;
-            if (test_user_memory(vec[i].iov_base, vec[i].iov_len, false))
+            if (!is_user_memory_readable(vec[i].iov_base, vec[i].iov_len))
                 return -EFAULT;
         }
     }

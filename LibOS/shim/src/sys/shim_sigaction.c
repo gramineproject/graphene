@@ -34,10 +34,10 @@ long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
             sigsetsize != sizeof(__sigset_t))
         return -EINVAL;
 
-    if (act && test_user_memory((void*)act, sizeof(*act), /*write=*/false))
+    if (act && !is_user_memory_readable(act, sizeof(*act)))
         return -EFAULT;
 
-    if (oldact && test_user_memory(oldact, sizeof(*oldact), /*write=*/true))
+    if (oldact && !is_user_memory_writable(oldact, sizeof(*oldact)))
         return -EFAULT;
 
     if (act && !(act->sa_flags & SA_RESTORER)) {
@@ -92,10 +92,10 @@ long shim_do_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset, 
     if (how != SIG_BLOCK && how != SIG_UNBLOCK && how != SIG_SETMASK)
         return -EINVAL;
 
-    if (set && test_user_memory((void*)set, sizeof(*set), false))
+    if (set && !is_user_memory_readable(set, sizeof(*set)))
         return -EFAULT;
 
-    if (oldset && test_user_memory(oldset, sizeof(*oldset), false))
+    if (oldset && !is_user_memory_readable(oldset, sizeof(*oldset)))
         return -EFAULT;
 
     struct shim_thread* cur = get_cur_thread();
@@ -136,10 +136,10 @@ out:
 }
 
 long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
-    if (ss && test_user_memory((void*)ss, sizeof(*ss), /*write=*/false)) {
+    if (ss && !is_user_memory_readable(ss, sizeof(*ss))) {
         return -EFAULT;
     }
-    if (oss && test_user_memory(oss, sizeof(*oss), /*write=*/true)) {
+    if (oss && !is_user_memory_writable(oss, sizeof(*oss))) {
         return -EFAULT;
     }
 
@@ -187,7 +187,7 @@ long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr, size_t setsize) {
     if (setsize != sizeof(sigset_t)) {
         return -EINVAL;
     }
-    if (test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
+    if (!is_user_memory_readable(mask_ptr, sizeof(*mask_ptr)))
         return -EFAULT;
 
     __sigset_t mask = *mask_ptr;
@@ -230,7 +230,7 @@ long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;
 
-    if (test_user_memory(set, sigsetsize, /*write=*/true))
+    if (!is_user_memory_writable(set, sigsetsize))
         return -EFAULT;
 
     get_all_pending_signals(set);

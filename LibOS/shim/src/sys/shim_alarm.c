@@ -73,9 +73,9 @@ long shim_do_setitimer(int which, struct __kernel_itimerval* value,
 
     if (!value)
         return -EFAULT;
-    if (test_user_memory(value, sizeof(*value), false))
+    if (!is_user_memory_readable(value, sizeof(*value)))
         return -EFAULT;
-    if (ovalue && test_user_memory(ovalue, sizeof(*ovalue), true))
+    if (ovalue && !is_user_memory_writable(ovalue, sizeof(*ovalue)))
         return -EFAULT;
 
     uint64_t setup_time = 0;
@@ -124,7 +124,7 @@ long shim_do_getitimer(int which, struct __kernel_itimerval* value) {
 
     if (!value)
         return -EFAULT;
-    if (test_user_memory(value, sizeof(*value), true))
+    if (!is_user_memory_writable(value, sizeof(*value)))
         return -EFAULT;
 
     uint64_t setup_time = 0;

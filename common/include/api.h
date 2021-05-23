@@ -15,6 +15,7 @@
 #include "assert.h"
 #endif
 
+#include "cpu.h"
 #include "list.h"
 #include "toml.h"
 
@@ -381,6 +382,12 @@ static inline bool __range_not_ok(uintptr_t addr, size_t size) {
     addr += size;
     if (addr < size) {
         /* pointer arithmetic overflow, this check is x86-64 specific */
+        return true;
+    }
+    if ((addr & ~(PAGE_SIZE - 1)) == ~(PAGE_SIZE - 1)) {
+        /* Disallow the very last page of memory. In C it's legal to have a pointer to the byte
+         * after an object (end), yet that would wrap the pointer, which would be wrong. Also it
+         * could be dangerous to map stuff there. */
         return true;
     }
     return false;

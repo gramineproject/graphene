@@ -20,7 +20,7 @@ long shim_do_getrandom(char* buf, size_t count, unsigned int flags) {
     if (count > INT_MAX)
         count = INT_MAX;
 
-    if (test_user_memory(buf, count, /*write=*/true))
+    if (!is_user_memory_writable(buf, count))
         return -EFAULT;
 
     /* In theory, DkRandomBitsRead may block on some PALs (which conflicts with GRND_NONBLOCK flag),

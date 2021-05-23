@@ -442,7 +442,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (_addrlen < 0)
         return -EINVAL;
     size_t addrlen = _addrlen;
-    if (test_user_memory(addr, addrlen, false))
+    if (!is_user_memory_readable(addr, addrlen))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
@@ -689,7 +689,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
         return -EINVAL;
     size_t addrlen = _addrlen;
 
-    if (test_user_memory(addr, addrlen, false))
+    if (!is_user_memory_readable(addr, addrlen))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
@@ -862,13 +862,13 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
     }
 
     if (addr) {
-        if (test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true))
+        if (!is_user_memory_writable(addrlen, sizeof(*addrlen)))
             return -EINVAL;
 
         if (*addrlen < 0 || (size_t)*addrlen < minimal_addrlen(sock->domain))
             return -EINVAL;
 
-        if (test_user_memory(addr, *addrlen, /*write=*/true))
+        if (!is_user_memory_writable(addr, *addrlen))
             return -EINVAL;
     }
 
@@ -1169,11 +1169,11 @@ out:
 
 long shim_do_sendto(int sockfd, const void* buf, size_t len, int flags,
                     const struct sockaddr* addr, int addrlen) {
-    if (addr && test_user_memory((void*)addr, addrlen, /*write=*/false)) {
+    if (addr && !is_user_memory_readable(addr, addrlen)) {
         return -EFAULT;
     }
 
-    if (test_user_memory((void*)buf, len, /*write=*/false)) {
+    if (!is_user_memory_readable(buf, len)) {
         return -EFAULT;
     }
 
@@ -1189,7 +1189,10 @@ static int check_msghdr(struct msghdr* msg, bool is_recv) {
         return -EINVAL;
     }
 
-    if (test_user_memory(msg->msg_name, msg->msg_namelen, /*write=*/is_recv)) {
+    bool (*check_access_func)(const void*, size_t) = is_recv ? is_user_memory_writable
+                                                             : is_user_memory_readable;
+
+    if (!check_access_func(msg->msg_name, msg->msg_namelen)) {
         return -EFAULT;
     }
 
@@ -1198,13 +1201,13 @@ static int check_msghdr(struct msghdr* msg, bool is_recv) {
         return -EMSGSIZE;
     }
 
-    if (test_user_memory(msg->msg_iov, size, /*write=*/false)) {
+    if (!is_user_memory_readable(msg->msg_iov, size)) {
         return -EFAULT;
     }
 
     struct iovec* bufs = msg->msg_iov;
     for (size_t i = 0; i < msg->msg_iovlen; i++) {
-        if (test_user_memory(bufs[i].iov_base, bufs[i].iov_len, /*write=*/is_recv)) {
+        if (!check_access_func(bufs[i].iov_base, bufs[i].iov_len)) {
             return -EFAULT;
         }
     }
@@ -1213,7 +1216,7 @@ static int check_msghdr(struct msghdr* msg, bool is_recv) {
 }
 
 long shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
-    if (test_user_memory(msg, sizeof(*msg), /*write=*/false)) {
+    if (!is_user_memory_readable(msg, sizeof(*msg))) {
         return -EFAULT;
     }
 
@@ -1227,7 +1230,7 @@ long shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
 }
 
 long shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags) {
-    if (test_user_memory(msg, sizeof(*msg) * vlen, /*write=*/true)) {
+    if (!is_user_memory_writable(msg, sizeof(*msg) * vlen)) {
         return -EFAULT;
     }
     for (size_t i = 0; i < vlen; i++) {
@@ -1504,7 +1507,7 @@ out:
 long shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* addr,
                       int* addrlen) {
     if (addr) {
-        if (test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true)) {
+        if (!is_user_memory_writable(addrlen, sizeof(*addrlen))) {
             return -EFAULT;
         }
 
@@ -1512,12 +1515,12 @@ long shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct socka
             return -EINVAL;
         }
 
-        if (test_user_memory(addr, *addrlen, /*write=*/true)) {
+        if (!is_user_memory_writable(addr, *addrlen)) {
             return -EFAULT;
         }
     }
 
-    if (test_user_memory(buf, len, /*write=*/true)) {
+    if (!is_user_memory_writable(buf, len)) {
         return -EFAULT;
     }
 
@@ -1529,7 +1532,7 @@ long shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct socka
 }
 
 long shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
-    if (test_user_memory(msg, sizeof(*msg), /*write=*/true)) {
+    if (!is_user_memory_writable(msg, sizeof(*msg))) {
         return -EFAULT;
     }
 
@@ -1544,7 +1547,7 @@ long shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
 
 long shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
                       struct __kernel_timespec* timeout) {
-    if (test_user_memory(msg, sizeof(*msg) * vlen, /*write=*/true))
+    if (!is_user_memory_writable(msg, sizeof(*msg) * vlen))
         return -EFAULT;
 
     for (size_t i = 0; i < vlen; i++) {
@@ -1657,7 +1660,7 @@ long shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
         goto out;
     }
 
-    if (test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true)) {
+    if (!is_user_memory_writable(addrlen, sizeof(*addrlen))) {
         ret = -EFAULT;
         goto out;
     }
@@ -1667,7 +1670,7 @@ long shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
         goto out;
     }
 
-    if (test_user_memory(addr, *addrlen, /*write=*/true)) {
+    if (!is_user_memory_writable(addr, *addrlen)) {
         ret = -EFAULT;
         goto out;
     }
@@ -1694,7 +1697,7 @@ long shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
         goto out;
     }
 
-    if (test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true)) {
+    if (!is_user_memory_writable(addrlen, sizeof(*addrlen))) {
         ret = -EFAULT;
         goto out;
     }
@@ -1704,7 +1707,7 @@ long shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
         goto out;
     }
 
-    if (test_user_memory(addr, *addrlen, /*write=*/true)) {
+    if (!is_user_memory_writable(addr, *addrlen)) {
         ret = -EFAULT;
         goto out;
     }
@@ -1913,7 +1916,7 @@ long shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen
     if (optlen < (int)sizeof(int))
         return -EINVAL;
 
-    if (test_user_memory(optval, optlen, /*write=*/false))
+    if (!is_user_memory_readable(optval, optlen))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -1971,8 +1974,8 @@ long shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optle
         goto out;
     }
 
-    if (test_user_memory(optlen, sizeof(*optlen), /*write=*/true)
-            || test_user_memory(optval, *optlen, /*write=*/true)) {
+    if (!is_user_memory_writable(optlen, sizeof(*optlen))
+            || !is_user_memory_writable(optval, *optlen)) {
         ret = -EFAULT;
         goto out;
     }
