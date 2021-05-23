@@ -26,7 +26,7 @@ long shim_do_getcwd(char* buf, size_t buf_size) {
     if (!buf || !buf_size)
         return -EINVAL;
 
-    if (test_user_memory(buf, buf_size, true))
+    if (!is_user_memory_writable(buf, buf_size))
         return -EFAULT;
 
     lock(&g_process.fs_lock);
@@ -60,10 +60,7 @@ long shim_do_chdir(const char* filename) {
     struct shim_dentry* dent = NULL;
     int ret;
 
-    if (!filename)
-        return -EINVAL;
-
-    if (test_user_string(filename))
+    if (!is_user_string_readable(filename))
         return -EFAULT;
 
     if (strnlen(filename, PATH_MAX + 1) == PATH_MAX + 1)

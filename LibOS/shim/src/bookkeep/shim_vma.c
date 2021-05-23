@@ -160,11 +160,11 @@ static bool _traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_vis
         return true;
 
     struct shim_vma* vma = _lookup_vma(begin);
-    if (!vma || vma->begin >= end)
+    if (!vma || end <= vma->begin)
         return false;
 
     struct shim_vma* prev = NULL;
-    bool is_continuous = true;
+    bool is_continuous = vma->begin <= begin;
 
     while (1) {
         if (!visitor(vma, visitor_arg))
@@ -172,8 +172,8 @@ static bool _traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_vis
 
         prev = vma;
         vma = _get_next_vma(vma);
-        if (!vma || vma->begin >= end) {
-            is_continuous &= prev->end >= end;
+        if (!vma || end <= vma->begin) {
+            is_continuous &= end <= prev->end;
             break;
         }
 
@@ -1074,29 +1074,34 @@ out:
     return ret;
 }
 
-bool is_in_adjacent_user_vmas(void* addr, size_t length) {
+struct adj_visitor_ctx {
+    int prot;
+    bool is_ok;
+};
+
+static bool adj_visitor(struct shim_vma* vma, void* visitor_arg) {
+    struct adj_visitor_ctx* ctx = visitor_arg;
+    bool is_ok = !(vma->flags & (VMA_INTERNAL | VMA_UNMAPPED));
+    is_ok &= (vma->prot & ctx->prot) == ctx->prot;
+    ctx->is_ok &= is_ok;
+    return is_ok;
+}
+
+bool is_in_adjacent_user_vmas(const void* addr, size_t length, int prot) {
     uintptr_t begin = (uintptr_t)addr;
     uintptr_t end = begin + length;
-    bool ret = false;
+    assert(begin <= end);
+
+    struct adj_visitor_ctx ctx = {
+        .prot = prot,
+        .is_ok = true,
+    };
 
     spinlock_lock(&vma_tree_lock);
-    struct shim_vma* vma = _lookup_vma(begin);
-    if (!vma || begin < vma->begin || (vma->flags & (VMA_INTERNAL | VMA_UNMAPPED))) {
-        goto out;
-    }
-
-    while (vma->end < end) {
-        struct shim_vma* next = _get_next_vma(vma);
-        if (!next || vma->end != next->begin || (next->flags & (VMA_INTERNAL | VMA_UNMAPPED))) {
-            goto out;
-        }
-        vma = next;
-    }
-
-    ret = true;
-out:
+    bool is_continuous = _traverse_vmas_in_range(begin, end, adj_visitor, &ctx);
     spinlock_unlock(&vma_tree_lock);
-    return ret;
+
+    return is_continuous && ctx.is_ok;
 }
 
 static size_t dump_all_vmas_with_buf(struct shim_vma_info* infos, size_t max_count,

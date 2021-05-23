@@ -49,10 +49,10 @@ static int do_hstat(struct shim_handle* hdl, struct stat* stat) {
 }
 
 long shim_do_stat(const char* file, struct stat* stat) {
-    if (!file || test_user_string(file))
+    if (!is_user_string_readable(file))
         return -EFAULT;
 
-    if (test_user_memory(stat, sizeof(*stat), true))
+    if (!is_user_memory_writable(stat, sizeof(*stat)))
         return -EFAULT;
 
     int ret;
@@ -67,10 +67,10 @@ long shim_do_stat(const char* file, struct stat* stat) {
 }
 
 long shim_do_lstat(const char* file, struct stat* stat) {
-    if (!file || test_user_string(file))
+    if (!is_user_string_readable(file))
         return -EFAULT;
 
-    if (test_user_memory(stat, sizeof(*stat), true))
+    if (!is_user_memory_writable(stat, sizeof(*stat)))
         return -EFAULT;
 
     int ret;
@@ -96,13 +96,13 @@ long shim_do_fstat(int fd, struct stat* stat) {
 
 long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     int ret;
-    if (!file || test_user_string(file))
+    if (!is_user_string_readable(file))
         return -EFAULT;
 
     if (bufsize <= 0)
         return -EINVAL;
 
-    if (test_user_memory(buf, bufsize, true))
+    if (!is_user_memory_writable(buf, bufsize))
         return -EFAULT;
 
     struct shim_dentry* dent = NULL;
@@ -150,7 +150,7 @@ long shim_do_readlink(const char* file, char* buf, int bufsize) {
 
 static int __do_statfs(struct shim_mount* fs, struct statfs* buf) {
     __UNUSED(fs);
-    if (test_user_memory(buf, sizeof(*buf), true))
+    if (!is_user_memory_writable(buf, sizeof(*buf)))
         return -EFAULT;
 
     memset(buf, 0, sizeof(*buf));
@@ -166,7 +166,7 @@ static int __do_statfs(struct shim_mount* fs, struct statfs* buf) {
 }
 
 long shim_do_statfs(const char* path, struct statfs* buf) {
-    if (!path || test_user_string(path))
+    if (!is_user_string_readable(path))
         return -EFAULT;
 
     int ret;
@@ -193,9 +193,9 @@ long shim_do_fstatfs(int fd, struct statfs* buf) {
 long shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags) {
     if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW))
         return -EINVAL;
-    if (test_user_string(pathname))
+    if (!is_user_string_readable(pathname))
         return -EFAULT;
-    if (test_user_memory(statbuf, sizeof(*statbuf), true))
+    if (!is_user_memory_writable(statbuf, sizeof(*statbuf)))
         return -EFAULT;
 
     int lookup_flags = LOOKUP_FOLLOW;

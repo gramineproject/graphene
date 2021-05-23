@@ -25,7 +25,7 @@ long shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
     if (!filename)
         return -EINVAL;
 
-    if (test_user_string(filename))
+    if (!is_user_string_readable(filename))
         return -EFAULT;
 
     struct shim_dentry* dir = NULL;

@@ -132,7 +132,7 @@ long shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
     if (pid < 0)
         return -EINVAL;
 
-    if (test_user_memory(interval, sizeof(*interval), true))
+    if (!is_user_memory_writable(interval, sizeof(*interval)))
         return -EFAULT;
 
     interval->tv_sec  = 0;
@@ -144,7 +144,7 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     int ret;
 
     /* check if user_mask_ptr is valid */
-    if (test_user_memory(user_mask_ptr, cpumask_size, /*write=*/false))
+    if (!is_user_memory_readable(user_mask_ptr, cpumask_size))
         return -EFAULT;
 
     struct shim_thread* thread = pid ? lookup_thread(pid) : get_cur_thread();
@@ -178,7 +178,7 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     size_t cpu_cnt = g_pal_control->cpu_info.online_logical_cores;
 
     /* Check if user_mask_ptr is valid */
-    if (test_user_memory(user_mask_ptr, cpumask_size, /*write=*/true))
+    if (!is_user_memory_writable(user_mask_ptr, cpumask_size))
         return -EFAULT;
 
     /* Linux kernel bitmap is based on long. So according to its implementation, round up the result
@@ -227,14 +227,14 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
     __UNUSED(unused);
 
     if (cpu) {
-        if (test_user_memory(cpu, sizeof(*cpu), /*write=*/true)) {
+        if (!is_user_memory_writable(cpu, sizeof(*cpu))) {
             return -EFAULT;
         }
         *cpu = 0;
     }
 
     if (node) {
-        if (test_user_memory(node, sizeof(*node), /*write=*/true)) {
+        if (!is_user_memory_writable(node, sizeof(*node))) {
             return -EFAULT;
         }
         *node = 0;

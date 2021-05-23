@@ -697,8 +697,14 @@ static int is_valid_futex_ptr(uint32_t* ptr, bool check_write) {
     if (!IS_ALIGNED_PTR(ptr, alignof(*ptr))) {
         return -EINVAL;
     }
-    if (test_user_memory(ptr, sizeof(*ptr), check_write)) {
-        return -EFAULT;
+    if (check_write) {
+        if (!is_user_memory_writable(ptr, sizeof(*ptr))) {
+            return -EFAULT;
+        }
+    } else {
+        if (!is_user_memory_readable(ptr, sizeof(*ptr))) {
+            return -EFAULT;
+        }
     }
     return 0;
 }
@@ -712,7 +718,7 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
     if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_WAIT_BITSET || cmd == FUTEX_LOCK_PI ||
                   cmd == FUTEX_WAIT_REQUEUE_PI)) {
         struct __kernel_timespec* user_timeout = utime;
-        if (test_user_memory(user_timeout, sizeof(*user_timeout), /*write=*/false)) {
+        if (!is_user_memory_readable(user_timeout, sizeof(*user_timeout))) {
             return -EFAULT;
         }
         timeout = timespec_to_us(user_timeout);
@@ -830,8 +836,8 @@ long shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* 
         get_thread(thread);
     }
 
-    if (test_user_memory(head, sizeof(*head), /*write=*/true) ||
-            test_user_memory(len, sizeof(*len), /*write=*/true)) {
+    if (!is_user_memory_writable(head, sizeof(*head)) ||
+            !is_user_memory_writable(len, sizeof(*len))) {
         ret = -EFAULT;
         goto out;
     }
@@ -890,7 +896,7 @@ static bool handle_futex_death(uint32_t* uaddr) {
  * Returns 0 on success, negative value on error.
  */
 static bool fetch_robust_entry(struct robust_list** entry, struct robust_list** head) {
-    if (test_user_memory(head, sizeof(*head), /*write=*/false)) {
+    if (!is_user_memory_readable(head, sizeof(*head))) {
         return -EFAULT;
     }
 
@@ -918,7 +924,7 @@ void release_robust_list(struct robust_list_head* head) {
         return;
     }
 
-    if (test_user_memory(&head->futex_offset, sizeof(head->futex_offset), /*write=*/false)) {
+    if (!is_user_memory_readable(&head->futex_offset, sizeof(head->futex_offset))) {
         return;
     }
     futex_offset = head->futex_offset;
@@ -961,7 +967,7 @@ void release_robust_list(struct robust_list_head* head) {
 
 void release_clear_child_tid(int* clear_child_tid) {
     if (!clear_child_tid || !IS_ALIGNED_PTR(clear_child_tid, alignof(*clear_child_tid)) ||
-        test_user_memory(clear_child_tid, sizeof(*clear_child_tid), /*write=*/true))
+        !is_user_memory_writable(clear_child_tid, sizeof(*clear_child_tid)))
         return;
 
     /* child thread exited, now parent can wake up */

@@ -28,10 +28,7 @@ long shim_do_unlink(const char* file) {
 }
 
 long shim_do_unlinkat(int dfd, const char* pathname, int flag) {
-    if (!pathname)
-        return -EINVAL;
-
-    if (test_user_string(pathname))
+    if (!is_user_string_readable(pathname))
         return -EFAULT;
 
     if (flag & ~AT_REMOVEDIR)
@@ -90,10 +87,7 @@ long shim_do_mkdir(const char* pathname, int mode) {
 }
 
 long shim_do_mkdirat(int dfd, const char* pathname, int mode) {
-    if (!pathname)
-        return -EINVAL;
-
-    if (test_user_string(pathname))
+    if (!is_user_string_readable(pathname))
         return -EFAULT;
 
     struct shim_dentry* dir = NULL;
@@ -113,10 +107,7 @@ long shim_do_rmdir(const char* pathname) {
     int ret = 0;
     struct shim_dentry* dent = NULL;
 
-    if (!pathname)
-        return -EINVAL;
-
-    if (test_user_string(pathname))
+    if (!is_user_string_readable(pathname))
         return -EFAULT;
 
     if ((ret = path_lookupat(/*start=*/NULL, pathname, LOOKUP_NO_FOLLOW | LOOKUP_DIRECTORY,
@@ -160,10 +151,7 @@ long shim_do_chmod(const char* path, mode_t mode) {
 }
 
 long shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
-    if (!filename)
-        return -EINVAL;
-
-    if (test_user_string(filename))
+    if (!is_user_string_readable(filename))
         return -EFAULT;
 
     /* This isn't documented, but that's what Linux does. */
@@ -233,10 +221,7 @@ long shim_do_fchownat(int dfd, const char* filename, uid_t uid, gid_t gid, int f
     __UNUSED(uid);
     __UNUSED(gid);
 
-    if (!filename)
-        return -EINVAL;
-
-    if (test_user_string(filename))
+    if (!is_user_string_readable(filename))
         return -EFAULT;
 
     struct shim_dentry* dir = NULL;
@@ -569,7 +554,7 @@ long shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const cha
     struct shim_dentry* new_dent     = NULL;
     int ret = 0;
 
-    if (!oldpath || test_user_string(oldpath) || !newpath || test_user_string(newpath)) {
+    if (!is_user_string_readable(oldpath) || !is_user_string_readable(newpath)) {
         return -EFAULT;
     }
 

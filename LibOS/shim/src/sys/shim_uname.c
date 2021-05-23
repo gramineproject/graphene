@@ -33,7 +33,7 @@ static struct new_utsname g_current_uname = {
 };
 
 long shim_do_uname(struct new_utsname* buf) {
-    if (test_user_memory(buf, sizeof(*buf), /*write=*/true))
+    if (!is_user_memory_writable(buf, sizeof(*buf)))
         return -EFAULT;
 
     memcpy(buf, &g_current_uname, sizeof(g_current_uname));
@@ -44,7 +44,7 @@ long shim_do_sethostname(char* name, int len) {
     if (len < 0 || (size_t)len >= sizeof(g_current_uname.nodename))
         return -EINVAL;
 
-    if (test_user_memory(name, len, /*write=*/false))
+    if (!is_user_memory_readable(name, len))
         return -EFAULT;
 
     memcpy(&g_current_uname.nodename, name, len);
@@ -56,7 +56,7 @@ long shim_do_setdomainname(char* name, int len) {
     if (len < 0 || (size_t)len >= sizeof(g_current_uname.domainname))
         return -EINVAL;
 
-    if (test_user_memory(name, len, /*write=*/false))
+    if (!is_user_memory_readable(name, len))
         return -EFAULT;
 
     memcpy(&g_current_uname.domainname, name, len);

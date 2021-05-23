@@ -144,15 +144,15 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
     struct shim_dentry* dent = NULL;
     int ret = 0, argc = 0;
 
-    if (test_user_string(file))
+    if (!is_user_string_readable(file))
         return -EFAULT;
 
     for (const char** a = argv; /* no condition*/; a++, argc++) {
-        if (test_user_memory(a, sizeof(*a), false))
+        if (!is_user_memory_readable(a, sizeof(*a)))
             return -EFAULT;
         if (*a == NULL)
             break;
-        if (test_user_string(*a))
+        if (!is_user_string_readable(*a))
             return -EFAULT;
     }
 
@@ -161,11 +161,11 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
         envp = migrated_envp;
 
     for (const char** e = envp; /* no condition*/; e++) {
-        if (test_user_memory(e, sizeof(*e), false))
+        if (!is_user_memory_readable(e, sizeof(*e)))
             return -EFAULT;
         if (*e == NULL)
             break;
-        if (test_user_string(*e))
+        if (!is_user_string_readable(*e))
             return -EFAULT;
     }
 

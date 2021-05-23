@@ -97,7 +97,7 @@ long shim_do_pipe2(int* filedes, int flags) {
         return -EINVAL;
     }
 
-    if (test_user_memory(filedes, 2 * sizeof(int), true))
+    if (!is_user_memory_writable(filedes, 2 * sizeof(int)))
         return -EFAULT;
 
     int vfd1 = -1;
@@ -172,7 +172,7 @@ long shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     if ((type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC)) != SOCK_STREAM)
         return -EPROTONOSUPPORT;
 
-    if (test_user_memory(sv, 2 * sizeof(int), true))
+    if (!is_user_memory_writable(sv, 2 * sizeof(int)))
         return -EFAULT;
 
     int vfd1 = -1;
@@ -270,7 +270,7 @@ long shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     if (!S_ISFIFO(mode))
         return -EINVAL;
 
-    if (!pathname || test_user_string(pathname))
+    if (!is_user_string_readable(pathname))
         return -EFAULT;
 
     if (pathname[0] == '\0')

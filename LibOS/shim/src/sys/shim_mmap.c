@@ -304,14 +304,14 @@ long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (!IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
-    if (test_user_memory(addr, len, false))
+    if (!is_user_memory_readable(addr, len))
         return -ENOMEM;
 
     unsigned long pages = ALLOC_ALIGN_UP(len) / ALLOC_ALIGNMENT;
-    if (test_user_memory(vec, pages, true))
+    if (!is_user_memory_writable(vec, pages))
         return -EFAULT;
 
-    if (!is_in_adjacent_user_vmas(addr, len)) {
+    if (!is_in_adjacent_user_vmas(addr, len, /*prot=*/0)) {
         return -ENOMEM;
     }
 
@@ -444,7 +444,7 @@ long shim_do_msync(unsigned long start, size_t len_orig, int flags) {
         return -ENOSYS;
     }
 
-    if (test_user_memory((void*)start, len, /*write=*/false)) {
+    if (!is_user_memory_readable((void*)start, len)) {
         return -ENOMEM;
     }
 

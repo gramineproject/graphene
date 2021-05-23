@@ -26,7 +26,7 @@
 
 /* this macro is used to emulate mmap() via pread() in chunks of 128MB (mmapped files may be many
  * GBs in size, and a pread OCALL could fail with -ENOMEM, so we cap to reasonably small size) */
-#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024L * 32)
+#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024 * 32)
 
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
@@ -477,8 +477,10 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 
         ssize_t bytes_read = 0;
         while (bytes_read < total_size) {
-            size_t read_size = total_size - bytes_read < MAX_READ_SIZE ?
-                               total_size - bytes_read : MAX_READ_SIZE;
+            size_t read_size = total_size - bytes_read;
+            if (read_size > MAX_READ_SIZE) {
+                read_size = MAX_READ_SIZE;
+            }
             ssize_t bytes = ocall_pread(handle->file.fd, mem + bytes_read, read_size,
                                         aligned_offset + bytes_read);
             if (bytes > 0) {

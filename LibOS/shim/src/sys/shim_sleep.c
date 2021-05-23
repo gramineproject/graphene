@@ -49,10 +49,10 @@ int do_nanosleep(uint64_t timeout_us, struct __kernel_timespec* rem) {
 }
 
 static int check_params(struct __kernel_timespec* req, struct __kernel_timespec* rem) {
-    if (test_user_memory(req, sizeof(*req), /*write=*/false)) {
+    if (!is_user_memory_readable(req, sizeof(*req))) {
         return -EFAULT;
     }
-    if (rem && test_user_memory(rem, sizeof(*rem), /*write=*/true)) {
+    if (rem && !is_user_memory_writable(rem, sizeof(*rem))) {
         return -EFAULT;
     }
 

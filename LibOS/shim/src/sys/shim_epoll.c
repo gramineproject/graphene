@@ -146,10 +146,8 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
         return -EINVAL;
 
     if (op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD)
-        if (test_user_memory(event, sizeof(*event), false)) {
-            /* surprisingly, man(epoll_ctl) does not specify EFAULT if event is invalid so
-             * we re-use EINVAL; also note that EPOLL_CTL_DEL ignores event completely */
-            return -EINVAL;
+        if (!is_user_memory_readable(event, sizeof(*event))) {
+            return -EFAULT;
         }
 
     struct shim_handle* epoll_hdl = get_fd_handle(epfd, NULL, cur->handle_map);
@@ -295,7 +293,7 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
     if (maxevents <= 0)
         return -EINVAL;
 
-    if (!events || test_user_memory(events, sizeof(*events) * maxevents, true))
+    if (!is_user_memory_writable(events, sizeof(*events) * maxevents))
         return -EFAULT;
 
     struct shim_handle* epoll_hdl = get_fd_handle(epfd, NULL, NULL);
