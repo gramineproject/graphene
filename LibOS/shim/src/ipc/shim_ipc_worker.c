@@ -92,7 +92,7 @@ static void disconnect_callbacks(struct shim_ipc_connection* conn) {
     }
     ipc_child_disconnect_callback(conn->vmid);
 
-    if (!g_pal_control->parent_process) {
+    if (!g_process_ipc_ids.leader_vmid) {
         sync_server_disconnect_callback(conn->vmid);
     }
 

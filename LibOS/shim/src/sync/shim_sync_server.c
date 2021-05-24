@@ -49,9 +49,6 @@ struct server_client {
 struct server_lease {
     struct server_client* client;
 
-    /* Client ID */
-    IDTYPE vmid;
-
     /* Current state (INVALID, SHARED or EXCLUSIVE); higher or equal to client's cur_state */
     int cur_state;
     /* Requested by client; always higher than cur_state, or NONE */
@@ -122,24 +119,23 @@ static struct server_lease* find_lease(struct server_handle* handle, IDTYPE vmid
 
     struct server_lease* lease;
     LISTP_FOR_EACH_ENTRY(lease, &handle->leases, list_handle) {
-        if (lease->vmid == vmid)
+        if (lease->client->vmid == vmid)
             return lease;
     }
 
     if (!create)
         return NULL;
 
-    struct server_client* client;
-    if (!(client = find_client(vmid, /*create=*/true)))
+    if (!(lease = malloc(sizeof(*lease))))
         return NULL;
 
-    if (!(lease = malloc(sizeof(*lease)))) {
-        free(client);
+    struct server_client* client;
+    if (!(client = find_client(vmid, /*create=*/true))) {
+        free(lease);
         return NULL;
     }
 
     lease->client = client;
-    lease->vmid = vmid;
     lease->cur_state = SYNC_STATE_INVALID;
     lease->client_req_state = SYNC_STATE_NONE;
     lease->server_req_state = SYNC_STATE_NONE;
@@ -148,31 +144,6 @@ static struct server_lease* find_lease(struct server_handle* handle, IDTYPE vmid
     LISTP_ADD_TAIL(lease, &client->leases, list_client);
 
     return lease;
-}
-
-static bool delete_lease(struct server_handle* handle, struct server_lease* lease) {
-    assert(locked(&g_server_lock));
-
-    bool handle_deleted = false;
-
-    LISTP_DEL(lease, &lease->client->leases, list_client);
-    if (LISTP_EMPTY(&lease->client->leases)) {
-        log_trace("sync server: deleting unused client: %d\n", lease->client->vmid);
-        HASH_DELETE(hh, g_server_clients, lease->client);
-        free(lease->client);
-    }
-
-    LISTP_DEL(lease, &handle->leases, list_handle);
-    if (LISTP_EMPTY(&handle->leases)) {
-        log_trace("sync server: deleting unused handle: 0x%lx\n", handle->id);
-        HASH_DELETE(hh, g_server_handles, handle);
-        free(handle->data);
-        free(handle);
-        handle_deleted = true;
-    }
-
-    free(lease);
-    return handle_deleted;
 }
 
 static int send_confirm_upgrade(struct server_handle* handle, IDTYPE vmid, int state) {
@@ -222,7 +193,7 @@ static int process_handle(struct server_handle* handle) {
         if (lease->client_req_state == SYNC_STATE_SHARED && n_exclusive == 0) {
             /* Upgrade from INVALID to SHARED */
             assert(lease->cur_state == SYNC_STATE_INVALID);
-            if ((ret = send_confirm_upgrade(handle, lease->vmid, SYNC_STATE_SHARED)) < 0)
+            if ((ret = send_confirm_upgrade(handle, lease->client->vmid, SYNC_STATE_SHARED)) < 0)
                 return ret;
 
             lease->cur_state = SYNC_STATE_SHARED;
@@ -233,7 +204,7 @@ static int process_handle(struct server_handle* handle) {
                    && n_shared == 0) {
             /* Upgrade from INVALID to EXCLUSIVE */
             assert(lease->cur_state == SYNC_STATE_INVALID);
-            if ((ret = send_confirm_upgrade(handle, lease->vmid, SYNC_STATE_EXCLUSIVE)) < 0)
+            if ((ret = send_confirm_upgrade(handle, lease->client->vmid, SYNC_STATE_EXCLUSIVE)) < 0)
                 return ret;
 
             lease->cur_state = SYNC_STATE_EXCLUSIVE;
@@ -243,7 +214,7 @@ static int process_handle(struct server_handle* handle) {
         } else if (lease->client_req_state == SYNC_STATE_EXCLUSIVE && n_exclusive == 0
                    && n_shared == 1 && lease->cur_state == SYNC_STATE_SHARED) {
             /* Upgrade from SHARED to EXCLUSIVE */
-            if ((ret = send_confirm_upgrade(handle, lease->vmid, SYNC_STATE_EXCLUSIVE)) < 0)
+            if ((ret = send_confirm_upgrade(handle, lease->client->vmid, SYNC_STATE_EXCLUSIVE)) < 0)
                 return ret;
 
             lease->cur_state = SYNC_STATE_EXCLUSIVE;
@@ -261,7 +232,8 @@ static int process_handle(struct server_handle* handle) {
         LISTP_FOR_EACH_ENTRY(lease, &handle->leases, list_handle) {
             if ((lease->cur_state == SYNC_STATE_SHARED || lease->cur_state == SYNC_STATE_EXCLUSIVE)
                     && lease->server_req_state != SYNC_STATE_INVALID) {
-                if ((ret = send_request_downgrade(handle, lease->vmid, SYNC_STATE_INVALID)) < 0)
+                if ((ret = send_request_downgrade(handle, lease->client->vmid,
+                                                  SYNC_STATE_INVALID)) < 0)
                     return ret;
                 lease->server_req_state = SYNC_STATE_INVALID;
             }
@@ -272,7 +244,8 @@ static int process_handle(struct server_handle* handle) {
             if (lease->cur_state == SYNC_STATE_EXCLUSIVE
                     && lease->server_req_state != SYNC_STATE_SHARED
                     && lease->server_req_state != SYNC_STATE_INVALID) {
-                if ((ret = send_request_downgrade(handle, lease->vmid, SYNC_STATE_SHARED)) < 0)
+                if ((ret = send_request_downgrade(handle, lease->client->vmid,
+                                                  SYNC_STATE_SHARED)) < 0)
                     return ret;
                 lease->server_req_state = SYNC_STATE_SHARED;
             }
@@ -375,17 +348,33 @@ static void do_request_close(IDTYPE vmid, uint64_t id, int cur_state, size_t dat
     if ((!(lease = find_lease(handle, vmid, /*create=*/false))))
         FATAL("REQUEST_CLOSE for unknown client\n");
 
+    struct server_client* client = lease->client;
+
     if (cur_state == SYNC_STATE_EXCLUSIVE) {
         update_handle_data(handle, data_size, data);
     } else {
         assert(data_size == 0);
     }
 
-    if (send_confirm_close(handle, lease->vmid) < 0)
+    if (send_confirm_close(handle, client->vmid) < 0)
         FATAL("sending CONFIRM_CLOSE\n");
 
-    bool handle_deleted = delete_lease(handle, lease);
-    if (!handle_deleted) {
+    LISTP_DEL(lease, &client->leases, list_client);
+    LISTP_DEL(lease, &handle->leases, list_handle);
+    free(lease);
+
+    if (LISTP_EMPTY(&client->leases)) {
+        log_trace("sync server: deleting unused client: %d\n", client->vmid);
+        HASH_DELETE(hh, g_server_clients, client);
+        free(client);
+    }
+
+    if (LISTP_EMPTY(&handle->leases)) {
+        log_trace("sync server: deleting unused handle: 0x%lx\n", handle->id);
+        HASH_DELETE(hh, g_server_handles, handle);
+        free(handle->data);
+        free(handle);
+    } else {
         int ret;
         if ((ret = process_handle(handle)) < 0)
             FATAL("Error messaging clients: %d\n", ret);
@@ -421,9 +410,6 @@ void sync_server_message_callback(IDTYPE src, int code, uint64_t id, int state,
  * EXCLUSIVE handles, continuing will result in data loss.
  */
 void sync_server_disconnect_callback(IDTYPE src) {
-    if (!lock_created(&g_server_lock))
-        return;
-
     lock(&g_server_lock);
 
     struct server_client* client = find_client(src, /*create=*/false);

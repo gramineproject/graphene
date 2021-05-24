@@ -49,12 +49,7 @@ static int sync_msg_send(IDTYPE dest, int code, uint64_t id, int state, size_t d
 
 int ipc_sync_client_send(int code, uint64_t id, int state, size_t data_size, void* data) {
     sync_log("sync client", code, id, state);
-    IDTYPE dest;
-    if (g_pal_control->parent_process) {
-        dest = g_process_ipc_ids.leader_vmid;
-    } else {
-        dest = g_self_vmid;
-    }
+    IDTYPE dest = g_process_ipc_ids.leader_vmid ?: g_self_vmid;
     return sync_msg_send(dest, code, id, state, data_size, data);
 }
 

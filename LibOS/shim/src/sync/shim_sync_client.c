@@ -131,7 +131,7 @@ int sync_init(struct sync_handle* handle, uint64_t id, size_t data_size) {
         ret = -ENOMEM;
         goto err;
     }
-    if ((ret = DkEventCreate(&handle->event, /*init_signaled=*/false, /*aut_clear=*/false)) < 0) {
+    if ((ret = DkEventCreate(&handle->event, /*init_signaled=*/false, /*auto_clear=*/false)) < 0) {
         ret = pal_to_unix_errno(ret);
         goto err;
     }
