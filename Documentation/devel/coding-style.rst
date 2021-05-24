@@ -118,7 +118,8 @@ Code formatting
 Conventions and high-level style
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #. Variable and function names should be sane and easy to understand (example:
-   ``nofpts`` is bad, ``points_cnt`` is ok).
+   ``nofpts`` is bad, ``points_cnt`` is ok). The names ``i``, ``j``, ``k`` etc.
+   should be limited to integers used as array indexes.
 
 #. All non-static function interfaces should be documented in comments
    (especially pointer ownerships). Same for public macros.
@@ -154,3 +155,26 @@ Python
 ------
 
 .. todo:: TBD
+
+Meson
+-----
+
+#. 4-space indent, no tabs. Wrap lines at ~80-100 columns except for unbreakable
+   things like URLs.
+
+#. First argument to target functions (``shared_library``, ``executable``,
+   ``custom_target``, ...) should be on the same line as opening paren. All
+   other arguments should be on next lines, aligned to 4-space indent.
+
+   Arguments to other functions should either be all on the same line, or there
+   should be no argument on the same line as opening paren, and arguments should
+   be in following lines, indented by 4 spaces.
+
+#. Otherwise, whitespace should generally follow PEP8 instead of meson suggested
+   style (i.e., no space inside parens, no space before ``:``).
+
+#. Variables named ``_prog`` refer to things obtained from ``find_program()``.
+   Auxiliary commands should reside in ``Scripts/``, and the variable name is
+   tied to the script name (see :file:`meson.build` there). The scripts should
+   be written in Python except for things that clearly benefit from being
+   written in ``sh``.
