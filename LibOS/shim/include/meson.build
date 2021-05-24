@@ -12,8 +12,8 @@ includes_libos = [
 ]
 
 includes_libos_i = []
-foreach i : includes_libos
-    includes_libos_i += '-I@0@'.format(join_paths(meson.current_source_dir(), i))
+foreach inc : includes_libos
+    includes_libos_i += '-I@0@'.format(join_paths(meson.current_source_dir(), inc))
 endforeach
 includes_libos = include_directories(includes_libos)
 
@@ -30,8 +30,7 @@ libos_generated_offsets_s = custom_target('generated-offsets.s',
     depfile: 'generated-offsets.s.d',
 )
 
-libos_asm_offsets_h = custom_target(
-    'asm-offsets.h',
+libos_asm_offsets_h = custom_target('asm-offsets.h',
     command: [gen_offsets_prog, '--output-h', '@OUTPUT@', '@INPUT@'],
     input: libos_generated_offsets_s,
     output: 'asm-offsets.h',

@@ -24,16 +24,14 @@ vdso_so_dbg = shared_library('vdso',
     link_depends: ['vdso.lds'],
 )
 
-vdso_not_checked_so = custom_target(
-    'vdso_not_checked.so',
+vdso_not_checked_so = custom_target('vdso_not_checked.so',
     command: [objcopy, '-S', '@INPUT@', '@OUTPUT@'],
     input: vdso_so_dbg,
     output: 'vdso_not_checked.so',
 )
 
 # vdso.so is required to have no relocations. This rule checks it, and if good, copies to vdso.so.
-vdso_so = custom_target(
-    'vdso.so',
+vdso_so = custom_target('vdso.so',
     command: [check_no_reloc_prog, '@INPUT@', '@OUTPUT@'],
     input: vdso_not_checked_so,
     output: 'vdso.so',

@@ -1,8 +1,6 @@
 libgraphene_libos = cc.find_library('graphene-lib',
     dirs: join_paths(meson.current_source_dir(), '.lib'))
 
-# TODO: Is this library even needed for linking LibOS? Maybe it can be removed from the
-# dependencies.
 if direct
     libpal = cc.find_library('pal-Linux',
         dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))
@@ -105,8 +103,8 @@ libos_sources_arch = [
     'start.S',
     'syscallas.S',
 ]
-foreach i : libos_sources_arch
-    libos_sources += files(join_paths('arch', host_machine.cpu_family(), i))
+foreach src : libos_sources_arch
+    libos_sources += files(join_paths('arch', host_machine.cpu_family(), src))
 endforeach
 
 shim_map = join_paths(meson.current_source_dir(), 'shim.map')
