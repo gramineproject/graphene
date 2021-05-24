@@ -26,7 +26,7 @@ argparser.add_argument('outfile', type=argparse.FileType('w'))
 
 def main(args=None):
     args = argparser.parse_args(args)
-    pal_symbols = ' '.join(f'{i};' for i in args.pal_symbols.read().strip().split())
+    pal_symbols = ' '.join(f'{sym};' for sym in args.pal_symbols.read().strip().split())
     template = MesonTemplate(args.infile.read())
     args.outfile.write(template.substitute(PAL_SYMBOLS=pal_symbols))
 
