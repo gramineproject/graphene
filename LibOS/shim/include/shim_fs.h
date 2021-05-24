@@ -186,9 +186,21 @@ struct shim_d_ops {
     /* change the name of a dentry */
     int (*rename)(struct shim_dentry* old, struct shim_dentry* new);
 
-    /* List all files in the directory. Calls `callback` on all file names, passing the `arg`
-     * pointer. If the callback returns a negative error code, it's interpreted as a failure and
-     * `readdir` stops, returning the same error code. */
+    /*!
+     * \brief List all files in the directory
+     *
+     * \param dentry the dentry, must be valid, non-negative and describing a directory
+     * \param callback the callback to invoke on each
+     * \param arg argument to pass to the callback
+     *
+     * Calls `callback(name, arg)` for all file names in the directory. `name` is not guaranteed to
+     * be valid after callback returns, so the callback should copy it necessary.
+     *
+     * `arg` can be used to pass additional data to the callback, e.g. a list to add a name to.
+     *
+     * If the callback returns a negative error code, it's interpreted as a failure and `readdir`
+     * stops, returning the same error code.
+     */
     int (*readdir)(struct shim_dentry* dent, readdir_callback_t callback, void* arg);
 };
 
@@ -448,15 +460,31 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
 int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags);
 
 /*!
- * \brief Prepare a list of dentries for a handle
+ * \brief Populate a directory handle with current dentries
  *
  * \param hdl a directory handle
  *
- * This function initializes the `hdl->dir_info` for a structure, so that the directory can be
- * listed using `getdents/getdents64` syscalls. It should only be called once, i.e. only if
- * `hdl->dir_info->dents` is NULL.
+ * This function populates the `hdl->dir_info` structure with current dentries in a directory, so
+ * that the directory can be listed using `getdents/getdents64` syscalls.
+ *
+ * The caller should hold `g_dcache_lock` and `hdl->lock`.
+ *
+ * If the handle is currently populated (i.e. `hdl->dir_info.dents` is not null), this function is a
+ * no-op. If you want to refresh the handle with new contents, call `clear_directory_handle` first.
  */
-int list_directory_handle(struct shim_handle* hdl);
+int populate_directory_handle(struct shim_handle* hdl);
+
+/*!
+ * \brief Clear dentries from a directory handle
+ *
+ * \param hdl a directory handle
+ *
+ * This functions discards an array of dentries previously prepared by `populate_directory_handle`.
+ *
+ * If the handle is currently not populated (i.e. `hdl->dir_info.dents` is null), this function is a
+ * no-op.
+ */
+void clear_directory_handle(struct shim_handle* hdl);
 
 /* Increment the reference count on dent */
 void get_dentry(struct shim_dentry* dent);

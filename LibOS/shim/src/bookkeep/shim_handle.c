@@ -428,12 +428,7 @@ void put_handle(struct shim_handle* hdl) {
         delete_from_epoll_handles(hdl);
 
         if (hdl->is_dir) {
-            struct shim_dir_handle* dir = &hdl->dir_info;
-            if (dir->dents) {
-                for (size_t i = 0; i < dir->count; i++)
-                    put_dentry(dir->dents[i]);
-                free(dir->dents);
-            }
+            clear_directory_handle(hdl);
         }
 
         if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->close)
@@ -680,9 +675,13 @@ BEGIN_CP_FUNC(handle) {
 
         if (hdl->dentry) {
             if (hdl->dentry->state & DENTRY_ISDIRECTORY) {
-                /* we don't checkpoint children dentries of a directory dentry, so need to list
-                 * directory again in child process; mark handle to indicate no cached dentries */
-                hdl->dir_info.dents = NULL;
+                /*
+                 * We don't checkpoint children dentries of a directory dentry, so the child process
+                 * will need to list the directory again. However, we keep `dir_info.pos` unchanged
+                 * so that `getdents/getdents64` will resume from the same place.
+                 */
+                new_hdl->dir_info.dents = NULL;
+                new_hdl->dir_info.count = 0;
             }
             DO_CP_MEMBER(dentry, hdl, new_hdl, dentry);
         }

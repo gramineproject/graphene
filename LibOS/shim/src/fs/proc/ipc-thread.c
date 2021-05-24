@@ -279,7 +279,7 @@ static int proc_list_ipc_thread(const char* name, readdir_callback_t callback, v
             continue;
 
         IDTYPE pid = status->status[i].pid;
-        char name[10];
+        char name[11];
         snprintf(name, sizeof(name), "%u", pid);
         if ((ret = callback(name, arg)) < 0)
             goto err;

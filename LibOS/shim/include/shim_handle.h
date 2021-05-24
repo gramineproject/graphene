@@ -197,6 +197,7 @@ struct shim_sock_handle {
 };
 
 struct shim_dir_handle {
+    /* The first two dentries are always "." and ".." */
     struct shim_dentry** dents;
     size_t count;
     size_t pos;

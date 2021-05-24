@@ -525,7 +525,7 @@ err:
     return ret;
 }
 
-/* A list for `list_directory` to hold its names. */
+/* A list for `populate_directory` to hold file names from `readdir`. */
 DEFINE_LIST(temp_dirent);
 DEFINE_LISTP(temp_dirent);
 struct temp_dirent {
@@ -557,7 +557,7 @@ static int add_name(const char* name, void* arg) {
  * finish `readdir`. Otherwise, the two filesystem operations (`readdir` and `lookup`) might
  * deadlock.
  */
-static int list_directory(struct shim_dentry* dent) {
+static int populate_directory(struct shim_dentry* dent) {
     assert(locked(&g_dcache_lock));
 
     if (dent->state & DENTRY_NEGATIVE)
@@ -576,10 +576,14 @@ static int list_directory(struct shim_dentry* dent) {
 
     LISTP_FOR_EACH_ENTRY(ent, &ents, list) {
         struct shim_dentry* child;
-        int ret = lookup_dentry(dent, ent->name, ent->name_len, &child);
+        ret = lookup_dentry(dent, ent->name, ent->name_len, &child);
         if (ret == 0) {
             put_dentry(child);
         } else if (ret != -EACCES) {
+            /* Fail on underlying lookup errors, except -EACCES (for which we will just ignore the
+             * file). The lookup might fail with -EACCES for host symlinks pointing to inaccessible
+             * target, since the "chroot" filesystem transparently follows symlinks instead of
+             * reporting them to Graphene. */
             goto out;
         }
     }
@@ -593,66 +597,66 @@ out:
     return ret;
 }
 
-int list_directory_handle(struct shim_handle* hdl) {
+int populate_directory_handle(struct shim_handle* hdl) {
     struct shim_dir_handle* dirhdl = &hdl->dir_info;
 
     assert(locked(&hdl->lock));
+    assert(locked(&g_dcache_lock));
     assert(hdl->dentry);
-    assert(!dirhdl->dents);
 
-    struct shim_dentry** dents = NULL;
-
-    size_t count = 0;
     int ret;
 
-    lock(&g_dcache_lock);
+    if (dirhdl->dents)
+        return 0;
 
-    if ((ret = list_directory(hdl->dentry)) < 0)
-        goto out;
+    if ((ret = populate_directory(hdl->dentry)) < 0)
+        goto err;
 
-    size_t capacity = hdl->dentry->nchildren + 1;
-    if (hdl->dentry->parent)
-        capacity++;
+    size_t capacity = hdl->dentry->nchildren + 2; // +2 for ".", ".."
 
-    dents = malloc(sizeof(struct shim_dentry) * capacity);
-    if (!dents) {
+    dirhdl->dents = malloc(sizeof(struct shim_dentry) * capacity);
+    if (!dirhdl->dents) {
         ret = -ENOMEM;
-        goto out;
+        goto err;
     }
+    dirhdl->count = 0;
 
-    get_dentry(hdl->dentry);
-    dents[count++] = hdl->dentry;
-    if (hdl->dentry->parent) {
-        get_dentry(hdl->dentry->parent);
-        assert(count < capacity);
-        dents[count++] = hdl->dentry->parent;
-    }
+    struct shim_dentry* dot = hdl->dentry;
+    get_dentry(dot);
+    dirhdl->dents[dirhdl->count++] = dot;
+
+    struct shim_dentry* dotdot = hdl->dentry->parent ?: hdl->dentry;
+    get_dentry(dotdot);
+    dirhdl->dents[dirhdl->count++] = dotdot;
 
     struct shim_dentry* tmp;
     struct shim_dentry* dent;
     LISTP_FOR_EACH_ENTRY_SAFE(dent, tmp, &hdl->dentry->children, siblings) {
         if ((dent->state & DENTRY_VALID) && !(dent->state & DENTRY_NEGATIVE)) {
             get_dentry(dent);
-            assert(count < capacity);
-            dents[count++] = dent;
+            assert(dirhdl->count < capacity);
+            dirhdl->dents[dirhdl->count++] = dent;
         }
         dentry_gc(dent);
     }
 
-    dirhdl->dents = dents;
-    dirhdl->count = count;
-    dirhdl->pos = 0;
-    ret = 0;
+    return 0;
 
-out:
-    if (ret < 0 && dents) {
-        for (size_t i = 0; i < count; i++)
-            put_dentry(dents[i]);
-        free(dents);
-    }
-
-    unlock(&g_dcache_lock);
+err:
+    clear_directory_handle(hdl);
     return ret;
+}
+
+void clear_directory_handle(struct shim_handle* hdl) {
+    struct shim_dir_handle* dirhdl = &hdl->dir_info;
+    if (!dirhdl->dents)
+        return;
+
+    for (size_t i = 0; i < dirhdl->count; i++)
+        put_dentry(dirhdl->dents[i]);
+    free(dirhdl->dents);
+    dirhdl->dents = NULL;
+    dirhdl->count = 0;
 }
 
 int get_dirfd_dentry(int dirfd, struct shim_dentry** dir) {

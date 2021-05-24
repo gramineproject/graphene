@@ -6,8 +6,11 @@
  * "pread64", "pwrite64", "getdents", "getdents64", "fsync", "truncate" and "ftruncate".
  */
 
+#define _POSIX_C_SOURCE 200809L  /* for SSIZE_MAX */
+
 #include <dirent.h>
 #include <errno.h>
+#include <limits.h>
 #include <linux/fcntl.h>
 #include <stdalign.h>
 
@@ -292,7 +295,7 @@ static int get_dirent_type(mode_t type) {
     }
 }
 
-static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64) {
+static ssize_t do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64) {
     if (test_user_memory(buf, buf_size, true))
         return -EFAULT;
 
@@ -300,7 +303,7 @@ static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64
     if (!hdl)
         return -EBADF;
 
-    int ret = -EACCES;
+    ssize_t ret;
 
     if (!hdl->is_dir) {
         ret = -ENOTDIR;
@@ -312,13 +315,12 @@ static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64
         goto out_no_unlock;
     }
 
+    lock(&g_dcache_lock);
     lock(&hdl->lock);
 
     struct shim_dir_handle* dirhdl = &hdl->dir_info;
-    if (!dirhdl->dents) {
-        if ((ret = list_directory_handle(hdl)) < 0)
-            goto out;
-    }
+    if ((ret = populate_directory_handle(hdl)) < 0)
+        goto out;
 
     size_t buf_pos = 0;
     while (dirhdl->pos < dirhdl->count) {
@@ -326,10 +328,10 @@ static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64
         const char* name;
         size_t name_len;
 
-        if (dent == hdl->dentry) {
+        if (dirhdl->pos == 0) {
             name = ".";
             name_len = 1;
-        } else if (dent == hdl->dentry->parent) {
+        } else if (dirhdl->pos == 1) {
             name = "..";
             name_len = 2;
         } else {
@@ -344,12 +346,12 @@ static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64
 
         if (is_getdents64) {
             ent_size = ALIGN_UP(sizeof(struct linux_dirent64) + name_len + 1,
-                                alignof(struct linux_dirent));
+                                alignof(struct linux_dirent64));
             if (buf_pos + ent_size > buf_size)
                 break;
 
             struct linux_dirent64* ent = (struct linux_dirent64*)(buf + buf_pos);
-            memset(ent, 0, ent_size);
+            memset(ent, 0, ent_size); // this ensures `name` will be null-terminated
 
             ent->d_ino = d_ino;
             ent->d_off = dirhdl->pos;
@@ -357,6 +359,8 @@ static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64
             ent->d_type = d_type;
             memcpy(&ent->d_name, name, name_len);
         } else {
+            /* Note that `struct linux_dirent_tail` starts with a zero padding byte, so we don't
+             * need to account for extra null byte at the end of `name`. */
             ent_size = ALIGN_UP(
                 sizeof(struct linux_dirent) + sizeof(struct linux_dirent_tail) + name_len,
                 alignof(struct linux_dirent)
@@ -367,7 +371,7 @@ static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64
             struct linux_dirent* ent = (struct linux_dirent*)(buf + buf_pos);
             struct linux_dirent_tail* tail =
                 (struct linux_dirent_tail*)(buf + buf_pos + ent_size - sizeof(*tail));
-            memset(ent, 0, ent_size);
+            memset(ent, 0, ent_size); // this ensures `name` will be null-terminated
 
             ent->d_ino = d_ino;
             ent->d_off = dirhdl->pos;
@@ -380,18 +384,29 @@ static int do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getdents64
         dirhdl->pos++;
     }
 
-    ret = buf_pos;
-    /* Return EINVAL if buffer is too small to hold anything */
-    if (buf_pos == 0 && dirhdl->pos < dirhdl->count)
+    /* Guard against overflow */
+    size_t limit = is_getdents64 ? (size_t)LONG_MAX : (size_t)SSIZE_MAX;
+    if (buf_pos > limit) {
         ret = -EINVAL;
+        goto out;
+    }
+
+    /* Return EINVAL if buffer is too small to hold anything */
+    if (buf_pos == 0 && dirhdl->pos < dirhdl->count) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = buf_pos;
 out:
     unlock(&hdl->lock);
+    unlock(&g_dcache_lock);
 out_no_unlock:
     put_handle(hdl);
     return ret;
 }
 
-long shim_do_getdents(int fd, struct linux_dirent* buf, size_t count) {
+long shim_do_getdents(int fd, struct linux_dirent* buf, unsigned int count) {
     return do_getdents(fd, (uint8_t*)buf, count, /*is_getdents64=*/false);
 }
 

@@ -246,7 +246,7 @@ static int proc_list_thread_each_fd(const char* name, readdir_callback_t callbac
 
     for (int i = 0; i < handle_map->fd_size; i++)
         if (handle_map->map[i] && handle_map->map[i]->handle) {
-            char name[10];
+            char name[11];
             snprintf(name, sizeof(name), "%u", pid);
             if ((err = callback(name, arg)) < 0)
                 break;
@@ -686,7 +686,7 @@ static int walk_cb(struct shim_thread* thread, void* arg) {
     struct walk_thread_arg* args = arg;
 
     IDTYPE pid = thread->tid;
-    char name[10];
+    char name[11];
     snprintf(name, sizeof(name), "%u", pid);
     int ret = args->callback(name, args->arg);
     if (ret < 0)

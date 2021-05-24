@@ -224,16 +224,17 @@ out:
 }
 
 /*!
- * \brief Create and populate buffer with dirents.
+ * \brief `readdir` implementation for pseudo-filesystems.
  *
- * Generic function for pseudo-filesystems. Example usage for the `/proc` FS is
- * `pseudo_readdir("/proc/3", callback, arg, proc_root_ent)` -- this calls `callback` on "root",
- * "cwd", "exe", "fd", etc.
+ * Generic function for pseudo-filesystems. For example, if in `/proc` FS the function is called
+ * with `pseudo_readdir("/proc/3", callback, arg, proc_root_ent)`, it will call `callback` on
+ * "root", "cwd", "exe", "fd", etc.
  *
  * \param[in]  dent       Dentry with path to the requested directory.
- * \param[out] dirent     Pointer to newly created buffer with dirents.
+ * \param[in]  callback   Callback to call on each name.
+ * \param[in]  arg        Argument to pass to the callback.
  * \param[in]  root_ent   Root entry to start search from (e.g., `proc_root_ent`).
- * \return                0 if populated the buffer, negative Linux error code otherwise.
+ * \return                0 on success, negative Linux error code otherwise.
  */
 int pseudo_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg,
                    const struct pseudo_ent* root_ent) {

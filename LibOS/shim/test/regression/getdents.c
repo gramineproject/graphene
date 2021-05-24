@@ -1,10 +1,13 @@
 #define _GNU_SOURCE
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 struct linux_dirent {
@@ -23,11 +26,45 @@ struct linux_dirent64 {
 };
 
 #define BUF_SIZE 512
+#define BUF_SIZE_SMALL 64
+
+static int do_getdents(const char* name, int fd, size_t buf_size) {
+    char buf[buf_size];
+
+    int count = syscall(SYS_getdents, fd, buf, buf_size);
+    if (count < 0) {
+        fprintf(stderr, "%s: %s\n", name, strerror(errno));
+        return -1;
+    }
+    for (size_t offs = 0; offs < count;) {
+        struct linux_dirent* d32 = (struct linux_dirent*)(buf + offs);
+        char d_type              = *(buf + offs + d32->d_reclen - 1);
+        printf("%s: %s [0x%x]\n", name, d32->d_name, d_type);
+        offs += d32->d_reclen;
+    }
+    return count;
+}
+
+static int do_getdents64(const char* name, int fd, size_t buf_size) {
+    char buf[buf_size];
+
+    int count = syscall(SYS_getdents64, fd, buf, buf_size);
+    if (count < 0) {
+        fprintf(stderr, "%s: %s\n", name, strerror(errno));
+        return -1;
+    }
+
+    for (size_t offs = 0; offs < count;) {
+        struct linux_dirent64* d64 = (struct linux_dirent64*)(buf + offs);
+        printf("%s: %s [0x%x]\n", name, d64->d_name, d64->d_type);
+        offs += d64->d_reclen;
+    }
+    return count;
+}
 
 int main(void) {
-    int rv, fd, offs;
+    int rv, fd, count;
     const mode_t perm = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH;
-    char buf[BUF_SIZE];
 
     // setup
     // We test a directory one level below root so ".." is also present in SGX.
@@ -78,21 +115,12 @@ int main(void) {
         return 1;
     }
 
-    while (1) {
-        int count = syscall(SYS_getdents, fd, buf, BUF_SIZE);
-        if (count < 0) {
-            perror("getdents32");
+    do {
+        count = do_getdents("getdents32", fd, BUF_SIZE);
+        if (count < 0)
             return 1;
-        }
-        if (count == 0)
-            break;
-        for (offs = 0; offs < count;) {
-            struct linux_dirent* d32 = (struct linux_dirent*)(buf + offs);
-            char d_type              = *(buf + offs + d32->d_reclen - 1);
-            printf("getdents32: %s [0x%x]\n", d32->d_name, d_type);
-            offs += d32->d_reclen;
-        }
-    }
+    } while (count > 0);
+
     rv = close(fd);
     if (rv) {
         perror("close 1");
@@ -106,31 +134,74 @@ int main(void) {
         return 1;
     }
 
-    while (1) {
-        int count = syscall(SYS_getdents64, fd, buf, BUF_SIZE);
-        if (count < 0) {
-            perror("getdents64");
+    do {
+        count = do_getdents64("getdents64", fd, BUF_SIZE);
+        if (count < 0)
             return 1;
-        }
-        if (count == 0)
-            break;
-        for (offs = 0; offs < count;) {
-            struct linux_dirent64* d64 = (struct linux_dirent64*)(buf + offs);
-            printf("getdents64: %s [0x%x]\n", d64->d_name, d64->d_type);
-            offs += d64->d_reclen;
-        }
-    }
+    } while (count > 0);
+
     rv = close(fd);
     if (rv) {
         perror("close 2");
         return 1;
     }
 
-    // cleanup
-    remove("root/testdir/file1");
-    remove("root/testdir/file2");
-    remove("root/testdir/dir3");
-    remove("root/testdir");
-    remove("root");
+    /*
+     * Check if dir handle works across fork: call getdents64 once before fork, then once after fork
+     * by both parent and child, with a buffer size small enough so that all three calls return
+     * something.
+     *
+     * Note that we currently do not synchronize handle state between parent and child in Graphene,
+     * so both calls after fork will return the same entries.
+     */
+    fd = open("root/testdir", O_RDONLY | O_DIRECTORY);
+
+    count = do_getdents64("getdents64 before fork", fd, BUF_SIZE_SMALL);
+    if (count < 0)
+        return 1;
+
+    fflush(stdout);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        return 1;
+    }
+
+    const char* process = pid ? "parent getdents64" : "child getdents64";
+    count = do_getdents64(process, fd, BUF_SIZE_SMALL);
+    if (count < 0)
+        return 1;
+    if (count == 0) {
+        fprintf(stderr, "%s: handle empty too soon\n", process);
+        return 1;
+    }
+
+    rv = close(fd);
+    if (rv) {
+        perror("close after fork");
+        return 1;
+    }
+
+    if (pid) {
+        // wait for child
+        int status;
+        rv = waitpid(pid, &status, 0);
+        if (rv < 0) {
+            perror("waitpid");
+            return 1;
+        }
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "waitpid: got %d\n", status);
+            return 1;
+        }
+
+        // cleanup
+        remove("root/testdir/file1");
+        remove("root/testdir/file2");
+        remove("root/testdir/dir3");
+        remove("root/testdir");
+        remove("root");
+    }
     return 0;
 }

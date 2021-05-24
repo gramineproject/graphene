@@ -819,9 +819,15 @@ static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback,
 
         size_t start = 0;
         while (start < bytes - 1) {
-            size_t end = start + 1;
+            size_t end = start;
             while (buf[end] != '\0')
                 end++;
+
+            if (end == start) {
+                log_warning("chroot_readdir: empty name returned from PAL\n");
+                ret = -EINVAL;
+                goto out;
+            }
 
             /* By the PAL convention, if a name ends with '/', it is a directory. However, we ignore
              * that distinction here and pass the name without '/' to the callback. */
