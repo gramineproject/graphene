@@ -1,13 +1,13 @@
-precompiled_libgraphene_libos = cc.find_library('graphene-lib',
+libgraphene_libos = cc.find_library('graphene-lib',
     dirs: join_paths(meson.current_source_dir(), '.lib'))
 
 # TODO: Is this library even needed for linking LibOS? Maybe it can be removed from the
 # dependencies.
 if direct
-    precompiled_libpal = cc.find_library('pal-Linux',
+    libpal = cc.find_library('pal-Linux',
         dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))
 elif sgx
-    precompiled_libpal = cc.find_library('pal-Linux-SGX',
+    libpal = cc.find_library('pal-Linux-SGX',
         dirs: join_paths(meson.current_source_dir(), '../../../Runtime'))
 else
     error('need to link libsysdb against either PAL')
@@ -149,8 +149,8 @@ shared_library('sysdb',
         shim_lds,
     ],
     dependencies: [
-        precompiled_libgraphene_libos,
-        precompiled_libpal,
+        libgraphene_libos,
+        libpal,
     ],
 
     include_directories: includes_libos,
