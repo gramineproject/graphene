@@ -104,9 +104,13 @@ const char* pf_strerror(int err) {
 // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf
 //
 // This function derives a metadata key in two modes:
-//   - restore == false: derives a new random key (used to encrypt a new/updated file block)
-//   - restore == true:  derives a key from `metadata_key_id` nonce stored in file-block
-//                       metadata (used to decrypt an existing file block)
+//   - restore == false: derives a per-file random key from user_kdk_key using a random nonce, to
+//                       encrypt the metadata block of the protected file; the nonce is stored in
+//                       plaintext part of the metadata block so that the file can be loaded later
+//                       and decrypted using the same key
+//   - restore == true:  derives a key from user_kdk_key + nonce stored in plaintext part of the
+//                       metadata block, to decrypt the encrypted part of the metadata block (and
+//                       thus "restore" access to the whole protected file)
 static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* output) {
     kdf_input_t buf = {0};
     pf_status_t status;
