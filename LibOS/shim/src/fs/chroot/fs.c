@@ -38,7 +38,7 @@ struct file_sync_data {
 
 static void file_sync_lock(struct shim_file_handle* file, int state) {
     struct file_sync_data data;
-    if (sync_lock(&file->sync, state, &data)) {
+    if (sync_lock(&file->sync, state, &data, sizeof(data))) {
         file->size = data.size;
         file->marker = data.marker;
     }
@@ -49,7 +49,7 @@ static void file_sync_unlock(struct shim_file_handle* file) {
         .size = file->size,
         .marker = file->marker,
     };
-    sync_unlock(&file->sync, &data);
+    sync_unlock(&file->sync, &data, sizeof(data));
 }
 
 #define HANDLE_MOUNT_DATA(h) ((struct mount_data*)(h)->fs->data)
@@ -437,7 +437,7 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
     /* files obtained from checkpoint system will have sync handle initialized already (see
      * chroot_checkin()) */
     if (!sync_is_initialized(&hdl->info.file.sync))
-        ret = sync_init(&hdl->info.file.sync, /*id=*/0, sizeof(struct file_sync_data));
+        ret = sync_init(&hdl->info.file.sync, /*id=*/0);
 
     return ret;
 }
@@ -988,7 +988,7 @@ static int chroot_checkin(struct shim_handle* hdl) {
     /* Recreate the sync handle with the same ID. */
     uint64_t id = hdl->info.file.sync.id;
     hdl->info.file.sync.id = 0;
-    return sync_init(&hdl->info.file.sync, id, sizeof(struct file_sync_data));
+    return sync_init(&hdl->info.file.sync, id);
 }
 
 static ssize_t chroot_checkpoint(void** checkpoint, void* mount_data) {

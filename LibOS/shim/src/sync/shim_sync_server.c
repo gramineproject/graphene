@@ -129,8 +129,8 @@ static struct server_lease* find_lease(struct server_handle* handle, IDTYPE vmid
     if (!(lease = malloc(sizeof(*lease))))
         return NULL;
 
-    struct server_client* client;
-    if (!(client = find_client(vmid, /*create=*/true))) {
+    struct server_client* client = find_client(vmid, /*create=*/true);
+    if (!client) {
         free(lease);
         return NULL;
     }

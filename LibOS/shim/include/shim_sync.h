@@ -35,13 +35,13 @@
  *     };
  *
  *     // Initialize the handle
- *     sync_init(&obj.sync, 0, sizeof(struct obj_sync_data));
+ *     sync_init(&obj.sync, 0);
  *
  *     // Lock. Use SYNC_STATE_SHARED for reading data, SYNC_STATE_EXCLUSIVE if you need to update
  *     // it. After locking, you can read latest data (if it's there: a newly created handle will
  *     // not have any data associated).
  *     struct obj_sync_data data;
- *     if (sync_lock(&obj.sync, SYNC_STATE_EXCLUSIVE, &data)) {
+ *     if (sync_lock(&obj.sync, SYNC_STATE_EXCLUSIVE, &data, sizeof(data))) {
  *         obj.field_one = data.field_one;
  *         obj.field_two = data.field_two;
  *     }
@@ -52,7 +52,7 @@
  *     // Unlock, writing the new data first
  *     data.field_one = obj.field_one;
  *     data.field_two = obj.field_two;
- *     sync_unlock(&file->sync, &data);
+ *     sync_unlock(&file->sync, &data, sizeof(data));
  *
  *     // Destroy the handle before destroying the object
  *     sync_destroy(&obj.sync);
@@ -197,7 +197,7 @@ struct sync_handle {
      */
     struct shim_lock prop_lock;
 
-    /* Size of synchronized data. */
+    /* Size of synchronized data (0 if no data yet). */
     size_t data_size;
 
     /* Current version of synchronized data (NULL if no data yet). */
@@ -236,7 +236,7 @@ int shutdown_sync_client(void);
 
 /* Initialize a sync handle. If `id` is 0, allocate a fresh handle ID.  Before calling sync_init()
  * on given handle, handle->id must be set to 0, for easier lifecycle tracking. */
-int sync_init(struct sync_handle* handle, uint64_t id, size_t data_size);
+int sync_init(struct sync_handle* handle, uint64_t id);
 
 /* Check if the handle has been initialized, to prevent sync_init()/sync_destroy() outside of
  * lifecycle */
@@ -257,10 +257,10 @@ void sync_destroy(struct sync_handle* handle);
  * - if state is SYNC_STATE_SHARED, no other process is holding a lock in SYNC_STATE_EXCLUSIVE state
  * - if state is SYNC_STATE_EXCLUSIVE, no other process is holding a lock in any state
  */
-bool sync_lock(struct sync_handle* handle, int state, void* data);
+bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_size);
 
 /* Release a handle, updating data associated with it. */
-void sync_unlock(struct sync_handle* handle, void* data);
+void sync_unlock(struct sync_handle* handle, void* data, size_t data_size);
 
 /*** Message handlers (called from IPC, see ipc/shim_ipc_sync.c) ***/
 

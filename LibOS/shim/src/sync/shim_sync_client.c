@@ -80,7 +80,7 @@ static void sync_downgrade(struct sync_handle* handle) {
     assert(handle->server_req_state < handle->cur_state);
 
     size_t data_size;
-    if (handle->data && handle->cur_state == SYNC_STATE_EXCLUSIVE) {
+    if (handle->cur_state == SYNC_STATE_EXCLUSIVE) {
         data_size = handle->data_size;
     } else {
         data_size = 0;
@@ -90,6 +90,19 @@ static void sync_downgrade(struct sync_handle* handle) {
         FATAL("sending CONFIRM_DOWNGRADE\n");
     handle->cur_state = handle->server_req_state;
     handle->server_req_state = SYNC_STATE_NONE;
+}
+
+static void update_handle_data(struct sync_handle* handle, size_t data_size, void* data) {
+    assert(locked(&handle->prop_lock));
+    assert(data_size > 0);
+
+    if (data_size != handle->data_size) {
+        free(handle->data);
+        handle->data_size = data_size;
+        if (!(handle->data = malloc(handle->data_size)))
+            FATAL("Cannot allocate data for handle\n");
+    }
+    memcpy(handle->data, data, data_size);
 }
 
 int init_sync_client(void) {
@@ -110,7 +123,7 @@ int init_sync_client(void) {
     return 0;
 }
 
-int sync_init(struct sync_handle* handle, uint64_t id, size_t data_size) {
+int sync_init(struct sync_handle* handle, uint64_t id) {
     int ret;
 
     assert(handle->id == 0);
@@ -120,7 +133,7 @@ int sync_init(struct sync_handle* handle, uint64_t id, size_t data_size) {
 
     memset(handle, 0, sizeof(*handle));
     handle->id = id;
-    handle->data_size = data_size;
+    handle->data_size = 0;
     handle->data = NULL;
 
     if (!create_lock(&handle->use_lock)) {
@@ -184,7 +197,7 @@ static void __sync_destroy(struct sync_handle* handle) {
 static int send_request_close(struct sync_handle* handle) {
     assert(locked(&handle->prop_lock));
     size_t data_size;
-    if (handle->data && handle->cur_state == SYNC_STATE_EXCLUSIVE) {
+    if (handle->cur_state == SYNC_STATE_EXCLUSIVE) {
         data_size = handle->data_size;
     } else {
         data_size = 0;
@@ -219,7 +232,7 @@ void sync_destroy(struct sync_handle* handle) {
     __sync_destroy(handle);
 }
 
-bool sync_lock(struct sync_handle* handle, int state, void* data) {
+bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_size) {
     assert(state == SYNC_STATE_SHARED || state == SYNC_STATE_EXCLUSIVE);
 
     lock(&handle->use_lock);
@@ -237,7 +250,7 @@ bool sync_lock(struct sync_handle* handle, int state, void* data) {
             if (handle->phase == SYNC_PHASE_CLOSING || handle->phase == SYNC_PHASE_CLOSED)
                 FATAL("sync_lock() on a closed handle\n");
 
-            if (handle->client_req_state < state && handle->cur_state ) {
+            if (handle->client_req_state < state) {
                 if (ipc_sync_client_send(IPC_MSG_SYNC_REQUEST_UPGRADE, handle->id, state,
                                          /*data_size=*/0, /*data=*/NULL) < 0)
                     FATAL("sending REQUEST_UPGRADE\n");
@@ -247,8 +260,11 @@ bool sync_lock(struct sync_handle* handle, int state, void* data) {
             sync_wait(handle);
         } while (handle->cur_state < state);
 
-        if (data && handle->data) {
-            memcpy(data, handle->data, handle->data_size);
+        if (data_size > 0 && handle->data_size > 0) {
+            if (data_size != handle->data_size)
+                FATAL("handle data size mismatch\n");
+
+            memcpy(data, handle->data, data_size);
             updated = true;
         }
     }
@@ -257,7 +273,7 @@ bool sync_lock(struct sync_handle* handle, int state, void* data) {
     return updated;
 }
 
-void sync_unlock(struct sync_handle* handle, void* data) {
+void sync_unlock(struct sync_handle* handle, void* data, size_t data_size) {
     if (!g_sync_enabled) {
         unlock(&handle->use_lock);
         return;
@@ -266,12 +282,8 @@ void sync_unlock(struct sync_handle* handle, void* data) {
     lock(&handle->prop_lock);
     assert(handle->used);
 
-    if (data) {
-        if (!handle->data && !(handle->data = malloc(handle->data_size)))
-            FATAL("allocating handle data\n");
-
-        memcpy(handle->data, data, handle->data_size);
-    }
+    if (data_size > 0)
+        update_handle_data(handle, data_size, data);
 
     handle->used = false;
     if (handle->phase == SYNC_PHASE_OPEN && handle->server_req_state < handle->cur_state
@@ -300,23 +312,17 @@ int shutdown_sync_client(void) {
         unlock(&handle->prop_lock);
     }
 
-    /* Wait for server to confirm the handles are closed, and delete them. */
-    log_debug("sync client shutdown: waiting for confirmation and deleting handles\n");
-    while (g_client_handles) {
-        handle = g_client_handles;
+    /* Wait for server to confirm the handles are closed. */
+    log_debug("sync client shutdown: waiting for confirmation\n");
+    HASH_ITER(hh, g_client_handles, handle, tmp) {
         unlock_client();
-
         lock(&handle->prop_lock);
-        if (handle->phase == SYNC_PHASE_CLOSING) {
-            do {
+        if (handle->phase != SYNC_PHASE_NEW) {
+            while (handle->phase != SYNC_PHASE_CLOSED)
                 sync_wait(handle);
-            } while (handle->phase != SYNC_PHASE_CLOSED);
         }
         unlock(&handle->prop_lock);
-
         lock_client();
-        HASH_DELETE(hh, g_client_handles, handle);
-        __sync_destroy(handle);
     }
     unlock_client();
 
@@ -362,13 +368,8 @@ static void do_confirm_upgrade(uint64_t id, int state, size_t data_size, void* d
         sync_notify(handle);
     }
 
-    if (data_size > 0) {
-        if (data_size != handle->data_size)
-            FATAL("handle data size mismatch\n");
-        if (!handle->data && !(handle->data = malloc(handle->data_size)))
-            FATAL("allocating handle data\n");
-        memcpy(handle->data, data, data_size);
-    }
+    if (data_size > 0)
+        update_handle_data(handle, data_size, data);
 
     unlock(&handle->prop_lock);
 }
