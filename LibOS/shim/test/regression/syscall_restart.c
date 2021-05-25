@@ -1,3 +1,12 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
+ */
+/*
+ * This file is supposed to test syscall-restart capability of the `read` syscall in two flavors:
+ * when the process does not have a handler for the incoming signal (and `read` syscall should be
+ * restarted by default) and when the process has a handler with `SA_RESTART` set.
+ */
 #define _GNU_SOURCE
 #include <err.h>
 #include <signal.h>
