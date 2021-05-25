@@ -304,13 +304,13 @@ long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (!IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
-    unsigned long pages = ALLOC_ALIGN_UP(len) / ALLOC_ALIGNMENT;
-    if (!is_user_memory_writable(vec, pages))
-        return -EFAULT;
-
     if (!is_in_adjacent_user_vmas(addr, len, /*prot=*/0)) {
         return -ENOMEM;
     }
+
+    unsigned long pages = ALLOC_ALIGN_UP(len) / ALLOC_ALIGNMENT;
+    if (!is_user_memory_writable(vec, pages))
+        return -EFAULT;
 
     static atomic_bool warned = false;
     if (!warned) {
