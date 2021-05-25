@@ -424,6 +424,8 @@ bool is_user_string_readable(const char* addr) {
     const char* next_page_addr = ALIGN_UP_PTR(addr + 1, PAGE_SIZE);
     assert(next_page_addr != addr);
 
+    /* `next_page_addr` could wrap around which by itself is not an error, if the string does not
+     * wrap around. */
     size_t len = addr < next_page_addr ? (size_t)(next_page_addr - addr) : -(uintptr_t)addr;
     while (1) {
         if (!access_ok(addr, len)) {

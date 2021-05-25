@@ -304,6 +304,10 @@ long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (!IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
+    if (!access_ok(addr, len)) {
+        return -ENOMEM;
+    }
+
     if (!is_in_adjacent_user_vmas(addr, len, /*prot=*/0)) {
         return -ENOMEM;
     }
