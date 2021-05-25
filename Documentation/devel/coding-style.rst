@@ -119,7 +119,7 @@ Conventions and high-level style
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #. Variable and function names should be sane and easy to understand (example:
    ``nofpts`` is bad, ``points_cnt`` is ok). The names ``i``, ``j``, ``k`` etc.
-   should be limited to integers used as indexes to arrays.
+   should be limited to integers used as array indexes.
 
 #. All non-static function interfaces should be documented in comments
    (especially pointer ownerships). Same for public macros.
@@ -175,6 +175,6 @@ Meson
 
 #. Variables named ``_prog`` refer to things obtained from ``find_program()``.
    Auxiliary commands should reside in ``Scripts/``, and the variable name is
-   tied to the script name (see file:`meson.build` there). The scripts should be
-   written in Python except for things that clearly benefit from being written
-   in ``sh``.
+   tied to the script name (see :file:`meson.build` there). The scripts should
+   be written in Python except for things that clearly benefit from being
+   written in ``sh``.
