@@ -91,16 +91,6 @@ typedef union pal_handle {
 
 #include "pal-arch.h"
 
-/*! Log level */
-enum {
-    PAL_LOG_NONE    = 0,
-    PAL_LOG_ERROR   = 1,
-    PAL_LOG_WARNING = 2,
-    PAL_LOG_DEBUG   = 3,
-    PAL_LOG_TRACE   = 4,
-    PAL_LOG_ALL     = 5,
-};
-
 /********** PAL TYPE DEFINITIONS **********/
 enum {
     pal_type_file,
@@ -830,10 +820,6 @@ int DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
  */
 int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[CPUID_WORD_NUM]);
 #endif
-
-// TODO: Replace this with log_* everywhere
-void pal_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-void pal_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
 void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr);
 void DkDebugMapRemove(PAL_PTR start_addr);

@@ -21,13 +21,13 @@ int urts_log_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.
-void _urts_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
-/* This function emits logs regardless of log_level setting and doesn't prefix the output. */
-void urts_log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+void pal_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
-#define urts_log_error(fmt...)    _urts_log(PAL_LOG_ERROR, fmt)
-#define urts_log_warning(fmt...)  _urts_log(PAL_LOG_WARNING, fmt)
-#define urts_log_debug(fmt...)    _urts_log(PAL_LOG_DEBUG, fmt)
-#define urts_log_trace(fmt...)    _urts_log(PAL_LOG_TRACE, fmt)
+/* NOTE: these macros are identical to log_error, log_warning, etc. but defined for readability */
+#define urts_log_always(fmt...)   pal_log(LOG_LEVEL_NONE, fmt)
+#define urts_log_error(fmt...)    pal_log(LOG_LEVEL_ERROR, fmt)
+#define urts_log_warning(fmt...)  pal_log(LOG_LEVEL_WARNING, fmt)
+#define urts_log_debug(fmt...)    pal_log(LOG_LEVEL_DEBUG, fmt)
+#define urts_log_trace(fmt...)    pal_log(LOG_LEVEL_TRACE, fmt)
 
 #endif /* SGX_LOG_H_ */

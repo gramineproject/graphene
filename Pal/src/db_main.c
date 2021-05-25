@@ -173,17 +173,17 @@ static void configure_logging(void) {
 
     if (log_level_str) {
         if (!strcmp(log_level_str, "none")) {
-            log_level = PAL_LOG_NONE;
+            log_level = LOG_LEVEL_NONE;
         } else if (!strcmp(log_level_str, "error")) {
-            log_level = PAL_LOG_ERROR;
+            log_level = LOG_LEVEL_ERROR;
         } else if (!strcmp(log_level_str, "warning")) {
-            log_level = PAL_LOG_WARNING;
+            log_level = LOG_LEVEL_WARNING;
         } else if (!strcmp(log_level_str, "debug")) {
-            log_level = PAL_LOG_DEBUG;
+            log_level = LOG_LEVEL_DEBUG;
         } else if (!strcmp(log_level_str, "trace")) {
-            log_level = PAL_LOG_TRACE;
+            log_level = LOG_LEVEL_TRACE;
         } else if (!strcmp(log_level_str, "all")) {
-            log_level = PAL_LOG_ALL;
+            log_level = LOG_LEVEL_ALL;
         } else {
             INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Unknown 'loader.log_level'");
         }
@@ -195,7 +195,7 @@ static void configure_logging(void) {
     if (ret < 0)
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.log_file'");
 
-    if (log_file && log_level > PAL_LOG_NONE) {
+    if (log_file && log_level > LOG_LEVEL_NONE) {
         ret = _DkInitDebugStream(log_file);
 
         if (ret < 0)

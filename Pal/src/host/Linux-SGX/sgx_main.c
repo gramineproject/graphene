@@ -847,17 +847,17 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     }
     if (log_level_str) {
         if (!strcmp(log_level_str, "none")) {
-            log_level = PAL_LOG_NONE;
+            log_level = LOG_LEVEL_NONE;
         } else if (!strcmp(log_level_str, "error")) {
-            log_level = PAL_LOG_ERROR;
+            log_level = LOG_LEVEL_ERROR;
         } else if (!strcmp(log_level_str, "warning")) {
-            log_level = PAL_LOG_WARNING;
+            log_level = LOG_LEVEL_WARNING;
         } else if (!strcmp(log_level_str, "debug")) {
-            log_level = PAL_LOG_DEBUG;
+            log_level = LOG_LEVEL_DEBUG;
         } else if (!strcmp(log_level_str, "trace")) {
-            log_level = PAL_LOG_TRACE;
+            log_level = LOG_LEVEL_TRACE;
         } else if (!strcmp(log_level_str, "all")) {
-            log_level = PAL_LOG_ALL;
+            log_level = LOG_LEVEL_ALL;
         } else {
             urts_log_error("Unknown 'loader.log_level'\n");
             ret = -EINVAL;
@@ -873,7 +873,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         ret = -EINVAL;
         goto out;
     }
-    if (log_level > PAL_LOG_NONE && log_file) {
+    if (log_level > LOG_LEVEL_NONE && log_file) {
         ret = urts_log_init(log_file);
 
         if (ret < 0) {

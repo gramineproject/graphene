@@ -3,7 +3,10 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
-#include "assert.h"
+#include <stdnoreturn.h>
+
+#include "callbacks.h"
+#include "log.h"
 
 /* declare here to silence GCC's "error: no previous prototype" */
 noreturn void __stack_chk_fail(void);

@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation */
+
 /*
  * Define a common interface for assertions that builds for both the PAL and libOS.
  */
@@ -8,6 +11,7 @@
 #include <stdnoreturn.h>
 
 #include "callbacks.h"
+#include "log.h"
 
 #define static_assert _Static_assert
 

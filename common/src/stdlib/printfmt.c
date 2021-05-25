@@ -8,6 +8,7 @@
 
 #include "assert.h"
 #include "api.h"
+#include "log.h"
 
 #undef vsnprintf
 #undef snprintf

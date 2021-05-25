@@ -14,6 +14,7 @@
 #include "api.h"
 #include "assert.h"
 #include "list.h"
+#include "log.h"
 
 // Before calling any of `system_malloc` and `system_free` this library will
 // acquire `SYSTEM_LOCK` (the system_* implementation must not do it).
