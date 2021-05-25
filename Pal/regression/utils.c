@@ -1,5 +1,6 @@
 #include "api.h"
 #include "pal.h"
+#include "pal_regression.h"
 
 // pal_printf() is required by PAL regression tests.
 static int buf_write_all(const char* str, size_t size, void* arg) {
@@ -14,7 +15,7 @@ static void log_vprintf(const char* fmt, va_list ap) {
     buf_flush(&buf);
 }
 
-void __attribute__((format(printf, 1, 2))) pal_printf(const char* fmt, ...) {
+void pal_printf(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     log_vprintf(fmt, ap);
@@ -24,7 +25,8 @@ void __attribute__((format(printf, 1, 2))) pal_printf(const char* fmt, ...) {
 /* The below two functions are used by stack protector's __stack_chk_fail(), _FORTIFY_SOURCE's
  * *_chk() functions and by assert.h's assert() defined in the common library. Thus they might be
  * called by any execution context, including these PAL tests. */
-void __attribute__((format(printf, 1, 2))) log_always(const char* fmt, ...) {
+void _log(int level, const char* fmt, ...) {
+    (void)level; /* PAL regression always prints log messages */
     va_list ap;
     va_start(ap, fmt);
     log_vprintf(fmt, ap);

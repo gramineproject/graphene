@@ -4,6 +4,7 @@
 
 #include "api.h"
 #include "assert.h"
+#include "log.h"
 
 #undef memcpy
 #undef memmove

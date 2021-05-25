@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation */
+
 /*
  * Defines a set of callbacks that the common library expects from environment it is linked into.
  * Currently, the common library expects `shim_`-prefixed callbacks from LibOS, `pal_`-prefixed
@@ -12,7 +15,7 @@
  *
  * All environments should implement the following callbacks:
  *
- * - log_always(), prints a non-optional debug message
+ * - _log(), prints a debug message (at different log levels)
  * - abort(), terminates the process
  *
  */
@@ -23,19 +26,19 @@
 #include <stdnoreturn.h>
 
 #ifdef IN_SHIM
-void shim_log_always(const char* format, ...) __attribute__((format(printf, 1, 2)));
+void shim_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 noreturn void shim_abort(void);
-#define log_always(format...) shim_log_always(format)
+#define _log(level, format...) shim_log(level, format)
 #define abort() shim_abort()
 
 #elif IN_PAL
-void pal_log_always(const char* format, ...) __attribute__((format(printf, 1, 2)));
+void pal_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 noreturn void pal_abort(void);
-#define log_always(format...) pal_log_always(format)
+#define _log(level, format...) pal_log(level, format)
 #define abort() pal_abort()
 
 #else
-void log_always(const char* format, ...) __attribute__((format(printf, 1, 2)));
+void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 noreturn void abort(void);
 #endif
 

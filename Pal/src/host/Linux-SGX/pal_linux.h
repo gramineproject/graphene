@@ -12,6 +12,7 @@
 #include "crypto.h"
 #include "enclave_ocalls.h"
 #include "linux_types.h"
+#include "log.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_internal.h"

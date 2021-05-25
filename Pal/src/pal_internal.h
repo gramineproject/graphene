@@ -11,6 +11,8 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include "api.h"
+#include "log.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -277,17 +279,10 @@ int _DkDebugLog(const void* buf, size_t size);
 
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.
-void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
-/* This function emits logs regardless of log_level setting and doesn't prefix the output. */
-void log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+void pal_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
-#define PAL_LOG_DEFAULT_LEVEL  PAL_LOG_ERROR
+#define PAL_LOG_DEFAULT_LEVEL  LOG_LEVEL_ERROR
 #define PAL_LOG_DEFAULT_FD     2
-
-#define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
-#define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
-#define log_debug(fmt...)    _log(PAL_LOG_DEBUG, fmt)
-#define log_trace(fmt...)    _log(PAL_LOG_TRACE, fmt)
 
 #define uthash_fatal(msg)                      \
     do {                                       \

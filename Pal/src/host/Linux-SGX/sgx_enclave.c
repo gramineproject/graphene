@@ -37,8 +37,8 @@ static long sgx_ocall_exit(void* pms) {
     ODEBUG(OCALL_EXIT, NULL);
 
     if (ms->ms_exitcode != (int)((uint8_t)ms->ms_exitcode)) {
-        urts_log_debug("Saturation error in exit code %d, getting rounded down to %u\n",
-                       ms->ms_exitcode, (uint8_t)ms->ms_exitcode);
+        log_debug("Saturation error in exit code %d, getting rounded down to %u\n",
+                  ms->ms_exitcode, (uint8_t)ms->ms_exitcode);
         ms->ms_exitcode = 255;
     }
 
@@ -339,8 +339,8 @@ static long sgx_ocall_socketpair(void* pms) {
 }
 
 static long sock_getopt(int fd, struct sockopt* opt) {
-    urts_log_debug("sock_getopt (fd = %d, sockopt addr = %p) is not implemented "
-                   "and always returns 0\n", fd, opt);
+    log_debug("sock_getopt (fd = %d, sockopt addr = %p) is not implemented and always returns 0\n",
+              fd, opt);
     /* initialize *opt with constant */
     *opt = (struct sockopt){0};
     opt->reuseaddr = 1;
@@ -661,7 +661,7 @@ static long sgx_ocall_debug_map_add(void* pms) {
 #ifdef DEBUG
     int ret = debug_map_add(ms->ms_name, ms->ms_addr);
     if (ret < 0)
-        urts_log_error("debug_map_add(%s, %p): %d\n", ms->ms_name, ms->ms_addr, ret);
+        log_error("debug_map_add(%s, %p): %d\n", ms->ms_name, ms->ms_addr, ret);
 
     sgx_profile_report_elf(ms->ms_name, ms->ms_addr);
 #else
@@ -676,7 +676,7 @@ static long sgx_ocall_debug_map_remove(void* pms) {
 #ifdef DEBUG
     int ret = debug_map_remove(ms->ms_addr);
     if (ret < 0)
-        urts_log_error("debug_map_remove(%p): %d\n", ms->ms_addr, ret);
+        log_error("debug_map_remove(%p): %d\n", ms->ms_addr, ret);
 #else
     __UNUSED(ms);
 #endif
@@ -795,7 +795,7 @@ static int rpc_thread_loop(void* arg) {
             int ret = INLINE_SYSCALL(futex, 6, &req->lock.lock, FUTEX_WAKE_PRIVATE,
                                      1, NULL, NULL, 0);
             if (ret == -1)
-                urts_log_error("RPC thread failed to wake up enclave thread\n");
+                log_error("RPC thread failed to wake up enclave thread\n");
         }
     }
 

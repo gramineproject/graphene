@@ -14,19 +14,20 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 
-int g_log_level = PAL_LOG_NONE;
+int g_log_level = LOG_LEVEL_NONE;
 
+/* NOTE: We could add "libos" prefix to the below strings for more fine-grained log info */
 static const char* log_level_to_prefix[] = {
-    [PAL_LOG_NONE]    = "", // not a valid entry actually (no public wrapper uses this log level)
-    [PAL_LOG_ERROR]   = "error: ",
-    [PAL_LOG_WARNING] = "warning: ",
-    [PAL_LOG_DEBUG]   = "debug: ",
-    [PAL_LOG_TRACE]   = "trace: ",
-    [PAL_LOG_ALL]     = "", // same as for PAL_LOG_NONE
+    [LOG_LEVEL_NONE]    = "",
+    [LOG_LEVEL_ERROR]   = "error: ",
+    [LOG_LEVEL_WARNING] = "warning: ",
+    [LOG_LEVEL_DEBUG]   = "debug: ",
+    [LOG_LEVEL_TRACE]   = "trace: ",
+    [LOG_LEVEL_ALL]     = "", // not a valid entry actually (no public wrapper uses this log level)
 };
 
 void log_setprefix(shim_tcb_t* tcb) {
-    if (g_log_level <= PAL_LOG_NONE)
+    if (g_log_level <= LOG_LEVEL_NONE)
         return;
 
     const char* exec = g_pal_control->executable;
@@ -68,7 +69,7 @@ static int buf_write_all(const char* str, size_t size, void* arg) {
     return 0;
 }
 
-void _log(int level, const char* fmt, ...) {
+void shim_log(int level, const char* fmt, ...) {
     if (level <= g_log_level) {
         struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
 
@@ -82,17 +83,4 @@ void _log(int level, const char* fmt, ...) {
 
         buf_flush(&buf);
     }
-}
-
-void log_always(const char* fmt, ...) {
-    struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
-
-    buf_puts(&buf, shim_get_tcb()->log_prefix);
-
-    va_list ap;
-    va_start(ap, fmt);
-    buf_vprintf(&buf, fmt, ap);
-    va_end(ap);
-
-    buf_flush(&buf);
 }

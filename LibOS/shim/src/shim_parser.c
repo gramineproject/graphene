@@ -1558,7 +1558,7 @@ static int buf_write_all(const char* str, size_t size, void* arg) {
 }
 
 void debug_print_syscall_before(unsigned long sysno, ...) {
-    if (g_log_level < PAL_LOG_TRACE)
+    if (g_log_level < LOG_LEVEL_TRACE)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
@@ -1592,7 +1592,7 @@ void debug_print_syscall_before(unsigned long sysno, ...) {
 }
 
 void debug_print_syscall_after(unsigned long sysno, ...) {
-    if (g_log_level < PAL_LOG_TRACE)
+    if (g_log_level < LOG_LEVEL_TRACE)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];

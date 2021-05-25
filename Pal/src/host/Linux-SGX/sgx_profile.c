@@ -107,14 +107,14 @@ int sgx_profile_init(void) {
 
     ret = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDONLY | O_LARGEFILE, 0);
     if (ret < 0) {
-        urts_log_error("sgx_profile_init: opening /proc/self/mem failed: %d\n", ret);
+        log_error("sgx_profile_init: opening /proc/self/mem failed: %d\n", ret);
         goto out;
     }
     g_mem_fd = ret;
 
     struct perf_data* pd = pd_open(g_pal_enclave.profile_filename, g_pal_enclave.profile_with_stack);
     if (!pd) {
-        urts_log_error("sgx_profile_init: pd_open failed\n");
+        log_error("sgx_profile_init: pd_open failed\n");
         ret = -EINVAL;
         goto out;
     }
@@ -123,7 +123,7 @@ int sgx_profile_init(void) {
     pid_t pid = g_pal_enclave.pal_sec.pid;
     ret = pd_event_command(pd, "pal-sgx", pid, /*tid=*/pid);
     if (!pd) {
-        urts_log_error("sgx_profile_init: reporting command failed: %d\n", ret);
+        log_error("sgx_profile_init: reporting command failed: %d\n", ret);
         goto out;
     }
 
@@ -134,15 +134,14 @@ out:
     if (g_mem_fd > 0) {
         int close_ret = INLINE_SYSCALL(close, 1, g_mem_fd);
         if (close_ret < 0)
-            urts_log_error("sgx_profile_init: closing /proc/self/mem failed: %d\n",
-                           close_ret);
+            log_error("sgx_profile_init: closing /proc/self/mem failed: %d\n", close_ret);
         g_mem_fd = -1;
     }
 
     if (g_perf_data) {
         ssize_t close_ret = pd_close(g_perf_data);
         if (close_ret < 0)
-            urts_log_error("sgx_profile_init: pd_close failed: %ld\n", close_ret);
+            log_error("sgx_profile_init: pd_close failed: %ld\n", close_ret);
             g_perf_data = NULL;
     }
     return ret;
@@ -159,18 +158,17 @@ void sgx_profile_finish(void) {
 
     size = pd_close(g_perf_data);
     if (size < 0)
-        urts_log_error("sgx_profile_finish: pd_close failed: %ld\n", size);
+        log_error("sgx_profile_finish: pd_close failed: %ld\n", size);
     g_perf_data = NULL;
 
     spinlock_unlock(&g_perf_data_lock);
 
     ret = INLINE_SYSCALL(close, 1, g_mem_fd);
     if (ret < 0)
-        urts_log_error("sgx_profile_finish: closing /proc/self/mem failed: %d\n", ret);
+        log_error("sgx_profile_finish: closing /proc/self/mem failed: %d\n", ret);
     g_mem_fd = -1;
 
-    urts_log_debug("Profile data written to %s (%lu bytes)\n", g_pal_enclave.profile_filename,
-                   size);
+    log_debug("Profile data written to %s (%lu bytes)\n", g_pal_enclave.profile_filename, size);
 
     g_profile_enabled = false;
 }
@@ -187,7 +185,7 @@ static void sample_simple(uint64_t rip) {
     spinlock_unlock(&g_perf_data_lock);
 
     if (ret < 0) {
-        urts_log_error("error recording sample: %d\n", ret);
+        log_error("error recording sample: %d\n", ret);
     }
 }
 
@@ -202,7 +200,7 @@ static void sample_stack(sgx_pal_gpr_t* gpr) {
     size_t stack_size;
     ret = debug_read(stack, (void*)gpr->rsp, sizeof(stack));
     if (ret < 0) {
-        urts_log_error("error reading stack: %d\n", ret);
+        log_error("error reading stack: %d\n", ret);
         return;
     }
     stack_size = ret;
@@ -213,7 +211,7 @@ static void sample_stack(sgx_pal_gpr_t* gpr) {
     spinlock_unlock(&g_perf_data_lock);
 
     if (ret < 0) {
-        urts_log_error("error recording sample: %d\n", ret);
+        log_error("error recording sample: %d\n", ret);
     }
 }
 
@@ -230,7 +228,7 @@ static bool update_time(void) {
     struct timespec ts;
     int ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_THREAD_CPUTIME_ID, &ts);
     if (ret < 0) {
-        urts_log_error("sgx_profile_sample: clock_gettime failed: %d\n", ret);
+        log_error("sgx_profile_sample: clock_gettime failed: %d\n", ret);
         return false;
     }
     uint64_t sample_time = ts.tv_sec * NSEC_IN_SEC + ts.tv_nsec;
@@ -262,7 +260,7 @@ void sgx_profile_sample_aex(void* tcs) {
     sgx_pal_gpr_t gpr;
     ret = get_sgx_gpr(&gpr, tcs);
     if (ret < 0) {
-        urts_log_error("sgx_profile_sample_aex: error reading GPR: %d\n", ret);
+        log_error("sgx_profile_sample_aex: error reading GPR: %d\n", ret);
         return;
     }
 
@@ -285,7 +283,7 @@ void sgx_profile_sample_ocall_inner(void* enclave_gpr) {
     sgx_pal_gpr_t gpr;
     ret = debug_read_all(&gpr, enclave_gpr, sizeof(gpr));
     if (ret < 0) {
-        urts_log_error("sgx_profile_sample_ocall_inner: error reading GPR: %d\n", ret);
+        log_error("sgx_profile_sample_ocall_inner: error reading GPR: %d\n", ret);
         return;
     }
 
@@ -322,7 +320,7 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
     char buf[PATH_MAX];
     char* path = realpath(filename, buf);
     if (!path) {
-        urts_log_error("sgx_profile_report_elf(%s): realpath failed\n", filename);
+        log_error("sgx_profile_report_elf(%s): realpath failed\n", filename);
         return;
     }
 
@@ -330,19 +328,19 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
 
     int fd = INLINE_SYSCALL(open, 3, path, O_RDONLY, 0);
     if (fd < 0) {
-        urts_log_error("sgx_profile_report_elf(%s): open failed: %d\n", filename, fd);
+        log_error("sgx_profile_report_elf(%s): open failed: %d\n", filename, fd);
         return;
     }
 
     off_t elf_length = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_END);
     if (elf_length < 0) {
-        urts_log_error("sgx_profile_report_elf(%s): lseek failed: %ld\n", filename, elf_length);
+        log_error("sgx_profile_report_elf(%s): lseek failed: %ld\n", filename, elf_length);
         goto out_close;
     }
 
     void* elf_addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, elf_length, PROT_READ, MAP_PRIVATE, fd, 0);
     if (IS_ERR_P(elf_addr)) {
-        urts_log_error("sgx_profile_report_elf(%s): mmap failed: %ld\n", filename, ERRNO_P(addr));
+        log_error("sgx_profile_report_elf(%s): mmap failed: %ld\n", filename, ERRNO_P(addr));
         goto out_close;
     }
 
@@ -352,7 +350,7 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
     const ElfW(Ehdr)* ehdr = elf_addr;
 
     if (elf_length < (off_t)sizeof(*ehdr) || memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
-        urts_log_error("sgx_profile_report_elf(%s): invalid ELF binary\n", filename);
+        log_error("sgx_profile_report_elf(%s): invalid ELF binary\n", filename);
         goto out_unmap;
     }
 
@@ -378,19 +376,19 @@ void sgx_profile_report_elf(const char* filename, void* addr) {
     spinlock_unlock(&g_perf_data_lock);
 
     if (ret < 0)
-        urts_log_error("sgx_profile_report_elf(%s): pd_event_mmap failed: %d\n", filename, ret);
+        log_error("sgx_profile_report_elf(%s): pd_event_mmap failed: %d\n", filename, ret);
 
     // Clean up.
 
 out_unmap:
     ret = INLINE_SYSCALL(munmap, 2, elf_addr, elf_length);
     if (ret < 0)
-        urts_log_error("sgx_profile_report_elf(%s): munmap failed: %d\n", filename, ret);
+        log_error("sgx_profile_report_elf(%s): munmap failed: %d\n", filename, ret);
 
 out_close:
     ret = INLINE_SYSCALL(close, 1, fd);
     if (ret < 0)
-        urts_log_error("sgx_profile_report_elf(%s): close failed: %d\n", filename, ret);
+        log_error("sgx_profile_report_elf(%s): close failed: %d\n", filename, ret);
 }
 
 #endif /* DEBUG */

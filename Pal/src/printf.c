@@ -6,13 +6,14 @@
 #include "pal.h"
 #include "pal_internal.h"
 
+/* NOTE: We could add "pal" prefix to the below strings for more fine-grained log info */
 static const char* log_level_to_prefix[] = {
-    [PAL_LOG_NONE]    = "", // not a valid entry actually (no public wrapper uses this log level)
-    [PAL_LOG_ERROR]   = "error: ",
-    [PAL_LOG_WARNING] = "warning: ",
-    [PAL_LOG_DEBUG]   = "debug: ",
-    [PAL_LOG_TRACE]   = "trace: ",
-    [PAL_LOG_ALL]     = "", // same as for PAL_LOG_NONE
+    [LOG_LEVEL_NONE]    = "",
+    [LOG_LEVEL_ERROR]   = "error: ",
+    [LOG_LEVEL_WARNING] = "warning: ",
+    [LOG_LEVEL_DEBUG]   = "debug: ",
+    [LOG_LEVEL_TRACE]   = "trace: ",
+    [LOG_LEVEL_ALL]     = "", // not a valid entry actually (no public wrapper uses this log level)
 };
 
 static int buf_write_all(const char* str, size_t size, void* arg) {
@@ -30,21 +31,7 @@ static void log_vprintf(const char* prefix, const char* fmt, va_list ap) {
     buf_flush(&buf);
 }
 
-// TODO: Replace this with log_* everywhere
-void pal_printf(const char* fmt, ...) {
-    va_list ap;
-
-    va_start(ap, fmt);
-    log_vprintf(/*prefix=*/NULL, fmt, ap);
-    va_end(ap);
-}
-
-// TODO: Replace this with log_* everywhere
-void pal_vprintf(const char* fmt, va_list ap) {
-    return log_vprintf(/*prefix=*/NULL, fmt, ap);
-}
-
-void _log(int level, const char* fmt, ...) {
+void pal_log(int level, const char* fmt, ...) {
     if (level <= g_pal_control.log_level) {
         va_list ap;
         va_start(ap, fmt);
@@ -52,11 +39,4 @@ void _log(int level, const char* fmt, ...) {
         log_vprintf(log_level_to_prefix[level], fmt, ap);
         va_end(ap);
     }
-}
-
-void log_always(const char* fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    log_vprintf(/*prefix=*/NULL, fmt, ap);
-    va_end(ap);
 }

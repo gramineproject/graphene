@@ -11,6 +11,7 @@
 #include "api.h"
 #include "assert.h"
 #include "atomic.h"
+#include "log.h"
 #include "pal.h"
 #include "pal_error.h"
 #include "shim_defs.h"
@@ -34,17 +35,7 @@ extern const PAL_CONTROL* g_pal_control;
 
 // TODO(mkow): We should make it cross-object-inlinable, ideally by enabling LTO, less ideally by
 // pasting it here and making `inline`, but our current linker scripts prevent both.
-void _log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
-/* This function emits logs regardless of log_level setting and doesn't prefix the output. */
-void log_always(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-
-#define log_error(fmt...)    _log(PAL_LOG_ERROR, fmt)
-#define log_warning(fmt...)  _log(PAL_LOG_WARNING, fmt)
-#define log_debug(fmt...)    _log(PAL_LOG_DEBUG, fmt)
-#define log_trace(fmt...)    _log(PAL_LOG_TRACE, fmt)
-
-/* TODO: Replace debug() calls with log_*() at the appropriate levels, and remove this macro. */
-#define debug(fmt...)        _log(PAL_LOG_WARNING, fmt)
+void shim_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #if 0
 #define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()

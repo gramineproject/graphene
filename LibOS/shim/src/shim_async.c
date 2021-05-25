@@ -287,7 +287,7 @@ static void shim_async_worker(void* arg) {
         ret = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
         if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             ret = pal_to_unix_errno(ret);
-            debug("Async worker: DkStreamsWaitEvents failed: %d\n", ret);
+            log_error("DkStreamsWaitEvents failed with: %d\n", ret);
             goto out_err;
         }
         PAL_BOL polled = ret == 0;
