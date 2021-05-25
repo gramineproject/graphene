@@ -168,14 +168,20 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
     if (!dent)
         return NULL;
 
-    if (fs) {
-        get_mount(fs);
-        dent->fs = fs;
-    }
-
     if (!qstrsetstr(&dent->name, name, name_len)) {
         free_dentry(dent);
         return NULL;
+    }
+
+    if (parent->nchildren >= DENTRY_MAX_CHILDREN) {
+        log_warning("get_new_dentry: nchildren limit reached\n");
+        free_dentry(dent);
+        return NULL;
+    }
+
+    if (fs) {
+        get_mount(fs);
+        dent->fs = fs;
     }
 
     if (parent) {

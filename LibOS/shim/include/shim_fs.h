@@ -113,6 +113,10 @@ struct shim_fs_ops {
 #define DCACHE_HASH_SIZE  1024
 #define DCACHE_HASH(hash) ((hash) & (DCACHE_HASH_SIZE - 1))
 
+/* Limit for the number of dentry children. This is mostly to prevent overflow if (untrusted) host
+ * pretends to have many files in a directory. */
+#define DENTRY_MAX_CHILDREN 1000000
+
 DEFINE_LIST(shim_dentry);
 DEFINE_LISTP(shim_dentry);
 struct shim_dentry {
@@ -122,7 +126,7 @@ struct shim_dentry {
     struct shim_qstr name;     /* caching the file's name. */
 
     struct shim_dentry* parent;
-    int nchildren;
+    size_t nchildren;
     LISTP_TYPE(shim_dentry) children; /* These children and siblings link */
     LIST_TYPE(shim_dentry) siblings;
 
@@ -190,11 +194,11 @@ struct shim_d_ops {
      * \brief List all files in the directory
      *
      * \param dentry the dentry, must be valid, non-negative and describing a directory
-     * \param callback the callback to invoke on each
+     * \param callback the callback to invoke on each file name
      * \param arg argument to pass to the callback
      *
      * Calls `callback(name, arg)` for all file names in the directory. `name` is not guaranteed to
-     * be valid after callback returns, so the callback should copy it necessary.
+     * be valid after callback returns, so the callback should copy it if necessary.
      *
      * `arg` can be used to pass additional data to the callback, e.g. a list to add a name to.
      *
@@ -479,7 +483,7 @@ int populate_directory_handle(struct shim_handle* hdl);
  *
  * \param hdl a directory handle
  *
- * This functions discards an array of dentries previously prepared by `populate_directory_handle`.
+ * This function discards an array of dentries previously prepared by `populate_directory_handle`.
  *
  * If the handle is currently not populated (i.e. `hdl->dir_info.dents` is null), this function is a
  * no-op.

@@ -199,14 +199,6 @@ static int create_data(struct shim_dentry* dent, const char* uri, size_t len) {
 
 static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg);
 
-static int count_child(const char* name, void* arg) {
-    __UNUSED(name);
-
-    size_t* count = arg;
-    (*count)++;
-    return 0;
-}
-
 static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
                         PAL_HANDLE pal_handle) {
     PAL_STREAM_ATTR pal_attr;
@@ -257,31 +249,25 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
     __atomic_store_n(&data->size.counter, pal_attr.pending_size, __ATOMIC_SEQ_CST);
 
     if (data->type == FILE_DIR) {
-        int ret;
         /* Move up the uri update; need to convert manifest-level file:
          * directives to 'dir:' uris */
         if (old_type != FILE_DIR) {
             dent->state |= DENTRY_ISDIRECTORY;
-            if ((ret = make_uri(dent)) < 0) {
-                unlock(&data->lock);
+            if ((ret = make_uri(dent)) < 0)
                 return ret;
-            }
         }
-
-        /* DEP 3/18/17: If we have a directory, we need to find out how many
-         * children it has by hand. */
-        /* XXX: Keep coherent with rmdir/mkdir/creat, etc */
-        size_t nlink = dent->parent ? 2 : 1;
-        int rv = chroot_readdir(dent, &count_child, &nlink);
-        if (rv != 0)
-            return rv;
-        data->nlink = nlink;
-    } else {
-        /* DEP 3/18/17: Right now, we don't support hard links,
-         * so just return 1;
-         */
-        data->nlink = 1;
     }
+
+    /*
+     * Pretend `nlink` is 2 for directories (to account for "." and ".."), 1 for other files.
+     *
+     * Applications are unlikely to depend on exact value of `nlink`, and for us, it's inconvenient
+     * to keep track of the exact value (we would have to list the directory, and also take into
+     * account synthetic files created by Graphene, such as named pipes and sockets).
+     *
+     * TODO: Make this a default for filesystems that don't provide `nlink`?
+     */
+    data->nlink = data->type == FILE_DIR ? 2 : 1;
 
     data->queried = true;
 
@@ -434,6 +420,8 @@ static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
 
 static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct shim_dentry* dent,
                         int flags, mode_t mode) {
+    __UNUSED(dir);
+
     int ret = 0;
     struct shim_file_data* data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
@@ -457,18 +445,12 @@ static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct
     file->size   = size;
     qstrcopy(&hdl->uri, &data->host_uri);
 
-    /* Increment the parent's link count */
-    struct shim_file_data* parent_data = FILE_DENTRY_DATA(dir);
-    if (parent_data) {
-        lock(&parent_data->lock);
-        if (parent_data->queried)
-            parent_data->nlink++;
-        unlock(&parent_data->lock);
-    }
     return 0;
 }
 
 static int chroot_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t mode) {
+    __UNUSED(dir);
+
     int ret = 0;
     struct shim_file_data* data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
@@ -483,14 +465,6 @@ static int chroot_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_
 
     ret = __chroot_open(dent, NULL, O_CREAT | O_EXCL, mode, NULL, data);
 
-    /* Increment the parent's link count */
-    struct shim_file_data* parent_data = FILE_DENTRY_DATA(dir);
-    if (parent_data) {
-        lock(&parent_data->lock);
-        if (parent_data->queried)
-            parent_data->nlink++;
-        unlock(&parent_data->lock);
-    }
     return ret;
 }
 
@@ -824,9 +798,8 @@ static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback,
                 end++;
 
             if (end == start) {
-                log_warning("chroot_readdir: empty name returned from PAL\n");
-                ret = -EINVAL;
-                goto out;
+                log_error("chroot_readdir: empty name returned from PAL\n");
+                die_or_inf_loop();
             }
 
             /* By the PAL convention, if a name ends with '/', it is a directory. However, we ignore
@@ -893,6 +866,8 @@ static int chroot_migrate(void* checkpoint, void** mount_data) {
 }
 
 static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
+    __UNUSED(dir);
+
     int ret;
     struct shim_file_data* data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
@@ -914,15 +889,6 @@ static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
 
     __atomic_add_fetch(&data->version.counter, 1, __ATOMIC_SEQ_CST);
     __atomic_store_n(&data->size.counter, 0, __ATOMIC_SEQ_CST);
-
-    /* Drop the parent's link count */
-    struct shim_file_data* parent_data = FILE_DENTRY_DATA(dir);
-    if (parent_data) {
-        lock(&parent_data->lock);
-        if (parent_data->queried)
-            parent_data->nlink--;
-        unlock(&parent_data->lock);
-    }
 
     return 0;
 }

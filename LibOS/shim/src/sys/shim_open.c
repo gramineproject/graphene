@@ -406,6 +406,9 @@ out_no_unlock:
     return ret;
 }
 
+static_assert(sizeof(long) <= sizeof(ssize_t),
+              "return type of do_getdents() is too small for getdents32");
+
 long shim_do_getdents(int fd, struct linux_dirent* buf, unsigned int count) {
     return do_getdents(fd, (uint8_t*)buf, count, /*is_getdents64=*/false);
 }

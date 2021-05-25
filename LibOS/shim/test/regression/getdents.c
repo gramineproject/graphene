@@ -1,10 +1,8 @@
 #define _GNU_SOURCE
 #include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
@@ -33,12 +31,12 @@ static int do_getdents(const char* name, int fd, size_t buf_size) {
 
     int count = syscall(SYS_getdents, fd, buf, buf_size);
     if (count < 0) {
-        fprintf(stderr, "%s: %s\n", name, strerror(errno));
+        perror(name);
         return -1;
     }
     for (size_t offs = 0; offs < count;) {
         struct linux_dirent* d32 = (struct linux_dirent*)(buf + offs);
-        char d_type              = *(buf + offs + d32->d_reclen - 1);
+        char d_type = *(buf + offs + d32->d_reclen - 1);
         printf("%s: %s [0x%x]\n", name, d32->d_name, d_type);
         offs += d32->d_reclen;
     }
@@ -50,7 +48,7 @@ static int do_getdents64(const char* name, int fd, size_t buf_size) {
 
     int count = syscall(SYS_getdents64, fd, buf, buf_size);
     if (count < 0) {
-        fprintf(stderr, "%s: %s\n", name, strerror(errno));
+        perror(name);
         return -1;
     }
 
