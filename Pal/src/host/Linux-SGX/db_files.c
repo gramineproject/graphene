@@ -406,6 +406,11 @@ out:
 static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
     int ret;
 
+    uint64_t dummy;
+    if (__builtin_add_overflow(offset, size, &dummy)) {
+        return -PAL_ERROR_INVAL;
+    }
+
     if (size > SIZE_MAX) {
         /* for compatibility with 32-bit systems */
         return -PAL_ERROR_INVAL;
@@ -464,23 +469,12 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         }
     } else {
         /* case of allowed file: simply read from underlying file descriptor into enclave memory */
-        off_t end            = offset + size;
-        off_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
-        off_t aligned_end    = ALLOC_ALIGN_UP(end);
-        off_t total_size     = aligned_end - aligned_offset;
+        uint64_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
+        size_t total_size = ALLOC_ALIGN_UP(offset + size) - aligned_offset;
 
-        if ((uint64_t)total_size > SIZE_MAX) {
-            /* for compatibility with 32-bit systems */
-            ret = -PAL_ERROR_INVAL;
-            goto out;
-        }
-
-        ssize_t bytes_read = 0;
+        size_t bytes_read = 0;
         while (bytes_read < total_size) {
-            size_t read_size = total_size - bytes_read;
-            if (read_size > MAX_READ_SIZE) {
-                read_size = MAX_READ_SIZE;
-            }
+            size_t read_size = MIN(total_size - bytes_read, MAX_READ_SIZE);
             ssize_t bytes = ocall_pread(handle->file.fd, mem + bytes_read, read_size,
                                         aligned_offset + bytes_read);
             if (bytes > 0) {
