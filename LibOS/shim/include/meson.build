@@ -1,12 +1,12 @@
 # don't put this in include_directories for now, we need this for assembly-only custom_target
 includes_libos = [
     '.',
-    'arch/@0@'.format(build_machine.cpu_family()),
+    'arch/@0@'.format(host_machine.cpu_family()),
     '../../../common/include',
-    '../../../common/include/arch/@0@'.format(build_machine.cpu_family()),
+    '../../../common/include/arch/@0@'.format(host_machine.cpu_family()),
     '../../../Pal/include',
-    '../../../Pal/include/arch/@0@'.format(build_machine.cpu_family()),
-    '../../../Pal/include/arch/@0@/Linux'.format(build_machine.cpu_family()),
+    '../../../Pal/include/arch/@0@'.format(host_machine.cpu_family()),
+    '../../../Pal/include/arch/@0@/Linux'.format(host_machine.cpu_family()),
     '../../../Pal/include/elf',
     '../../../Pal/include/pal',
 ]
