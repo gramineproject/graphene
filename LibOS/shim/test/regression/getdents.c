@@ -147,7 +147,8 @@ int main(void) {
     /*
      * Check if dir handle works across fork: call getdents64 once before fork, then once after fork
      * by both parent and child, with a buffer size small enough so that all three calls return
-     * something.
+     * something (if the buffer is too big, the call before fork might retrieve all the entries, and
+     * subsequent calls will return 0).
      *
      * Note that we currently do not synchronize handle state between parent and child in Graphene,
      * so both calls after fork will return the same entries.
