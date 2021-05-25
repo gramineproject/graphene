@@ -281,8 +281,9 @@ int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* sess
                         LIB_SSL_CONTEXT** out_ssl_ctx, const uint8_t* buf_load_ssl_ctx,
                         size_t buf_size);
 int _DkStreamSecureFree(LIB_SSL_CONTEXT* ssl_ctx);
-int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len);
-int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len);
+int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len, bool is_blocking);
+int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len,
+                         bool is_blocking);
 int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* olen);
 
 #include "sgx_arch.h"

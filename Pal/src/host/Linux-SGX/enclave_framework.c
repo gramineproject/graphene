@@ -1228,12 +1228,25 @@ int _DkStreamSecureFree(LIB_SSL_CONTEXT* ssl_ctx) {
     return 0;
 }
 
-int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len) {
-    return lib_SSLRead(ssl_ctx, buf, len);
+int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len, bool is_blocking) {
+    int ret = lib_SSLRead(ssl_ctx, buf, len);
+    if (is_blocking && ret == -PAL_ERROR_TRYAGAIN) {
+        /* mbedTLS wrappers collapse host errors `EAGAIN` and `EINTR` into one error PAL
+         * (`PAL_ERROR_TRYAGAIN`). We use the fact that blocking reads do not return `EAGAIN` to
+         * split it back. */
+        return -PAL_ERROR_INTERRUPTED;
+    }
+    return ret;
 }
 
-int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len) {
-    return lib_SSLWrite(ssl_ctx, buf, len);
+int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len,
+                         bool is_blocking) {
+    int ret = lib_SSLWrite(ssl_ctx, buf, len);
+    if (is_blocking && ret == -PAL_ERROR_TRYAGAIN) {
+        /* See the explanation in `_DkStreamSecureRead`. */
+        return -PAL_ERROR_INTERRUPTED;
+    }
+    return ret;
 }
 
 int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* olen) {

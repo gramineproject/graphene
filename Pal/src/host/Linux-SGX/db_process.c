@@ -190,7 +190,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
 
     /* securely send the master key to child in the newly established SSL session */
     ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&g_master_key,
-                               sizeof(g_master_key));
+                               sizeof(g_master_key), /*is_blocking=*/!child->process.nonblocking);
     if (ret != sizeof(g_master_key))
         goto failed;
 
@@ -199,13 +199,15 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
     pf_wrap_key_set_char[0] = g_pf_wrap_key_set ? '1' : '0';
 
     ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&pf_wrap_key_set_char,
-                               sizeof(pf_wrap_key_set_char));
+                               sizeof(pf_wrap_key_set_char),
+                               /*is_blocking=*/!child->process.nonblocking);
     if (ret != sizeof(pf_wrap_key_set_char))
         goto failed;
 
     if (g_pf_wrap_key_set) {
         ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&g_pf_wrap_key,
-                                   sizeof(g_pf_wrap_key));
+                                   sizeof(g_pf_wrap_key),
+                                   /*is_blocking=*/!child->process.nonblocking);
         if (ret != sizeof(g_pf_wrap_key))
             goto failed;
     }
@@ -250,20 +252,22 @@ int init_child_process(PAL_HANDLE* parent_handle) {
 
     /* securely receive the master key from parent in the newly established SSL session */
     ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_master_key,
-                              sizeof(g_master_key));
+                              sizeof(g_master_key), /*is_blocking=*/!parent->process.nonblocking);
     if (ret != sizeof(g_master_key))
         return ret;
 
     /* securely receive the wrap key for protected files from parent (only if there is one) */
     char pf_wrap_key_set_char[1] = {0};
     ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&pf_wrap_key_set_char,
-                              sizeof(pf_wrap_key_set_char));
+                              sizeof(pf_wrap_key_set_char),
+                              /*is_blocking=*/!parent->process.nonblocking);
     if (ret != sizeof(pf_wrap_key_set_char))
         return ret;
 
     if (pf_wrap_key_set_char[0] == '1') {
         ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_pf_wrap_key,
-                                  sizeof(g_pf_wrap_key));
+                                  sizeof(g_pf_wrap_key),
+                                  /*is_blocking=*/!parent->process.nonblocking);
         if (ret != sizeof(g_pf_wrap_key)) {
             g_pf_wrap_key_set = false;
             return ret;
@@ -292,7 +296,8 @@ static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
 
     ssize_t bytes;
     if (handle->process.ssl_ctx) {
-        bytes = _DkStreamSecureRead(handle->process.ssl_ctx, buffer, count);
+        bytes = _DkStreamSecureRead(handle->process.ssl_ctx, buffer, count,
+                                    /*is_blocking=*/!handle->process.nonblocking);
     } else {
         bytes = ocall_read(handle->process.stream, buffer, count);
         bytes = bytes < 0 ? unix_to_pal_error(bytes) : bytes;
@@ -310,7 +315,8 @@ static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
 
     ssize_t bytes;
     if (handle->process.ssl_ctx) {
-        bytes = _DkStreamSecureWrite(handle->process.ssl_ctx, buffer, count);
+        bytes = _DkStreamSecureWrite(handle->process.ssl_ctx, buffer, count,
+                                     /*is_blocking=*/!handle->process.nonblocking);
     } else {
         bytes = ocall_write(handle->process.stream, buffer, count);
         bytes = bytes < 0 ? unix_to_pal_error(bytes) : bytes;

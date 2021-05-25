@@ -389,7 +389,8 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
         if (!handle->pipe.ssl_ctx)
             return -PAL_ERROR_NOTCONNECTION;
 
-        bytes = _DkStreamSecureRead(handle->pipe.ssl_ctx, buffer, len);
+        bytes = _DkStreamSecureRead(handle->pipe.ssl_ctx, buffer, len,
+                                    /*is_blocking=*/!handle->pipe.nonblocking);
     }
 
     return bytes;
@@ -426,7 +427,8 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, cons
         if (!handle->pipe.ssl_ctx)
             return -PAL_ERROR_NOTCONNECTION;
 
-        bytes = _DkStreamSecureWrite(handle->pipe.ssl_ctx, buffer, len);
+        bytes = _DkStreamSecureWrite(handle->pipe.ssl_ctx, buffer, len,
+                                     /*is_blocking=*/!handle->pipe.nonblocking);
     }
 
     return bytes;
