@@ -40,6 +40,22 @@ static void unlock_client(void) {
         unlock(&g_client_lock);
 }
 
+static void get_sync_handle(struct sync_handle* handle) {
+    REF_INC(handle->ref_count);
+}
+
+static void put_sync_handle(struct sync_handle* handle) {
+    if (!REF_DEC(handle->ref_count)) {
+        log_trace("sync client: destroying handle: 0x%lx\n", handle->id);
+        free(handle->data);
+        destroy_lock(&handle->use_lock);
+        destroy_lock(&handle->prop_lock);
+        DkObjectClose(handle->event);
+
+        handle->id = 0;
+    }
+}
+
 /* Generate a new handle ID. Uses current process ID to make the handles globally unique. */
 static uint64_t sync_new_id(void) {
     IDTYPE pid = g_process.pid;
@@ -68,6 +84,7 @@ static void sync_wait(struct sync_handle* handle) {
 }
 
 static void sync_notify(struct sync_handle* handle) {
+    assert(locked(&handle->prop_lock));
     if (handle->n_waiters > 0)
         DkEventSet(handle->event);
 }
@@ -157,6 +174,8 @@ int sync_init(struct sync_handle* handle, uint64_t id) {
     handle->server_req_state = SYNC_STATE_NONE;
     handle->used = false;
 
+    REF_SET(handle->ref_count, 1);
+
     lock_client();
 
     /* Check if we're not creating a handle with the same ID twice. */
@@ -185,15 +204,6 @@ err:
     return ret;
 }
 
-static void __sync_destroy(struct sync_handle* handle) {
-    free(handle->data);
-    destroy_lock(&handle->use_lock);
-    destroy_lock(&handle->prop_lock);
-    DkObjectClose(handle->event);
-
-    handle->id = 0;
-}
-
 static int send_request_close(struct sync_handle* handle) {
     assert(locked(&handle->prop_lock));
     size_t data_size;
@@ -209,6 +219,7 @@ static int send_request_close(struct sync_handle* handle) {
 
 void sync_destroy(struct sync_handle* handle) {
     assert(handle->id != 0);
+    get_sync_handle(handle);
 
     lock(&handle->prop_lock);
     assert(!handle->used);
@@ -229,11 +240,14 @@ void sync_destroy(struct sync_handle* handle) {
     HASH_DELETE(hh, g_client_handles, handle);
     unlock_client();
 
-    __sync_destroy(handle);
+    /* Drop two references: one from this call, one from `sync_init()`. */
+    put_sync_handle(handle);
+    put_sync_handle(handle);
 }
 
 bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_size) {
     assert(state == SYNC_STATE_SHARED || state == SYNC_STATE_EXCLUSIVE);
+    get_sync_handle(handle);
 
     lock(&handle->use_lock);
     if (!g_sync_enabled)
@@ -270,6 +284,7 @@ bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_si
     }
 
     unlock(&handle->prop_lock);
+    put_sync_handle(handle);
     return updated;
 }
 
@@ -278,6 +293,8 @@ void sync_unlock(struct sync_handle* handle, void* data, size_t data_size) {
         unlock(&handle->use_lock);
         return;
     }
+
+    get_sync_handle(handle);
 
     lock(&handle->prop_lock);
     assert(handle->used);
@@ -291,6 +308,8 @@ void sync_unlock(struct sync_handle* handle, void* data, size_t data_size) {
         sync_downgrade(handle);
     unlock(&handle->prop_lock);
     unlock(&handle->use_lock);
+
+    put_sync_handle(handle);
 }
 
 int shutdown_sync_client(void) {
@@ -302,6 +321,7 @@ int shutdown_sync_client(void) {
     struct sync_handle* handle;
     struct sync_handle* tmp;
     HASH_ITER(hh, g_client_handles, handle, tmp) {
+        get_sync_handle(handle);
         lock(&handle->prop_lock);
         if (g_sync_enabled && handle->phase == SYNC_PHASE_OPEN) {
             if (send_request_close(handle) < 0)
@@ -310,11 +330,13 @@ int shutdown_sync_client(void) {
             handle->cur_state = SYNC_STATE_INVALID;
         }
         unlock(&handle->prop_lock);
+        put_sync_handle(handle);
     }
 
     /* Wait for server to confirm the handles are closed. */
     log_debug("sync client shutdown: waiting for confirmation\n");
     HASH_ITER(hh, g_client_handles, handle, tmp) {
+        get_sync_handle(handle);
         unlock_client();
         lock(&handle->prop_lock);
         if (handle->phase != SYNC_PHASE_NEW) {
@@ -323,6 +345,7 @@ int shutdown_sync_client(void) {
         }
         unlock(&handle->prop_lock);
         lock_client();
+        put_sync_handle(handle);
     }
     unlock_client();
 
@@ -331,6 +354,7 @@ int shutdown_sync_client(void) {
     return 0;
 }
 
+/* Find a handle with a given ID. Increases the reference count. */
 static struct sync_handle* find_handle(uint64_t id) {
     lock_client();
     struct sync_handle* handle = NULL;
@@ -338,6 +362,8 @@ static struct sync_handle* find_handle(uint64_t id) {
 
     if (!handle)
         FATAL("message for unknown handle\n");
+
+    get_sync_handle(handle);
     unlock_client();
     return handle;
 }
@@ -354,6 +380,7 @@ static void do_request_downgrade(uint64_t id, int state) {
             sync_downgrade(handle);
     }
     unlock(&handle->prop_lock);
+    put_sync_handle(handle);
 }
 
 static void do_confirm_upgrade(uint64_t id, int state, size_t data_size, void* data) {
@@ -372,6 +399,7 @@ static void do_confirm_upgrade(uint64_t id, int state, size_t data_size, void* d
         update_handle_data(handle, data_size, data);
 
     unlock(&handle->prop_lock);
+    put_sync_handle(handle);
 }
 
 static void do_confirm_close(uint64_t id) {
@@ -385,6 +413,7 @@ static void do_confirm_close(uint64_t id) {
         sync_notify(handle);
     }
     unlock(&handle->prop_lock);
+    put_sync_handle(handle);
 }
 
 void sync_client_message_callback(int code, uint64_t id, int state, size_t data_size, void* data) {

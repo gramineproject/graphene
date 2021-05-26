@@ -219,6 +219,8 @@ struct sync_handle {
     int client_req_state;
     /* Requested by server; always lower than cur_state, or NONE */
     int server_req_state;
+
+    REFTYPE ref_count;
 };
 
 /*** User interface (sync_handle) ***/
