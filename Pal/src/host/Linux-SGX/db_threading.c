@@ -87,7 +87,12 @@ __attribute__((__optimize__("-fno-stack-protector"))) void pal_start_thread(void
     pal_set_tcb_stack_canary(stack_protector_canary);
     PAL_TCB* pal_tcb = pal_get_tcb();
     memset(&pal_tcb->libos_tcb, 0, sizeof(pal_tcb->libos_tcb));
+
+    assert(current_context_is_pal());
+    current_context_set_libos();
     callback((void*)param);
+    current_context_set_pal();
+
     _DkThreadExit(/*clear_child_tid=*/NULL);
     /* UNREACHABLE */
 }

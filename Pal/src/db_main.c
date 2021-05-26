@@ -24,6 +24,7 @@ PAL_CONTROL g_pal_control = {
 };
 
 const PAL_CONTROL* DkGetPalControl(void) {
+    assert(current_context_is_libos()); /* this function is trivial, no need to switch context */
     return &g_pal_control;
 }
 

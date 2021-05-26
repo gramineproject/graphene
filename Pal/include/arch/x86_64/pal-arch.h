@@ -17,6 +17,7 @@
 #define PAL_ARCH_H
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "api.h"
@@ -42,25 +43,57 @@ typedef struct pal_tcb {
     /* random per-thread canary used by GCC's stack protector; must be at %gs:[0x8]
      * because we specify `-mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8` */
     uint64_t stack_protector_canary;
+    /* each bit represents context: PAL (0) or LibOS (1); lowest bit represents current context;
+     * higher bits represent nested contexts (for exception handling); must be at %gs:[0x10] */
+    uint64_t current_context;
     /* uint64_t for alignment */
     uint64_t libos_tcb[(PAL_LIBOS_TCB_SIZE + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
     /* data private to PAL implementation follows this struct. */
 } PAL_TCB;
+
+static_assert(offsetof(PAL_TCB, stack_protector_canary) == 0x8,
+              "unexpected offset of stack_protector_canary in PAL_TCB struct");
+
+static_assert(offsetof(PAL_TCB, current_context) == 0x10,
+              "unexpected offset of current_context in PAL_TCB struct");
+
+#include "pal_host-arch.h"
 
 __attribute__((__optimize__("-fno-stack-protector")))
 static inline void pal_tcb_arch_set_stack_canary(PAL_TCB* tcb, uint64_t canary) {
     tcb->stack_protector_canary = canary;
 }
 
-static_assert(offsetof(PAL_TCB, stack_protector_canary) == 0x8,
-              "unexpected offset of stack_protector_canary in PAL_TCB struct");
-
-#include "pal_host-arch.h"
-
 static inline PAL_TCB* pal_get_tcb(void) {
     PAL_TCB* tcb;
     __asm__("movq %%gs:%c1, %0" : "=r"(tcb) : "i"(offsetof(struct pal_tcb, self)) : "memory");
     return tcb;
+}
+
+static inline bool current_context_is_libos(void) {
+    return pal_get_tcb()->current_context % 2 == 1;
+}
+
+static inline bool current_context_is_pal(void) {
+    return !current_context_is_libos();
+}
+
+static inline void current_context_set_libos(void) {
+    pal_get_tcb()->current_context |= 1UL;
+}
+
+static inline void current_context_set_pal(void) {
+    pal_get_tcb()->current_context &= ~1UL;
+}
+
+static inline void current_context_nest(void) {
+    /* new (current) context always starts in PAL, so lowest bit is zero; this operation assumes no
+     * more than 64 levels of nesting are possible */
+    pal_get_tcb()->current_context <<= 1;
+}
+
+static inline void current_context_unnest(void) {
+    pal_get_tcb()->current_context >>= 1;
 }
 
 static inline unsigned long count_ulong_bits_set(unsigned long x) {

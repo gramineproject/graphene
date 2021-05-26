@@ -12,50 +12,76 @@
 #include "pal_internal.h"
 
 int DkVirtualMemoryAlloc(PAL_PTR* addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     assert(addr);
     void* map_addr = *addr;
 
     if ((map_addr && !IS_ALLOC_ALIGNED_PTR(map_addr)) || !size || !IS_ALLOC_ALIGNED(size)) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (map_addr && _DkCheckMemoryMappable(map_addr, size)) {
+        current_context_set_libos();
         return -PAL_ERROR_DENIED;
     }
 
-    return _DkVirtualMemoryAlloc(addr, size, alloc_type, prot);
+    int ret = _DkVirtualMemoryAlloc(addr, size, alloc_type, prot);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!addr || !size) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (!IS_ALLOC_ALIGNED_PTR(addr) || !IS_ALLOC_ALIGNED(size)) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (_DkCheckMemoryMappable((void*)addr, size)) {
+        current_context_set_libos();
         return -PAL_ERROR_DENIED;
     }
 
-    return _DkVirtualMemoryFree((void*)addr, size);
+    int ret = _DkVirtualMemoryFree((void*)addr, size);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!addr || !size) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (!IS_ALLOC_ALIGNED_PTR(addr) || !IS_ALLOC_ALIGNED(size)) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (_DkCheckMemoryMappable((void*)addr, size)) {
+        current_context_set_libos();
         return -PAL_ERROR_DENIED;
     }
 
-    return _DkVirtualMemoryProtect((void*)addr, size, prot);
+    int ret = _DkVirtualMemoryProtect((void*)addr, size, prot);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int add_preloaded_range(uintptr_t start, uintptr_t end, const char* comment) {

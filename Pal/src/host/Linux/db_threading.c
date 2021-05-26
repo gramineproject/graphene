@@ -110,8 +110,13 @@ __attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* 
             return ret;
     }
 
-    if (tcb->callback)
-        return (*tcb->callback)(tcb->param);
+    if (tcb->callback) {
+        assert(current_context_is_pal());
+        current_context_set_libos();
+        ret = (*tcb->callback)(tcb->param);
+        current_context_set_pal();
+        return ret;
+    }
 
     return 0;
 }

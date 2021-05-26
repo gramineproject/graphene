@@ -22,9 +22,14 @@ PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event) {
 }
 
 void DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     assert(handler && event != 0 && event < ARRAY_SIZE(g_handlers));
 
     __atomic_store_n(&g_handlers[event], handler, __ATOMIC_RELEASE);
+
+    current_context_set_libos();
 }
 
 /* The below function is used by stack protector's __stack_chk_fail(), _FORTIFY_SOURCE's *_chk()

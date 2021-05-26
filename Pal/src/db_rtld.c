@@ -820,12 +820,18 @@ void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr) {
     __UNUSED(uri);
     __UNUSED(start_addr);
 #else
-    if (!strstartswith(uri, URI_PREFIX_FILE))
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
+    if (!strstartswith(uri, URI_PREFIX_FILE)) {
+        current_context_set_libos();
         return;
+    }
 
     const char* realname = uri + URI_PREFIX_FILE_LEN;
-
     _DkDebugMapAdd(realname, start_addr);
+
+    current_context_set_libos();
 #endif
 }
 
@@ -833,7 +839,12 @@ void DkDebugMapRemove(PAL_PTR start_addr) {
 #ifndef DEBUG
     __UNUSED(start_addr);
 #else
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     _DkDebugMapRemove(start_addr);
+
+    current_context_set_libos();
 #endif
 }
 
@@ -906,12 +917,22 @@ noreturn void start_execution(const char** arguments, const char** environs) {
     auxv[0].a_type     = AT_NULL;
     auxv[0].a_un.a_val = 0;
 
-    for (struct link_map* l = g_loaded_maps; l; l = l->l_next)
-        if (l->l_type == OBJECT_PRELOAD && l->l_entry)
-            CALL_ENTRY(l, cookies);
+    assert(current_context_is_pal());
 
-    if (g_exec_map)
+    for (struct link_map* l = g_loaded_maps; l; l = l->l_next)
+        if (l->l_type == OBJECT_PRELOAD && l->l_entry) {
+            current_context_set_libos();
+            CALL_ENTRY(l, cookies);
+            current_context_set_pal();
+        }
+
+    if (g_exec_map) {
+        /* Assume we're in PAL regression test suite and load the test binary directly, without
+         * LibOS; note that PAL regression tests' code is considered as "LibOS" by PAL */
+        current_context_set_libos();
         CALL_ENTRY(g_exec_map, cookies);
+        current_context_set_pal();
+    }
 
     _DkThreadExit(/*clear_child_tid=*/NULL);
     /* UNREACHABLE */

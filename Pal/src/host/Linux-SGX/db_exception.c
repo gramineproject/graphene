@@ -30,6 +30,9 @@
 noreturn static void restore_sgx_context(sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state) {
     if (xregs_state == NULL)
         xregs_state = (PAL_XREGS_STATE*)g_xsave_reset_state;
+
+    current_context_unnest();
+
     _restore_sgx_context(uc, xregs_state);
 }
 
@@ -173,6 +176,9 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
 /* perform exception handling inside the enclave */
 void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
                          PAL_XREGS_STATE* xregs_state) {
+    current_context_nest();
+    assert(current_context_is_pal());
+
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     union {
@@ -269,7 +275,9 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
     if (upcall) {
+        current_context_set_libos();
         (*upcall)(ADDR_IN_PAL(uc->rip), addr, &ctx);
+        current_context_set_pal();
     }
 
     restore_pal_context(uc, &ctx);
@@ -280,6 +288,9 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
  * Tracked: https://github.com/oscarlab/graphene/issues/2140 */
 noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
                                      PAL_XREGS_STATE* xregs_state) {
+    current_context_nest();
+    assert(current_context_is_pal());
+
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     if (event != PAL_EVENT_QUIT && event != PAL_EVENT_INTERRUPTED) {
@@ -292,7 +303,9 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
 
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
     if (upcall) {
+        current_context_set_libos();
         (*upcall)(ADDR_IN_PAL(uc->rip), /*addr=*/0, &ctx);
+        current_context_set_pal();
     }
 
     /* modification to PAL_CONTEXT is discarded; it is assumed that LibOS won't change context

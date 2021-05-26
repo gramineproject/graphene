@@ -77,11 +77,19 @@ static void perform_signal_handling(int event, bool is_in_pal, PAL_NUM addr, uco
 
     PAL_CONTEXT context;
     ucontext_to_pal_context(&context, uc);
+
+    assert(current_context_is_pal());
+    current_context_set_libos();
     (*upcall)(is_in_pal, addr, &context);
+    current_context_set_pal();
+
     pal_context_to_ucontext(uc, &context);
 }
 
 static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
+    current_context_nest();
+    assert(current_context_is_pal());
+
     int event = get_pal_event(signum);
     assert(event > 0);
 
@@ -89,6 +97,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     if (!ADDR_IN_PAL_OR_VDSO(rip)) {
         /* exception happened in application or LibOS code, normal benign case */
         perform_signal_handling(event, /*is_in_pal=*/false, (PAL_NUM)info->si_addr, uc);
+        current_context_unnest();
         return;
     }
 
@@ -117,11 +126,16 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
 static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {
     __UNUSED(info);
 
+    current_context_nest();
+    assert(current_context_is_pal());
+
     int event = get_pal_event(signum);
     assert(event > 0);
 
     uintptr_t rip = ucontext_get_ip(uc);
     perform_signal_handling(event, ADDR_IN_PAL_OR_VDSO(rip), /*addr=*/0, uc);
+
+    current_context_unnest();
 }
 
 void signal_setup(void) {

@@ -16,13 +16,22 @@
 #include "pal_internal.h"
 
 int DkProcessCreate(PAL_STR exec_uri, PAL_STR* args, PAL_HANDLE* handle) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     assert(exec_uri);
 
     *handle = NULL;
-    return _DkProcessCreate(handle, exec_uri, args);
+    int ret = _DkProcessCreate(handle, exec_uri, args);
+
+    current_context_set_libos();
+    return ret;
 }
 
 noreturn void DkProcessExit(PAL_NUM exitcode) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     _DkProcessExit(exitcode);
     die_or_inf_loop();
 }

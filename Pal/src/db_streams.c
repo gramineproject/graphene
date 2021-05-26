@@ -161,8 +161,14 @@ int _DkStreamOpen(PAL_HANDLE* handle, const char* uri, int access, int share, in
  */
 int DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share, PAL_FLG create, PAL_FLG options,
                  PAL_HANDLE* handle) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     *handle = NULL;
-    return _DkStreamOpen(handle, uri, access, share, create, options);
+    int ret = _DkStreamOpen(handle, uri, access, share, create, options);
+
+    current_context_set_libos();
+    return ret;
 }
 
 static int _DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client) {
@@ -180,8 +186,14 @@ static int _DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client) {
 }
 
 int DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     *client = NULL;
-    return _DkStreamWaitForClient(handle, client);
+    int ret = _DkStreamWaitForClient(handle, client);
+
+    current_context_set_libos();
+    return ret;
 }
 
 /* _DkStreamDelete for internal use. This function will explicit delete
@@ -202,11 +214,18 @@ int _DkStreamDelete(PAL_HANDLE handle, int access) {
 }
 
 int DkStreamDelete(PAL_HANDLE handle, PAL_FLG access) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
-    return _DkStreamDelete(handle, access);
+    int ret = _DkStreamDelete(handle, access);
+
+    current_context_set_libos();
+    return ret;
 }
 
 /* _DkStreamRead for internal use. Read from stream as absolute offset.
@@ -237,7 +256,11 @@ int64_t _DkStreamRead(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* 
 
 int DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buffer, PAL_PTR source,
                  PAL_NUM size) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle || !buffer) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
@@ -245,10 +268,13 @@ int DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buff
                                 source ? size : 0);
 
     if (ret < 0) {
+        current_context_set_libos();
         return ret;
     }
 
     *count = ret;
+
+    current_context_set_libos();
     return 0;
 }
 
@@ -279,7 +305,11 @@ int64_t _DkStreamWrite(PAL_HANDLE handle, uint64_t offset, uint64_t count, const
 }
 
 int DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buffer, PAL_STR dest) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle || !buffer) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
@@ -287,10 +317,13 @@ int DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buf
                                  dest ? strlen(dest) : 0);
 
     if (ret < 0) {
+        current_context_set_libos();
         return ret;
     }
 
     *count = ret;
+
+    current_context_set_libos();
     return 0;
 }
 
@@ -314,7 +347,11 @@ int _DkStreamAttributesQuery(const char* uri, PAL_STREAM_ATTR* attr) {
 }
 
 int DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!uri || !attr) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
@@ -323,10 +360,13 @@ int DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr) {
     int ret = _DkStreamAttributesQuery(uri, &attr_buf);
 
     if (ret < 0) {
+        current_context_set_libos();
         return ret;
     }
 
     memcpy(attr, &attr_buf, sizeof(PAL_STREAM_ATTR));
+
+    current_context_set_libos();
     return 0;
 }
 
@@ -345,28 +385,44 @@ int _DkStreamAttributesQueryByHandle(PAL_HANDLE hdl, PAL_STREAM_ATTR* attr) {
 }
 
 int DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle || !attr) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
-    return _DkStreamAttributesQueryByHandle(handle, attr);
+    int ret = _DkStreamAttributesQueryByHandle(handle, attr);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle || !attr) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     const struct handle_ops* ops = HANDLE_OPS(handle);
     if (!ops) {
+        current_context_set_libos();
         return -PAL_ERROR_BADHANDLE;
     }
 
     if (!ops->attrsetbyhdl) {
+        current_context_set_libos();
         return -PAL_ERROR_NOTSUPPORT;
     }
 
-    return ops->attrsetbyhdl(handle, attr);
+    int ret = ops->attrsetbyhdl(handle, attr);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int _DkStreamGetName(PAL_HANDLE handle, char* buffer, size_t size) {
@@ -388,11 +444,18 @@ int _DkStreamGetName(PAL_HANDLE handle, char* buffer, size_t size) {
 }
 
 int DkStreamGetName(PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle || !buffer || !size) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
-    return _DkStreamGetName(handle, (void*)buffer, size);
+    int ret = _DkStreamGetName(handle, (void*)buffer, size);
+
+    current_context_set_libos();
+    return ret;
 }
 
 /* _DkStreamMap for internal use. Map specific handle to certain memory,
@@ -419,37 +482,55 @@ int _DkStreamMap(PAL_HANDLE handle, void** paddr, int prot, uint64_t offset, uin
 }
 
 int DkStreamMap(PAL_HANDLE handle, PAL_PTR* addr, PAL_FLG prot, PAL_NUM offset, PAL_NUM size) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     assert(addr);
     void* map_addr = *addr;
 
     if (!handle) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (map_addr && !IS_ALLOC_ALIGNED_PTR(map_addr)) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
     if (!size || !IS_ALLOC_ALIGNED(size) || !IS_ALLOC_ALIGNED(offset)) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (map_addr && _DkCheckMemoryMappable(map_addr, size)) {
+        current_context_set_libos();
         return -PAL_ERROR_DENIED;
     }
 
-    return _DkStreamMap(handle, addr, prot, offset, size);
+    int ret = _DkStreamMap(handle, addr, prot, offset, size);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int DkStreamUnmap(PAL_PTR addr, PAL_NUM size) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!addr || !IS_ALLOC_ALIGNED_PTR(addr) || !size || !IS_ALLOC_ALIGNED(size)) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     if (_DkCheckMemoryMappable((void*)addr, size)) {
+        current_context_set_libos();
         return -PAL_ERROR_DENIED;
     }
 
-    return _DkStreamUnmap((void*)addr, size);
+    int ret = _DkStreamUnmap((void*)addr, size);
+
+    current_context_set_libos();
+    return ret;
 }
 
 /* _DkStreamSetLength for internal use. This function truncate the stream
@@ -467,17 +548,23 @@ int64_t _DkStreamSetLength(PAL_HANDLE handle, uint64_t length) {
 }
 
 int DkStreamSetLength(PAL_HANDLE handle, PAL_NUM length) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     int64_t ret = _DkStreamSetLength(handle, length);
 
     if (ret < 0) {
+        current_context_set_libos();
         return ret;
     }
 
     assert((uint64_t)ret == length);
+    current_context_set_libos();
     return 0;
 }
 
@@ -499,33 +586,57 @@ int _DkStreamFlush(PAL_HANDLE handle) {
 }
 
 int DkStreamFlush(PAL_HANDLE handle) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     if (!handle) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
-    return _DkStreamFlush(handle);
+    int ret = _DkStreamFlush(handle);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     // Return error if any of the handle is NULL
     if (!handle || !cargo) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
-    return _DkSendHandle(handle, cargo);
+    int ret = _DkSendHandle(handle, cargo);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int DkReceiveHandle(PAL_HANDLE handle, PAL_HANDLE* cargo) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     // return error if any of the handle is NULL
     if (!handle) {
+        current_context_set_libos();
         return -PAL_ERROR_INVAL;
     }
 
     *cargo = NULL;
-    return _DkReceiveHandle(handle, cargo);
+    int ret = _DkReceiveHandle(handle, cargo);
+
+    current_context_set_libos();
+    return ret;
 }
 
 int DkStreamChangeName(PAL_HANDLE hdl, PAL_STR uri) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     struct handle_ops* ops = NULL;
     char* type             = NULL;
     int ret;
@@ -534,6 +645,7 @@ int DkStreamChangeName(PAL_HANDLE hdl, PAL_STR uri) {
         ret = parse_stream_uri(&uri, &type, &ops);
 
         if (ret < 0) {
+            current_context_set_libos();
             return ret;
         }
     }
@@ -542,11 +654,14 @@ int DkStreamChangeName(PAL_HANDLE hdl, PAL_STR uri) {
 
     if (!hops || !hops->rename || (ops && hops != ops)) {
         free(type);
+        current_context_set_libos();
         return -PAL_ERROR_NOTSUPPORT;
     }
 
     ret = hops->rename(hdl, type, uri);
     free(type);
+
+    current_context_set_libos();
     return ret;
 }
 
@@ -562,5 +677,11 @@ const char* _DkStreamRealpath(PAL_HANDLE hdl) {
 }
 
 int DkDebugLog(PAL_PTR buffer, PAL_NUM size) {
-    return _DkDebugLog(buffer, size);
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
+    int ret = _DkDebugLog(buffer, size);
+
+    current_context_set_libos();
+    return ret;
 }

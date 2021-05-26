@@ -42,9 +42,14 @@ int _DkObjectClose(PAL_HANDLE objectHandle) {
  */
 /* PAL call DkObjectClose: Close the given object handle. */
 void DkObjectClose(PAL_HANDLE objectHandle) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     assert(objectHandle);
 
     _DkObjectClose(objectHandle);
+
+    current_context_set_libos();
 }
 
 /* Wait for user-specified events of handles in the handle array. The wait can be timed out, unless
@@ -52,11 +57,18 @@ void DkObjectClose(PAL_HANDLE objectHandle) {
  * error code otherwise. */
 int DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
                         PAL_FLG* ret_events, PAL_NUM timeout_us) {
+    assert(current_context_is_libos());
+    current_context_set_pal();
+
     for (PAL_NUM i = 0; i < count; i++) {
         if (UNKNOWN_HANDLE(handle_array[i])) {
+            current_context_set_libos();
             return -PAL_ERROR_INVAL;
         }
     }
 
-    return _DkStreamsWaitEvents(count, handle_array, events, ret_events, timeout_us);
+    int ret = _DkStreamsWaitEvents(count, handle_array, events, ret_events, timeout_us);
+
+    current_context_set_libos();
+    return ret;
 }
