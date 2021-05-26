@@ -20,20 +20,21 @@ int open_sgx_driver(bool need_gsgx) {
     if (need_gsgx) {
         g_gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR | O_CLOEXEC, 0);
         if (g_gsgx_device < 0) {
-            urts_log_error(
+            log_error(
                 "\n\tSystem does not support FSGSBASE instructions, which Graphene requires on SGX.\n\n"
                 "\tThe best option is to move to a newer Linux kernel with FSGSBASE support (5.9+), or\n"
                 "\ta kernel with a back-ported patch to support FSGSBASE.\n"
                 "\tOne may also load the Graphene SGX module, although this is insecure.\n"
-                "\tIf the Graphene SGX module is loaded, check permissions on the device " GSGX_FILE ", as we cannot open this file.\n\n");
+                "\tIf the Graphene SGX module is loaded, check permissions on the device "
+                GSGX_FILE ",\n\tas we cannot open this file.\n\n");
             return g_gsgx_device;
         }
     }
 
     g_isgx_device = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR | O_CLOEXEC, 0);
     if (g_isgx_device < 0) {
-        urts_log_error("Cannot open device " ISGX_FILE ". "
-                       "Please make sure the Intel SGX kernel module is loaded.\n");
+        log_error("Cannot open device " ISGX_FILE ". "
+                  "Please make sure the Intel SGX kernel module is loaded.\n");
         if (need_gsgx) {
             INLINE_SYSCALL(close, 1, g_gsgx_device);
             g_gsgx_device = -1;
@@ -52,7 +53,7 @@ int read_enclave_token(int token_file, sgx_arch_token_t* token) {
         return ret;
 
     if (stat.st_size != sizeof(sgx_arch_token_t)) {
-        urts_log_error("size of token size does not match\n");
+        log_error("size of token size does not match\n");
         return -EINVAL;
     }
 
@@ -61,21 +62,20 @@ int read_enclave_token(int token_file, sgx_arch_token_t* token) {
         return bytes;
 
 #ifdef SGX_DCAP
-    urts_log_debug("Read dummy DCAP token\n");
+    log_debug("Read dummy DCAP token\n");
 #else
-    urts_log_debug("Read token:\n");
-    urts_log_debug("    valid:                 0x%08x\n",   token->body.valid);
-    urts_log_debug("    attr.flags:            0x%016lx\n", token->body.attributes.flags);
-    urts_log_debug("    attr.xfrm:             0x%016lx\n", token->body.attributes.xfrm);
-    urts_log_debug("    mr_enclave:            %s\n",
-                   ALLOCA_BYTES2HEXSTR(token->body.mr_enclave.m));
-    urts_log_debug("    mr_signer:             %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_signer.m));
-    urts_log_debug("    LE cpu_svn:            %s\n", ALLOCA_BYTES2HEXSTR(token->cpu_svn_le.svn));
-    urts_log_debug("    LE isv_prod_id:        %02x\n", token->isv_prod_id_le);
-    urts_log_debug("    LE isv_svn:            %02x\n", token->isv_svn_le);
-    urts_log_debug("    LE masked_misc_select: 0x%08x\n",   token->masked_misc_select_le);
-    urts_log_debug("    LE attr.flags:         0x%016lx\n", token->attributes_le.flags);
-    urts_log_debug("    LE attr.xfrm:          0x%016lx\n", token->attributes_le.xfrm);
+    log_debug("Read token:\n");
+    log_debug("    valid:                 0x%08x\n",   token->body.valid);
+    log_debug("    attr.flags:            0x%016lx\n", token->body.attributes.flags);
+    log_debug("    attr.xfrm:             0x%016lx\n", token->body.attributes.xfrm);
+    log_debug("    mr_enclave:            %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_enclave.m));
+    log_debug("    mr_signer:             %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_signer.m));
+    log_debug("    LE cpu_svn:            %s\n", ALLOCA_BYTES2HEXSTR(token->cpu_svn_le.svn));
+    log_debug("    LE isv_prod_id:        %02x\n", token->isv_prod_id_le);
+    log_debug("    LE isv_svn:            %02x\n", token->isv_svn_le);
+    log_debug("    LE masked_misc_select: 0x%08x\n",   token->masked_misc_select_le);
+    log_debug("    LE attr.flags:         0x%016lx\n", token->attributes_le.flags);
+    log_debug("    LE attr.xfrm:          0x%016lx\n", token->attributes_le.xfrm);
 #endif
 
     return 0;
@@ -89,7 +89,7 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t* sig) {
         return ret;
 
     if ((size_t)stat.st_size != sizeof(sgx_arch_enclave_css_t)) {
-        urts_log_error("size of sigstruct size does not match\n");
+        log_error("size of sigstruct size does not match\n");
         return -EINVAL;
     }
 
@@ -105,7 +105,7 @@ bool is_wrfsbase_supported(void) {
     cpuid(7, 0, cpuinfo);
 
     if (!(cpuinfo[1] & 0x1)) {
-        urts_log_error(
+        log_error(
             "{RD,WR}{FS,GS}BASE instructions are not permitted on this platform. Please check the "
             "instructions under \"Building with SGX support\" from Graphene documentation.\n");
         return false;
@@ -150,11 +150,11 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
 
     if (IS_ERR_P(addr)) {
         if (ERRNO_P(addr) == EPERM) {
-            urts_log_error("Permission denied on mapping enclave. "
-                           "You may need to set sysctl vm.mmap_min_addr to zero\n");
+            log_error("Permission denied on mapping enclave. "
+                      "You may need to set sysctl vm.mmap_min_addr to zero\n");
         }
 
-        urts_log_error("ECREATE failed in allocating EPC memory (errno = %ld)\n", -ERRNO_P(addr));
+        log_error("ECREATE failed in allocating EPC memory (errno = %ld)\n", -ERRNO_P(addr));
         return -ENOMEM;
     }
 
@@ -166,26 +166,26 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     int ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_CREATE, &param);
 
     if (ret < 0) {
-        urts_log_error("ECREATE failed in enclave creation ioctl (errno = %d)\n", ret);
+        log_error("ECREATE failed in enclave creation ioctl (errno = %d)\n", ret);
         return ret;
     }
 
     if (ret) {
-        urts_log_error("ECREATE failed (errno = %d)\n", ret);
+        log_error("ECREATE failed (errno = %d)\n", ret);
         return -EPERM;
     }
 
     secs->attributes.flags |= SGX_FLAGS_INITIALIZED;
 
-    urts_log_debug("enclave created:\n");
-    urts_log_debug("    base:           0x%016lx\n", secs->base);
-    urts_log_debug("    size:           0x%016lx\n", secs->size);
-    urts_log_debug("    misc_select:    0x%08x\n",   secs->misc_select);
-    urts_log_debug("    attr.flags:     0x%016lx\n", secs->attributes.flags);
-    urts_log_debug("    attr.xfrm:      0x%016lx\n", secs->attributes.xfrm);
-    urts_log_debug("    ssa_frame_size: %d\n",       secs->ssa_frame_size);
-    urts_log_debug("    isv_prod_id:    0x%08x\n",   secs->isv_prod_id);
-    urts_log_debug("    isv_svn:        0x%08x\n",   secs->isv_svn);
+    log_debug("enclave created:\n");
+    log_debug("    base:           0x%016lx\n", secs->base);
+    log_debug("    size:           0x%016lx\n", secs->size);
+    log_debug("    misc_select:    0x%08x\n",   secs->misc_select);
+    log_debug("    attr.flags:     0x%016lx\n", secs->attributes.flags);
+    log_debug("    attr.xfrm:      0x%016lx\n", secs->attributes.xfrm);
+    log_debug("    ssa_frame_size: %d\n",       secs->ssa_frame_size);
+    log_debug("    isv_prod_id:    0x%08x\n",   secs->isv_prod_id);
+    log_debug("    isv_svn:        0x%08x\n",   secs->isv_svn);
 
     return 0;
 }
@@ -202,7 +202,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         g_zero_pages = (void*)INLINE_SYSCALL(mmap, 6, NULL, g_page_size, PROT_READ,
                                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (IS_ERR_P(g_zero_pages)) {
-            urts_log_error("Cannot mmap zero pages %ld\n", ERRNO_P(g_zero_pages));
+            log_error("Cannot mmap zero pages %ld\n", ERRNO_P(g_zero_pages));
             return -ENOMEM;
         }
         g_zero_pages_size = g_page_size;
@@ -241,10 +241,10 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
     }
 
     if (size == g_page_size)
-        urts_log_debug("adding page  to enclave: %p [%s:%s] (%s)%s\n", addr, t, p, comment, m);
+        log_debug("adding page  to enclave: %p [%s:%s] (%s)%s\n", addr, t, p, comment, m);
     else
-        urts_log_debug("adding pages to enclave: %p-%p [%s:%s] (%s)%s\n", addr, addr + size, t, p,
-                      comment, m);
+        log_debug("adding pages to enclave: %p-%p [%s:%s] (%s)%s\n", addr, addr + size, t, p,
+                  comment, m);
 
 #ifdef SGX_DCAP
     if (!user_addr && g_zero_pages_size < size) {
@@ -252,14 +252,14 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         /* TODO: this logic can be removed if we introduce a size cap in ENCLAVE_ADD_PAGES ioctl */
         ret = INLINE_SYSCALL(munmap, 2, g_zero_pages, g_zero_pages_size);
         if (ret < 0) {
-            urts_log_error("Cannot unmap zero pages %d\n", ret);
+            log_error("Cannot unmap zero pages %d\n", ret);
             return ret;
         }
 
         g_zero_pages = (void*)INLINE_SYSCALL(mmap, 6, NULL, size, PROT_READ,
                                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (IS_ERR_P(g_zero_pages)) {
-            urts_log_error("Cannot map zero pages %ld\n", ERRNO_P(g_zero_pages));
+            log_error("Cannot map zero pages %ld\n", ERRNO_P(g_zero_pages));
             return -ENOMEM;
         }
         g_zero_pages_size = size;
@@ -291,14 +291,14 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         if (ret < 0) {
             if (ret == -EINTR)
                 continue;
-            urts_log_error("Enclave EADD returned %d\n", ret);
+            log_error("Enclave EADD returned %d\n", ret);
             return ret;
         }
 
         uint64_t added_size = ret > 0 ? (uint64_t)ret : param.count;
         if (!added_size) {
-            urts_log_error("Intel SGX driver did not perform EADD. This may indicate a buggy "
-                           "driver, please update to the most recent version.\n");
+            log_error("Intel SGX driver did not perform EADD. This may indicate a buggy "
+                      "driver, please update to the most recent version.\n");
             return -EPERM;
         }
 
@@ -312,7 +312,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
     uint64_t mapped = INLINE_SYSCALL(mmap, 6, addr, size, prot, MAP_FIXED | MAP_SHARED,
                                      g_isgx_device, 0);
     if (IS_ERR_P(mapped)) {
-        urts_log_error("Cannot map enclave pages %ld\n", ERRNO_P(mapped));
+        log_error("Cannot map enclave pages %ld\n", ERRNO_P(mapped));
         return -EACCES;
     }
 #else
@@ -330,7 +330,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         if (ret < 0) {
             if (ret == -EINTR)
                 continue;
-            urts_log_error("Enclave EADD returned %d\n", ret);
+            log_error("Enclave EADD returned %d\n", ret);
             return ret;
         }
 
@@ -343,7 +343,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
     /* need to change permissions for EADDed pages since the initial mmap was with PROT_NONE */
     ret = mprotect(addr, size, prot);
     if (ret < 0) {
-        urts_log_error("Changing protections of EADDed pages returned %d\n", ret);
+        log_error("Changing protections of EADDed pages returned %d\n", ret);
         return ret;
     }
 #endif /* SGX_DCAP */
@@ -358,9 +358,9 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
 #endif
     unsigned long enclave_valid_addr = secs->base + secs->size - g_page_size;
 
-    urts_log_debug("enclave initializing:\n");
-    urts_log_debug("    enclave id:   0x%016lx\n", enclave_valid_addr);
-    urts_log_debug("    mr_enclave:   %s\n", ALLOCA_BYTES2HEXSTR(sigstruct->body.enclave_hash.m));
+    log_debug("enclave initializing:\n");
+    log_debug("    enclave id:   0x%016lx\n", enclave_valid_addr);
+    log_debug("    mr_enclave:   %s\n", ALLOCA_BYTES2HEXSTR(sigstruct->body.enclave_hash.m));
 
     struct sgx_enclave_init param = {
 #ifndef SGX_DCAP
@@ -403,14 +403,14 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
                 error = "Unknown reason";
                 break;
         }
-        urts_log_error("enclave EINIT failed - %s\n", error);
+        log_error("enclave EINIT failed - %s\n", error);
         return -EPERM;
     }
 
     /* all enclave pages were EADDed, don't need zero pages anymore */
     ret = INLINE_SYSCALL(munmap, 2, g_zero_pages, g_zero_pages_size);
     if (ret < 0) {
-        urts_log_error("Cannot unmap zero pages %d\n", ret);
+        log_error("Cannot unmap zero pages %d\n", ret);
         return ret;
     }
 
@@ -418,12 +418,12 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
 }
 
 int destroy_enclave(void* base_addr, size_t length) {
-    urts_log_debug("destroying enclave...\n");
+    log_debug("destroying enclave...\n");
 
     int ret = INLINE_SYSCALL(munmap, 2, base_addr, length);
 
     if (ret < 0) {
-        urts_log_error("enclave EDESTROY failed\n");
+        log_error("enclave EDESTROY failed\n");
         return ret;
     }
 
