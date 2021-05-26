@@ -1289,7 +1289,7 @@ BEGIN_RS_FUNC(vma) {
 
     if (!(vma->flags & VMA_UNMAPPED)) {
         if (vma->file) {
-            struct shim_mount* fs = vma->file->fs;
+            struct shim_fs* fs = vma->file->fs;
             get_handle(vma->file);
 
             if (need_mapped < vma->addr + vma->length) {

@@ -74,7 +74,7 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
                 break;
             }
 
-            struct shim_mount* fs = hdl->fs;
+            struct shim_fs* fs = hdl->fs;
             if (!fs || !fs->fs_ops) {
                 ret = -EACCES;
                 break;

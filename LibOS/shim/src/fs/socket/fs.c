@@ -129,11 +129,6 @@ static int socket_hstat(struct shim_handle* hdl, struct stat* stat) {
     return 0;
 }
 
-static int socket_checkout(struct shim_handle* hdl) {
-    hdl->fs = NULL;
-    return 0;
-}
-
 static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
     assert(hdl->type == TYPE_SOCK);
     struct shim_sock_handle* sock = &hdl->info.sock;
@@ -242,12 +237,11 @@ struct shim_fs_ops socket_fs_ops = {
     .read     = &socket_read,
     .write    = &socket_write,
     .hstat    = &socket_hstat,
-    .checkout = &socket_checkout,
     .poll     = &socket_poll,
     .setflags = &socket_setflags,
 };
 
-struct shim_mount socket_builtin_fs = {
-    .type   = "socket",
+struct shim_fs socket_builtin_fs = {
+    .name   = "socket",
     .fs_ops = &socket_fs_ops,
 };

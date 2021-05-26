@@ -19,42 +19,12 @@
 #include "shim_utils.h"
 #include "toml.h"
 
-struct shim_fs {
-    char name[8];
-    struct shim_fs_ops* fs_ops;
-    struct shim_d_ops* d_ops;
-};
-
-struct shim_fs mountable_fs[] = {
-    {
-        .name   = "chroot",
-        .fs_ops = &chroot_fs_ops,
-        .d_ops  = &chroot_d_ops,
-    },
-    {
-        .name   = "proc",
-        .fs_ops = &proc_fs_ops,
-        .d_ops  = &proc_d_ops,
-    },
-    {
-        .name   = "dev",
-        .fs_ops = &dev_fs_ops,
-        .d_ops  = &dev_d_ops,
-    },
-    {
-        .name   = "sys",
-        .fs_ops = &sys_fs_ops,
-        .d_ops  = &sys_d_ops,
-    },
-    {
-        .name   = "tmpfs",
-        .fs_ops = &tmp_fs_ops,
-        .d_ops  = &tmp_d_ops,
-    },
-};
-
-struct shim_mount* builtin_fs[] = {
+struct shim_fs* builtin_fs[] = {
     &chroot_builtin_fs,
+    &proc_builtin_fs,
+    &dev_builtin_fs,
+    &sys_builtin_fs,
+    &tmp_builtin_fs,
     &pipe_builtin_fs,
     &fifo_builtin_fs,
     &socket_builtin_fs,
@@ -378,29 +348,14 @@ int init_mount(void) {
     return 0;
 }
 
-static inline struct shim_fs* find_fs(const char* type) {
-    struct shim_fs* fs = NULL;
-    size_t len = strlen(type);
+struct shim_fs* find_fs(const char* name) {
+    for (size_t i = 0; i < ARRAY_SIZE(builtin_fs); i++) {
+        struct shim_fs* fs = builtin_fs[i];
+        if (!strncmp(fs->name, name, sizeof(fs->name)))
+            return fs;
+    }
 
-    for (size_t i = 0; i < ARRAY_SIZE(mountable_fs); i++)
-        if (!memcmp(type, mountable_fs[i].name, len + 1)) {
-            fs = &mountable_fs[i];
-            break;
-        }
-
-    return fs;
-}
-
-int search_builtin_fs(const char* type, struct shim_mount** fs) {
-    size_t len = strlen(type);
-
-    for (size_t i = 0; i < ARRAY_SIZE(builtin_fs); i++)
-        if (!memcmp(type, builtin_fs[i]->type, len + 1)) {
-            *fs = builtin_fs[i];
-            return 0;
-        }
-
-    return -ENOENT;
+    return NULL;
 }
 
 static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
@@ -528,10 +483,8 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     size_t uri_len = uri ? strlen(uri) : 0;
     qstrsetstr(&mount->path, mount_point, mount_point_len);
     qstrsetstr(&mount->uri, uri, uri_len);
-    memcpy(mount->type, fs->name, sizeof(fs->name));
-    mount->fs_ops = fs->fs_ops;
-    mount->d_ops  = fs->d_ops;
-    mount->data   = mount_data;
+    mount->fs = fs;
+    mount->data = mount_data;
 
     /* Get the negative dentry from the cache, if one exists */
     struct shim_dentry* dent;
@@ -577,7 +530,8 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
         dent->state &= ~DENTRY_NEGATIVE;
 
     /* Set the file system at the mount point properly */
-    dent->fs = mount;
+    dent->mount = mount;
+    dent->fs = mount->fs;
 
     if (dentp && !ret) {
         *dentp = dent;
@@ -655,6 +609,55 @@ struct shim_mount* find_mount_from_uri(const char* uri) {
     return found;
 }
 
+/*
+ * Note that checkpointing the `shim_fs` structure copies it, instead of using a pointer to
+ * corresponding global object on the remote side. This does not waste too much memory (because each
+ * global object is only copied once), but it means that `shim_fs` objects cannot be compared by
+ * pointer.
+ */
+BEGIN_CP_FUNC(fs) {
+    __UNUSED(size);
+    assert(size == sizeof(struct shim_fs));
+
+    struct shim_fs* fs = (struct shim_fs*)obj;
+    struct shim_fs* new_fs = NULL;
+
+    size_t off = GET_FROM_CP_MAP(obj);
+
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_fs));
+        ADD_TO_CP_MAP(obj, off);
+
+        new_fs = (struct shim_fs*)(base + off);
+
+        memcpy(new_fs->name, fs->name, sizeof(new_fs->name));
+        new_fs->fs_ops = NULL;
+        new_fs->d_ops = NULL;
+
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
+        new_fs = (struct shim_fs*)(base + off);
+    }
+
+    if (objp)
+        *objp = (void*)new_fs;
+}
+END_CP_FUNC(fs)
+
+BEGIN_RS_FUNC(fs) {
+    __UNUSED(offset);
+    __UNUSED(rebase);
+    struct shim_fs* fs = (void*)(base + GET_CP_FUNC_ENTRY());
+
+    struct shim_fs* builtin_fs = find_fs(fs->name);
+    if (!builtin_fs)
+        return -EINVAL;
+
+    fs->fs_ops = builtin_fs->fs_ops;
+    fs->d_ops = builtin_fs->d_ops;
+}
+END_RS_FUNC(fs)
+
 BEGIN_CP_FUNC(mount) {
     __UNUSED(size);
     assert(size == sizeof(struct shim_mount));
@@ -669,9 +672,9 @@ BEGIN_CP_FUNC(mount) {
         ADD_TO_CP_MAP(obj, off);
 
         mount->cpdata = NULL;
-        if (mount->fs_ops && mount->fs_ops->checkpoint) {
+        if (mount->fs->fs_ops && mount->fs->fs_ops->checkpoint) {
             void* cpdata = NULL;
-            int bytes = mount->fs_ops->checkpoint(&cpdata, mount->data);
+            int bytes = mount->fs->fs_ops->checkpoint(&cpdata, mount->data);
             if (bytes > 0) {
                 mount->cpdata = cpdata;
                 mount->cpsize = bytes;
@@ -680,6 +683,8 @@ BEGIN_CP_FUNC(mount) {
 
         new_mount  = (struct shim_mount*)(base + off);
         *new_mount = *mount;
+
+        DO_CP(fs, mount->fs, &new_mount->fs);
 
         if (mount->cpdata) {
             size_t cp_off = ADD_CP_OFFSET(mount->cpsize);
@@ -729,17 +734,13 @@ BEGIN_RS_FUNC(mount) {
         get_dentry(mount->root);
     }
 
-    struct shim_fs* fs = find_fs(mount->type);
-
-    if (fs && fs->fs_ops && fs->fs_ops->migrate && mount->cpdata) {
+    CP_REBASE(mount->fs);
+    if (mount->fs->fs_ops && mount->fs->fs_ops->migrate && mount->cpdata) {
         void* mount_data = NULL;
-        if (fs->fs_ops->migrate(mount->cpdata, &mount_data) == 0)
+        if (mount->fs->fs_ops->migrate(mount->cpdata, &mount_data) == 0)
             mount->data = mount_data;
         mount->cpdata = NULL;
     }
-
-    mount->fs_ops = fs->fs_ops;
-    mount->d_ops  = fs->d_ops;
 
     LISTP_ADD_TAIL(mount, &mount_list, list);
 

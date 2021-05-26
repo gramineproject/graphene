@@ -100,8 +100,8 @@ void get_dentry(struct shim_dentry* dent) {
 }
 
 static void free_dentry(struct shim_dentry* dent) {
-    if (dent->fs) {
-        put_mount(dent->fs);
+    if (dent->mount) {
+        put_mount(dent->mount);
     }
 
     qstrfree(&dent->name);
@@ -159,9 +159,10 @@ void dentry_gc(struct shim_dentry* dent) {
     put_dentry(dent);
 }
 
-struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* parent,
+struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry* parent,
                                    const char* name, size_t name_len) {
     assert(locked(&g_dcache_lock));
+    assert(mount);
 
     struct shim_dentry* dent = alloc_dentry();
 
@@ -173,15 +174,16 @@ struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* pa
         return NULL;
     }
 
-    if (parent->nchildren >= DENTRY_MAX_CHILDREN) {
+    if (parent && parent->nchildren >= DENTRY_MAX_CHILDREN) {
         log_warning("get_new_dentry: nchildren limit reached\n");
         free_dentry(dent);
         return NULL;
     }
 
-    if (fs) {
-        get_mount(fs);
-        dent->fs = fs;
+    if (mount) {
+        get_mount(mount);
+        dent->mount = mount;
+        dent->fs = mount->fs;
     }
 
     if (parent) {
@@ -406,7 +408,7 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
 
     struct print_buf buf = INIT_PRINT_BUF(dump_dentry_write_all);
 
-    buf_printf(&buf, "[%6.6s ", dent->fs ? dent->fs->type : "");
+    buf_printf(&buf, "[%6.6s ", dent->mount ? dent->mount->fs->name : "");
 
     DUMP_FLAG(DENTRY_VALID, "V", ".");
     DUMP_FLAG(DENTRY_LISTED, "L", ".");
@@ -468,18 +470,18 @@ BEGIN_CP_FUNC(dentry) {
         /* we don't checkpoint children dentries, so need to list directory again */
         new_dent->state &= ~DENTRY_LISTED;
 
-        if (new_dent->fs == &fifo_builtin_fs) {
-            /* FIFO pipe, do not try to checkpoint its fs */
-            new_dent->fs = NULL;
-        } else {
+        if (new_dent->type != S_IFIFO) {
             /* not FIFO, no need to keep data (FIFOs stash internal FDs into data field) */
             new_dent->data = NULL;
         }
 
         DO_CP_IN_MEMBER(qstr, new_dent, name);
 
+        if (new_dent->mount)
+            DO_CP_MEMBER(mount, dent, new_dent, mount);
+
         if (new_dent->fs)
-            DO_CP_MEMBER(mount, dent, new_dent, fs);
+            DO_CP_MEMBER(fs, dent, new_dent, fs);
 
         if (dent->parent)
             DO_CP_MEMBER(dentry, dent, new_dent, parent);
@@ -504,6 +506,7 @@ BEGIN_RS_FUNC(dentry) {
 
     CP_REBASE(dent->children);
     CP_REBASE(dent->siblings);
+    CP_REBASE(dent->mount);
     CP_REBASE(dent->fs);
     CP_REBASE(dent->parent);
     CP_REBASE(dent->mounted);
@@ -512,11 +515,8 @@ BEGIN_RS_FUNC(dentry) {
         return -ENOMEM;
     }
 
-    if (!dent->fs) {
-        /* special case of FIFO pipe: use built-in FIFO FS */
-        dent->fs = &fifo_builtin_fs;
-    } else {
-        get_mount(dent->fs);
+    if (dent->mount) {
+        get_mount(dent->mount);
     }
 
     /* DEP 6/16/17: I believe the point of this line is to
