@@ -470,7 +470,13 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     } else {
         /* case of allowed file: simply read from underlying file descriptor into enclave memory */
         uint64_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
-        size_t total_size = ALLOC_ALIGN_UP(offset + size) - aligned_offset;
+        uint64_t total_size = ALLOC_ALIGN_UP(offset + size) - aligned_offset;
+
+        if (size > SIZE_MAX) {
+            /* for compatibility with 32-bit systems */
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
 
         size_t bytes_read = 0;
         while (bytes_read < total_size) {

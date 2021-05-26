@@ -100,7 +100,7 @@ long shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
     if (gidsetsize < 0)
         return -EINVAL;
 
-    if (gidsetsize && !is_user_memory_writable(grouplist, gidsetsize * sizeof(gid_t)))
+    if (!is_user_memory_writable(grouplist, gidsetsize * sizeof(gid_t)))
         return -EFAULT;
 
     struct shim_thread* current = get_cur_thread();
