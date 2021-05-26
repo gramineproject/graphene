@@ -555,3 +555,9 @@ struct shim_d_ops tmp_d_ops = {
     .rename  = &tmpfs_rename,
     .chmod   = &tmpfs_chmod,
 };
+
+struct shim_fs tmp_builtin_fs = {
+    .name   = "tmpfs",
+    .fs_ops = &tmp_fs_ops,
+    .d_ops  = &tmp_d_ops,
+};

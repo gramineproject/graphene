@@ -279,8 +279,8 @@ long shim_do_fchown(int fd, uid_t uid, gid_t gid) {
  *       statement to distinguish between "map input", "map output", "map both", "map none" */
 static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim_handle* hdlo,
                            off_t* offseto, ssize_t count) {
-    struct shim_mount* fsi = hdli->fs;
-    struct shim_mount* fso = hdlo->fs;
+    struct shim_fs* fsi = hdli->fs;
+    struct shim_fs* fso = hdlo->fs;
 
     if (!count)
         return 0;

@@ -45,7 +45,7 @@ static int init_tty_handle(struct shim_handle* hdl, bool write) {
     if (ret < 0)
         return ret;
 
-    set_handle_fs(hdl, dent->fs);
+    hdl->fs = dent->fs;
     hdl->dentry = dent;
     return 0;
 }
@@ -73,15 +73,15 @@ static inline int init_exec_handle(void) {
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
 
-    struct shim_mount* fs = find_mount_from_uri(g_pal_control->executable);
-    if (fs) {
-        const char* p = g_pal_control->executable + fs->uri.len;
+    struct shim_mount* mount = find_mount_from_uri(g_pal_control->executable);
+    if (mount) {
+        const char* p = g_pal_control->executable + mount->uri.len;
         /* Lookup for `g_pal_control->executable` needs to be done under a given mount point which
          * requires a relative path name. OTOH the one in manifest file can be absolute path. */
         while (*p == '/') {
             p++;
         }
-        int ret = path_lookupat(fs->mount_point, p, LOOKUP_FOLLOW, &exec->dentry);
+        int ret = path_lookupat(mount->mount_point, p, LOOKUP_FOLLOW, &exec->dentry);
         if (ret < 0) {
             log_error("init_exec_handle: cannot find executable in filesystem: %d\n", ret);
             return ret;
@@ -91,15 +91,15 @@ static inline int init_exec_handle(void) {
             log_error("init_exec_handle: executable is not a regular file\n");
             return -EINVAL;
         }
-        if (exec->dentry->fs != fs) {
+        if (exec->dentry->mount != mount) {
             log_error("init_exec_handle: cannot find executable in filesystem, "
                       "it seems to be shadowed by a mount\n");
             return -EINVAL;
         }
-        set_handle_fs(exec, fs);
-        put_mount(fs);
+        exec->fs = mount->fs;
+        put_mount(mount);
     } else {
-        set_handle_fs(exec, &chroot_builtin_fs);
+        exec->fs = &chroot_builtin_fs;
     }
 
     lock(&g_process.fs_lock);
@@ -396,8 +396,8 @@ static inline __attribute__((unused)) const char* __handle_name(struct shim_hand
         return qstrgetstr(&hdl->uri);
     if (hdl->dentry && !qstrempty(&hdl->dentry->name))
         return qstrgetstr(&hdl->dentry->name);
-    if (hdl->fs_type[0])
-        return hdl->fs_type;
+    if (hdl->fs)
+        return hdl->fs->name;
     return "(unknown)";
 }
 
@@ -454,9 +454,6 @@ void put_handle(struct shim_handle* hdl) {
 
         if (hdl->dentry)
             put_dentry(hdl->dentry);
-
-        if (hdl->fs)
-            put_mount(hdl->fs);
 
         destroy_handle(hdl);
     }
@@ -655,8 +652,8 @@ BEGIN_CP_FUNC(handle) {
         new_hdl = (struct shim_handle*)(base + off);
 
         lock(&hdl->lock);
-        struct shim_mount* fs = hdl->fs;
-        *new_hdl              = *hdl;
+        struct shim_fs* fs = hdl->fs;
+        *new_hdl = *hdl;
 
         if (fs && fs->fs_ops && fs->fs_ops->checkout)
             fs->fs_ops->checkout(new_hdl);
@@ -665,13 +662,9 @@ BEGIN_CP_FUNC(handle) {
         REF_SET(new_hdl->ref_count, 0);
         clear_lock(&new_hdl->lock);
 
-        DO_CP_IN_MEMBER(qstr, new_hdl, uri);
+        DO_CP(fs, hdl->fs, &new_hdl->fs);
 
-        if (fs && fs != &fifo_builtin_fs && hdl->dentry) {
-            DO_CP_MEMBER(mount, hdl, new_hdl, fs);
-        } else {
-            new_hdl->fs = NULL;
-        }
+        DO_CP_IN_MEMBER(qstr, new_hdl, uri);
 
         if (hdl->dentry) {
             if (hdl->dentry->state & DENTRY_ISDIRECTORY) {
@@ -732,17 +725,6 @@ BEGIN_RS_FUNC(handle) {
 
     if (!create_lock(&hdl->lock)) {
         return -ENOMEM;
-    }
-
-    if (!hdl->fs) {
-        assert(hdl->fs_type);
-        search_builtin_fs(hdl->fs_type, &hdl->fs);
-        if (!hdl->fs) {
-            destroy_lock(&hdl->lock);
-            return -EINVAL;
-        }
-    } else {
-        get_mount(hdl->fs);
     }
 
     if (hdl->dentry) {

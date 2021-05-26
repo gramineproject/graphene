@@ -740,7 +740,7 @@ static int __load_interp_object(struct link_map* exec_map) {
             dent->state & DENTRY_NEGATIVE)
             continue;
 
-        struct shim_mount* fs = dent->fs;
+        struct shim_fs* fs = dent->fs;
         get_dentry(dent);
 
         if (!fs->d_ops->open) {
@@ -763,8 +763,8 @@ static int __load_interp_object(struct link_map* exec_map) {
             goto err;
         }
 
-        set_handle_fs(interp, fs);
-        interp->flags    = O_RDONLY;
+        interp->fs = fs;
+        interp->flags = O_RDONLY;
         interp->acc_mode = MAY_READ;
 
         if ((ret = fs->d_ops->open(interp, dent, O_RDONLY)) < 0) {

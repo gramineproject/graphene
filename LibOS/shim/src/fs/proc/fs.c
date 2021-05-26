@@ -109,3 +109,9 @@ struct shim_d_ops proc_d_ops = {
     .follow_link = &proc_follow_link,
     .readdir     = &proc_readdir,
 };
+
+struct shim_fs proc_builtin_fs = {
+    .name   = "proc",
+    .fs_ops = &proc_fs_ops,
+    .d_ops  = &proc_d_ops,
+};

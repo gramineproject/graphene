@@ -87,7 +87,7 @@ struct shim_fs_ops eventfd_fs_ops = {
     .poll  = &eventfd_poll,
 };
 
-struct shim_mount eventfd_builtin_fs = {
-    .type   = URI_TYPE_EVENTFD,
+struct shim_fs eventfd_builtin_fs = {
+    .name   = URI_TYPE_EVENTFD,
     .fs_ops = &eventfd_fs_ops,
 };

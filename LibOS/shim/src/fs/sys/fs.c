@@ -262,3 +262,9 @@ struct shim_d_ops sys_d_ops = {
     .lookup  = &sys_lookup,
     .readdir = &sys_readdir,
 };
+
+struct shim_fs sys_builtin_fs = {
+    .name   = "sys",
+    .fs_ops = &sys_fs_ops,
+    .d_ops  = &sys_d_ops,
+};
