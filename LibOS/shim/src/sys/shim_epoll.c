@@ -32,7 +32,7 @@
 /* TODO: 1024 handles/FDs is a small number for high-load servers (e.g., Linux has ~3M) */
 #define MAX_EPOLL_HANDLES 1024
 
-struct shim_mount epoll_builtin_fs;
+struct shim_fs epoll_builtin_fs;
 
 long shim_do_epoll_create1(int flags) {
     if ((flags & ~EPOLL_CLOEXEC))
@@ -43,7 +43,7 @@ long shim_do_epoll_create1(int flags) {
         return -ENOMEM;
 
     hdl->type = TYPE_EPOLL;
-    set_handle_fs(hdl, &epoll_builtin_fs);
+    hdl->fs = &epoll_builtin_fs;
 
     struct shim_epoll_handle* epoll = &hdl->info.epoll;
     epoll->fds_count = 0;
@@ -499,8 +499,8 @@ struct shim_fs_ops epoll_fs_ops = {
     .close = &epoll_close,
 };
 
-struct shim_mount epoll_builtin_fs = {
-    .type   = "epoll",
+struct shim_fs epoll_builtin_fs = {
+    .name   = "epoll",
     .fs_ops = &epoll_fs_ops,
 };
 

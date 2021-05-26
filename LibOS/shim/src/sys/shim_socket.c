@@ -70,7 +70,7 @@ long shim_do_socket(int family, int type, int protocol) {
         return -ENOMEM;
 
     hdl->type = TYPE_SOCK;
-    set_handle_fs(hdl, &socket_builtin_fs);
+    hdl->fs = &socket_builtin_fs;
     hdl->flags = type & SOCK_NONBLOCK ? O_NONBLOCK : 0;
     hdl->acc_mode = 0;
 
@@ -744,7 +744,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
             goto out;
         }
 
-        if (!(dent->state & DENTRY_NEGATIVE) && dent->fs != &socket_builtin_fs) {
+        if (!(dent->state & DENTRY_NEGATIVE) && dent->type != S_IFSOCK) {
             ret = -ECONNREFUSED;
             put_dentry(dent);
             goto out;
@@ -926,11 +926,11 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
 
     cli->type = TYPE_SOCK;
-    set_handle_fs(cli, &socket_builtin_fs);
-    cli->acc_mode   = MAY_READ | MAY_WRITE;
-    cli->flags      = O_RDWR | flags;
+    cli->fs = &socket_builtin_fs;
+    cli->acc_mode = MAY_READ | MAY_WRITE;
+    cli->flags = O_RDWR | flags;
     cli->pal_handle = accepted;
-    accepted        = NULL;
+    accepted = NULL;
 
     struct shim_sock_handle* cli_sock = &cli->info.sock;
     cli_sock->domain     = sock->domain;

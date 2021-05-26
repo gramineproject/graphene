@@ -29,7 +29,7 @@ int do_handle_read(struct shim_handle* hdl, void* buf, int count) {
     if (!(hdl->acc_mode & MAY_READ))
         return -EACCES;
 
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
     assert(fs && fs->fs_ops);
 
     if (!fs->fs_ops->read)
@@ -67,7 +67,7 @@ int do_handle_write(struct shim_handle* hdl, const void* buf, int count) {
     if (!(hdl->acc_mode & MAY_WRITE))
         return -EACCES;
 
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
     assert(fs && fs->fs_ops);
 
     if (!fs->fs_ops->write)
@@ -224,7 +224,7 @@ long shim_do_lseek(int fd, off_t offset, int origin) {
         goto out;
     }
 
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
     assert(fs && fs->fs_ops);
 
     if (!fs->fs_ops->seek) {
@@ -249,7 +249,7 @@ long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
     if (!hdl)
         return -EBADF;
 
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
     ssize_t ret = -EACCES;
 
     if (!fs || !fs->fs_ops)
@@ -299,7 +299,7 @@ long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
     if (!hdl)
         return -EBADF;
 
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
     ssize_t ret = -EACCES;
 
     if (!fs || !fs->fs_ops)
@@ -487,7 +487,7 @@ long shim_do_fsync(int fd) {
         return -EBADF;
 
     int ret = -EACCES;
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
 
     if (!fs || !fs->fs_ops)
         goto out;
@@ -525,7 +525,7 @@ long shim_do_truncate(const char* path, loff_t length) {
     if ((ret = path_lookupat(/*start=*/NULL, path, LOOKUP_FOLLOW, &dent)) < 0)
         return ret;
 
-    struct shim_mount* fs = dent->fs;
+    struct shim_fs* fs = dent->fs;
 
     if (!fs || !fs->d_ops || !fs->d_ops->open) {
         ret = -EBADF;
@@ -564,7 +564,7 @@ long shim_do_ftruncate(int fd, loff_t length) {
     if (!hdl)
         return -EBADF;
 
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
     int ret = -EINVAL;
 
     if (!fs || !fs->fs_ops)

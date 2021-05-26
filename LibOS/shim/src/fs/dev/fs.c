@@ -211,3 +211,9 @@ struct shim_d_ops dev_d_ops = {
     .stat        = &dev_stat,
     .follow_link = &dev_follow_link,
 };
+
+struct shim_fs dev_builtin_fs = {
+    .name   = "dev",
+    .fs_ops = &dev_fs_ops,
+    .d_ops  = &dev_d_ops,
+};

@@ -185,7 +185,7 @@ reopen:
     if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_FOLLOW, &dent)) < 0)
         return ret;
 
-    struct shim_mount* fs = dent->fs;
+    struct shim_fs* fs = dent->fs;
 
     if (!fs->d_ops->open) {
         ret = -EACCES;
@@ -212,8 +212,8 @@ reopen:
         goto err;
     }
 
-    set_handle_fs(exec, fs);
-    exec->flags    = O_RDONLY;
+    exec->fs = fs;
+    exec->flags = O_RDONLY;
     exec->acc_mode = MAY_READ;
 
     get_dentry(dent);

@@ -66,8 +66,8 @@ long shim_do_eventfd2(unsigned int count, int flags) {
     }
 
     hdl->type = TYPE_EVENTFD;
-    set_handle_fs(hdl, &eventfd_builtin_fs);
-    hdl->flags    = O_RDWR;
+    hdl->fs = &eventfd_builtin_fs;
+    hdl->flags = O_RDWR;
     hdl->acc_mode = MAY_READ | MAY_WRITE;
 
     if ((ret = create_eventfd(&hdl->pal_handle, count, flags)) < 0)

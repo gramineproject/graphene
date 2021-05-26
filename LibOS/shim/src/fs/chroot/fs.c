@@ -31,8 +31,7 @@ struct mount_data {
     char root_uri[];
 };
 
-#define HANDLE_MOUNT_DATA(h) ((struct mount_data*)(h)->fs->data)
-#define DENTRY_MOUNT_DATA(d) ((struct mount_data*)(d)->fs->data)
+#define DENTRY_MOUNT_DATA(d) ((struct mount_data*)(d)->mount->data)
 
 static int chroot_mount(const char* uri, void** mount_data) {
     enum shim_file_type type;
@@ -830,9 +829,6 @@ out:
 }
 
 static int chroot_checkout(struct shim_handle* hdl) {
-    if (hdl->fs == &chroot_builtin_fs)
-        hdl->fs = NULL;
-
     if (hdl->type == TYPE_FILE) {
         struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
         if (data)
@@ -1027,14 +1023,8 @@ struct shim_d_ops chroot_d_ops = {
     .chmod   = &chroot_chmod,
 };
 
-struct mount_data chroot_data = {
-    .root_uri_len = 5,
-    .root_uri     = URI_PREFIX_FILE,
-};
-
-struct shim_mount chroot_builtin_fs = {
-    .type   = "chroot",
+struct shim_fs chroot_builtin_fs = {
+    .name   = "chroot",
     .fs_ops = &chroot_fs_ops,
     .d_ops  = &chroot_d_ops,
-    .data   = &chroot_data,
 };

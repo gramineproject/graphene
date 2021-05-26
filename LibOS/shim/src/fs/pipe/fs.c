@@ -93,11 +93,6 @@ static int pipe_hstat(struct shim_handle* hdl, struct stat* stat) {
     return 0;
 }
 
-static int pipe_checkout(struct shim_handle* hdl) {
-    hdl->fs = NULL;
-    return 0;
-}
-
 static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     off_t ret = 0;
 
@@ -183,7 +178,7 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
          * one end (read or write) in our emulation, so we treat such FIFOs as read-only. This
          * covers most apps seen in the wild (in particular, LTP apps). */
         log_warning("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
-                    "Treating it as read-only.\n", qstrgetstr(&dent->fs->path));
+                    "Treating it as read-only.\n", qstrgetstr(&dent->mount->path));
         flags = O_RDONLY;
     }
 
@@ -245,7 +240,6 @@ static struct shim_fs_ops pipe_fs_ops = {
     .read     = &pipe_read,
     .write    = &pipe_write,
     .hstat    = &pipe_hstat,
-    .checkout = &pipe_checkout,
     .poll     = &pipe_poll,
     .setflags = &pipe_setflags,
 };
@@ -261,13 +255,13 @@ static struct shim_d_ops fifo_d_ops = {
     .open = &fifo_open,
 };
 
-struct shim_mount pipe_builtin_fs = {
-    .type   = URI_TYPE_PIPE,
+struct shim_fs pipe_builtin_fs = {
+    .name   = "pipe",
     .fs_ops = &pipe_fs_ops,
 };
 
-struct shim_mount fifo_builtin_fs = {
-    .type   = "fifo",
+struct shim_fs fifo_builtin_fs = {
+    .name   = "fifo",
     .fs_ops = &fifo_fs_ops,
     .d_ops  = &fifo_d_ops,
 };

@@ -112,13 +112,13 @@ long shim_do_pipe2(int* filedes, int flags) {
     }
 
     hdl1->type = TYPE_PIPE;
-    set_handle_fs(hdl1, &pipe_builtin_fs);
-    hdl1->flags    = O_RDONLY;
+    hdl1->fs = &pipe_builtin_fs;
+    hdl1->flags = O_RDONLY;
     hdl1->acc_mode = MAY_READ;
 
     hdl2->type = TYPE_PIPE;
-    set_handle_fs(hdl2, &pipe_builtin_fs);
-    hdl2->flags    = O_WRONLY;
+    hdl2->fs = &pipe_builtin_fs;
+    hdl2->flags = O_WRONLY;
     hdl2->acc_mode = MAY_WRITE;
 
     hdl1->info.pipe.ready_for_ops = true;
@@ -188,9 +188,9 @@ long shim_do_socketpair(int domain, int type, int protocol, int* sv) {
 
 
     hdl1->type = TYPE_SOCK;
-    set_handle_fs(hdl1, &socket_builtin_fs);
-    hdl1->flags       = O_RDONLY;
-    hdl1->acc_mode    = MAY_READ | MAY_WRITE;
+    hdl1->fs = &socket_builtin_fs;
+    hdl1->flags = O_RDONLY;
+    hdl1->acc_mode = MAY_READ | MAY_WRITE;
 
     struct shim_sock_handle* sock1 = &hdl1->info.sock;
     sock1->domain     = domain;
@@ -199,9 +199,9 @@ long shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     sock1->sock_state = SOCK_ACCEPTED;
 
     hdl2->type = TYPE_SOCK;
-    set_handle_fs(hdl2, &socket_builtin_fs);
-    hdl2->flags       = O_WRONLY;
-    hdl2->acc_mode    = MAY_READ | MAY_WRITE;
+    hdl2->fs = &socket_builtin_fs;
+    hdl2->flags = O_WRONLY;
+    hdl2->acc_mode = MAY_READ | MAY_WRITE;
 
     struct shim_sock_handle* sock2 = &hdl2->info.sock;
     sock2->domain     = domain;
@@ -307,15 +307,15 @@ long shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     }
 
     hdl1->type = TYPE_PIPE;
-    set_handle_fs(hdl1, &fifo_builtin_fs);
-    hdl1->flags    = O_RDONLY;
+    hdl1->fs =  &fifo_builtin_fs;
+    hdl1->flags = O_RDONLY;
     hdl1->acc_mode = MAY_READ;
     get_dentry(dent);
     hdl1->dentry = dent;
 
     hdl2->type = TYPE_PIPE;
-    set_handle_fs(hdl2, &fifo_builtin_fs);
-    hdl2->flags    = O_WRONLY;
+    hdl2->fs = &fifo_builtin_fs;
+    hdl2->flags = O_WRONLY;
     hdl2->acc_mode = MAY_WRITE;
     get_dentry(dent);
     hdl2->dentry = dent;

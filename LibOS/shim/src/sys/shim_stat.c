@@ -17,7 +17,7 @@
 #include "shim_table.h"
 
 static int do_stat(struct shim_dentry* dent, struct stat* stat) {
-    struct shim_mount* fs = dent->fs;
+    struct shim_fs* fs = dent->fs;
 
     if (!fs || !fs->d_ops || !fs->d_ops->stat)
         return -EACCES;
@@ -32,7 +32,7 @@ static int do_stat(struct shim_dentry* dent, struct stat* stat) {
 }
 
 static int do_hstat(struct shim_handle* hdl, struct stat* stat) {
-    struct shim_mount* fs = hdl->fs;
+    struct shim_fs* fs = hdl->fs;
 
     if (!fs || !fs->fs_ops || !fs->fs_ops->hstat)
         return -EACCES;
@@ -148,8 +148,8 @@ long shim_do_readlink(const char* file, char* buf, int bufsize) {
     return shim_do_readlinkat(AT_FDCWD, file, buf, bufsize);
 }
 
-static int __do_statfs(struct shim_mount* fs, struct statfs* buf) {
-    __UNUSED(fs);
+static int __do_statfs(struct shim_mount* mount, struct statfs* buf) {
+    __UNUSED(mount);
     if (!is_user_memory_writable(buf, sizeof(*buf)))
         return -EFAULT;
 
@@ -175,9 +175,9 @@ long shim_do_statfs(const char* path, struct statfs* buf) {
     if ((ret = path_lookupat(/*start=*/NULL, path, LOOKUP_FOLLOW, &dent)) < 0)
         return ret;
 
-    struct shim_mount* fs = dent->fs;
+    struct shim_mount* mount = dent->mount;
     put_dentry(dent);
-    return __do_statfs(fs, buf);
+    return __do_statfs(mount, buf);
 }
 
 long shim_do_fstatfs(int fd, struct statfs* buf) {
@@ -185,9 +185,9 @@ long shim_do_fstatfs(int fd, struct statfs* buf) {
     if (!hdl)
         return -EBADF;
 
-    struct shim_mount* fs = hdl->fs;
+    struct shim_mount* mount = hdl->dentry ? hdl->dentry->mount : NULL;
     put_handle(hdl);
-    return __do_statfs(fs, buf);
+    return __do_statfs(mount, buf);
 }
 
 long shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags) {

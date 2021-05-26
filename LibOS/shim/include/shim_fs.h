@@ -122,8 +122,15 @@ DEFINE_LISTP(shim_dentry);
 struct shim_dentry {
     int state; /* flags for managing state */
 
-    struct shim_mount* fs;     /* this dentry's mounted fs */
-    struct shim_qstr name;     /* caching the file's name. */
+    /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. */
+    struct shim_qstr name;
+
+    /* Mounted filesystem this dentry belongs to */
+    struct shim_mount* mount;
+
+    /* Filesystem to use for operations on this file: this is usually `mount->fs`, but can be
+     * different in case of special files (such as named pipes or sockets). */
+    struct shim_fs* fs;
 
     struct shim_dentry* parent;
     size_t nchildren;
@@ -216,22 +223,26 @@ struct shim_d_ops {
 #define NAME_MAX 255   /* filename length, NOT including null terminator */
 #define PATH_MAX 4096  /* path size, including null terminator */
 
+struct shim_fs {
+    /* Null-terminated, used in manifest and for uniquely identifying a filesystem. */
+    char name[8];
+    struct shim_fs_ops* fs_ops;
+    struct shim_d_ops* d_ops;
+};
+
 DEFINE_LIST(shim_mount);
 struct shim_mount {
-    char type[8];  // Null-terminated.
+    struct shim_fs* fs;
 
     /*
-     * TODO: this field currently functions as both the mountpoint AND the filesystem root. Instead,
-     * `mount_point` should be the dentry from the parent filesystem, and `root` should be the
-     * filesystem root.
+     * TODO: this field currently functions as both the mountpoint AND the mount root. Instead,
+     * `mount_point` should be the dentry from the parent filesystem, and `root` should be the mount
+     * root.
      */
     struct shim_dentry* mount_point;
 
     struct shim_qstr path;
     struct shim_qstr uri;
-
-    struct shim_fs_ops* fs_ops;
-    struct shim_d_ops* d_ops;
 
     /* TODO: this is unused right now (see `mount_point`) */
     struct shim_dentry* root;
@@ -277,18 +288,11 @@ int init_mount(void);
 int mount_fs(const char* mount_type, const char* mount_uri, const char* mount_point,
              struct shim_dentry* parent, struct shim_dentry** dentp, bool make_ancestor);
 int unmount_fs(const char* mount_point);
-int search_builtin_fs(const char* type, struct shim_mount** fs);
 
 void get_mount(struct shim_mount* mount);
 void put_mount(struct shim_mount* mount);
 
 struct shim_mount* find_mount_from_uri(const char* uri);
-
-static inline void set_handle_fs(struct shim_handle* hdl, struct shim_mount* fs) {
-    get_mount(fs);
-    hdl->fs = fs;
-    memcpy(hdl->fs_type, fs->type, sizeof(hdl->fs_type));
-}
 
 int walk_mounts(int (*walk)(struct shim_mount* mount, void* arg), void* arg);
 
@@ -569,7 +573,7 @@ ino_t dentry_ino(struct shim_dentry* dent);
  * \brief Allocate and initialize a new dentry
  *
  * \param parent the parent node, or NULL if this is supposed to be the dentry root
- * \param fs the filesystem the dentry is under, or NULL
+ * \param mount the mount the dentry is under
  * \param name name of the new dentry
  * \param name_len length of the name
  *
@@ -577,16 +581,16 @@ ino_t dentry_ino(struct shim_dentry* dent);
  *
  * The caller should hold `g_dcache_lock`.
  *
- * The function will initialize the following fields: `fs` (if provided), `name`, and
- * parent/children links.
+ * The function will initialize the following fields: `mount` and `fs` (if `mount` provided),
+ * `name`, and parent/children links.
  *
  * The reference count of the returned dentry will be 2 if `parent` was provided, 1 otherwise.
  *
- * The `fs` parameter should typically be `parent->fs`, but is passed explicitly to support
- * initializing the root dentry of a newly mounted filesystem. If `fs` is NULL, the resulting
- * dentry's filesystem will be left as NULL.
+ * The `mount` parameter should typically be `parent->mount`, but is passed explicitly to support
+ * initializing the root dentry of a newly mounted filesystem. The `fs` field will be initialized to
+ * `mount->fs`, but you can later change it to support special files.
  */
-struct shim_dentry* get_new_dentry(struct shim_mount* fs, struct shim_dentry* parent,
+struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry* parent,
                                    const char* name, size_t name_len);
 
 /*!
@@ -641,12 +645,18 @@ extern struct shim_d_ops str_d_ops;
 extern struct shim_fs_ops tmp_fs_ops;
 extern struct shim_d_ops tmp_d_ops;
 
-extern struct shim_mount chroot_builtin_fs;
-extern struct shim_mount pipe_builtin_fs;
-extern struct shim_mount fifo_builtin_fs;
-extern struct shim_mount socket_builtin_fs;
-extern struct shim_mount epoll_builtin_fs;
-extern struct shim_mount eventfd_builtin_fs;
+extern struct shim_fs chroot_builtin_fs;
+extern struct shim_fs proc_builtin_fs;
+extern struct shim_fs dev_builtin_fs;
+extern struct shim_fs sys_builtin_fs;
+extern struct shim_fs tmp_builtin_fs;
+extern struct shim_fs pipe_builtin_fs;
+extern struct shim_fs fifo_builtin_fs;
+extern struct shim_fs socket_builtin_fs;
+extern struct shim_fs epoll_builtin_fs;
+extern struct shim_fs eventfd_builtin_fs;
+
+struct shim_fs* find_fs(const char* name);
 
 /* pseudo file systems (separate treatment since they don't have associated dentries) */
 #define DIR_RX_MODE  0555
