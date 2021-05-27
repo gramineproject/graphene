@@ -59,11 +59,8 @@ struct link_map* new_elf_object(const char* realname, enum object_type type) {
     /* We apparently expect this to be zeroed. */
     memset(new, 0, sizeof(struct link_map));
 
-    new->l_name = realname ? malloc(strlen(realname) + 1) : NULL;
+    new->l_name = realname ? strdup(realname) : NULL;
     new->l_type = type;
-
-    if (new->l_name)
-        memcpy((char*)new->l_name, realname, strlen(realname) + 1);
 
     return new;
 }

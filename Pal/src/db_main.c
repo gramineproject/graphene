@@ -117,12 +117,11 @@ static int insert_envs_from_manifest(const char*** envpp) {
         if (!toml_env_raw) {
             /* this original env is not found in manifest (i.e., not overwritten) */
             *orig_env_key_end = '=';
-            new_envp[idx] = malloc(strlen(*orig_env) + 1);
+            new_envp[idx] = strdup(*orig_env);
             if (!new_envp[idx]) {
                 /* don't care about proper memory cleanup since will terminate anyway */
                 return -PAL_ERROR_NOMEM;
             }
-            memcpy((char*)new_envp[idx], *orig_env, strlen(*orig_env) + 1);
             idx++;
         }
         *orig_env_key_end = '=';
