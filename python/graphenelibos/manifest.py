@@ -71,28 +71,11 @@ class Runtimedir:
     def __truediv__(self, other):
         return self() / other
 
-class RepoRuntimedir(Runtimedir):
-    @staticmethod
-    def __call__(libc=None):
-        # pylint: disable=unused-argument
-        return (pathlib.Path(__file__).parent / '../../Runtime').resolve()
-
 def add_globals_from_graphene(env):
-    env.globals['graphene'] = {}
-
-    if _CONFIG_PKGLIBDIR.startswith('@'):
-        # we're not installed
-        runtimedir = RepoRuntimedir()
-        env.globals['graphene'] = {
-            'runtimedir': runtimedir,
-            'libos': runtimedir() / 'libsysdb.so',
-        }
-
-    else:
-        env.globals['graphene'] = {
-            'runtimedir': Runtimedir(),
-            'libos': pathlib.Path(_CONFIG_PKGLIBDIR) / 'libsysdb.so',
-        }
+    env.globals['graphene'] = {
+        'runtimedir': Runtimedir(),
+        'libos': pathlib.Path(_CONFIG_PKGLIBDIR) / 'libsysdb.so',
+    }
 
     try:
         from . import _offsets as offsets

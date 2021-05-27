@@ -655,8 +655,7 @@ argparser.add_argument('--depend', '-depend',
                        action='store_true', required=False,
                        help='Generate dependency for Makefile')
 
-if _CONFIG_PKGLIBDIR[0] != '@':
-    argparser.set_defaults(libpal=os.path.join(_CONFIG_PKGLIBDIR, 'sgx/libpal.so'))
+argparser.set_defaults(libpal=os.path.join(_CONFIG_PKGLIBDIR, 'sgx/libpal.so'))
 
 def parse_args(args):
     args = argparser.parse_args(args)
