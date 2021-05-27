@@ -138,7 +138,6 @@ int init_slab(void);
 
 void* malloc(size_t size);
 void free(void* mem);
-void* malloc_copy(const void* mem, size_t size);
 
 /* ELF binary loading */
 int check_elf_object(struct shim_handle* file);

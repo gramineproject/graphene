@@ -259,7 +259,6 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** o
 
 void init_slab_mgr(size_t alignment);
 void* malloc(size_t size);
-void* malloc_copy(const void* mem, size_t size);
 void* calloc(size_t nmem, size_t size);
 void free(void* mem);
 

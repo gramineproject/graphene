@@ -136,16 +136,6 @@ void* malloc(size_t size) {
     return ptr;
 }
 
-// Copies data from `mem` to a newly allocated buffer of a specified size.
-void* malloc_copy(const void* mem, size_t size) {
-    void* nmem = malloc(size);
-
-    if (nmem)
-        memcpy(nmem, mem, size);
-
-    return nmem;
-}
-
 void* calloc(size_t nmem, size_t size) {
     void* ptr = malloc(nmem * size);
 

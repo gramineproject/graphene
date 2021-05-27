@@ -59,8 +59,12 @@ struct link_map* new_elf_object(const char* realname, enum object_type type) {
     /* We apparently expect this to be zeroed. */
     memset(new, 0, sizeof(struct link_map));
 
-    new->l_name = realname ? malloc_copy(realname, strlen(realname) + 1) : NULL;
+    new->l_name = realname ? malloc(strlen(realname) + 1) : NULL;
     new->l_type = type;
+
+    if (new->l_name)
+        memcpy((char*)new->l_name, realname, strlen(realname) + 1);
+
     return new;
 }
 
@@ -356,8 +360,12 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
     } else {
         l->l_real_ld = l->l_ld = (ElfW(Dyn)*)((ElfW(Addr))l->l_ld + l->l_addr);
 
-        if (do_copy_dyn)
-            l->l_ld = malloc_copy(l->l_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
+        if (do_copy_dyn) {
+            void* old_l_ld = l->l_ld;
+            l->l_ld = malloc(sizeof(ElfW(Dyn)) * l->l_ldnum);
+            if (l->l_ld)
+                memcpy(l->l_ld, old_l_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
+        }
     }
 
     elf_get_dynamic_info(l->l_ld, l->l_info, l->l_addr);

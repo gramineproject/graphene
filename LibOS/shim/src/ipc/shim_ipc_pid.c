@@ -245,9 +245,11 @@ int ipc_pid_retstatus_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     struct retstatus_args data = {
         .retval = msgin->nstatus
     };
-    data.status = malloc_copy(msgin->status, sizeof(*data.status) * msgin->nstatus);
+    data.status = malloc(sizeof(*data.status) * msgin->nstatus);
     if (!data.status) {
         data.retval = 0;
+    } else {
+        memcpy(data.status, msgin->status, sizeof(*data.status) * msgin->nstatus);
     }
 
     ipc_msg_response_handle(src, msg->seq, set_msg_retstatus, &data);
@@ -418,9 +420,11 @@ int ipc_pid_retmeta_callback(struct shim_ipc_msg* msg, IDTYPE src) {
         .retval = msgin->datasize,
     };
     if (msgin->datasize) {
-        args.data = malloc_copy(msgin->data, msgin->datasize);
+        args.data = malloc(msgin->datasize);
         if (!args.data) {
             args.retval = 0;
+        } else {
+            memcpy(args.data, msgin->data, msgin->datasize);
         }
     }
 

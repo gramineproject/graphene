@@ -105,39 +105,6 @@ void* calloc(size_t nmemb, size_t size) {
     return ptr;
 }
 
-#if 0
-void* realloc(void* ptr, size_t new_size) {
-    /* TODO: decide how to deal with migrated-memory case */
-    assert(!memory_migrated(ptr));
-
-    size_t old_size = slab_get_buf_size(slab_mgr, ptr);
-
-    /* TODO: this realloc() implementation follows the Glibc design, which will avoid reallocation
-     *       when the buffer is large enough. Potentially this design can cause memory draining if
-     *       user resizes an extremely large object to much smaller. */
-    if (old_size >= new_size)
-        return ptr;
-
-    void* new_buf = malloc(new_size);
-    if (!new_buf)
-        return NULL;
-
-    /* realloc() does not zero the rest of the object */
-    memcpy(new_buf, ptr, old_size);
-
-    free(ptr);
-    return new_buf;
-}
-#endif
-
-// Copies data from `mem` to a newly allocated buffer of a specified size.
-void* malloc_copy(const void* mem, size_t size) {
-    void* buff = malloc(size);
-    if (buff)
-        memcpy(buff, mem, size);
-    return buff;
-}
-
 void free(void* mem) {
     if (memory_migrated(mem)) {
         return;
