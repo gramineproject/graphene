@@ -607,8 +607,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_sizestring_in(manifest_root, "sgx.enclave_size", /*defaultval=*/0,
                              &enclave_info->size);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.enclave_size' "
-                  "(the value must be put in double quotes!)\n");
+        log_error("Cannot parse 'sgx.enclave_size' (the value must be put in double quotes!)\n");
         ret = -EINVAL;
         goto out;
     }
@@ -664,8 +663,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     enclave_info->rpc_thread_num = rpc_thread_num_int64;
 
     if (enclave_info->rpc_thread_num > MAX_RPC_THREADS) {
-        log_error("Too large 'sgx.rpc_thread_num', maximum allowed is %d\n",
-                       MAX_RPC_THREADS);
+        log_error("Too large 'sgx.rpc_thread_num', maximum allowed is %d\n", MAX_RPC_THREADS);
         ret = -EINVAL;
         goto out;
     }
@@ -697,8 +695,8 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     char* dummy_sigfile_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.sigfile", &dummy_sigfile_str);
     if (ret < 0 || dummy_sigfile_str) {
-        log_error("sgx.sigfile is not supported anymore. Please update your manifest "
-                  "according to the current documentation.\n");
+        log_error("sgx.sigfile is not supported anymore. Please update your manifest according to "
+                  "the current documentation.\n");
         ret = -EINVAL;
         goto out;
     }
@@ -716,8 +714,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
 
     ret = toml_string_in(manifest_root, "sgx.ra_client_spid", &sgx_ra_client_spid_str);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.ra_client_spid' "
-                  "(the value must be put in double quotes!)\n");
+        log_error("Cannot parse 'sgx.ra_client_spid' (the value must be put in double quotes!)\n");
         ret = -EINVAL;
         goto out;
     }

@@ -134,8 +134,7 @@ out:
     if (g_mem_fd > 0) {
         int close_ret = INLINE_SYSCALL(close, 1, g_mem_fd);
         if (close_ret < 0)
-            log_error("sgx_profile_init: closing /proc/self/mem failed: %d\n",
-                      close_ret);
+            log_error("sgx_profile_init: closing /proc/self/mem failed: %d\n", close_ret);
         g_mem_fd = -1;
     }
 
