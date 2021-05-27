@@ -13,7 +13,7 @@ static const char* log_level_to_prefix[] = {
     [LOG_LEVEL_WARNING] = "warning: ",
     [LOG_LEVEL_DEBUG]   = "debug: ",
     [LOG_LEVEL_TRACE]   = "trace: ",
-    [LOG_LEVEL_ALL]     = "", // same as for LOG_LEVEL_NONE
+    [LOG_LEVEL_ALL]     = "", // not a valid entry actually (no public wrapper uses this log level)
 };
 
 static int buf_write_all(const char* str, size_t size, void* arg) {
