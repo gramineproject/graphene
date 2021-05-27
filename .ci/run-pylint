@@ -20,7 +20,5 @@ find . -name \*.py \
     -and -not -path ./Examples/pytorch/\* \
 | sed 's/./\\&/g' \
 | xargs "${PYLINT}" "$@" \
-    Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-    Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
     python/graphene-sgx-get-token \
     python/graphene-sgx-sign

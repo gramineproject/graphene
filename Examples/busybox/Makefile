@@ -73,15 +73,15 @@ busybox.manifest: busybox.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
 
-# Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This procedure measures all
-# Busybox trusted files, adds the measurement to the resulting manifest.sgx file (among other,
+# Manifest for Graphene-SGX requires special "graphene-sgx-sign" procedure. This procedure measures
+# all Busybox trusted files, adds the measurement to the resulting manifest.sgx file (among other,
 # less important SGX options) and creates busybox.sig (SIGSTRUCT object).
 #
 # Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see SGX hardware ABI, in particular EINIT
-# instruction). The "pal-sgx-get-token" script generates EINITTOKEN based on a SIGSTRUCT and puts it
-# in .token file. Note that filenames must be the same as the manifest name (i.e., "busybox").
-# EINITTOKEN must be generated on the machine where the application will run, not where it was
-# built.
+# instruction). The "graphene-sgx-get-token" script generates EINITTOKEN based on a SIGSTRUCT and
+# puts it in .token file. Note that filenames must be the same as the manifest name (i.e.,
+# "busybox"). EINITTOKEN must be generated on the machine where the application will run, not where
+# it was built.
 
 
 busybox.manifest.sgx: busybox.manifest busybox

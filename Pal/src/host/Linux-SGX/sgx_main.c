@@ -1020,7 +1020,7 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     enclave->token = INLINE_SYSCALL(open, 3, token_path, O_RDONLY | O_CLOEXEC, 0);
     if (enclave->token < 0) {
         log_error(
-            "Cannot open token %s. Use pal-sgx-get-token on the runtime host or run "
+            "Cannot open token %s. Use graphene-sgx-get-token on the runtime host or run "
             "`make SGX=1 sgx-tokens` in the Graphene source to create the token file.\n",
             token_path);
         return -EINVAL;

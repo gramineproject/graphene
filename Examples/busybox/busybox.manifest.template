@@ -76,7 +76,7 @@ fs.mount.etc.uri = "file:/etc"
 # are host-OS paths. These files will be searched for in in-Graphene
 # visible paths according to mount points above.
 #
-# As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
+# As part of the build process, Graphene-SGX script (`graphene-sgx-sign`) finds each
 # specified library, measures its hash and outputs the hash in auto-generated
 # entry 'sgx.trusted_checksum.xxx' in auto-generated 'busybox.manifest.sgx'
 # file. Note that this happens on the developer's machine.
