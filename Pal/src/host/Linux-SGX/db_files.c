@@ -472,7 +472,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         uint64_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
         uint64_t total_size = ALLOC_ALIGN_UP(offset + size) - aligned_offset;
 
-        if (size > SIZE_MAX) {
+        if (total_size > SIZE_MAX) {
             /* for compatibility with 32-bit systems */
             ret = -PAL_ERROR_INVAL;
             goto out;
