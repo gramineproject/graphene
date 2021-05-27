@@ -37,8 +37,8 @@ pal_direct_map = custom_target('pal.map',
 libgraphene_pal_direct = cc.find_library('graphene-lib',
     dirs: join_paths(meson.current_source_dir(), '.lib'))
 
-libpal_direct = shared_library('pal',
-    pal_sources_common,
+libpal_direct = both_libraries('pal',
+    pal_common_sources,
     pal_linux_common_sources,
     pal_direct_sources,
 
@@ -55,7 +55,6 @@ libpal_direct = shared_library('pal',
         '-fno-builtin',
 
         '-DHOST_TYPE=Linux',
-        '-DLINUX',
 
         '-DPIC',
         '-DSHARED',

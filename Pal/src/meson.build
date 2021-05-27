@@ -3,7 +3,7 @@ cflags_pal_common = [
     '-DIN_PAL',
 ]
 
-pal_sources_common = files(
+pal_common_sources = files(
     'db_events.c',
     'db_exception.c',
     'db_main.c',
