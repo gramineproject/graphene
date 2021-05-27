@@ -181,6 +181,7 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE c
          * gets inlined). */
         COMPILER_BARRIER();
         thread_wakeup(thread);
+        put_thread(thread);
         wait_queue = next;
     }
 

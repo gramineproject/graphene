@@ -590,9 +590,10 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
 
     ret = 0;
 out:
+    if (pal_process)
+        DkObjectClose(pal_process);
+
     if (ret < 0) {
-        if (pal_process)
-            DkObjectClose(pal_process);
         log_error("process creation failed\n");
     }
 
