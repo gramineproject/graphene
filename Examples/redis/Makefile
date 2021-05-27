@@ -74,15 +74,15 @@ redis-server.manifest: redis-server.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
 
-# Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This procedure measures all
-# Redis trusted files, adds the measurement to the resulting manifest.sgx file (among other,
+# Manifest for Graphene-SGX requires special "graphene-sgx-sign" procedure. This procedure measures
+# all Redis trusted files, adds the measurement to the resulting manifest.sgx file (among other,
 # less important SGX options) and creates redis-server.sig (SIGSTRUCT object).
 #
 # Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see SGX hardware ABI, in particular EINIT
-# instruction). The "pal-sgx-get-token" script generates EINITTOKEN based on a SIGSTRUCT and puts it
-# in .token file. Note that filenames must be the same as the manifest name (i.e., "redis-server").
-# EINITTOKEN must be generated on the machine where the application will run, not where it was
-# built.
+# instruction). The "graphene-sgx-get-token" script generates EINITTOKEN based on a SIGSTRUCT and
+# puts it in .token file. Note that filenames must be the same as the manifest name (i.e.,
+# "redis-server"). EINITTOKEN must be generated on the machine where the application will run, not
+# where it was built.
 
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.
