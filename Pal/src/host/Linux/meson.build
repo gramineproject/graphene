@@ -37,52 +37,62 @@ pal_direct_map = custom_target('pal.map',
 libgraphene_pal_direct = cc.find_library('graphene-lib',
     dirs: join_paths(meson.current_source_dir(), '.lib'))
 
-libpal_direct = both_libraries('pal',
-    pal_common_sources,
-    pal_linux_common_sources,
-    pal_direct_sources,
+# TODO after meson>=0.46 change this to both_libraries
+foreach target_type : ['shared_library', 'static_library']
+    target = build_target('pal',
+        pal_common_sources,
+        pal_linux_common_sources,
+        pal_direct_sources,
 
-    include_directories: [
-        includes_pal_common,
-        include_directories(
-            '../../../include/arch/@0@/Linux'.format(host_machine.cpu_family()),
-            '../../../include/host/Linux-common',
-        ),
-    ],
+        include_directories: [
+            includes_pal_common,
+            include_directories(
+                '../../../include/arch/@0@/Linux'.format(host_machine.cpu_family()),
+                '../../../include/host/Linux-common',
+            ),
+        ],
 
-    c_args: [
-        cflags_pal_common,
-        '-fno-builtin',
+        c_args: [
+            cflags_pal_common,
+            '-fno-builtin',
 
-        '-DHOST_TYPE=Linux',
+            '-DHOST_TYPE=Linux',
 
-        '-DPIC',
-        '-DSHARED',
-        '-Wa,--noexecstack',
-    ],
+            '-DPIC',
+            '-DSHARED',
+            '-Wa,--noexecstack',
+        ],
 
-    link_args: [
-        '-nostdlib',
-        '-Wl,-zcombreloc',
-        '-Wl,-zdefs',
-        '-Wl,--version-script=@0@'.format(pal_direct_map.full_path()),
-        '-Wl,-T@0@'.format(pal_direct_lds),
-        '-Wl,--eh-frame-hdr',
-        '-Wl,-zrelro',
-        '-Wl,-znow',
-    ],
-    link_depends: [
-        pal_direct_map,
-        pal_direct_lds,
-    ],
+        link_args: [
+            '-nostdlib',
+            '-Wl,-zcombreloc',
+            '-Wl,-zdefs',
+            '-Wl,--version-script=@0@'.format(pal_direct_map.full_path()),
+            '-Wl,-T@0@'.format(pal_direct_lds),
+            '-Wl,--eh-frame-hdr',
+            '-Wl,-zrelro',
+            '-Wl,-znow',
+        ],
+        link_depends: [
+            pal_direct_map,
+            pal_direct_lds,
+        ],
 
-    dependencies: [
-        libgraphene_pal_direct,
-    ],
+        dependencies: [
+            libgraphene_pal_direct,
+        ],
 
-    install: true,
-    install_dir: join_paths(pkglibdir, 'direct'),
-)
+        install: true,
+        install_dir: join_paths(pkglibdir, 'direct'),
+
+        target_type: target_type)
+
+    if target_type == 'shared_library'
+        libpal_direct = target
+    else
+        libpal_direct_static = target
+    endif
+endforeach
 
 libpal_direct_dep = declare_dependency(
     link_with: libpal_direct,
