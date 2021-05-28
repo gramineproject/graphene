@@ -155,6 +155,60 @@ long shim_do_close(int fd) {
     return 0;
 }
 
+/* See also `do_getdents`. */
+static off_t do_lseek_dir(struct shim_handle* hdl, off_t offset, int origin) {
+    assert(hdl->is_dir);
+
+    lock(&g_dcache_lock);
+    lock(&hdl->lock);
+
+    int ret;
+
+    /* Refresh the directory handle, so that after `lseek` the user sees an updated listing. */
+    clear_directory_handle(hdl);
+    if ((ret = populate_directory_handle(hdl)) < 0)
+        goto out;
+
+    struct shim_dir_handle* dirhdl = &hdl->dir_info;
+
+    off_t pos = dirhdl->pos;
+    switch (origin) {
+        case SEEK_SET:
+            if (offset < 0) {
+                ret = -EINVAL;
+                goto out;
+            }
+            pos = offset;
+            break;
+        case SEEK_CUR:
+            if (__builtin_add_overflow(pos, offset, &pos)) {
+                ret = -EOVERFLOW;
+                goto out;
+            }
+            break;
+        case SEEK_END:
+            if (__builtin_add_overflow(dirhdl->count, offset, &pos)) {
+                ret = -EOVERFLOW;
+                goto out;
+            }
+            break;
+        default:
+            ret = -EINVAL;
+            goto out;
+    }
+    if (pos < 0) {
+        ret = -EINVAL;
+        goto out;
+    }
+    dirhdl->pos = pos;
+    ret = 0;
+
+out:
+    unlock(&hdl->lock);
+    unlock(&g_dcache_lock);
+    return ret;
+}
+
 /* lseek is simply doing arithmetic on the offset, no PAL call here */
 long shim_do_lseek(int fd, off_t offset, int origin) {
     if (origin != SEEK_SET && origin != SEEK_CUR && origin != SEEK_END)
@@ -165,17 +219,16 @@ long shim_do_lseek(int fd, off_t offset, int origin) {
         return -EBADF;
 
     int ret = 0;
+    if (hdl->is_dir) {
+        ret = do_lseek_dir(hdl, offset, origin);
+        goto out;
+    }
+
     struct shim_mount* fs = hdl->fs;
     assert(fs && fs->fs_ops);
 
     if (!fs->fs_ops->seek) {
         ret = -ESPIPE;
-        goto out;
-    }
-
-    if (hdl->is_dir) {
-        /* TODO: handle lseek'ing of directories */
-        ret = -ENOSYS;
         goto out;
     }
 
