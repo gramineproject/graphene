@@ -398,6 +398,7 @@ int DkStreamGetName(PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size) {
 /* _DkStreamMap for internal use. Map specific handle to certain memory,
    with given protection, offset and size */
 int _DkStreamMap(PAL_HANDLE handle, void** paddr, int prot, uint64_t offset, uint64_t size) {
+    assert(IS_ALLOC_ALIGNED(offset));
     void* addr = *paddr;
     int ret;
 

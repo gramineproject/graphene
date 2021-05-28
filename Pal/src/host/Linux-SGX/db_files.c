@@ -404,6 +404,7 @@ out:
 
 /* 'map' operation for file stream. */
 static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
+    assert(IS_ALLOC_ALIGNED(offset) && IS_ALLOC_ALIGNED(size));
     int ret;
 
     uint64_t dummy;
@@ -460,6 +461,8 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
             goto out;
         }
 
+        /* FIXME: doesn't this overflow `mem`? It has only `size` bytes which could be less than
+         * `total_size`. */
         ret = copy_and_verify_trusted_file(handle->file.realpath, mem, handle->file.umem,
                                            aligned_offset, aligned_end, offset, end, chunk_hashes,
                                            handle->file.total);
@@ -469,20 +472,11 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         }
     } else {
         /* case of allowed file: simply read from underlying file descriptor into enclave memory */
-        uint64_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
-        uint64_t total_size = ALLOC_ALIGN_UP(offset + size) - aligned_offset;
-
-        if (total_size > SIZE_MAX) {
-            /* for compatibility with 32-bit systems */
-            ret = -PAL_ERROR_INVAL;
-            goto out;
-        }
-
         size_t bytes_read = 0;
-        while (bytes_read < total_size) {
-            size_t read_size = MIN(total_size - bytes_read, MAX_READ_SIZE);
+        while (bytes_read < size) {
+            size_t read_size = MIN(size - bytes_read, MAX_READ_SIZE);
             ssize_t bytes = ocall_pread(handle->file.fd, mem + bytes_read, read_size,
-                                        aligned_offset + bytes_read);
+                                        offset + bytes_read);
             if (bytes > 0) {
                 bytes_read += bytes;
             } else if (bytes == 0) {
@@ -496,10 +490,10 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
             }
         }
 
-        if (total_size - bytes_read > 0) {
+        if (size - bytes_read > 0) {
             /* file ended before all requested memory was filled -- remaining memory has to be
              * zeroed */
-            memset(mem + bytes_read, 0, total_size - bytes_read);
+            memset(mem + bytes_read, 0, size - bytes_read);
         }
     }
 

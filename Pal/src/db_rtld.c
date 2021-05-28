@@ -204,7 +204,7 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
                 c->mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
                 c->mapend   = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
                 c->dataend  = ph->p_vaddr + ph->p_filesz;
-                c->allocend = ph->p_vaddr + ph->p_memsz;
+                c->allocend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_memsz);
                 c->mapoff   = ALLOC_ALIGN_DOWN(ph->p_offset);
 
                 /* Determine whether there is a gap between the last segment
