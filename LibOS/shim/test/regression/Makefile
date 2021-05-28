@@ -40,6 +40,7 @@ c_executables = \
 	futex_wake_op \
 	getcwd \
 	getdents \
+	getdents_lseek \
 	getsockname \
 	getsockopt \
 	gettimeofday \

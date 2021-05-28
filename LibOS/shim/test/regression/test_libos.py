@@ -367,6 +367,32 @@ class TC_30_Syscall(RegressionTestCase):
 
         self.assertIn('Success!', stdout)
 
+    def test_022_getdents_lseek(self):
+        if os.path.exists("root"):
+            shutil.rmtree("root")
+
+        stdout, _ = self.run_binary(['getdents_lseek'])
+
+        # First listing
+        self.assertIn('getdents64 1: .', stdout)
+        self.assertIn('getdents64 1: ..', stdout)
+        self.assertIn('getdents64 1: file0', stdout)
+        self.assertIn('getdents64 1: file1', stdout)
+        self.assertIn('getdents64 1: file2', stdout)
+        self.assertIn('getdents64 1: file3', stdout)
+        self.assertIn('getdents64 1: file4', stdout)
+        self.assertNotIn('getdents64 1: file5', stdout)
+
+        # Second listing, after modifying directory and seeking back to 0
+        self.assertIn('getdents64 2: .', stdout)
+        self.assertIn('getdents64 2: ..', stdout)
+        self.assertNotIn('getdents64 2: file0', stdout)
+        self.assertIn('getdents64 2: file1', stdout)
+        self.assertIn('getdents64 2: file2', stdout)
+        self.assertIn('getdents64 2: file3', stdout)
+        self.assertIn('getdents64 2: file4', stdout)
+        self.assertIn('getdents64 2: file5', stdout)
+
     def test_022_host_root_fs(self):
         stdout, _ = self.run_binary(['host_root_fs'])
         self.assertIn('Test was successful', stdout)
