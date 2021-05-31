@@ -55,11 +55,7 @@ foreach target_type : ['shared_library', 'static_library']
         c_args: [
             cflags_pal_common,
             '-fno-builtin',
-
             '-DHOST_TYPE=Linux',
-
-            '-DPIC',
-            '-DSHARED',
             '-Wa,--noexecstack',
         ],
 
