@@ -20,7 +20,9 @@ extern struct atomic_int g_allocated_pages;
 extern size_t g_page_size;
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
-    if (addr < DATA_END && addr + size > TEXT_START) {
+    /* FIXME: This only checks that the memory region doesn't overlap with the PAL text segment.
+     * Ideally, this should check that memory region doesn't overlap with any reserved PAL data. */
+    if (addr < TEXT_END && addr + size > TEXT_START) {
         log_error("Address %p-%p is not mappable\n", addr, addr + size);
         return true;
     }

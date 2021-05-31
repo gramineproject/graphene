@@ -19,7 +19,9 @@
 #include "pal_linux_error.h"
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
-    return (addr < DATA_END && addr + size > TEXT_START);
+    /* FIXME: This only checks that the memory region doesn't overlap with the PAL text segment.
+     * Ideally, this should check that memory region doesn't overlap with any reserved PAL data. */
+    return (addr < TEXT_END && addr + size > TEXT_START);
 }
 
 int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
