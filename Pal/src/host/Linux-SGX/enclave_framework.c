@@ -888,7 +888,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
         goto out_no_final;
     }
 
-    pubsz = sizeof pub;
+    pubsz = sizeof(pub);
     ret = lib_DhCreatePublic(&context, pub, &pubsz);
     if (ret < 0) {
         log_error("Key Exchange: DH CreatePublic failed: %ld\n", ret);
@@ -929,26 +929,18 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
         }
     }
 
-    agreesz = sizeof agree;
+    agreesz = sizeof(agree);
     ret = lib_DhCalcSecret(&context, pub, DH_SIZE, agree, &agreesz);
     if (ret < 0) {
         log_error("Key Exchange: DH CalcSecret failed: %ld\n", ret);
         goto out;
     }
 
-    assert(agreesz > 0 && agreesz <= sizeof agree);
+    assert(agreesz > 0 && agreesz <= sizeof(agree));
 
-    /*
-     * Using SHA256 as a KDF to convert the 128-byte DH secret to a 256-bit AES key.
-     * According to the NIST recommendation:
-     * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Cr1.pdf,
-     * a key derivation function (KDF) can be a secure hash function (e.g., SHA-256),
-     * HMAC, or KMAC.
-     */
-    LIB_SHA256_CONTEXT sha;
-    if ((ret = lib_SHA256Init(&sha)) < 0 ||
-        (ret = lib_SHA256Update(&sha, agree, agreesz)) < 0 ||
-        (ret = lib_SHA256Final(&sha, (uint8_t*)key)) < 0) {
+    ret = lib_HKDF_SHA256(agree, agreesz, /*salt=*/NULL, /*salt_size=*/0, /*info=*/NULL,
+                          /*info_size=*/0, (uint8_t*)key, sizeof(*key));
+    if (ret < 0) {
         log_error("Failed to derive the session key: %ld\n", ret);
         goto out;
     }

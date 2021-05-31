@@ -28,6 +28,7 @@ crypto_mbedtls_library_objs = \
 	crypto/mbedtls/library/dhm.o \
 	crypto/mbedtls/library/entropy.o \
 	crypto/mbedtls/library/gcm.o \
+	crypto/mbedtls/library/hkdf.o \
 	crypto/mbedtls/library/md.o \
 	crypto/mbedtls/library/oid.o \
 	crypto/mbedtls/library/platform_util.o \
