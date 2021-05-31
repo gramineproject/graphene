@@ -98,10 +98,8 @@ int main(void) {
     printf("getdents_lseek: removing file0 and creating file%d\n", N);
 
     ret = remove_file("root", 0);
-    if (ret < 0) {
-        perror("unlink");
+    if (ret < 0)
         return 1;
-    }
     ret = create_file("root", N, perm);
     if (ret < 0)
         return 1;
