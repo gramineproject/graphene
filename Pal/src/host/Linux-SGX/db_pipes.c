@@ -37,30 +37,9 @@ static int pipe_addr(const char* name, struct sockaddr_un* addr) {
 }
 
 static int pipe_session_key(PAL_PIPE_NAME* name, PAL_SESSION_KEY* session_key) {
-    /* use SHA256 as a KDF; session key is KDF(g_master_key || pipe_name) */
-    int ret;
-    LIB_SHA256_CONTEXT sha;
-
-    ret = lib_SHA256Init(&sha);
-    if (ret < 0)
-        goto fail;
-
-    ret = lib_SHA256Update(&sha, (uint8_t*)&g_master_key, sizeof(g_master_key));
-    if (ret < 0)
-        goto fail;
-
-    ret = lib_SHA256Update(&sha, (uint8_t*)name->str, sizeof(name->str));
-    if (ret < 0)
-        goto fail;
-
-    ret = lib_SHA256Final(&sha, (uint8_t*)session_key);
-    if (ret < 0)
-        goto fail;
-
-    return 0;
-fail:
-    log_error("Failed to derive the pre-shared key for pipe %s: %d\n", name->str, ret);
-    return ret;
+    return lib_HKDF_SHA256((uint8_t*)&g_master_key, sizeof(g_master_key), /*salt=*/NULL,
+                           /*salt_size=*/0, (uint8_t*)name->str, sizeof(name->str),
+                           (uint8_t*)session_key, sizeof(*session_key));
 }
 
 static int thread_handshake_func(void* param) {

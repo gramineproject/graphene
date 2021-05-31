@@ -61,6 +61,11 @@ int lib_SHA256Init(LIB_SHA256_CONTEXT* context);
 int lib_SHA256Update(LIB_SHA256_CONTEXT* context, const uint8_t* data, size_t data_size);
 int lib_SHA256Final(LIB_SHA256_CONTEXT* context, uint8_t* output);
 
+/* HKDF-SHA256 for key derivation */
+int lib_HKDF_SHA256(const uint8_t* input_key, size_t input_key_size, const uint8_t* salt,
+                    size_t salt_size, const uint8_t* info, size_t info_size, uint8_t* output_key,
+                    size_t output_key_size);
+
 /* Diffie-Hellman Key Exchange */
 int lib_DhInit(LIB_DH_CONTEXT* context);
 int lib_DhCreatePublic(LIB_DH_CONTEXT* context, uint8_t* public, size_t* public_size);
