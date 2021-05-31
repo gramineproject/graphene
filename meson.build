@@ -50,7 +50,7 @@ add_project_arguments(
     '-Wwrite-strings',
 
     cc.get_supported_arguments(
-        '-Wtrampoline',
+        '-Wtrampolines',
         '-Wnull-dereference',
     ),
 
