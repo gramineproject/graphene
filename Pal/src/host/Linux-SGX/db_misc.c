@@ -270,15 +270,18 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
             case AVX512_3:
             case PKRU:
                 if (extension_enabled(xfrm, subleaf)) {
-                    if (values[EAX] != extension_sizes_bytes[subleaf]) {
+                    if (values[EAX] != extension_sizes_bytes[subleaf] ||
+                            values[EBX] != extension_offset_bytes[subleaf]) {
                         log_error("Unexpected value in host CPUID. Exiting...\n");
                         _DkProcessExit(1);
                     }
                 } else {
-                    if (values[EAX] != 0) {
-                        log_error("Unexpected value in host CPUID. Exiting...\n");
-                        _DkProcessExit(1);
-                    }
+                    /* SGX enclave doesn't use this CPU extension, pretend it doesn't exist by
+                     * forcing EAX ("size in bytes of the save area for an extended state feature")
+                     * and EBX ("offset in bytes of this extended state component's save area from
+                     * the beginning of the XSAVE/XRSTOR area") to zero */
+                    values[EAX] = 0;
+                    values[EBX] = 0;
                 }
                 break;
         }
