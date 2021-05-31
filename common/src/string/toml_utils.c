@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #include "api.h"
-#include "assert.h" // TODO: remove after warn() cleanup
+#include "assert.h"
 #include "toml.h"
 
 /* returns a pointer to next occurrence of `ch` in `s`, or null byte ending the string if it wasn't

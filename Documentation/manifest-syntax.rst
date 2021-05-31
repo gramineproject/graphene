@@ -555,7 +555,7 @@ This syntax specifies whether to enable SGX enclave-specific statistics:
    initializing the enclave.
 
 *Note:* this option is insecure and cannot be used with production enclaves
-(``sgx.debug = false``). If a production enclave is started with this option
+(``sgx.debug = false``). If the production enclave is started with this option
 set, Graphene will fail initialization of the enclave.
 
 SGX profiling
@@ -580,7 +580,7 @@ sgx-perf.data``.
 See :ref:`sgx-profile` for more information.
 
 *Note:* this option is insecure and cannot be used with production enclaves
-(``sgx.debug = false``). If a production enclave is started with this option
+(``sgx.debug = false``). If the production enclave is started with this option
 set, Graphene will fail initialization of the enclave.
 
 ::
