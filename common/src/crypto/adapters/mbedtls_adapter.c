@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2017 Fortanix, Inc. */
 /* Copyright (C) 2019 Texas A&M University */
+/* Copyright (C) 2021 Intel Corporation */
 
 #include <errno.h>
 #include <limits.h>
@@ -14,6 +15,7 @@
 #include "mbedtls/entropy_poll.h"
 #include "mbedtls/error.h"
 #include "mbedtls/gcm.h"
+#include "mbedtls/hkdf.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha256.h"
@@ -40,6 +42,7 @@ static int mbedtls_to_pal_error(int error) {
 
         case MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA:
         case MBEDTLS_ERR_DHM_BAD_INPUT_DATA:
+        case MBEDTLS_ERR_HKDF_BAD_INPUT_DATA:
         case MBEDTLS_ERR_MD_BAD_INPUT_DATA:
         case MBEDTLS_ERR_MPI_BAD_INPUT_DATA:
         case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
@@ -484,4 +487,12 @@ int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, size_t peer_size, u
 void lib_DhFinal(LIB_DH_CONTEXT* context) {
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);
+}
+
+int lib_HKDF_SHA256(const uint8_t* input_key, size_t input_key_size, const uint8_t* salt,
+                    size_t salt_size, const uint8_t* info, size_t info_size, uint8_t* output_key,
+                    size_t output_key_size) {
+    int ret = mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), salt, salt_size, input_key,
+                           input_key_size, info, info_size, output_key, output_key_size);
+    return mbedtls_to_pal_error(ret);
 }
