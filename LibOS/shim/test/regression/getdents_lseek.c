@@ -18,24 +18,24 @@ struct linux_dirent64 {
 
 #define BUF_SIZE 32
 
-static int list_dir(const char* name, int fd, size_t buf_size) {
-    char buf[buf_size];
+static int list_dir(const char* test_name, int fd) {
+    char buf[BUF_SIZE];
     int count = 0;
 
     do {
-        count = syscall(SYS_getdents64, fd, buf, buf_size);
+        count = syscall(SYS_getdents64, fd, buf, BUF_SIZE);
         if (count < 0) {
-            perror(name);
+            perror(test_name);
             return -1;
         }
 
         for (size_t offs = 0; offs < count;) {
             struct linux_dirent64* d64 = (struct linux_dirent64*)(buf + offs);
-            printf("%s: %s\n", name, d64->d_name);
+            printf("%s: %s\n", test_name, d64->d_name);
             offs += d64->d_reclen;
         }
     } while (count > 0);
-    return count;
+    return 0;
 }
 
 static int create_file(const char* dir, int n, mode_t perm) {
@@ -91,13 +91,13 @@ int main(void) {
         return 1;
     }
 
-    ret = list_dir("getdents64 1", fd, BUF_SIZE);
+    ret = list_dir("getdents64 1", fd);
     if (ret < 0)
         return 1;
 
     printf("getdents_lseek: removing file0 and creating file%d\n", N);
 
-    ret = unlink("root/file0");
+    ret = remove_file("root", 0);
     if (ret < 0) {
         perror("unlink");
         return 1;
@@ -110,11 +110,11 @@ int main(void) {
 
     ret = lseek(fd, 0, SEEK_SET);
     if (ret < 0) {
-        perror("llseek 1");
+        perror("lseek 1");
         return 1;
     }
 
-    ret = list_dir("getdents64 2", fd, BUF_SIZE);
+    ret = list_dir("getdents64 2", fd);
     if (ret < 0)
         return 1;
 

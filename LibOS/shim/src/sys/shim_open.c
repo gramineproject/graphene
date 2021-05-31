@@ -155,7 +155,7 @@ long shim_do_close(int fd) {
     return 0;
 }
 
-/* See also `do_getdents` in `shim_open.c`. */
+/* See also `do_getdents`. */
 static off_t do_lseek_dir(struct shim_handle* hdl, off_t offset, int origin) {
     assert(hdl->is_dir);
 
