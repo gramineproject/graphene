@@ -151,8 +151,7 @@ int add_preloaded_range(uintptr_t start, uintptr_t end, const char* comment);
  * \param arguments         application arguments
  * \param environments      environment variables
  */
-noreturn void pal_main(PAL_NUM instance_id, const char* exec_uri,
-                       PAL_HANDLE parent_process, PAL_HANDLE first_thread,
+noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
                        PAL_STR* arguments, PAL_STR* environments);
 
 /* For initialization */
@@ -194,7 +193,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
 noreturn void _DkThreadExit(int* clear_child_tid);
 void _DkThreadYieldExecution(void);
 int _DkThreadResume(PAL_HANDLE threadHandle);
-int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args);
+int _DkProcessCreate(PAL_HANDLE* handle, const char** args);
 noreturn void _DkProcessExit(int exitCode);
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);

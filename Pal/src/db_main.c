@@ -269,7 +269,6 @@ out_fail:
  * configuration for early initialization.
  */
 noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
-                       const char* exec_uri, // TODO: remove after migrating exec handling to LibOS.
                        PAL_HANDLE parent_process,  /* parent process if it's a child */
                        PAL_HANDLE first_thread,    /* first thread handle */
                        PAL_STR* arguments,         /* application arguments */
@@ -419,15 +418,11 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (entrypoint) {
         if (!strstartswith(entrypoint, URI_PREFIX_FILE))
             INIT_FAIL(PAL_ERROR_INVAL, "'pal.entrypoint' is missing 'file:' prefix\n");
-        // Temporary hack: Assume we're in PAL regression test suite and load the test binary
-        // directly, without LibOS.
-        exec_uri = entrypoint;
     }
 
     g_pal_control.host_type       = XSTRINGIFY(HOST_TYPE);
     g_pal_control.process_id      = _DkGetProcessId();
     g_pal_control.manifest_root   = g_pal_state.manifest_root;
-    g_pal_control.executable      = exec_uri;
     g_pal_control.parent_process  = parent_process;
     g_pal_control.first_thread    = first_thread;
     g_pal_control.disable_aslr    = disable_aslr;

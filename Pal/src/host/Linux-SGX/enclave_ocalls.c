@@ -863,10 +863,8 @@ int ocall_clone_thread(void) {
     return retval;
 }
 
-int ocall_create_process(const char* uri, size_t nargs, const char** args, int* stream_fd,
-                         unsigned int* pid) {
+int ocall_create_process(size_t nargs, const char** args, int* stream_fd, unsigned int* pid) {
     int retval = 0;
-    size_t ulen = strlen(uri) + 1;
     ms_ocall_create_process_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -875,13 +873,6 @@ int ocall_create_process(const char* uri, size_t nargs, const char** args, int* 
         sgx_reset_ustack(old_ustack);
         return -EPERM;
     }
-
-    void* untrusted_uri = sgx_copy_to_ustack(uri, ulen);
-    if (!untrusted_uri) {
-        sgx_reset_ustack(old_ustack);
-        return -EPERM;
-    }
-    WRITE_ONCE(ms->ms_uri, untrusted_uri);
 
     WRITE_ONCE(ms->ms_nargs, nargs);
     for (size_t i = 0; i < nargs; i++) {

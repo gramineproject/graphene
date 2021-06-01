@@ -39,7 +39,6 @@ executables = \
 	Pie \
 	Pipe \
 	Process \
-	Process2 \
 	Process3 \
 	Process4 \
 	Select \

@@ -266,7 +266,6 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     PAL_HANDLE parent = NULL;
     char* manifest = NULL;
-    char* exec_uri = NULL; // TODO: This should be removed from here and handled by LibOS.
     if (first_process) {
         const char* application_path = argv[3];
         char* manifest_path = alloc_concat(application_path, -1, ".manifest", -1);
@@ -280,8 +279,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     } else {
         // Children receive their argv and config via IPC.
         int parent_pipe_fd = atoi(argv[3]);
-        init_child_process(parent_pipe_fd, &parent, &exec_uri, &manifest);
-        assert(exec_uri);
+        init_child_process(parent_pipe_fd, &parent, &manifest);
     }
     assert(manifest);
 
@@ -294,25 +292,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     if (!g_pal_state.manifest_root)
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, errbuf);
 
-    if (!exec_uri) {
-        ret = toml_string_in(g_pal_state.manifest_root, "libos.entrypoint", &exec_uri);
-        if (ret < 0) {
-            INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'libos.entrypoint'\n");
-        } else if (exec_uri == NULL) {
-            // Temporary hack for PAL regression tests. TODO: We should always error out here.
-            char* pal_entrypoint;
-            ret = toml_string_in(g_pal_state.manifest_root, "pal.entrypoint", &pal_entrypoint);
-            if (ret < 0)
-                INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'\n");
-            if (!pal_entrypoint)
-                INIT_FAIL(PAL_ERROR_INVAL,
-                          "'libos.entrypoint' must be specified in the manifest\n");
-        } else if (!strstartswith(exec_uri, URI_PREFIX_FILE)) {
-            INIT_FAIL(PAL_ERROR_INVAL, "'libos.entrypoint' is missing 'file:' prefix\n");
-        }
-    }
-
     /* call to main function */
-    pal_main((PAL_NUM)g_linux_state.parent_process_id, exec_uri, parent, first_thread,
+    pal_main((PAL_NUM)g_linux_state.parent_process_id, parent, first_thread,
              first_process ? argv + 3 : argv + 4, envp);
 }

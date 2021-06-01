@@ -410,6 +410,8 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_dcache);
     RUN_INIT(init_handle);
 
+    log_setprefix(shim_get_tcb());
+
     log_debug("Shim loaded at %p, ready to initialize\n", &__load_address);
 
     if (g_pal_control->parent_process) {

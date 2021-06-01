@@ -55,7 +55,7 @@ class TC_00_BasicSet2(RegressionTestCase):
 
     def test_Pie(self):
         stdout, stderr = self.run_binary(['Pie'])
-        self.assertIn('start program: file:Pie', stderr)
+        self.assertIn('start program: Pie', stderr)
         self.assertIn('Hello World', stdout)
 
     def test_Process4(self):
@@ -103,9 +103,6 @@ class TC_01_Bootstrap(RegressionTestCase):
 
         # Basic Bootstrapping
         self.assertIn('User Program Started', stderr)
-
-        # Control Block: Executable Name
-        self.assertIn('Loaded Executable: file:Bootstrap', stderr)
 
         # One Argument Given
         self.assertIn('# of Arguments: 1', stderr)
@@ -541,13 +538,6 @@ class TC_21_ProcessCreation(RegressionTestCase):
         self.assertEqual(counter['Process Read 1: Hello World 1'], 3)
         self.assertEqual(counter['Process Write 2 OK'], 3)
         self.assertEqual(counter['Process Read 2: Hello World 2'], 3)
-
-    @unittest.skip("Temporarily broken, TODO: reenable after finishing loader rework")
-    def test_200_process2(self):
-        # Process Creation with a Different Binary
-        _, stderr = self.run_binary(['Process2'])
-        counter = collections.Counter(stderr.split('\n'))
-        self.assertEqual(counter['User Program Started'], 1)
 
     def test_300_process3(self):
         # Process Creation without Executable
