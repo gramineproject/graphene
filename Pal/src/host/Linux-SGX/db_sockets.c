@@ -410,9 +410,6 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
     if (handle->sock.fd == PAL_IDX_POISON)
         return 0;
 
-    if (len != (uint32_t)len)
-        return -PAL_ERROR_INVAL;
-
     ssize_t bytes = ocall_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
 
     if (bytes < 0)
@@ -431,9 +428,6 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
 
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_CONNFAILED;
-
-    if (len != (uint32_t)len)
-        return -PAL_ERROR_INVAL;
 
     ssize_t bytes = ocall_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
     if (bytes < 0)
@@ -550,9 +544,6 @@ static int64_t udp_receive(PAL_HANDLE handle, uint64_t offset, uint64_t len, voi
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (len != (uint32_t)len)
-        return -PAL_ERROR_INVAL;
-
     ssize_t ret = ocall_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
     return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
@@ -567,9 +558,6 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
 
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
-
-    if (len != (uint32_t)len)
-        return -PAL_ERROR_INVAL;
 
     struct sockaddr_storage conn_addr;
     size_t conn_addrlen = sizeof(conn_addr);
@@ -602,9 +590,6 @@ static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, uint64_t len, const 
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (len != (uint32_t)len)
-        return -PAL_ERROR_INVAL;
-
     ssize_t bytes = ocall_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
     if (bytes < 0)
         return unix_to_pal_error(bytes);
@@ -624,9 +609,6 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
         return -PAL_ERROR_BADHANDLE;
 
     if (!strstartswith(addr, URI_PREFIX_UDP))
-        return -PAL_ERROR_INVAL;
-
-    if (len != (uint32_t)len)
         return -PAL_ERROR_INVAL;
 
     addr += static_strlen(URI_PREFIX_UDP);

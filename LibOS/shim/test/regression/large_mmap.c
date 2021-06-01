@@ -1,7 +1,9 @@
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define TEST_LENGTH  0x10000f000
@@ -42,6 +44,24 @@ int main(void) {
     }
     ((char*)a)[0x100000000] = 0xff;
     printf("large_mmap: mmap 2 completed OK\n");
+
+#if 0
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        return 1;
+    } else if (pid > 0) {
+        int status;
+        if (wait(&status) < 0) {
+            perror("wait");
+            return 1;
+        }
+        if (!WIFEXITED(status)) {
+            fprintf(stderr, "wrong wait() status: %d\n", status);
+            return 1;
+        }
+    }
+#endif
 
     return 0;
 }
