@@ -220,6 +220,8 @@ struct sync_handle {
     /* Requested by server; always lower than cur_state, or NONE */
     int server_req_state;
 
+    /* Reference count, used internally by sync client: the user of the handle just calls
+     * `sync_create` / `sync_destroy`. */
     REFTYPE ref_count;
 };
 

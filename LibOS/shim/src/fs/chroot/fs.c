@@ -941,8 +941,10 @@ out:
 }
 
 static void chroot_hput(struct shim_handle* hdl) {
-    if (hdl->info.file.sync)
+    if (hdl->info.file.sync) {
         sync_destroy(hdl->info.file.sync);
+        hdl->info.file.sync = NULL;
+    }
 }
 
 static int chroot_checkout(struct shim_handle* hdl) {

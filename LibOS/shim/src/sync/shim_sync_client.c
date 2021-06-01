@@ -209,6 +209,7 @@ int sync_create(struct sync_handle** handle, uint64_t id) {
     if (!_handle)
         return -ENOMEM;
 
+    /* `sync_init` takes an initial reference to the handle */
     int ret = sync_init(_handle, id);
     if (ret < 0) {
         free(_handle);
@@ -254,7 +255,8 @@ void sync_destroy(struct sync_handle* handle) {
     put_sync_handle(handle);
     unlock_client();
 
-    /* Drop the reference taken in `sync_init()`. */
+    /* Drop the reference taken in `sync_init()`. We don't delete the handle immediately, because
+     * there might still be message handlers using it. */
     put_sync_handle(handle);
 }
 
@@ -444,21 +446,14 @@ BEGIN_CP_FUNC(sync_handle) {
 
     assert(handle->id != 0);
 
-    size_t off = GET_FROM_CP_MAP(obj);
-    if (!off) {
-        off = ADD_CP_OFFSET(size);
-        ADD_TO_CP_MAP(obj, off);
-        new_handle = (struct sync_handle*)(base + off);
+    size_t off = ADD_CP_OFFSET(size);
+    new_handle = (struct sync_handle*)(base + off);
 
-        /* We need to only transfer handle ID; the rest will be re-initialized on the remote
-         * side. */
-        memset(new_handle, 0, sizeof(*new_handle));
-        new_handle->id = handle->id;
-
-        ADD_CP_FUNC_ENTRY(off);
-    } else {
-        new_handle = (struct sync_handle*)(base + off);
-    }
+    /* We need to only transfer handle ID; the rest will be re-initialized on the remote
+     * side. */
+    memset(new_handle, 0, sizeof(*new_handle));
+    new_handle->id = handle->id;
+    ADD_CP_FUNC_ENTRY(off);
 
     if (objp)
         *objp = (void*)new_handle;
