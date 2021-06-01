@@ -442,15 +442,13 @@ BEGIN_CP_FUNC(sync_handle) {
     assert(size == sizeof(struct sync_handle));
 
     struct sync_handle* handle = (struct sync_handle*)obj;
-    struct sync_handle* new_handle = NULL;
 
     assert(handle->id != 0);
 
     size_t off = ADD_CP_OFFSET(size);
-    new_handle = (struct sync_handle*)(base + off);
+    struct sync_handle* new_handle = (struct sync_handle*)(base + off);
 
-    /* We need to only transfer handle ID; the rest will be re-initialized on the remote
-     * side. */
+    /* We need to only transfer handle ID; the rest will be re-initialized on the remote side. */
     memset(new_handle, 0, sizeof(*new_handle));
     new_handle->id = handle->id;
     ADD_CP_FUNC_ENTRY(off);
