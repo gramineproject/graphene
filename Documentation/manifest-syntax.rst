@@ -81,7 +81,7 @@ Command-line arguments
 
 ::
 
-   loader.argv0_override = [STRING]
+   loader.argv0_override = "[STRING]"
 
 This syntax specifies an arbitrary string (typically the executable name) that
 will be passed as the first argument (``argv[0]``) to the executable.
