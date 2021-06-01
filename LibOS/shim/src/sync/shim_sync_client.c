@@ -185,6 +185,7 @@ static int sync_init(struct sync_handle* handle, uint64_t id) {
     }
 
     HASH_ADD(hh, g_client_handles, id, sizeof(id), handle);
+    get_sync_handle(handle);
 
     unlock_client();
 
@@ -250,6 +251,7 @@ void sync_destroy(struct sync_handle* handle) {
 
     lock_client();
     HASH_DELETE(hh, g_client_handles, handle);
+    put_sync_handle(handle);
     unlock_client();
 
     /* Drop the reference taken in `sync_init()`. */
