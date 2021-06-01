@@ -468,9 +468,8 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
 
     /* FIXME: Child process requires some time to initialize before starting to receive checkpoint
      * data. Parallelizing process creation and checkpointing could improve latency of forking. */
-    const char* exec_uri = g_pal_control->executable;
     PAL_HANDLE pal_process = NULL;
-    ret = DkProcessCreate(exec_uri, /*args=*/NULL, &pal_process);
+    ret = DkProcessCreate(/*args=*/NULL, &pal_process);
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
         goto out;

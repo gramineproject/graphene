@@ -577,33 +577,6 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         goto out;
     }
 
-    // TODO: should actually be parsed by LibOS
-    char* entrypoint = NULL;
-    ret = toml_string_in(manifest_root, "libos.entrypoint", &entrypoint);
-    if (ret < 0) {
-        log_error("Cannot parse 'libos.entrypoint'\n");
-        ret = -EINVAL;
-        goto out;
-    } else if (entrypoint == NULL) {
-        // Temporary hack for PAL regression tests. We should always error out here.
-        ret = toml_string_in(manifest_root, "pal.entrypoint", &entrypoint);
-        if (ret < 0) {
-            log_error("Cannot parse 'pal.entrypoint'\n");
-            ret = -EINVAL;
-            goto out;
-        }
-        if (!entrypoint) {
-            log_error("'libos.entrypoint' must be specified in the manifest\n");
-            ret = -EINVAL;
-            goto out;
-        }
-    } else if (!strstartswith(entrypoint, URI_PREFIX_FILE)) {
-        log_error("'libos.entrypoint' is missing 'file:' prefix\n");
-        ret = -EINVAL;
-        goto out;
-    }
-    enclave_info->entrypoint_uri = entrypoint;
-
     ret = toml_sizestring_in(manifest_root, "sgx.enclave_size", /*defaultval=*/0,
                              &enclave_info->size);
     if (ret < 0) {
@@ -885,8 +858,8 @@ out:
 
 /* Warning: This function does not free up resources on failure - it assumes that the whole process
  * exits after this function's failure. */
-static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char* args,
-                        size_t args_size, char* env, size_t env_size, bool need_gsgx) {
+static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_size, char* env,
+                        size_t env_size, bool need_gsgx) {
     int ret;
     struct timeval tv;
     struct pal_sec* pal_sec = &enclave->pal_sec;
@@ -900,10 +873,6 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
         log_error("Parsing manifest failed\n");
         return -EINVAL;
     }
-
-    if (!exec_path)
-        exec_path = enclave->entrypoint_uri + URI_PREFIX_FILE_LEN;
-    size_t exec_path_len = strlen(exec_path);
 
     ret = open_sgx_driver(need_gsgx);
     if (ret < 0)
@@ -1028,12 +997,6 @@ static int load_enclave(struct pal_enclave* enclave, const char* exec_path, char
     if (!pal_sec->instance_id)
         create_instance(&enclave->pal_sec);
 
-    if (sizeof(pal_sec->exec_name) < URI_PREFIX_FILE_LEN + exec_path_len + 1) {
-        return -E2BIG;
-    }
-    memcpy(pal_sec->exec_name, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
-    memcpy(pal_sec->exec_name + URI_PREFIX_FILE_LEN, exec_path, exec_path_len + 1);
-
     ret = sgx_signal_setup();
     if (ret < 0)
         return ret;
@@ -1103,8 +1066,6 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
 
 int main(int argc, char* argv[], char* envp[]) {
     char* manifest_path = NULL;
-    char* exec_path = NULL; // TODO: The logic of passing exec_path here is a messy leftover from
-                            // the old design. It should be removed from here and handled by LibOS.
     int ret = 0;
     bool need_gsgx = true;
     char* manifest = NULL;
@@ -1162,10 +1123,6 @@ int main(int argc, char* argv[], char* envp[]) {
                                      &g_pal_enclave.application_path, &manifest);
         if (ret < 0)
             return ret;
-        exec_path = strdup(g_pal_enclave.pal_sec.exec_name + URI_PREFIX_FILE_LEN);
-        if (!exec_path) {
-            return -ENOMEM;
-        }
     }
     g_pal_enclave.raw_manifest_data = manifest;
 
@@ -1191,7 +1148,7 @@ int main(int argc, char* argv[], char* envp[]) {
     char* env = envp[0];
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1 : 0;
 
-    ret = load_enclave(&g_pal_enclave, exec_path, args, args_size, env, env_size, need_gsgx);
+    ret = load_enclave(&g_pal_enclave, args, args_size, env, env_size, need_gsgx);
     if (ret < 0) {
         log_error("load_enclave() failed with error %d\n", ret);
     }

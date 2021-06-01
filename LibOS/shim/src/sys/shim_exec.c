@@ -117,6 +117,9 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     g_process.exec = hdl;
     unlock(&g_process.fs_lock);
 
+    /* Update log prefix to include new executable name from `g_process.exec` */
+    log_setprefix(shim_get_tcb());
+
     cur_thread->stack_top = NULL;
     cur_thread->stack     = NULL;
     cur_thread->stack_red = NULL;

@@ -25,7 +25,6 @@ extern char* g_pal_loader_path;
 extern char* g_libpal_path;
 
 struct proc_args {
-    PAL_SEC_STR  exec_name;
     unsigned int instance_id;
     unsigned int parent_process_id;
     int          stream_fd;
@@ -62,8 +61,7 @@ static int __attribute_noinline vfork_exec(int parent_stream, const char** argv)
     return 0;
 }
 
-int sgx_create_process(const char* uri, size_t nargs, const char** args, int* stream_fd,
-                       const char* manifest) {
+int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const char* manifest) {
     int ret, rete, child;
     int fds[2] = {-1, -1};
 
@@ -107,7 +105,6 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 
     struct pal_sec* pal_sec = &g_pal_enclave.pal_sec;
     struct proc_args proc_args;
-    memcpy(proc_args.exec_name, uri, sizeof(PAL_SEC_STR));
     proc_args.instance_id       = pal_sec->instance_id;
     proc_args.parent_process_id = pal_sec->pid;
     proc_args.stream_fd         = fds[0];
@@ -199,7 +196,6 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** a
         goto out;
     }
 
-    memcpy(pal_sec->exec_name, proc_args.exec_name, sizeof(PAL_SEC_STR));
     pal_sec->instance_id = proc_args.instance_id;
     pal_sec->ppid        = proc_args.parent_process_id;
     pal_sec->stream_fd   = proc_args.stream_fd;
