@@ -232,7 +232,6 @@ static int send_request_close(struct sync_handle* handle) {
 
 void sync_destroy(struct sync_handle* handle) {
     assert(handle->id != 0);
-    get_sync_handle(handle);
 
     lock(&handle->prop_lock);
     assert(!handle->used);
@@ -253,14 +252,12 @@ void sync_destroy(struct sync_handle* handle) {
     HASH_DELETE(hh, g_client_handles, handle);
     unlock_client();
 
-    /* Drop two references: one from this call, one from `sync_init()`. */
-    put_sync_handle(handle);
+    /* Drop the reference taken in `sync_init()`. */
     put_sync_handle(handle);
 }
 
 bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_size) {
     assert(state == SYNC_STATE_SHARED || state == SYNC_STATE_EXCLUSIVE);
-    get_sync_handle(handle);
 
     lock(&handle->use_lock);
     if (!g_sync_enabled)
@@ -297,7 +294,6 @@ bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_si
     }
 
     unlock(&handle->prop_lock);
-    put_sync_handle(handle);
     return updated;
 }
 
@@ -306,8 +302,6 @@ void sync_unlock(struct sync_handle* handle, void* data, size_t data_size) {
         unlock(&handle->use_lock);
         return;
     }
-
-    get_sync_handle(handle);
 
     lock(&handle->prop_lock);
     assert(handle->used);
@@ -321,8 +315,6 @@ void sync_unlock(struct sync_handle* handle, void* data, size_t data_size) {
         sync_downgrade(handle);
     unlock(&handle->prop_lock);
     unlock(&handle->use_lock);
-
-    put_sync_handle(handle);
 }
 
 int shutdown_sync_client(void) {
@@ -334,7 +326,6 @@ int shutdown_sync_client(void) {
     struct sync_handle* handle;
     struct sync_handle* tmp;
     HASH_ITER(hh, g_client_handles, handle, tmp) {
-        get_sync_handle(handle);
         lock(&handle->prop_lock);
         if (g_sync_enabled && handle->phase == SYNC_PHASE_OPEN) {
             if (send_request_close(handle) < 0)
@@ -343,13 +334,11 @@ int shutdown_sync_client(void) {
             handle->cur_state = SYNC_STATE_INVALID;
         }
         unlock(&handle->prop_lock);
-        put_sync_handle(handle);
     }
 
     /* Wait for server to confirm the handles are closed. */
     log_debug("sync client shutdown: waiting for confirmation\n");
     HASH_ITER(hh, g_client_handles, handle, tmp) {
-        get_sync_handle(handle);
         unlock_client();
         lock(&handle->prop_lock);
         if (handle->phase != SYNC_PHASE_NEW) {
@@ -358,7 +347,6 @@ int shutdown_sync_client(void) {
         }
         unlock(&handle->prop_lock);
         lock_client();
-        put_sync_handle(handle);
     }
     unlock_client();
 
@@ -457,6 +445,7 @@ BEGIN_CP_FUNC(sync_handle) {
     size_t off = GET_FROM_CP_MAP(obj);
     if (!off) {
         off = ADD_CP_OFFSET(size);
+        ADD_TO_CP_MAP(obj, off);
         new_handle = (struct sync_handle*)(base + off);
 
         /* We need to only transfer handle ID; the rest will be re-initialized on the remote
@@ -479,6 +468,8 @@ BEGIN_RS_FUNC(sync_handle) {
     __UNUSED(offset);
     __UNUSED(rebase);
 
-    return sync_init(handle, handle->id);
+    int ret = sync_init(handle, handle->id);
+    if (ret < 0)
+        return ret;
 }
 END_RS_FUNC(sync_handle)
