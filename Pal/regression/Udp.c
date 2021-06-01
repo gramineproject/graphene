@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
         pal_printf("server bound on %s\n", addr);
 
         PAL_HANDLE proc = NULL;
-        if (DkProcessCreate("file:Udp", newargs, &proc) < 0) {
+        if (DkProcessCreate(newargs, &proc) < 0) {
             pal_printf("Udp: DkProcessCreate failed\n");
             return 1;
         }

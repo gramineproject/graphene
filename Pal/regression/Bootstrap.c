@@ -6,9 +6,6 @@ int main(int argc, char** argv, char** envp) {
     pal_printf("User Program Started\n");
 
     /* check control block */
-    /* check executable name */
-    pal_printf("Loaded Executable: %s\n", pal_control.executable);
-
     /* check arguments */
     pal_printf("# of Arguments: %d\n", argc);
     for (int i = 0; i < argc; i++) {

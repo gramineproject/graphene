@@ -37,7 +37,7 @@ int main(int argc, char** argv, char** envp) {
         for (int i = 0; i < 3; i++) {
             pal_printf("Creating process\n");
 
-            ret = DkProcessCreate("file:Process", args, &children[i]);
+            ret = DkProcessCreate(args, &children[i]);
 
             if (ret == 0 && children[i]) {
                 pal_printf("Process created %d\n", i + 1);

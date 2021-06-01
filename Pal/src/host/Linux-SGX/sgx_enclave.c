@@ -278,7 +278,7 @@ static long sgx_ocall_create_process(void* pms) {
     ms_ocall_create_process_t* ms = (ms_ocall_create_process_t*)pms;
     ODEBUG(OCALL_CREATE_PROCESS, ms);
 
-    ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd,
+    ret = sgx_create_process(ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd,
                              g_pal_enclave.raw_manifest_data);
     if (ret < 0) {
         return ret;
