@@ -322,7 +322,7 @@ typedef struct PAL_NUMA_HUGEPAGE_INFO_ {
 
 typedef struct PAL_NUMA_TOPO_INFO_ {
     char cpumap[PAL_SYSFS_MAP_FILESZ];
-    char distance[PAL_SYSFS_INT_FILESZ];
+    char distance[PAL_SYSFS_BUF_FILESZ];
     PAL_NUMA_HUGEPAGE_INFO hugepages[HUGEPAGES_MAX];
 } PAL_NUMA_TOPO_INFO;
 
