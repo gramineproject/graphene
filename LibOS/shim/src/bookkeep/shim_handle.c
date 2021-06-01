@@ -73,6 +73,18 @@ static inline int init_exec_handle(void) {
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
 
+    /*
+     * Find a mounted filesystem for an executable, and initialize the handle (dentry and fs).
+     *
+     * TODO: The below code is broken, and should be rewritten:
+     *
+     * - Instead of manually constructing the handle, use the proper function for opening a file
+     *   (`open_namei`).
+     *
+     * - The treatment of relative paths is wrong, and really only makes sense for the default case
+     *   when the root mount is "file:." and executable is "file:<executable>". We should probably
+     *   convert both of these to absolute paths first.
+     */
     struct shim_mount* mount = find_mount_from_uri(g_pal_control->executable);
     if (mount) {
         const char* p = g_pal_control->executable + mount->uri.len;
@@ -99,6 +111,11 @@ static inline int init_exec_handle(void) {
         exec->fs = mount->fs;
         put_mount(mount);
     } else {
+        /*
+         * TODO: This is for cases where the above lookup fails, e.g. `host_root_fs` regression test
+         * (which mounts "file:/" as root). We construct a dentry-less handle in such cases, but
+         * once the lookup is fixed, we should return an error instead.
+         */
         exec->fs = &chroot_builtin_fs;
     }
 
