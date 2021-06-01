@@ -577,7 +577,8 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
     struct shim_file_handle* file = &hdl->info.file;
 
     off_t dummy_off_t;
-    if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
+    if (file->type != FILE_TTY && file->type != FILE_DEV &&
+            __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
         ret = -EFBIG;
         goto out;
     }
@@ -588,10 +589,13 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
     } else {
-        if (__builtin_add_overflow(count, 0, &ret))
+        if (__builtin_add_overflow(count, 0, &ret)) {
             BUG();
-        if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, count, &file->marker))
+        }
+        if (file->type != FILE_TTY && file->type != FILE_DEV &&
+                __builtin_add_overflow(file->marker, count, &file->marker)) {
             BUG();
+        }
     }
 
     unlock(&hdl->lock);
@@ -618,7 +622,8 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     struct shim_file_handle* file = &hdl->info.file;
 
     off_t dummy_off_t;
-    if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
+    if (file->type != FILE_TTY && file->type != FILE_DEV &&
+            __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
         ret = -EFBIG;
         goto out;
     }
@@ -629,10 +634,13 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     if (ret < 0) {
         ret = pal_to_unix_errno(ret);
     } else {
-        if (__builtin_add_overflow(count, 0, &ret))
+        if (__builtin_add_overflow(count, 0, &ret)) {
             BUG();
-        if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, count, &file->marker))
+        }
+        if (file->type != FILE_TTY && file->type != FILE_DEV &&
+                __builtin_add_overflow(file->marker, count, &file->marker)) {
             BUG();
+        }
         if (file->marker > file->size) {
             file->size = file->marker;
             chroot_update_size(hdl, file, FILE_HANDLE_DATA(hdl));
