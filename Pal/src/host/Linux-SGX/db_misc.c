@@ -270,7 +270,8 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
             case AVX512_3:
             case PKRU:
                 if (extension_enabled(xfrm, subleaf)) {
-                    if (values[EAX] != extension_sizes_bytes[subleaf]) {
+                    if (values[EAX] != extension_sizes_bytes[subleaf] ||
+                            values[EBX] != extension_offset_bytes[subleaf]) {
                         log_error("Unexpected value in host CPUID. Exiting...\n");
                         _DkProcessExit(1);
                     }
