@@ -92,7 +92,6 @@ out:
 
 struct proc_param {
     PAL_HANDLE parent;
-    PAL_HANDLE exec;
     const char** argv;
 };
 
@@ -104,7 +103,6 @@ struct proc_args {
 
     size_t parent_data_size;
     size_t manifest_data_size;
-    size_t exec_uri_size;
 };
 
 /*
@@ -126,8 +124,6 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
     /* child */
     if (proc_param->parent)
         handle_set_cloexec(proc_param->parent, false);
-    if (proc_param->exec)
-        handle_set_cloexec(proc_param->exec, false);
 
     int res = INLINE_SYSCALL(execve, 3, g_pal_loader_path, proc_param->argv,
                              g_linux_state.host_environ);
@@ -136,8 +132,7 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
     die_or_inf_loop();
 }
 
-int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args) {
-    PAL_HANDLE exec = NULL;
+int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
     PAL_HANDLE parent_handle = NULL;
     PAL_HANDLE child_handle = NULL;
     struct proc_args* proc_args = NULL;
@@ -145,26 +140,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
     void* exec_data = NULL;
     int ret;
 
-    assert(exec_uri);
-
-    /* step 1: open exec_uri and check whether it is an executable */
-
-    if ((ret = _DkStreamOpen(&exec, exec_uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
-        return ret;
-
-    if (!is_elf_object(exec)) {
-        ret = -PAL_ERROR_INVAL;
-        goto out;
-    }
-
-    /* If this process creation is for fork emulation, map address of executable is already
-     * determined. Tell its address to the forked process. */
-    if (g_exec_map && g_exec_map->l_name && strstartswith(exec_uri, URI_PREFIX_FILE) &&
-            !strcmp(g_exec_map->l_name, exec_uri + URI_PREFIX_FILE_LEN)) {
-        exec->file.map_start = (PAL_PTR)g_exec_map->l_map_start;
-    }
-
-    /* step 2: create parent and child process handle */
+    /* step 1: create parent and child process handle */
 
     struct proc_param param;
     ret = create_process_handle(&parent_handle, &child_handle);
@@ -172,13 +148,11 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
         goto out;
 
     param.parent   = parent_handle;
-    param.exec     = exec;
 
-    /* step 3: compose process parameters */
+    /* step 2: compose process parameters */
 
     size_t parent_data_size = 0;
     size_t manifest_data_size = 0;
-    size_t exec_uri_size = strlen(exec_uri);
 
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
@@ -187,7 +161,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
 
     manifest_data_size = strlen(g_pal_state.raw_manifest_data);
 
-    size_t data_size = parent_data_size + manifest_data_size + exec_uri_size;
+    size_t data_size = parent_data_size + manifest_data_size;
     proc_args = malloc(sizeof(struct proc_args) + data_size);
     if (!proc_args) {
         ret = -ENOMEM;
@@ -208,11 +182,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
     proc_args->manifest_data_size = manifest_data_size;
     data += manifest_data_size;
 
-    memcpy(data, exec_uri, exec_uri_size);
-    proc_args->exec_uri_size = exec_uri_size;
-    data += exec_uri_size;
-
-    /* step 4: create a child thread which will execve in the future */
+    /* step 3: create a child thread which will execve in the future */
 
     /* the first argument must be the PAL */
     int argc = 0;
@@ -267,8 +237,6 @@ out:
     free(proc_args);
     if (parent_handle)
         _DkObjectClose(parent_handle);
-    if (exec)
-        _DkObjectClose(exec);
     if (ret < 0) {
         if (child_handle)
             _DkObjectClose(child_handle);
@@ -276,8 +244,7 @@ out:
     return ret;
 }
 
-void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** exec_uri_out,
-                        char** manifest_out) {
+void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** manifest_out) {
     int ret = 0;
 
     struct proc_args proc_args;
@@ -292,8 +259,7 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
     if (!proc_args.parent_data_size)
         INIT_FAIL(PAL_ERROR_INVAL, "invalid process created");
 
-    size_t data_size = proc_args.parent_data_size
-                       + proc_args.manifest_data_size + proc_args.exec_uri_size;
+    size_t data_size = proc_args.parent_data_size + proc_args.manifest_data_size;
     char* data = malloc(data_size);
     if (!data)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
@@ -320,18 +286,10 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ex
     manifest[proc_args.manifest_data_size] = '\0';
     data_iter += proc_args.manifest_data_size;
 
-    char* exec_uri = malloc(proc_args.exec_uri_size + 1);
-    if (!exec_uri)
-        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
-    memcpy(exec_uri, data_iter, proc_args.exec_uri_size);
-    exec_uri[proc_args.exec_uri_size] = '\0';
-    data_iter += proc_args.exec_uri_size;
-
     g_linux_state.parent_process_id = proc_args.parent_process_id;
     g_linux_state.memory_quota = proc_args.memory_quota;
     memcpy(&g_pal_sec, &proc_args.pal_sec, sizeof(struct pal_sec));
 
-    *exec_uri_out = exec_uri;
     *manifest_out = manifest;
     free(data);
 }

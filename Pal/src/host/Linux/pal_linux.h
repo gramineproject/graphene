@@ -127,8 +127,7 @@ int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size);
 
 bool stataccess(struct stat* stats, int acc);
 
-void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, char** exec_uri_out,
-                        char** manifest_out);
+void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, char** manifest_out);
 
 void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]);
 int block_async_signals(bool block);

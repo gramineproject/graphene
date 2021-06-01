@@ -143,11 +143,7 @@ static bool is_parent_mr_enclave_ok(PAL_HANDLE parent, sgx_measurement_t* mr_enc
     return false;
 }
 
-int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args) {
-    /* only access creating process with regular file */
-    if (!strstartswith(exec_uri, URI_PREFIX_FILE))
-        return -PAL_ERROR_INVAL;
-
+int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
     unsigned int child_pid;
     int stream_fd;
     int nargs = 0, ret;
@@ -156,7 +152,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
         for (const char** a = args; *a; a++)
             nargs++;
 
-    ret = ocall_create_process(exec_uri, nargs, args, &stream_fd, &child_pid);
+    ret = ocall_create_process(nargs, args, &stream_fd, &child_pid);
     if (ret < 0)
         return unix_to_pal_error(ret);
 

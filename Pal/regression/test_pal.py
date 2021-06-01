@@ -55,7 +55,7 @@ class TC_00_BasicSet2(RegressionTestCase):
 
     def test_Pie(self):
         stdout, stderr = self.run_binary(['Pie'])
-        self.assertIn('start program: file:Pie', stderr)
+        self.assertIn('start program: Pie', stderr)
         self.assertIn('Hello World', stdout)
 
     def test_Process4(self):
@@ -103,9 +103,6 @@ class TC_01_Bootstrap(RegressionTestCase):
 
         # Basic Bootstrapping
         self.assertIn('User Program Started', stderr)
-
-        # Control Block: Executable Name
-        self.assertIn('Loaded Executable: file:Bootstrap', stderr)
 
         # One Argument Given
         self.assertIn('# of Arguments: 1', stderr)

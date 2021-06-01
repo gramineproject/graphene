@@ -30,10 +30,13 @@ void log_setprefix(shim_tcb_t* tcb) {
     if (g_log_level <= LOG_LEVEL_NONE)
         return;
 
+    /*
     const char* exec = g_pal_control->executable;
     for (const char* it = exec; *it; it++)
         if (*it == ':' || *it == '/')
             exec = it + 1;
+    */
+    const char* exec = "EXEC";
 
     uint32_t vmid = g_self_vmid;
     size_t total_len;

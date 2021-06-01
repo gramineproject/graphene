@@ -63,7 +63,6 @@ struct pal_enclave {
     int token;
 
     char* libpal_uri; /* Path to the PAL binary */
-    char* entrypoint_uri; /* URI of the entry executable for the LibOS */
 
 #ifdef DEBUG
     /* profiling */

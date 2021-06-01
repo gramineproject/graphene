@@ -51,9 +51,6 @@ static int init_tty_handle(struct shim_handle* hdl, bool write) {
 }
 
 static inline int init_exec_handle(void) {
-    if (!g_pal_control->executable)
-        return 0;
-
     lock(&g_process.fs_lock);
     if (g_process.exec) {
         // TODO: This is only a temporary workaround, which should be deleted after removing exec
@@ -68,16 +65,24 @@ static inline int init_exec_handle(void) {
     if (!exec)
         return -ENOMEM;
 
-    qstrsetstr(&exec->uri, g_pal_control->executable, strlen(g_pal_control->executable));
+    assert(g_manifest_root);
+    char* exec_uri;
+    int ret = toml_string_in(g_manifest_root, "libos.entrypoint", &exec_uri);
+    if (ret < 0) {
+        log_error("Cannot parse 'libos.entrypoint'\n");
+        return -EINVAL;
+    }
+
+    qstrsetstr(&exec->uri, exec_uri, strlen(exec_uri));
     exec->type     = TYPE_FILE;
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
 
-    struct shim_mount* fs = find_mount_from_uri(g_pal_control->executable);
+    struct shim_mount* fs = find_mount_from_uri(exec_uri);
     if (fs) {
-        const char* p = g_pal_control->executable + fs->uri.len;
-        /* Lookup for `g_pal_control->executable` needs to be done under a given mount point which
-         * requires a relative path name. OTOH the one in manifest file can be absolute path. */
+        const char* p = exec_uri + fs->uri.len;
+        /* Lookup for `exec_uri` needs to be done under a given mount point which requires a
+         * relative path name. OTOH the one in manifest file can be absolute path. */
         while (*p == '/') {
             p++;
         }

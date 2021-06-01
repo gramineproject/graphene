@@ -580,10 +580,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     g_pal_sec.instance_id = sec_info.instance_id;
 
-    // TODO: remove after migrating exec handling to LibOS.
-    COPY_ARRAY(g_pal_sec.exec_name, sec_info.exec_name);
-    g_pal_sec.exec_name[sizeof(g_pal_sec.exec_name) - 1] = '\0';
-
     g_pal_sec.stream_fd = sec_info.stream_fd;
 
     COPY_ARRAY(g_pal_sec.pipe_prefix, sec_info.pipe_prefix);
@@ -763,5 +759,5 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
 
     /* call main function */
-    pal_main(g_pal_sec.instance_id, g_pal_sec.exec_name, parent, first_thread, arguments, environments);
+    pal_main(g_pal_sec.instance_id, parent, first_thread, arguments, environments);
 }

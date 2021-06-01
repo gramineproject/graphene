@@ -295,8 +295,7 @@ int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* 
 
 #else
 
-int sgx_create_process(const char* uri, size_t nargs, const char** args, int* stream_fd,
-                       const char* manifest);
+int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const char* manifest);
 
 #ifdef DEBUG
 #ifndef SIGCHLD
