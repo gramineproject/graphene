@@ -168,7 +168,6 @@ typedef struct {
 
 typedef struct {
     unsigned int ms_pid;
-    const char* ms_uri;
     int ms_stream_fd;
     size_t ms_nargs;
     const char* ms_args[];

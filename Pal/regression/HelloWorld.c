@@ -4,7 +4,7 @@
 char str[13] = "Hello World\n";
 
 int main(int argc, char** argv, char** envp) {
-    pal_printf("start program: %s\n", pal_control.executable);
+    pal_printf("start program: HelloWorld\n");
 
     PAL_HANDLE out = NULL;
     int ret = DkStreamOpen("dev:tty", PAL_ACCESS_WRONLY, 0, 0, 0, &out);

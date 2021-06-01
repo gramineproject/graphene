@@ -134,7 +134,6 @@ typedef struct PAL_CONTROL_ {
      */
 
     toml_table_t* manifest_root; /*!< program manifest */
-    PAL_STR executable;          /*!< initial executable name. TODO: remove from PAL */
     PAL_HANDLE parent_process;   /*!< handle of parent process */
     PAL_HANDLE first_thread;     /*!< handle of first thread */
     int log_level;               /*!< what log messages to enable */
@@ -238,13 +237,17 @@ int DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 #define PAL_PROCESS_MASK 0x0
 
 /*!
- * \brief Create a new process to run a separate executable.
+ * \brief Create a new process.
  *
- * \param exec_uri the URI of the executable to be loaded in the new process.
  * \param args an array of strings -- the arguments to be passed to the new process.
  * \param[out] handle on success contains the process handle.
+ *
+ * Loads and executes the same binary as currently executed one (`loader.preload` in case of LibOS,
+ * or `pal.entrypoint` in PAL regression tests), and passes the new arguments.
+ *
+ * TODO: `args` is only used by PAL regression tests, and should be removed at some point.
  */
-int DkProcessCreate(PAL_STR exec_uri, PAL_STR* args, PAL_HANDLE* handle);
+int DkProcessCreate(PAL_STR* args, PAL_HANDLE* handle);
 
 /*!
  * \brief Terminate all threads in the process immediately.
