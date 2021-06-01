@@ -99,3 +99,11 @@ For any questions, please send an email to support@graphene-project.io
 
 For bug reports, post an issue on our GitHub repository:
 https://github.com/oscarlab/graphene/issues.
+
+
+Acknowledgments
+===============
+
+Graphene Project benefits from generous help of `fosshost.org
+<https://fosshost.org>`__: they lend us a VPS, which we use as toolserver and
+package hosting.
