@@ -44,7 +44,7 @@ PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' 
 #     (2) Generic targets are in "host/{Host Name}/.obj".
 #     (3) API library targets are in "host/{Host Name}/.lib".
 
-ifneq ($(PAL_HOST),Linux)
+ifeq ($(PAL_HOST),Linux-SGX)
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader)
 endif
@@ -81,7 +81,7 @@ ifneq ($(pal_lib),)
 	runtime_lib += $(RUNTIME_DIR)/libpal-$(PAL_HOST)$(suffix $(pal_lib))
 endif
 
-ifneq ($(PAL_HOST),Linux)
+ifeq ($(PAL_HOST),Linux-SGX)
 files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
 endif
 
@@ -161,7 +161,7 @@ clean_targets = clean distclean
 .PHONY: $(clean_targets) clean_
 
 $(clean_targets): clean_
-ifneq ($(PAL_HOST),Linux)
+ifeq ($(PAL_HOST),Linux-SGX)
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) $@
 endif
 

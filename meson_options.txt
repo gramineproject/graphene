@@ -3,3 +3,5 @@ option('direct', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build and install graphene-direct (aka Linux aka nonsgx)')
 option('sgx', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build and install graphene-sgx (aka Linux-SGX)')
+option('skeleton', type: 'combo', choices: ['disabled', 'enabled'],
+    description: 'Build skeleton PAL')

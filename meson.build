@@ -31,6 +31,7 @@ pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 
 direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
+skeleton = get_option('skeleton') == 'enabled'
 
 cc = meson.get_compiler('c')
 objcopy = find_program('objcopy')

@@ -29,7 +29,7 @@ endforeach
 pal_direct_lds = join_paths(
     meson.current_source_dir(), 'arch', host_machine.cpu_family(), 'pal.lds')
 
-pal_direct_map = custom_target('pal.map',
+pal_direct_map = custom_target('pal.map[direct]',
     command: [gen_pal_map_prog, '@INPUT@', '@OUTPUT@'],
     input: ['../../pal-symbols', 'pal.map.template'],
     output: 'pal.map',
