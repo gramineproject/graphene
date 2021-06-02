@@ -21,9 +21,6 @@ def expectedFailureIf(predicate):
     return lambda func: func
 
 class RegressionTestCase(unittest.TestCase):
-    LOADER_ENV = 'PAL_LOADER'
-    LIBPAL_PATH_ENV = 'LIBPAL_PATH'
-    HOST_PAL_PATH_ENV = 'HOST_PAL_PATH'
     DEFAULT_TIMEOUT = (20 if HAS_SGX else 10)
 
     def get_env(self, name):
@@ -35,16 +32,15 @@ class RegressionTestCase(unittest.TestCase):
     @property
     def pal_path(self):
         # pylint: disable=protected-access
-        return pathlib.Path(os.getenv(self.HOST_PAL_PATH_ENV,
-            pathlib.Path(graphenelibos._CONFIG_PKGLIBDIR) / ('sgx' if HAS_SGX else 'direct')))
+        return pathlib.Path(graphenelibos._CONFIG_PKGLIBDIR) / ('sgx' if HAS_SGX else 'direct')
 
     @property
     def libpal_path(self):
-        return pathlib.Path(os.getenv(self.LIBPAL_PATH_ENV, fspath(self.pal_path / 'libpal.so')))
+        return self.pal_path / 'libpal.so'
 
     @property
     def loader_path(self):
-        return pathlib.Path(os.getenv(self.LOADER_ENV, fspath(self.pal_path / 'loader')))
+        return self.pal_path / 'loader'
 
     def has_debug(self):
         p = subprocess.run(['objdump', '-x', fspath(self.libpal_path)],
