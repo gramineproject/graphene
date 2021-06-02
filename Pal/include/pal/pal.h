@@ -241,6 +241,11 @@ int DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
  *
  * \param args an array of strings -- the arguments to be passed to the new process.
  * \param[out] handle on success contains the process handle.
+ *
+ * Loads and executes the same binary as currently executed one (`loader.preload` in case of LibOS,
+ * or `pal.entrypoint` in PAL regression tests), and passes the new arguments.
+ *
+ * TODO: `args` is only used by PAL regression tests, and should be removed at some point.
  */
 int DkProcessCreate(PAL_STR* args, PAL_HANDLE* handle);
 
