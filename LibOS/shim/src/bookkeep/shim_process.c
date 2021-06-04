@@ -196,6 +196,23 @@ bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE child_uid, int exit_code, int s
     return mark_child_exited(cmp_child_by_pid, (unsigned long)pid, child_uid, exit_code, signal);
 }
 
+bool is_zombie_process(IDTYPE pid) {
+    bool found = false;
+    lock(&g_process.children_lock);
+
+    struct shim_child_process* zombie;
+    LISTP_FOR_EACH_ENTRY(zombie, &g_process.zombies, list) {
+        if (zombie->pid == pid) {
+            found = true;
+            goto out;
+        }
+    }
+
+out:
+    unlock(&g_process.children_lock);
+    return found;
+}
+
 BEGIN_CP_FUNC(process_description) {
     __UNUSED(size);
     __UNUSED(objp);

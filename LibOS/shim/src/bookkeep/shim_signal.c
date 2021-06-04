@@ -124,7 +124,8 @@ static uint64_t g_process_pending_signals_cnt = 0;
 /*
  * If host signal injection is enabled, this stores the injected signal. Note that we currently
  * support injecting only 1 instance of 1 signal only once, as this feature is meant only for
- * graceful termination of the user application (e.g. via SIGTERM).
+ * graceful termination of the user application. Note that the only host-injected signal currently
+ * supported is SIGTERM; see also `pop_unblocked_signal()`.
  */
 static int g_host_injected_signal = 0;
 static bool g_inject_host_signal_enabled = false;
@@ -593,6 +594,77 @@ uintptr_t get_stack_for_sighandler(uintptr_t sp, bool use_altstack) {
     return (uintptr_t)alt_stack->ss_sp + alt_stack->ss_size;
 }
 
+void pop_unblocked_signal(__sigset_t* mask, struct shim_signal* signal) {
+    assert(signal);
+    signal->siginfo.si_signo = 0;
+
+    struct shim_thread* current = get_cur_thread();
+    assert(current);
+
+    if (__atomic_load_n(&current->pending_signals, __ATOMIC_ACQUIRE)
+            || __atomic_load_n(&g_process_pending_signals_cnt, __ATOMIC_ACQUIRE)) {
+        lock(&current->lock);
+        lock(&g_process_signal_queue_lock);
+        for (int sig = 1; sig <= NUM_SIGS; sig++) {
+            if (!__sigismember(mask ? : &current->signal_mask, sig)) {
+                bool got = false;
+                bool was_process = false;
+                /* First try to handle signals targeted at this thread, then processwide. */
+                if (sig < SIGRTMIN) {
+                    got = pop_standard_signal(&current->signal_queue.standard_signals[sig - 1],
+                                              signal);
+                    if (!got) {
+                        got = pop_standard_signal(&g_process_signal_queue.standard_signals[sig - 1],
+                                                  signal);
+                        was_process = true;
+                    }
+                } else {
+                    struct shim_signal* signal_ptr = NULL;
+                    got = pop_rt_signal(&current->signal_queue.rt_signal_queues[sig - SIGRTMIN],
+                                        &signal_ptr);
+                    if (!got) {
+                        assert(signal_ptr == NULL);
+                        got =
+                            pop_rt_signal(&g_process_signal_queue.rt_signal_queues[sig - SIGRTMIN],
+                                          &signal_ptr);
+                        was_process = true;
+                    }
+                    if (signal_ptr) {
+                        assert(got);
+                        *signal = *signal_ptr;
+                        free(signal_ptr);
+                    }
+                }
+
+                if (got) {
+                    if (was_process) {
+                        (void)__atomic_sub_fetch(&g_process_pending_signals_cnt, 1,
+                                                 __ATOMIC_RELEASE);
+                        recalc_pending_mask(&g_process_signal_queue, sig);
+                    } else {
+                        (void)__atomic_sub_fetch(&current->pending_signals, 1, __ATOMIC_RELEASE);
+                        recalc_pending_mask(&current->signal_queue, sig);
+                    }
+                    break;
+                }
+            }
+        }
+        unlock(&g_process_signal_queue_lock);
+        unlock(&current->lock);
+    } else if (__atomic_load_n(&g_host_injected_signal, __ATOMIC_RELAXED) != 0) {
+        static_assert(NUM_SIGS < 0xff, "This code requires 0xff to be an invalid signal number");
+        lock(&current->lock);
+        if (!__sigismember(mask ? : &current->signal_mask, SIGTERM)) {
+            int sig = __atomic_exchange_n(&g_host_injected_signal, 0xff, __ATOMIC_RELAXED);
+            if (sig != 0xff) {
+                signal->siginfo.si_signo = sig;
+                signal->siginfo.si_code = SI_USER;
+            }
+        }
+        unlock(&current->lock);
+    }
+}
+
 /*
  * XXX(borysp): This function handles one pending, non-blocked, non-ignored signal at a time, while,
  * I believe, normal Linux creates sigframes for all pending, non-blocked, non-ignored signals at
@@ -616,63 +688,8 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
     struct shim_signal signal = { 0 };
     if (have_forced_signal()) {
         get_forced_signal(&signal);
-    } else if (__atomic_load_n(&current->pending_signals, __ATOMIC_ACQUIRE)
-               || __atomic_load_n(&g_process_pending_signals_cnt, __ATOMIC_ACQUIRE)) {
-        lock(&current->lock);
-        lock(&g_process_signal_queue_lock);
-        for (int sig = 1; sig <= NUM_SIGS; sig++) {
-            if (!__sigismember(&current->signal_mask, sig)) {
-                bool got = false;
-                bool was_process = false;
-                /* First try to handle signals targeted at this thread, then processwide. */
-                if (sig < SIGRTMIN) {
-                    got = pop_standard_signal(&current->signal_queue.standard_signals[sig - 1],
-                                              &signal);
-                    if (!got) {
-                        got = pop_standard_signal(&g_process_signal_queue.standard_signals[sig - 1],
-                                                  &signal);
-                        was_process = true;
-                    }
-                } else {
-                    struct shim_signal* signal_ptr = NULL;
-                    got = pop_rt_signal(&current->signal_queue.rt_signal_queues[sig - SIGRTMIN],
-                                        &signal_ptr);
-                    if (!got) {
-                        assert(signal_ptr == NULL);
-                        got =
-                            pop_rt_signal(&g_process_signal_queue.rt_signal_queues[sig - SIGRTMIN],
-                                          &signal_ptr);
-                        was_process = true;
-                    }
-                    if (signal_ptr) {
-                        assert(got);
-                        signal = *signal_ptr;
-                        free(signal_ptr);
-                    }
-                }
-
-                if (got) {
-                    if (was_process) {
-                        (void)__atomic_sub_fetch(&g_process_pending_signals_cnt, 1,
-                                                 __ATOMIC_RELEASE);
-                        recalc_pending_mask(&g_process_signal_queue, sig);
-                    } else {
-                        (void)__atomic_sub_fetch(&current->pending_signals, 1, __ATOMIC_RELEASE);
-                        recalc_pending_mask(&current->signal_queue, sig);
-                    }
-                    break;
-                }
-            }
-        }
-        unlock(&g_process_signal_queue_lock);
-        unlock(&current->lock);
-    } else if (__atomic_load_n(&g_host_injected_signal, __ATOMIC_RELAXED) != 0) {
-        static_assert(NUM_SIGS < 0xff, "This code requires 0xff to be an invalid signal number");
-        int sig = __atomic_exchange_n(&g_host_injected_signal, 0xff, __ATOMIC_RELAXED);
-        if (sig != 0xff) {
-            signal.siginfo.si_signo = sig;
-            signal.siginfo.si_code = SI_USER;
-        }
+    } else {
+        pop_unblocked_signal(/*mask=*/NULL, &signal);
     }
 
     int sig = signal.siginfo.si_signo;
@@ -783,8 +800,7 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
         log_debug("Signal %d queue of thread %u is full, dropping incoming signal\n",
                   info->si_signo, thread->tid);
     } else {
-        log_debug("Signal %d queue of process is full, dropping incoming signal\n",
-                  info->si_signo);
+        log_debug("Signal %d queue of process is full, dropping incoming signal\n", info->si_signo);
     }
     /* This is counter-intuitive, but we report success here: after all signal was successfully
      * delivered, just the queue was full. */

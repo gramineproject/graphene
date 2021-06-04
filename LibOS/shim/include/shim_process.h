@@ -85,4 +85,13 @@ void add_child_process(struct shim_child_process* child);
 bool mark_child_exited_by_vmid(IDTYPE vmid, IDTYPE child_uid, int exit_code, int signal);
 bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE child_uid, int exit_code, int signal);
 
+/*!
+ * \brief Check whether the process is a zombie process (terminated but not yet waited for).
+ *
+ * \param pid  PID of the process to check.
+ *
+ * Returns `true` if the process \p pid is found in the zombie list of `g_process`.
+ */
+bool is_zombie_process(IDTYPE pid);
+
 #endif // _SHIM_PROCESS_H

@@ -63,7 +63,29 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     } else {
         log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
                   dest_pid, sig);
+
         ret = send_ipc_message(msg, dest);
+        if (ret < 0) {
+            /* During sending the message to destination process, it may have terminated and became
+             * a zombie; kill shouldn't fail in this case. The below logic checks if the destination
+             * process is _our_ zombie child -- this doesn't work for a case when the destination
+             * process is not our child (the logic will just loop couple times and return error).
+             * We assume that the latter case doesn't happen in real applications. */
+            int wait_iter = 3;
+            while (wait_iter--) {
+                if (is_zombie_process(dest_pid)) {
+                    log_debug("IPC send to terminated child process %u is dropped\n", dest_pid);
+                    ret = 0;
+                    break;
+                } else {
+                    /* There may be a race between receiving a SIGCHLD notification in the IPC
+                     * worker thread (thus marking the destination process as a zombie) and sending
+                     * a KILL in this thread, so we sleep for a bit and check for zombie again. */
+                    uint64_t timeout_us = 10000;
+                    thread_wait(&timeout_us, /*ignore_pending_signals=*/true);
+                }
+            }
+        }
     }
 
     return ret;
