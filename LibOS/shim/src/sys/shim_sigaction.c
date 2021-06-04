@@ -226,6 +226,78 @@ long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr, size_t setsize) {
     return_from_syscall(context);
 }
 
+long shim_do_rt_sigtimedwait(const __sigset_t* allowed_ptr, siginfo_t* info,
+                             struct __kernel_timespec* timeout, size_t setsize) {
+    int ret;
+
+    if (setsize != sizeof(sigset_t)) {
+        return -EINVAL;
+    }
+    if (!is_user_memory_readable(allowed_ptr, sizeof(*allowed_ptr))) {
+        return -EFAULT;
+    }
+    if (info && !is_user_memory_writable(info, sizeof(*info))) {
+        return -EFAULT;
+    }
+
+    if (timeout) {
+        if (!is_user_memory_readable(timeout, sizeof(*timeout))) {
+            return -EFAULT;
+        }
+        if (timeout->tv_sec < 0 || timeout->tv_nsec < 0 ||
+                (uint64_t)timeout->tv_nsec >= TIME_NS_IN_S) {
+            return -EINVAL;
+        }
+    }
+
+    /* invert the set of allowed signals to get the mask (with these signals unblocked) */
+    __sigset_t unblocked_mask;
+    __sigset_t all_blocked;
+    __sigfillset(&all_blocked);
+    __signotset(&unblocked_mask, &all_blocked, allowed_ptr);
+    clear_illegal_signals(&unblocked_mask);
+
+    /* Note that the user of rt_sigtimedwait() is supposed to block the signals in `allowed` set via
+     * a prior call to sigprocmask(), so that these signals can only occur as a response to this
+     * rt_sigtimedwait(). Here we temporarily unblock these `allowed` signals. */
+    __sigset_t mask;
+    __sigset_t old;
+
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    get_sig_mask(current, &old);
+    __sigandset(&mask, &unblocked_mask, &old);
+    set_sig_mask(current, &mask);
+    unlock(&current->lock);
+
+    int thread_wait_res = -EINTR;
+    thread_prepare_wait();
+    if (!have_pending_signals()) {
+        /* FIXME: timeout is not updated for consequtive thread_wait invocations */
+        uint64_t timeout_us = timeout ? timespec_to_us(timeout) : NO_TIMEOUT;
+        thread_wait_res = thread_wait(timeout_us != NO_TIMEOUT ? &timeout_us : NULL,
+                                      /*ignore_pending_signals=*/false);
+    }
+
+    struct shim_signal signal = { 0 };
+    pop_allowed_signal(&unblocked_mask, &signal);
+
+    if (signal.siginfo.si_signo) {
+        if (info) {
+            *info = signal.siginfo;
+        }
+        ret = signal.siginfo.si_signo;
+    } else {
+        ret = (thread_wait_res == -ETIMEDOUT ? -EAGAIN : -ERESTARTNOHAND);
+    }
+
+    lock(&current->lock);
+    set_sig_mask(current, &old);
+    unlock(&current->lock);
+
+    return ret;
+}
+
 long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;

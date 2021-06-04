@@ -60,8 +60,7 @@ static void test_sigprocmask(void) {
 static void clean_mask_and_pending_signals(void) {
     /* We should not have any pending signals other than SIGALRM. */
     set_signal_handler(SIGALRM, signal_handler);
-    /* This assumes that unblocking a signal will cause its immediate delivery. Unfortunately
-     * Graphene does not support sigtimedwait yet, so there is no other way. */
+    /* This assumes that unblocking a signal will cause its immediate delivery. */
     ignore_signal(0);
     __atomic_store_n(&seen_signal_cnt, 0, __ATOMIC_RELAXED);
 }

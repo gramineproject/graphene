@@ -62,6 +62,38 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
         log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
                   dest_pid, sig);
         ret = send_ipc_message(msg, dest);
+
+        if (ret < 0) {
+            /* During sending the message to destination process, it may have terminated: the
+             * destination process becomes a zombie if it was our child, and kill shouldn't fail.
+             * Note that there is a race between receiving a SIGCHLD notification in the IPC worker
+             * thread (thus marking it as a zombie) and sending a KILL in this thread, so we have to
+             * assume here that the destination child process indeed terminated during this KILL. */
+            bool dest_process_is_child = false;
+
+            lock(&g_process.children_lock);
+
+            struct shim_child_process* child;
+            LISTP_FOR_EACH_ENTRY(child, &g_process.children, list) {
+                if (child->pid == dest_pid) {
+                    dest_process_is_child = true;
+                    break;
+                }
+            }
+            LISTP_FOR_EACH_ENTRY(child, &g_process.zombies, list) {
+                if (child->pid == dest_pid) {
+                    dest_process_is_child = true;
+                    break;
+                }
+            }
+
+            unlock(&g_process.children_lock);
+
+            if (dest_process_is_child) {
+                log_debug("IPC send to terminated child process %u is dropped\n", dest_pid);
+                return 0;
+            }
+        }
     }
 
     return ret;

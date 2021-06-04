@@ -137,6 +137,19 @@ int init_signal_handling(void);
 
 int append_signal(struct shim_thread* thread, siginfo_t* info);
 
+/*!
+ * \brief Pop any of the pending signals allowed in \p mask.
+ *
+ * \param[in]  mask    Mask of blocked signals to compare against. If NULL, then the current thread
+ *                     signal mask is used.
+ * \param[out] signal  Pointer to signal, filled with signal info.
+ *
+ * Checks whether there is a pending non-blocked signal among forced signals, normal per-thread and
+ * per-process signals, and host-injected signals. Returns the first allowed signal in \p signal, or
+ * sets signal.siginfo.si_signo = 0 if no signal is found.
+ */
+void pop_allowed_signal(__sigset_t* mask, struct shim_signal* signal);
+
 void get_sig_mask(struct shim_thread* thread, __sigset_t* mask);
 void set_sig_mask(struct shim_thread* thread, const __sigset_t* new_set);
 
