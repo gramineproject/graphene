@@ -5,7 +5,7 @@
 ################################## GRAPHENE ###################################
 
 # The binary to execute.
-libos.entrypoint = "file:busybox"
+libos.entrypoint = "busybox"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true

@@ -71,10 +71,21 @@ Entrypoint
 
 ::
 
-   libos.entrypoint = "URI"
+   libos.entrypoint = "[PATH]"
 
 This specifies the first executable which is to be started when spawning a
-Graphene instance from this manifest file.
+Graphene instance from this manifest file. Needs to be a path inside Graphene
+pointing to a mounted file. Relative paths will be interpreted as starting from
+``/``.
+
+Because Graphene by default mounts the current host directory at ``/``, the
+recommended usage is to provide a relative path. For example,
+``libos.entrypoint = "hello"`` will refer to the ``hello`` executable in the
+current host directory.
+
+*NOTE:* Earlier, ``libos.entrypoint`` was a PAL URI. If you used it with a
+relative path, it's probably enough to remove ``file:`` prefix (convert
+``"file:hello"`` to ``"hello"``).
 
 Command-line arguments
 ^^^^^^^^^^^^^^^^^^^^^^

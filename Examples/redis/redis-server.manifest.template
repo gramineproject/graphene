@@ -9,7 +9,7 @@
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:redis-server"
+libos.entrypoint = "redis-server"
 
 # Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
 # that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the

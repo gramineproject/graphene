@@ -144,7 +144,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
 }
 
 long shim_do_execve(const char* file, const char** argv, const char** envp) {
-    struct shim_dentry* dent = NULL;
     int ret = 0, argc = 0;
 
     if (!is_user_string_readable(file))
@@ -182,57 +181,18 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
     LISTP_TYPE(sharg) shargs;
     INIT_LISTP(&shargs);
 
-reopen:
-
-    /* XXX: Not sure what to do here yet */
-    if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_FOLLOW, &dent)) < 0)
-        return ret;
-
-    struct shim_fs* fs = dent->fs;
-
-    if (!fs->d_ops->open) {
-        ret = -EACCES;
-    err:
-        put_dentry(dent);
-        return ret;
-    }
-
-    if (fs->d_ops->mode) {
-        __kernel_mode_t mode;
-        if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
-            goto err;
-        /* Check if the file is executable. Currently just looks at the user bit. */
-        if (!(mode & S_IXUSR)) {
-            ret = -EACCES;
-            goto err;
-        }
-    }
-
     struct shim_handle* exec = NULL;
-
+reopen:
     if (!(exec = get_new_handle())) {
-        ret = -ENOMEM;
-        goto err;
+        return -ENOMEM;
     }
 
-    exec->fs = fs;
-    exec->flags = O_RDONLY;
-    exec->acc_mode = MAY_READ;
-
-    get_dentry(dent);
-    exec->dentry   = dent;
-
-    ret = fs->d_ops->open(exec, dent, O_RDONLY);
-
-    if (qstrempty(&exec->uri)) {
-        put_dentry(dent);
+    if ((ret = open_executable(exec, file)) < 0) {
         put_handle(exec);
-        return -EACCES;
+        return ret;
     }
-
 
     if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
-        put_dentry(dent);
         put_handle(exec);
         return ret;
     }
@@ -293,7 +253,6 @@ reopen:
 
         if (!started) {
             log_warning("file not recognized as ELF or shebang\n");
-            put_dentry(dent);
             put_handle(exec);
             return -ENOEXEC;
         }
@@ -308,12 +267,10 @@ reopen:
         log_debug("detected as script: run by %s\n", first->arg);
         file = first->arg;
         LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
-        put_dentry(dent);
         put_handle(exec);
         goto reopen;
     }
 
-    put_dentry(dent);
     /* If `execve` is invoked concurrently by multiple threads, let only one succeed. From this
      * point errors are fatal. */
     static unsigned int first = 0;

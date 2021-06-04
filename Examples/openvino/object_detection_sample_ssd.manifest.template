@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-libos.entrypoint = "file:{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/object_detection_sample_ssd"
+libos.entrypoint = "{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/object_detection_sample_ssd"
 
 # Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"

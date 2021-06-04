@@ -13,6 +13,7 @@
 #include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_thread.h"
+#include "stat.h"
 
 static struct shim_lock handle_mgr_lock;
 
@@ -50,7 +51,38 @@ static int init_tty_handle(struct shim_handle* hdl, bool write) {
     return 0;
 }
 
-static inline int init_exec_handle(void) {
+int open_executable(struct shim_handle* hdl, const char* path) {
+    struct shim_dentry* dent = NULL;
+
+    int ret = path_lookupat(/*start=*/NULL, path, LOOKUP_FOLLOW, &dent);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (dent->type != S_IFREG) {
+        ret = -EACCES;
+        goto out;
+    }
+
+    if (!(dent->perm & S_IXUSR)) {
+        ret = -EACCES;
+        goto out;
+    }
+
+    ret = dentry_open(hdl, dent, O_RDONLY);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (dent)
+        put_dentry(dent);
+
+    return ret;
+}
+
+static int init_exec_handle(void) {
     lock(&g_process.fs_lock);
     if (g_process.exec) {
         /* `g_process.exec` handle is already initialized if we did execve. See
@@ -61,100 +93,56 @@ static inline int init_exec_handle(void) {
     unlock(&g_process.fs_lock);
 
     /* Initialize `g_process.exec` based on `libos.entrypoint` manifest key. */
-    char* exec_uri = NULL;
-    struct shim_mount* mount = NULL;
-    struct shim_handle* exec = NULL;
+    char* entrypoint = NULL;
+    const char* exec_path;
+    struct shim_handle* hdl = NULL;
     int ret;
 
+    /* Initialize `g_process.exec` based on `libos.entrypoint` manifest key. */
     assert(g_manifest_root);
-    ret = toml_string_in(g_manifest_root, "libos.entrypoint", &exec_uri);
+    ret = toml_string_in(g_manifest_root, "libos.entrypoint", &entrypoint);
     if (ret < 0) {
         log_error("Cannot parse 'libos.entrypoint'\n");
         ret = -EINVAL;
         goto out;
     }
-    if (!exec_uri) {
+    if (!entrypoint) {
         log_error("'libos.entrypoint' must be specified in the manifest\n");
         ret = -EINVAL;
         goto out;
     }
-    if (!strstartswith(exec_uri, URI_PREFIX_FILE)) {
-        log_error("'libos.entrypoint' is missing 'file:' prefix\n");
-        ret = -EINVAL;
-        goto out;
+
+    exec_path = entrypoint;
+
+    if (strstartswith(exec_path, URI_PREFIX_FILE)) {
+        /* TODO: change to error after some deprecation period */
+        log_error("'libos.entrypoint' is now a Graphene path, not URI. "
+                  "Ignoring the 'file:' prefix.\n");
+        exec_path += strlen(URI_PREFIX_FILE);
     }
 
-    exec = get_new_handle();
-    if (!exec) {
+    hdl = get_new_handle();
+    if (!hdl) {
         ret = -ENOMEM;
         goto out;
     }
 
-    qstrsetstr(&exec->uri, exec_uri, strlen(exec_uri));
-    exec->type     = TYPE_FILE;
-    exec->flags    = O_RDONLY;
-    exec->acc_mode = MAY_READ;
-
-    /*
-     * Find a mounted filesystem for an executable, and initialize the handle (dentry and fs).
-     *
-     * TODO: The below code is broken, and should be rewritten:
-     *
-     * - Instead of manually constructing the handle, use the proper function for opening a file
-     *   (`open_namei`).
-     *
-     * - The treatment of relative paths is wrong, and really only makes sense for the default
-     *   case when the root mount is "file:." and executable is "file:<executable>". Instead, we
-     *   should change the meaning of `libos.entrypoint` to LibOS path to a mounted executable, not
-     *   host URI.
-     */
-    mount = find_mount_from_uri(exec_uri);
-    if (mount) {
-        const char* p = exec_uri + mount->uri.len;
-        /* Lookup for `exec_uri` needs to be done under a given mount point which requires a
-         * relative path name. OTOH the one in manifest file can be absolute path. */
-        while (*p == '/') {
-            p++;
-        }
-        int ret = path_lookupat(mount->mount_point, p, LOOKUP_FOLLOW, &exec->dentry);
-        if (ret < 0) {
-            log_error("init_exec_handle: cannot find executable in filesystem: %d\n", ret);
-            goto out;
-        }
-        if ((exec->dentry->state & DENTRY_ISDIRECTORY) ||
-                (exec->dentry->state & DENTRY_SYNTHETIC)) {
-            log_error("init_exec_handle: executable is not a regular file\n");
-            ret = -EINVAL;
-            goto out;
-        }
-        if (exec->dentry->mount != mount) {
-            log_error("init_exec_handle: cannot find executable in filesystem, "
-                      "it seems to be shadowed by a mount\n");
-            ret = -EINVAL;
-            goto out;
-        }
-        exec->fs = mount->fs;
-    } else {
-        /*
-         * TODO: This is for cases where the above lookup fails, e.g. `host_root_fs` regression test
-         * (which mounts "file:/" as root). We construct a dentry-less handle in such cases, but
-         * once the lookup is fixed, we should return an error instead.
-         */
-        exec->fs = &chroot_builtin_fs;
+    ret = open_executable(hdl, exec_path);
+    if (ret < 0) {
+        log_error("init_exec_handle: error opening executable: %d\n", ret);
+        goto out;
     }
 
     lock(&g_process.fs_lock);
-    g_process.exec = exec;
-    get_handle(exec);
+    g_process.exec = hdl;
+    get_handle(hdl);
     unlock(&g_process.fs_lock);
 
     ret = 0;
 out:
-    free(exec_uri);
-    if (mount)
-        put_mount(mount);
-    if (exec)
-        put_handle(exec);
+    free(entrypoint);
+    if (hdl)
+        put_handle(hdl);
     return ret;
 }
 

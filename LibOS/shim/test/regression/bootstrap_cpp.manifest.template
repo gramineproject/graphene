@@ -1,5 +1,5 @@
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:bootstrap_cpp"
+libos.entrypoint = "bootstrap_cpp"
 loader.argv0_override = "bootstrap_cpp"
 
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"

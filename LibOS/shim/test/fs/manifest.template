@@ -1,5 +1,5 @@
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:{{ entrypoint }}"
+libos.entrypoint = "{{ entrypoint }}"
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 loader.insecure__use_cmdline_argv = true
 

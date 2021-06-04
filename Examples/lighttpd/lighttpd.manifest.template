@@ -7,7 +7,7 @@
 # graphene-direct ./lighttpd <script>
 # graphene-sgx ./lighttpd <script>
 
-libos.entrypoint = "file:{{ install_dir }}/sbin/lighttpd"
+libos.entrypoint = "{{ install_dir }}/sbin/lighttpd"
 
 # Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"

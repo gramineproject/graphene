@@ -3,7 +3,7 @@
 # This manifest was prepared and tested on Ubuntu 16.04.
 
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:{{ install_dir }}/bin/httpd"
+libos.entrypoint = "{{ install_dir }}/bin/httpd"
 loader.argv0_override = "httpd"
 
 # Read application arguments directly from the command line. Don't use this on production!

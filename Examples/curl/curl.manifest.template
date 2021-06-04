@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-libos.entrypoint = "file:{{ curl_dir }}/curl"
+libos.entrypoint = "{{ curl_dir }}/curl"
 loader.argv0_override = "curl"
 
 # LibOS layer library of Graphene. There is currently only one implementation,

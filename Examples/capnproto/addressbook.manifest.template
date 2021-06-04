@@ -3,7 +3,7 @@
 # This manifest was prepared and tested on Ubuntu 16.04 and Ubuntu 18.04.
 
 # The binary to execute.
-libos.entrypoint = "file:addressbook"
+libos.entrypoint = "addressbook"
 
 # LibOS layer library of Graphene (currently only one implementation, libsysdb)
 loader.preload = "file:{{ graphene.libos }}"

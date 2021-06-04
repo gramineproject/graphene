@@ -88,7 +88,7 @@ Example
 .. code-block:: jinja
 
    loader.preload = "file:{{ graphene.libos }}"
-   libos.entrypoint = "file:{{ entrypoint }}"
+   libos.entrypoint = "{{ entrypoint }}"
    loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr{{ arch_libdir }}"
 
    [fs.mount.runtime]

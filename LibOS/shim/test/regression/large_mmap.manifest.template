@@ -1,5 +1,5 @@
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:large_mmap"
+libos.entrypoint = "large_mmap"
 loader.argv0_override = "large_mmap"
 
 loader.env.LD_LIBRARY_PATH = "/lib"

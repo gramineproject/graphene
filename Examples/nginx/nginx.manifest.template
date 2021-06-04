@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-libos.entrypoint = "file:{{ install_dir }}/sbin/nginx"
+libos.entrypoint = "{{ install_dir }}/sbin/nginx"
 
 # Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"
