@@ -69,6 +69,7 @@ static inline int init_exec_handle(void) {
     ret = toml_string_in(g_manifest_root, "libos.entrypoint", &exec_uri);
     if (ret < 0) {
         log_error("Cannot parse 'libos.entrypoint'\n");
+        ret = -EINVAL;
         goto out;
     }
     if (!exec_uri) {
