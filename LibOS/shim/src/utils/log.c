@@ -42,16 +42,6 @@ void log_setprefix(shim_tcb_t* tcb) {
     } else if (g_process.exec) {
         if (g_process.exec->dentry) {
             exec_name = qstrgetstr(&g_process.exec->dentry->name);
-        } else if (!qstrempty(&g_process.exec->uri)) {
-            /* TODO: This is possible if `init_exec_handle` does not find the dentry for executable.
-             * Remove this branch after `init_exec_handle` is fixed. */
-            exec_name = qstrgetstr(&g_process.exec->uri);
-            /* Skip everything before ':' and '/' */
-            for (const char* it = exec_name; *it; it++) {
-                if (*it == ':' || *it == '/') {
-                    exec_name = it + 1;
-                }
-            }
         } else {
             /* Unknown executable name */
             exec_name = "?";

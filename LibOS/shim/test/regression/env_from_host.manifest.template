@@ -1,6 +1,6 @@
 loader.preload = "file:{{ graphene.libos }}"
 loader.argv0_override = "bootstrap"
-libos.entrypoint = "file:bootstrap"
+libos.entrypoint = "bootstrap"
 
 loader.env.LD_LIBRARY_PATH = "/lib"
 loader.insecure__use_host_env = true

@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04. The tested version of Node.js was v13.14.0.
 
-libos.entrypoint = "file:{{ nodejs_dir }}/nodejs"
+libos.entrypoint = "{{ nodejs_dir }}/nodejs"
 
 # LibOS layer library of Graphene. There is currently only one implementation, so it is always set
 # to libsysdb.so.
@@ -27,6 +27,11 @@ loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
 # Allow for injecting SIGTERM signal from the host.
 sys.enable_sigterm_injection = true
+
+# Mount the nodejs binary
+fs.mount.nodejs.type = "chroot"
+fs.mount.nodejs.path = "{{ nodejs_dir }}/nodejs"
+fs.mount.nodejs.uri = "file:{{ nodejs_dir }}/nodejs"
 
 # Mount host-OS directory to required libraries (in 'uri') into in-Graphene visible directory /lib
 # (in 'path').

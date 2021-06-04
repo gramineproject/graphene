@@ -144,7 +144,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
 }
 
 long shim_do_execve(const char* file, const char** argv, const char** envp) {
-    struct shim_dentry* dent = NULL;
     int ret = 0, argc = 0;
 
     if (!is_user_string_readable(file))
@@ -172,148 +171,23 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
             return -EFAULT;
     }
 
-    DEFINE_LIST(sharg);
-    struct sharg {
-        LIST_TYPE(sharg) list;
-        int len;
-        char arg[0];
-    };
-    DEFINE_LISTP(sharg);
-    LISTP_TYPE(sharg) shargs;
-    INIT_LISTP(&shargs);
-
-reopen:
-
-    /* XXX: Not sure what to do here yet */
-    if ((ret = path_lookupat(/*start=*/NULL, file, LOOKUP_FOLLOW, &dent)) < 0)
-        return ret;
-
-    struct shim_fs* fs = dent->fs;
-
-    if (!fs->d_ops->open) {
-        ret = -EACCES;
-    err:
-        put_dentry(dent);
-        return ret;
-    }
-
-    if (fs->d_ops->mode) {
-        __kernel_mode_t mode;
-        if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
-            goto err;
-        /* Check if the file is executable. Currently just looks at the user bit. */
-        if (!(mode & S_IXUSR)) {
-            ret = -EACCES;
-            goto err;
-        }
-    }
-
     struct shim_handle* exec = NULL;
-
     if (!(exec = get_new_handle())) {
-        ret = -ENOMEM;
-        goto err;
+        return -ENOMEM;
     }
 
-    exec->fs = fs;
-    exec->flags = O_RDONLY;
-    exec->acc_mode = MAY_READ;
-
-    get_dentry(dent);
-    exec->dentry   = dent;
-
-    ret = fs->d_ops->open(exec, dent, O_RDONLY);
-
-    if (qstrempty(&exec->uri)) {
-        put_dentry(dent);
-        put_handle(exec);
-        return -EACCES;
-    }
-
-
-    if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
-        put_dentry(dent);
+    if ((ret = open_executable(exec, file)) < 0) {
         put_handle(exec);
         return ret;
     }
 
-    if (ret == -EINVAL) { /* it's a shebang */
-        LISTP_TYPE(sharg) new_shargs = LISTP_INIT;
-        struct sharg* next = NULL;
-        bool ended = false, started = false;
-        char buf[80];
-
-        do {
-            ret = do_handle_read(exec, buf, 80);
-            if (ret <= 0)
-                break;
-
-            char* s = buf;
-            char* c = buf;
-            char* e = buf + ret;
-
-            if (!started) {
-                if (ret < 2 || buf[0] != '#' || buf[1] != '!')
-                    break;
-
-                s += 2;
-                c += 2;
-                started = true;
-            }
-
-            for (; c < e; c++) {
-                if (*c == ' ' || *c == '\n' || c == e - 1) {
-                    int l = (*c == ' ' || *c == '\n') ? c - s : e - s;
-                    if (next) {
-                        struct sharg* sh = __alloca(sizeof(struct sharg) + next->len + l + 1);
-                        sh->len = next->len + l;
-                        memcpy(sh->arg, next->arg, next->len);
-                        memcpy(sh->arg + next->len, s, l);
-                        sh->arg[next->len + l] = 0;
-                        next = sh;
-                    } else {
-                        next = __alloca(sizeof(struct sharg) + l + 1);
-                        next->len = l;
-                        memcpy(next->arg, s, l);
-                        next->arg[l] = 0;
-                    }
-                    if (*c == ' ' || *c == '\n') {
-                        INIT_LIST_HEAD(next, list);
-                        LISTP_ADD_TAIL(next, &new_shargs, list);
-                        next = NULL;
-                        s = c + 1;
-                        if (*c == '\n') {
-                            ended = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        } while (!ended);
-
-        if (!started) {
-            log_warning("file not recognized as ELF or shebang\n");
-            put_dentry(dent);
-            put_handle(exec);
-            return -ENOEXEC;
-        }
-
-        if (next) {
-            INIT_LIST_HEAD(next, list);
-            LISTP_ADD_TAIL(next, &new_shargs, list);
-        }
-
-        struct sharg* first = LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
-        assert(first);
-        log_debug("detected as script: run by %s\n", first->arg);
-        file = first->arg;
-        LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
-        put_dentry(dent);
+    /* TODO: consider handling shebangs, if necessary */
+    if ((ret = check_elf_object(exec)) < 0) {
+        log_warning("file not recognized as ELF\n");
         put_handle(exec);
-        goto reopen;
+        return ret;
     }
 
-    put_dentry(dent);
     /* If `execve` is invoked concurrently by multiple threads, let only one succeed. From this
      * point errors are fatal. */
     static unsigned int first = 0;

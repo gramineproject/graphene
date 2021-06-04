@@ -71,10 +71,30 @@ Entrypoint
 
 ::
 
-   libos.entrypoint = "URI"
+   libos.entrypoint = "[PATH]"
 
 This specifies the first executable which is to be started when spawning a
-Graphene instance from this manifest file.
+Graphene instance from this manifest file. Needs to be a path inside Graphene
+pointing to a mounted file. Relative paths will be interpreted as starting from
+the current working directory (i.e. from ``/`` by default, or ``fs.start_dir``
+if specified).
+
+The recommended usage is to provide an absolute path, and mount the executable
+at that path. For example:
+
+::
+   libos.entrypoint = "/usr/bin/python3.8"
+
+   fs.mount.python.type = "chroot"
+   fs.mount.python.path = "/usr/bin/python3.8"
+   fs.mount.python.uri = "file:/usr/bin/python3.8"
+   # Or, if using a binary from your local directory:
+   # fs.mount.python.uri = "file:python3.8"
+
+.. note ::
+   Earlier, ``libos.entrypoint`` was a PAL URI. If you used it with a relative
+   path, it's probably enough to remove ``file:`` prefix (convert
+   ``"file:hello"`` to ``"hello"``).
 
 Command-line arguments
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -108,9 +128,11 @@ If you want your application to use commandline arguments you need to either set
 ``loader.argv_src_file`` is intended to point to either a trusted file or a
 protected file. The former allows to securely hardcode arguments (current
 manifest syntax doesn't allow to include them inline), the latter allows the
-arguments to be provided at runtime from an external (trusted) source. *NOTE:*
-Pointing to a protected file is currently not supported, due to the fact that
-PF wrap key provisioning currently happens after setting up arguments.
+arguments to be provided at runtime from an external (trusted) source.
+
+.. note ::
+   Pointing to a protected file is currently not supported, due to the fact that
+   PF wrap key provisioning currently happens after setting up arguments.
 
 Environment variables
 ^^^^^^^^^^^^^^^^^^^^^
@@ -141,9 +163,12 @@ environment, which can be generated using :file:`Tools/argv_serializer`. This
 option is intended to point to either a trusted file or a protected file. The
 former allows to securely hardcode environments (in a more flexible way than
 ``loader.env.[ENVIRON]`` option), the latter allows the environments to be
-provided at runtime from an external (trusted) source. *NOTE:* Pointing to a
-protected file is currently not supported, due to the fact that PF wrap key
-provisioning currently happens after setting up environment variables.
+provided at runtime from an external (trusted) source.
+
+.. note ::
+   Pointing to a protected file is currently not supported, due to the fact that
+   PF wrap key provisioning currently happens after setting up environment
+   variables.
 
 If the same variable is set in both, then ``loader.env.[ENVIRON]`` takes
 precedence.

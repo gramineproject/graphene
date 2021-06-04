@@ -1,5 +1,5 @@
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:init_fail"
+libos.entrypoint = "init_fail"
 loader.argv0_override = "init_fail"
 
 loader.env.LD_LIBRARY_PATH = "/lib"

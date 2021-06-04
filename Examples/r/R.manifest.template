@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-libos.entrypoint = "file:{{ r_exec }}"
+libos.entrypoint = "{{ r_exec }}"
 
 # Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"

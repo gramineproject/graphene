@@ -1,7 +1,7 @@
 loader.preload = "file:{{ graphene.libos }}"
 loader.env.LD_LIBRARY_PATH = "/lib"
 loader.argv0_override = "multi_pthread"
-libos.entrypoint = "file:multi_pthread"
+libos.entrypoint = "multi_pthread"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"

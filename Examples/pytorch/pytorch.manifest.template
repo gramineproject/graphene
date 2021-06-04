@@ -2,7 +2,7 @@
 #
 # This manifest was tested on Ubuntu 16.04 and 18.04.
 
-libos.entrypoint = "file:{{ entrypoint }}"
+libos.entrypoint = "{{ entrypoint }}"
 
 # Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"

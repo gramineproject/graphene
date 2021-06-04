@@ -359,6 +359,8 @@ int walk_handle_map(int (*callback)(struct shim_fd_handle*, struct shim_handle_m
 int init_handle(void);
 int init_important_handles(void);
 
+int open_executable(struct shim_handle* hdl, const char* path);
+
 int get_file_size(struct shim_handle* file, uint64_t* size);
 
 int do_handle_read(struct shim_handle* hdl, void* buf, int count);

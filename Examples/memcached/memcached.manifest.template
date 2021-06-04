@@ -24,7 +24,7 @@
 loader.preload = "file:{{ graphene.libos }}"
 
 # Binary to run.
-libos.entrypoint = "file:memcached"
+libos.entrypoint = "memcached"
 
 # Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
 # that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the

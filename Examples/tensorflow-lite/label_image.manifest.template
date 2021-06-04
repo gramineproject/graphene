@@ -1,5 +1,5 @@
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:label_image"
+libos.entrypoint = "label_image"
 loader.env.LD_LIBRARY_PATH = "/lib:."
 loader.env.PATH = "/bin:/usr/bin"
 

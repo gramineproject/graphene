@@ -3,7 +3,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:{{ execdir }}/bash"
+libos.entrypoint = "{{ execdir }}/bash"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true

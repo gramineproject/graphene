@@ -11,7 +11,7 @@ sgx.allowed_files.blender_input = "file:{{ data_dir }}/scenes/"
 sgx.allowed_files.blender_output = "file:{{ data_dir }}/images/"
 
 
-libos.entrypoint = "file:{{ blender_dir }}/blender"
+libos.entrypoint = "/blender/blender"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true

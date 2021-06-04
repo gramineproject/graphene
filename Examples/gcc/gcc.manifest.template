@@ -2,7 +2,7 @@ loader.preload = "file:{{ graphene.libos }}"
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 loader.env.PATH = "/bin:/usr/bin"
 loader.log_level = "{{ log_level }}"
-libos.entrypoint = "file:/usr/bin/gcc"
+libos.entrypoint = "/usr/bin/gcc"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true

@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-libos.entrypoint = "file:client"
+libos.entrypoint = "client"
 
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so.

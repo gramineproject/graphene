@@ -1,5 +1,5 @@
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:openmp"
+libos.entrypoint = "openmp"
 loader.argv0_override = "openmp"
 
 # Graphene optionally provides patched OpenMP runtime library that runs faster inside SGX enclaves

@@ -1,5 +1,5 @@
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:host_root_fs"
+libos.entrypoint = "{{ env.PWD }}/host_root_fs"
 loader.argv0_override = "host_root_fs"
 
 loader.env.LD_LIBRARY_PATH = "/lib"
@@ -13,6 +13,6 @@ fs.mount.graphene_lib.path = "/lib"
 fs.mount.graphene_lib.uri = "file:{{ graphene.runtimedir() }}"
 
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.host_root_fs = "file:host_root_fs"
+sgx.trusted_files.host_root_fs = "file:{{ env.PWD }}/host_root_fs"
 
 sgx.nonpie_binary = true

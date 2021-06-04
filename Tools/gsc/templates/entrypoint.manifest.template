@@ -1,4 +1,4 @@
-libos.entrypoint = "file:/{{binary}}"
+libos.entrypoint = "/{{binary}}"
 loader.preload = "file:/graphene/Runtime/libsysdb.so"
 
 loader.env.LD_LIBRARY_PATH = "/graphene/Runtime:{{"{{library_paths}}"}}"
