@@ -496,13 +496,16 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
                 continue;
             }
 
-            size_t total_msg_size         = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
-            struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, sops->client.vmid);
-            resp_msg->seq = sops->client.seq;
+            struct shim_ipc_resp resp = {
+                .retval = sops->stat.completed ? 0 : -EAGAIN,
+            };
 
-            struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
-            resp->retval               = sops->stat.completed ? 0 : -EAGAIN;
+            size_t total_msg_size         = get_ipc_msg_size(sizeof(resp));
+            struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
+            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size);
+            resp_msg->header.seq = sops->client.seq;
+
+            memcpy(&resp_msg->data, &resp, sizeof(resp));
 
             send_ipc_message(resp_msg, sops->client.vmid);
 
@@ -651,13 +654,15 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
     if (stat.completed || stat.failed) {
         ret = stat.completed ? 0 : -EAGAIN;
         if (client && sendreply) {
-            size_t total_msg_size         = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
+            struct shim_ipc_resp resp = {
+                .retval = ret,
+            };
+            size_t total_msg_size         = get_ipc_msg_size(sizeof(resp));
             struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, client->vmid);
-            resp_msg->seq = client->seq;
+            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size);
+            resp_msg->header.seq = client->seq;
 
-            struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
-            resp->retval               = ret;
+            memcpy(&resp_msg->data, &resp, sizeof(resp));
 
             ret = send_ipc_message(resp_msg, client->vmid);
         }

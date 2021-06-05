@@ -42,10 +42,10 @@ static AEVENTTYPE exit_notification_event;
 static int g_clear_on_worker_exit = 1;
 static PAL_HANDLE g_self_ipc_handle = NULL;
 
-static int ipc_resp_callback(struct shim_ipc_msg* msg, IDTYPE src);
-static int ipc_connect_back_callback(struct shim_ipc_msg* msg, IDTYPE src);
+static int ipc_resp_callback(IDTYPE src, void* data, unsigned long seq);
+static int ipc_connect_back_callback(IDTYPE src, void* data, unsigned long seq);
 
-typedef int (*ipc_callback)(struct shim_ipc_msg* msg, IDTYPE src);
+typedef int (*ipc_callback)(IDTYPE src, void* data, unsigned long seq);
 static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_RESP]          = ipc_resp_callback,
     [IPC_MSG_CONNBACK]      = ipc_connect_back_callback,
@@ -120,13 +120,16 @@ static void del_ipc_connection(struct shim_ipc_connection* conn) {
 static int send_ipc_response(IDTYPE dest, int ret, unsigned long seq) {
     ret = (ret == RESPONSE_CALLBACK) ? 0 : ret;
 
-    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
-    struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-    init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, dest);
-    resp_msg->seq = seq;
+    struct shim_ipc_resp resp = {
+        .retval = ret,
+    };
 
-    struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
-    resp->retval = ret;
+    size_t total_msg_size = get_ipc_msg_size(sizeof(resp));
+    struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
+    init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size);
+    resp_msg->header.seq = seq;
+
+    memcpy(&resp_msg->data, &resp, sizeof(resp));
 
     return send_ipc_message(resp_msg, dest);
 }
@@ -141,22 +144,21 @@ static void set_request_retval(struct shim_ipc_msg_with_ack* req_msg, void* data
     thread_wakeup(req_msg->thread);
 }
 
-static int ipc_resp_callback(struct shim_ipc_msg* msg, IDTYPE src) {
-    struct shim_ipc_resp* resp = (struct shim_ipc_resp*)&msg->msg;
-    log_debug(LOG_PREFIX "got IPC msg response from %u: %d\n", msg->src, resp->retval);
-    assert(src == msg->src);
+static int ipc_resp_callback(IDTYPE src, void* data, unsigned long seq) {
+    struct shim_ipc_resp* resp = (struct shim_ipc_resp*)data;
+    log_debug(LOG_PREFIX "got IPC msg response from %u: %d\n", src, resp->retval);
 
-    ipc_msg_response_handle(src, msg->seq, set_request_retval, (void*)(intptr_t)resp->retval);
-
+    ipc_msg_response_handle(seq, set_request_retval, (void*)(intptr_t)resp->retval);
     return 0;
 }
 
 /* Another process requested that we connect to it. */
-static int ipc_connect_back_callback(struct shim_ipc_msg* orig_msg, IDTYPE src) {
+static int ipc_connect_back_callback(IDTYPE src, void* data, unsigned long seq) {
+    __UNUSED(data);
     size_t total_msg_size = get_ipc_msg_size(0);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_DUMMY, total_msg_size, src);
-    msg->seq = orig_msg->seq;
+    init_ipc_msg(msg, IPC_MSG_DUMMY, total_msg_size);
+    msg->header.seq = seq;
 
     return send_ipc_message(msg, src);
 }
@@ -169,18 +171,18 @@ static int ipc_connect_back_callback(struct shim_ipc_msg* orig_msg, IDTYPE src) 
 static int receive_ipc_messages(struct shim_ipc_connection* conn) {
     size_t size = 0;
     /* Try to get more bytes that strictly required in case there are more messages waiting.
-     * `0x20` as a random estimation of "couple of ints" + `IPC_MSG_MINIMAL_SIZE` to get the next
+     * `0x40` as a random estimation of "couple of ints" + message header size to get the next
      * message header if possible. */
-#define READAHEAD_SIZE (0x20 + IPC_MSG_MINIMAL_SIZE)
+#define READAHEAD_SIZE (0x40 + sizeof(struct ipc_msg_header))
     union {
-        struct shim_ipc_msg msg_header;
-        char buf[IPC_MSG_MINIMAL_SIZE + READAHEAD_SIZE];
+        struct ipc_msg_header msg_header;
+        char buf[sizeof(struct ipc_msg_header) + READAHEAD_SIZE];
     } buf;
 #undef READAHEAD_SIZE
 
     do {
         /* Receive at least the message header. */
-        while (size < IPC_MSG_MINIMAL_SIZE) {
+        while (size < sizeof(buf.msg_header)) {
             size_t tmp_size = sizeof(buf) - size;
             int ret = DkStreamRead(conn->handle, /*offset=*/0, &tmp_size, buf.buf + size, NULL, 0);
             if (ret < 0) {
@@ -204,50 +206,57 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
             size += tmp_size;
         }
 
+        assert(buf.msg_header.size >= sizeof(struct ipc_msg_header));
         size_t msg_size = buf.msg_header.size;
-        struct shim_ipc_msg* msg = malloc(msg_size);
-        if (!msg) {
+        size_t data_size = msg_size - sizeof(struct ipc_msg_header);
+        void* msg_data = malloc(data_size);
+        if (!msg_data) {
             return -ENOMEM;
         }
 
+        unsigned char msg_code = buf.msg_header.code;
+        unsigned long msg_seq = buf.msg_header.seq;
+
         if (msg_size <= size) {
             /* Already got the whole message (and possibly part of the next one). */
-            memcpy(msg, buf.buf, msg_size);
+            memcpy(msg_data, buf.buf + sizeof(struct ipc_msg_header), data_size);
             memmove(buf.buf, buf.buf + msg_size, size - msg_size);
             size -= msg_size;
         } else {
             /* Need to get rest of the message. */
-            memcpy(msg, buf.buf, size);
-            int ret = read_exact(conn->handle, (char*)msg + size, msg_size - size);
+            assert(size >= sizeof(struct ipc_msg_header));
+            size_t current_size = size - sizeof(struct ipc_msg_header);
+            memcpy(msg_data, buf.buf + sizeof(struct ipc_msg_header), current_size);
+
+            int ret = read_exact(conn->handle, (char*)msg_data + current_size,
+                                 data_size - current_size);
             if (ret < 0) {
-                free(msg);
+                free(msg_data);
                 log_error(LOG_PREFIX "receiving message from %u failed: %d\n", conn->vmid, ret);
                 return ret;
             }
             size = 0;
         }
 
-        log_debug(LOG_PREFIX "received IPC message from %u: code=%d size=%lu src=%u dst=%u seq=%lu"
-                  "\n", conn->vmid, msg->code, msg->size, msg->src, msg->dst, msg->seq);
+        log_debug(LOG_PREFIX "received IPC message from %u: code=%d size=%lu seq=%lu\n", conn->vmid,
+                  msg_code, msg_size, msg_seq);
 
-        assert(conn->vmid == msg->src);
-
-        if (msg->code < ARRAY_SIZE(ipc_callbacks) && ipc_callbacks[msg->code]) {
-            int ret = ipc_callbacks[msg->code](msg, conn->vmid);
-            if ((ret < 0 || ret == RESPONSE_CALLBACK) && msg->seq) {
-                ret = send_ipc_response(conn->vmid, ret, msg->seq);
+        if (msg_code < ARRAY_SIZE(ipc_callbacks) && ipc_callbacks[msg_code]) {
+            int ret = ipc_callbacks[msg_code](conn->vmid, msg_data, msg_seq);
+            if ((ret < 0 || ret == RESPONSE_CALLBACK) && msg_seq) {
+                ret = send_ipc_response(conn->vmid, ret, msg_seq);
                 if (ret < 0) {
                     log_error(LOG_PREFIX "sending IPC msg response to %u failed: %d\n", conn->vmid,
                               ret);
-                    free(msg);
+                    free(msg_data);
                     return ret;
                 }
             }
         } else {
-            log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg->code);
+            log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg_code);
         }
 
-        free(msg);
+        free(msg_data);
     } while (size > 0);
 
     return 0;

@@ -31,34 +31,34 @@ int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal) {
         return 0;
     }
 
-    IDTYPE dest = g_process_ipc_ids.parent_vmid;
-
-    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_CHILDEXIT, total_msg_size, dest);
-
     struct shim_thread* self = get_cur_thread();
     lock(&self->lock);
     IDTYPE uid = self->uid;
     unlock(&self->lock);
 
-    struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
-    msgin->ppid                     = g_process.ppid;
-    msgin->pid                      = g_process.pid;
-    msgin->exitcode                 = exitcode;
-    msgin->term_signal              = term_signal;
-    msgin->uid                      = uid;
+    struct shim_ipc_cld_exit msgin = {
+        .ppid        = g_process.ppid,
+        .pid         = g_process.pid,
+        .exitcode    = exitcode,
+        .term_signal = term_signal,
+        .uid         = uid,
+    };
 
-    return send_ipc_message(msg, dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_MSG_CHILDEXIT, total_msg_size);
+
+    memcpy(msg->data, &msgin, sizeof(msgin));
+
+    return send_ipc_message(msg, g_process_ipc_ids.parent_vmid);
 }
 
-int ipc_cld_exit_callback(struct shim_ipc_msg* msg, IDTYPE src) {
-    struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
+int ipc_cld_exit_callback(IDTYPE src, void* data, unsigned long seq) {
+    __UNUSED(seq);
+    struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)data;
 
-    log_debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", msg->src,
+    log_debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", src,
           msgin->ppid, msgin->pid, msgin->exitcode, msgin->term_signal);
-
-    assert(src == msg->src);
 
     if (mark_child_exited_by_pid(msgin->pid, msgin->uid, msgin->exitcode, msgin->term_signal)) {
         log_debug("Child process (pid: %u) died\n", msgin->pid);

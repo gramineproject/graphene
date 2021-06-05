@@ -45,15 +45,17 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
         }
     }
 
-    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_pid_kill));
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_PID_KILL, total_msg_size, dest);
+    struct shim_ipc_pid_kill msgin = {
+        .sender = sender,
+        .type = type,
+        .id = target,
+        .signum = sig,
+    };
 
-    struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)&msg->msg;
-    msgin->sender                   = sender;
-    msgin->type                     = type;
-    msgin->id                       = target;
-    msgin->signum                   = sig;
+    size_t total_msg_size    = get_ipc_msg_size(sizeof(msgin));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_MSG_PID_KILL, total_msg_size);
+    memcpy(&msg->data, &msgin, sizeof(msgin));
 
     if (type == KILL_ALL && !g_process_ipc_ids.leader_vmid) {
         log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, dest_pid, sig);
@@ -83,11 +85,12 @@ int ipc_kill_all(IDTYPE sender, int sig) {
     return ipc_pid_kill_send(KILL_ALL, sender, /*dest_pid=*/0, /*target=*/0, sig);
 }
 
-int ipc_pid_kill_callback(struct shim_ipc_msg* msg, IDTYPE src) {
-    struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)msg->msg;
+int ipc_pid_kill_callback(IDTYPE src, void* data, unsigned long seq) {
+    __UNUSED(seq);
+    struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)data;
 
-    log_debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", msg->src,
-              msgin->sender, msgin->type, msgin->id, msgin->signum);
+    log_debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", src, msgin->sender,
+              msgin->type, msgin->id, msgin->signum);
 
     if (msgin->signum == 0) {
         /* If signal number is 0, then no signal is sent, but process existence is still checked. */
@@ -109,6 +112,10 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, IDTYPE src) {
             break;
         case KILL_ALL:
             if (!g_process_ipc_ids.leader_vmid) {
+                size_t total_msg_size = get_ipc_msg_size(sizeof(*msgin));
+                struct shim_ipc_msg* msg = __alloca(total_msg_size);
+                init_ipc_msg(msg, IPC_MSG_PID_KILL, total_msg_size);
+                memcpy(&msg->data, msgin, sizeof(*msgin));
                 ret = broadcast_ipc(msg, src);
                 if (ret < 0) {
                     break;
@@ -121,15 +128,16 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, IDTYPE src) {
 }
 
 int ipc_pid_getstatus_send(IDTYPE dest, int npids, IDTYPE* pids, struct pid_status** status) {
-    size_t total_msg_size =
-        get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_pid_getstatus) + sizeof(IDTYPE) * npids);
+    struct shim_ipc_pid_getstatus msgin = {
+        .npids = npids,
+    };
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(msgin) + sizeof(IDTYPE) * npids);
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_MSG_PID_GETSTATUS, total_msg_size, dest);
+    init_ipc_msg_with_ack(msg, IPC_MSG_PID_GETSTATUS, total_msg_size);
     msg->private = status;
 
-    struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)&msg->msg.msg;
-    msgin->npids                         = npids;
-    memcpy(msgin->pids, pids, sizeof(IDTYPE) * npids);
+    memcpy(&msg->msg.data, &msgin, sizeof(msgin));
+    memcpy(&((struct shim_ipc_pid_getstatus*)&msg->msg.data)->pids, pids, sizeof(IDTYPE) * npids);
 
     log_debug("ipc send to %u: IPC_MSG_PID_GETSTATUS(%d, [%u, ...])\n", dest, npids, pids[0]);
 
@@ -165,13 +173,12 @@ out:
     return ret;
 }
 
-int ipc_pid_getstatus_callback(struct shim_ipc_msg* msg, IDTYPE src) {
-    __UNUSED(src);
-    struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)msg->msg;
+int ipc_pid_getstatus_callback(IDTYPE src, void* data, unsigned long seq) {
+    struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)data;
     int ret = 0;
 
-    log_debug("ipc callback from %u: IPC_MSG_PID_GETSTATUS(%d, [%u, ...])\n", msg->src,
-              msgin->npids, msgin->pids[0]);
+    log_debug("ipc callback from %u: IPC_MSG_PID_GETSTATUS(%d, [%u, ...])\n", src, msgin->npids,
+              msgin->pids[0]);
 
     struct thread_status status;
     status.npids   = msgin->npids;
@@ -183,23 +190,23 @@ int ipc_pid_getstatus_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     if (ret < 0 && ret != -ESRCH)
         goto out;
 
-    assert(src == msg->src);
-    ret = ipc_pid_retstatus_send(msg->src, status.nstatus, status.status, msg->seq);
+    ret = ipc_pid_retstatus_send(src, status.nstatus, status.status, seq);
 out:
     return ret;
 }
 
 int ipc_pid_retstatus_send(IDTYPE dest, int nstatus, struct pid_status* status, unsigned long seq) {
-    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retstatus) +
-                                             sizeof(struct pid_status) * nstatus);
+    struct shim_ipc_pid_retstatus msgin = {
+        .nstatus = nstatus,
+    };
+    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin) + sizeof(struct pid_status) * nstatus);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_PID_RETSTATUS, total_msg_size, dest);
+    init_ipc_msg(msg, IPC_MSG_PID_RETSTATUS, total_msg_size);
+    msg->header.seq = seq;
 
-    struct shim_ipc_pid_retstatus* msgin = (struct shim_ipc_pid_retstatus*)&msg->msg;
-
-    msgin->nstatus = nstatus;
-    memcpy(msgin->status, status, sizeof(struct pid_status) * nstatus);
-    msg->seq = seq;
+    memcpy(&msg->data, &msgin, sizeof(msgin));
+    memcpy(&((struct shim_ipc_pid_retstatus*)&msg->data)->status, status,
+           sizeof(struct pid_status) * nstatus);
 
     if (nstatus)
         log_debug("ipc send to %u: IPC_MSG_PID_RETSTATUS(%d, [%u, ...])\n", dest, nstatus,
@@ -233,26 +240,27 @@ static void set_msg_retstatus(struct shim_ipc_msg_with_ack* req_msg, void* _data
     thread_wakeup(req_msg->thread);
 }
 
-int ipc_pid_retstatus_callback(struct shim_ipc_msg* msg, IDTYPE src) {
-    struct shim_ipc_pid_retstatus* msgin = (struct shim_ipc_pid_retstatus*)msg->msg;
+int ipc_pid_retstatus_callback(IDTYPE src, void* data, unsigned long seq) {
+    struct shim_ipc_pid_retstatus* msgin = (struct shim_ipc_pid_retstatus*)data;
 
-    if (msgin->nstatus)
-        log_debug("ipc callback from %u: IPC_MSG_PID_RETSTATUS(%d, [%u, ...])\n", msg->src,
-              msgin->nstatus, msgin->status[0].pid);
-    else
-        log_debug("ipc callback from %u: IPC_MSG_PID_RETSTATUS(0, [])\n", msg->src);
-
-    struct retstatus_args data = {
-        .retval = msgin->nstatus
-    };
-    data.status = malloc_copy(msgin->status, sizeof(*data.status) * msgin->nstatus);
-    if (!data.status) {
-        data.retval = 0;
+    if (msgin->nstatus) {
+        log_debug("ipc callback from %u: IPC_MSG_PID_RETSTATUS(%d, [%u, ...])\n", src,
+                  msgin->nstatus, msgin->status[0].pid);
+    } else {
+        log_debug("ipc callback from %u: IPC_MSG_PID_RETSTATUS(0, [])\n", src);
     }
 
-    ipc_msg_response_handle(src, msg->seq, set_msg_retstatus, &data);
+    struct retstatus_args args = {
+        .retval = msgin->nstatus
+    };
+    args.status = malloc_copy(msgin->status, sizeof(*args.status) * msgin->nstatus);
+    if (!args.status) {
+        args.retval = 0;
+    }
 
-    free(data.status);
+    ipc_msg_response_handle(seq, set_msg_retstatus, &args);
+
+    free(args.status);
     return 0;
 }
 
@@ -270,26 +278,27 @@ int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data) {
     if ((ret = find_owner(pid, &dest)) < 0)
         return ret;
 
-    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_pid_getmeta));
+    struct shim_ipc_pid_getmeta msgin = {
+        .pid = pid,
+        .code = code,
+    };
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(msgin));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_MSG_PID_GETMETA, total_msg_size, dest);
+    init_ipc_msg_with_ack(msg, IPC_MSG_PID_GETMETA, total_msg_size);
     msg->private = data;
 
-    struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)&msg->msg.msg;
-    msgin->pid  = pid;
-    msgin->code = code;
+    memcpy(&msg->msg.data, &msgin, sizeof(msgin));
 
     log_debug("ipc send to %u: IPC_MSG_PID_GETMETA(%u, %s)\n", dest, pid, pid_meta_code_str[code]);
 
     return send_ipc_message_with_ack(msg, dest, NULL);
 }
 
-int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, IDTYPE src) {
-    __UNUSED(src);
-    struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)msg->msg;
+int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, unsigned long seq) {
+    struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)msg_data;
     int ret = 0;
 
-    log_debug("ipc callback from %u: IPC_MSG_PID_GETMETA(%u, %s)\n", msg->src, msgin->pid,
+    log_debug("ipc callback from %u: IPC_MSG_PID_GETMETA(%u, %s)\n", src, msgin->pid,
               pid_meta_code_str[msgin->code]);
 
     struct shim_thread* thread = lookup_thread(msgin->pid);
@@ -359,8 +368,7 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, IDTYPE src) {
     if (ret < 0)
         goto out;
 
-    assert(src == msg->src);
-    ret = ipc_pid_retmeta_send(msg->src, msgin->pid, msgin->code, data, datasize, msg->seq);
+    ret = ipc_pid_retmeta_send(src, msgin->pid, msgin->code, data, datasize, seq);
 out:
     free(data);
     return ret;
@@ -368,16 +376,18 @@ out:
 
 int ipc_pid_retmeta_send(IDTYPE dest, IDTYPE pid, enum pid_meta_code code, const void* data,
                          int datasize, unsigned long seq) {
-    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retmeta) + datasize);
+    struct shim_ipc_pid_retmeta msgin = {
+        .pid = pid,
+        .code = code,
+        .datasize = datasize,
+    };
+    size_t total_msg_size    = get_ipc_msg_size(sizeof(msgin) + datasize);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_PID_RETMETA, total_msg_size, dest);
-    struct shim_ipc_pid_retmeta* msgin = (struct shim_ipc_pid_retmeta*)&msg->msg;
+    init_ipc_msg(msg, IPC_MSG_PID_RETMETA, total_msg_size);
+    msg->header.seq = seq;
 
-    msgin->pid      = pid;
-    msgin->code     = code;
-    msgin->datasize = datasize;
-    memcpy(msgin->data, data, datasize);
-    msg->seq = seq;
+    memcpy(&msg->data, &msgin, sizeof(msgin));
+    memcpy(&((struct shim_ipc_pid_retmeta*)&msg->data)->data, data, datasize);
 
     log_debug("ipc send to %u: IPC_MSG_PID_RETMETA(%d, %s, %d)\n", dest, pid,
               pid_meta_code_str[code], datasize);
@@ -408,10 +418,10 @@ static void set_msg_retmeta(struct shim_ipc_msg_with_ack* req_msg, void* _args) 
     thread_wakeup(req_msg->thread);
 }
 
-int ipc_pid_retmeta_callback(struct shim_ipc_msg* msg, IDTYPE src) {
-    struct shim_ipc_pid_retmeta* msgin = (struct shim_ipc_pid_retmeta*)msg->msg;
+int ipc_pid_retmeta_callback(IDTYPE src, void* data, unsigned long seq) {
+    struct shim_ipc_pid_retmeta* msgin = (struct shim_ipc_pid_retmeta*)data;
 
-    log_debug("ipc callback from %u: IPC_MSG_PID_RETMETA(%u, %s, %d)\n", msg->src, msgin->pid,
+    log_debug("ipc callback from %u: IPC_MSG_PID_RETMETA(%u, %s, %d)\n", src, msgin->pid,
               pid_meta_code_str[msgin->code], msgin->datasize);
 
     struct retmeta_args args = {
@@ -424,7 +434,7 @@ int ipc_pid_retmeta_callback(struct shim_ipc_msg* msg, IDTYPE src) {
         }
     }
 
-    ipc_msg_response_handle(src, msg->seq, set_msg_retmeta, &args);
+    ipc_msg_response_handle(seq, set_msg_retmeta, &args);
 
     free(args.data);
     return 0;
