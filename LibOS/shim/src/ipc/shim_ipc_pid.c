@@ -112,7 +112,7 @@ int ipc_pid_kill_callback(IDTYPE src, void* data, unsigned long seq) {
             break;
         case KILL_ALL:
             if (!g_process_ipc_ids.leader_vmid) {
-                size_t total_msg_size    = get_ipc_msg_size(sizeof(*msgin));
+                size_t total_msg_size = get_ipc_msg_size(sizeof(*msgin));
                 struct shim_ipc_msg* msg = __alloca(total_msg_size);
                 init_ipc_msg(msg, IPC_MSG_PID_KILL, total_msg_size);
                 memcpy(&msg->data, msgin, sizeof(*msgin));
