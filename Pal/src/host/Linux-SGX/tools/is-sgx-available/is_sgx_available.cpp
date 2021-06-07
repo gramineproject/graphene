@@ -165,8 +165,8 @@ public:
 };
 
 bool sgx_driver_loaded() {
-    // /dev/isgx is for LKM version, /dev/sgx is for in-kernel support.
-    return file_exists("/dev/isgx") || file_exists("/dev/sgx");
+    // /dev/isgx is for LKM version, /dev/sgx_enclave and /dev/sgx_provision are for in-kernel support.
+    return file_exists("/dev/isgx") || (file_exists("/dev/sgx_enclave") && file_exists("/dev/sgx_provision"));
 }
 
 bool psw_installed() {
