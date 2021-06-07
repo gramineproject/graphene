@@ -72,9 +72,12 @@ target = \
 
 include ../../Scripts/manifest.mk
 graphene_lib = .lib/graphene-lib.a
-pal_lib ?= ../../Runtime/libpal-$(PAL_HOST).so
-
-RUNTIME_DIR = $(CURDIR)/../../Runtime
+ifneq ($(SGX),)
+graphene = sgx
+else
+graphene = direct
+endif
+pal_lib ?= $(shell graphene-manifest -c '{{ graphene.pkglibdir }}')/$(graphene)/libpal.so
 
 .PHONY: all
 all: $(target) $(call expand_target_to_sig,$(target)) \

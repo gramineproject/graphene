@@ -10,18 +10,11 @@ stage('test') {
     timeout(time: 15, unit: 'MINUTES') {
         try {
             sh '''
-                if test -n "$SGX"
-                then
-                    graphene=sgx
-                else
-                    graphene=direct
-                fi
-
                 cd Pal/regression
-                make ${MAKEOPTS} all pal_lib="$GRAPHENE_PKGLIBDIR"/"$graphene"/libpal.so
+                make ${MAKEOPTS} all
                 if test -n "$SGX"
                 then
-                    make ${MAKEOPTS} sgx-tokens pal_lib="$GRAPHENE_PKGLIBDIR"/"$graphene"/libpal.so
+                    make ${MAKEOPTS} sgx-tokens
                 fi
                 python3 -m pytest -v --junit-xml pal-regression.xml test_pal.py
             '''

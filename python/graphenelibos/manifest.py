@@ -73,8 +73,9 @@ class Runtimedir:
 
 def add_globals_from_graphene(env):
     env.globals['graphene'] = {
-        'runtimedir': Runtimedir(),
         'libos': pathlib.Path(_CONFIG_PKGLIBDIR) / 'libsysdb.so',
+        'pkglibdir': pathlib.Path(_CONFIG_PKGLIBDIR),
+        'runtimedir': Runtimedir(),
     }
 
     try:
@@ -114,11 +115,15 @@ def validate_define(_ctx, _param, values):
     return ret
 
 @click.command()
+@click.option('--string', '-c')
 @click.option('--define', '-D', multiple=True, callback=validate_define)
-@click.argument('infile', type=click.File('r'))
+@click.argument('infile', type=click.File('r'), required=False)
 @click.argument('outfile', type=click.File('w'), default='-')
-def main(define, infile, outfile):
-    outfile.write(render(infile.read(), define))
+def main(string, define, infile, outfile):
+    if not bool(string) ^ bool(infile):
+        click.get_current_context().fail('specify exactly one of (infile, -c)')
+    template = infile.read() if infile else string
+    outfile.write(render(template, define))
 
 if __name__ == '__main__':
     main() # pylint: disable=no-value-for-parameter
