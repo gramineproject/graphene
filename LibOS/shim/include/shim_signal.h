@@ -44,14 +44,14 @@ void thread_sigaction_reset_on_execve(void);
         0;                              \
     }))
 
-#define __sigisemptyset(set)               \
-    (__extension__({                       \
-        int __cnt = _SIGSET_NWORDS;        \
-        const __sigset_t* __set = (set);   \
-        int __ret = __set->__val[--__cnt]; \
-        while (!__ret && --__cnt >= 0)     \
-            __ret = __set->__val[__cnt];   \
-        __ret == 0;                        \
+#define __sigisemptyset(set)                             \
+    (__extension__({                                     \
+        int __cnt = _SIGSET_NWORDS;                      \
+        const __sigset_t* __set = (set);                 \
+        unsigned long int __ret = __set->__val[--__cnt]; \
+        while (!__ret && --__cnt >= 0)                   \
+            __ret = __set->__val[__cnt];                 \
+        __ret == 0;                                      \
     }))
 
 #define __sigandset(dest, left, right)                                             \
@@ -144,9 +144,9 @@ int append_signal(struct shim_thread* thread, siginfo_t* info);
  *                     signal mask is used.
  * \param[out] signal  Pointer to signal, filled with signal info.
  *
- * Checks whether there is a pending non-blocked signal among forced signals, normal per-thread and
- * per-process signals, and host-injected signals. Returns the first allowed signal in \p signal, or
- * sets signal.siginfo.si_signo = 0 if no signal is found.
+ * Checks whether there is a pending non-blocked signal among normal per-thread/per-process signals
+ * and host-injected signals. Returns the first allowed signal in \p signal, or sets
+ * `signal.siginfo.si_signo = 0` if no signal is found.
  */
 void pop_allowed_signal(__sigset_t* mask, struct shim_signal* signal);
 

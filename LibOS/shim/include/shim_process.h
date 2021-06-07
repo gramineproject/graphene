@@ -85,4 +85,7 @@ void add_child_process(struct shim_child_process* child);
 bool mark_child_exited_by_vmid(IDTYPE vmid, IDTYPE child_uid, int exit_code, int signal);
 bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE child_uid, int exit_code, int signal);
 
+/* Returns whether a process is found in the children list or zombie list of `g_process` */
+bool is_child_process_or_zombie(IDTYPE pid);
+
 #endif // _SHIM_PROCESS_H

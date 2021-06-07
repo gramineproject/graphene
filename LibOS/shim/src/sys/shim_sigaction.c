@@ -257,9 +257,9 @@ long shim_do_rt_sigtimedwait(const __sigset_t* allowed_ptr, siginfo_t* info,
     __signotset(&unblocked_mask, &all_blocked, allowed_ptr);
     clear_illegal_signals(&unblocked_mask);
 
-    /* Note that the user of rt_sigtimedwait() is supposed to block the signals in `allowed` set via
-     * a prior call to sigprocmask(), so that these signals can only occur as a response to this
-     * rt_sigtimedwait(). Here we temporarily unblock these `allowed` signals. */
+    /* Note that the user of `rt_sigtimedwait()` is supposed to block the signals in `allowed` set
+     * via a prior call to `sigprocmask()`, so that these signals can only occur as a response to
+     * this `rt_sigtimedwait()`. Here we temporarily unblock these `allowed` signals. */
     __sigset_t mask;
     __sigset_t old;
 
@@ -270,14 +270,20 @@ long shim_do_rt_sigtimedwait(const __sigset_t* allowed_ptr, siginfo_t* info,
     set_sig_mask(current, &mask);
     unlock(&current->lock);
 
+    uint64_t timeout_us = timeout ? timespec_to_us(timeout) : NO_TIMEOUT;
     int thread_wait_res = -EINTR;
+
     thread_prepare_wait();
-    if (!have_pending_signals()) {
-        /* FIXME: timeout is not updated for consequtive thread_wait invocations */
-        uint64_t timeout_us = timeout ? timespec_to_us(timeout) : NO_TIMEOUT;
+    while (!have_pending_signals()) {
         thread_wait_res = thread_wait(timeout_us != NO_TIMEOUT ? &timeout_us : NULL,
                                       /*ignore_pending_signals=*/false);
+        if (thread_wait_res == -ETIMEDOUT) {
+            break;
+        }
     }
+
+    /* If `have_pending_signals()` spotted a signal, we just pray it was targeted directly at this
+     * thread or no other thread handles it first; see also `do_nanosleep()` in shim_sleep.c */
 
     struct shim_signal signal = { 0 };
     pop_allowed_signal(&unblocked_mask, &signal);
@@ -288,7 +294,7 @@ long shim_do_rt_sigtimedwait(const __sigset_t* allowed_ptr, siginfo_t* info,
         }
         ret = signal.siginfo.si_signo;
     } else {
-        ret = (thread_wait_res == -ETIMEDOUT ? -EAGAIN : -ERESTARTNOHAND);
+        ret = (thread_wait_res == -ETIMEDOUT ? -EAGAIN : -EINTR);
     }
 
     lock(&current->lock);
