@@ -50,7 +50,7 @@ int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal) {
 
     memcpy(msg->data, &msgin, sizeof(msgin));
 
-    return send_ipc_message(msg, g_process_ipc_ids.parent_vmid);
+    return ipc_send_message(g_process_ipc_ids.parent_vmid, msg);
 }
 
 int ipc_cld_exit_callback(IDTYPE src, void* data, unsigned long seq) {

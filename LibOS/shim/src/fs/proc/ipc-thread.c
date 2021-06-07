@@ -73,7 +73,7 @@ static int find_ipc_thread_link(const char* name, struct shim_qstr* link,
 
     struct shim_dentry* dent = NULL;
     enum pid_meta_code ipc_code;
-    void* ipc_data = NULL;
+    struct shim_ipc_pid_retmeta* ipc_data = NULL;
 
     if (!memcmp(next, "root", next_len)) {
         ipc_code = PID_META_ROOT;
@@ -93,12 +93,12 @@ static int find_ipc_thread_link(const char* name, struct shim_qstr* link,
     ret = -ENOENT;
     goto out;
 do_ipc:
-    ret = ipc_pid_getmeta_send(pid, ipc_code, &ipc_data);
+    ret = ipc_pid_getmeta(pid, ipc_code, &ipc_data);
     if (ret < 0)
         goto out;
 
     if (link)
-        qstrsetstr(link, (char*)ipc_data, strlen((char*)ipc_data));
+        qstrsetstr(link, ipc_data->data, ipc_data->datasize);
 
 out:
     if (dent)

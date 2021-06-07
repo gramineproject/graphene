@@ -15,27 +15,19 @@
 #include "shim_thread.h"
 #include "shim_types.h"
 
-/* if callback func returns RESPONSE_CALLBACK, send response msg even if callback succeeded */
-#define RESPONSE_CALLBACK 1
-
 #define RANGE_SIZE 32
 
 enum {
     IPC_MSG_RESP = 0,
     IPC_MSG_CONNBACK,      /*!< Request for establishing a connection to the sender. */
-    IPC_MSG_DUMMY,         /*!< Dummy callback, wakes up the thread waiting for this response. */
     IPC_MSG_CHILDEXIT,
     IPC_MSG_LEASE,
-    IPC_MSG_OFFER,
     IPC_MSG_SUBLEASE,
     IPC_MSG_QUERY,
     IPC_MSG_QUERYALL,
-    IPC_MSG_ANSWER,
     IPC_MSG_PID_KILL,
     IPC_MSG_PID_GETSTATUS,
-    IPC_MSG_PID_RETSTATUS,
     IPC_MSG_PID_GETMETA,
-    IPC_MSG_PID_RETMETA,
     IPC_MSG_CODE_BOUND,
 };
 
@@ -85,67 +77,53 @@ void remove_outgoing_ipc_connection(IDTYPE dest);
  * broadcast IPC messages.
  */
 int request_leader_connect_back(void);
+/*!
+ * \brief Callback for a IPC connection request
+ *
+ * Parameters as per IPC callback interface.
+ * See also: #request_leader_connect_back
+ */
+int ipc_connect_back_callback(IDTYPE src, void* data, unsigned long seq);
 
-/* TODO: add `__attribute__((packed))` once `struct shim_ipc_msg` is removed.
- * Currently we might send some padding bytes, but that's not a problem since we only send those
- * between Graphene processes, which are all considered equally trusted. */
 struct ipc_msg_header {
     size_t size;
     unsigned long seq;
     unsigned char code;
-};
+} __attribute__((packed));
 
 struct shim_ipc_msg {
     struct ipc_msg_header header;
     char data[];
 };
-/*
- * XXX: Currently required by:
- * - `msg_add_range` in `LibOS/shim/src/ipc/shim_ipc_ranges.c`,
- */
-static_assert(offsetof(struct shim_ipc_msg, data) % 8 == 0, "Currently proper alignment is required");
-
-struct shim_ipc_msg_with_ack {
-    struct avl_tree_node node;
-    struct shim_thread* thread;
-    int retval;
-    void* private;
-    struct shim_ipc_msg msg;
-};
-
-struct shim_ipc_resp {
-    int retval;
-} __attribute__((packed));
 
 static inline size_t get_ipc_msg_size(size_t payload) {
     return sizeof(struct shim_ipc_msg) + payload;
 }
-static inline size_t get_ipc_msg_with_ack_size(size_t payload) {
-    return sizeof(struct shim_ipc_msg_with_ack) + payload;
-}
 
 void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size);
-void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t size);
+void init_ipc_response(struct shim_ipc_msg* msg, unsigned long seq, size_t size);
 
 /*!
  * \brief Send an IPC message
  *
- * \param msg message to send
  * \param dest vmid of the destination process
+ * \param msg message to send
  */
-int send_ipc_message(struct shim_ipc_msg* msg, IDTYPE dest);
+int ipc_send_message(IDTYPE dest, struct shim_ipc_msg* msg);
 /*!
- * \brief Send an IPC message and wait for response
+ * \brief Send an IPC message and wait for a response
  *
- * \param msg message to send
  * \param dest vmid of the destination process
- * \param[out] seq upon return contains sequence number of this message
+ * \param msg message to send
+ * \param[out] resp upon successful return contains poitner to the response
  *
  * Send an IPC message to the \p dest process and wait for a response. An unique number is assigned
  * before sending the message and this thread will wait for a response IPC message, which contains
- * the same sequence number.
+ * the same sequence number. If this function succeeds, \p resp will contain pointer to the response
+ * data, which should be freed using `free` function. If \p resp is NULL, the response will be
+ * discarded, but still awaited for.
  */
-int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dest, unsigned long* seq);
+int ipc_send_msg_and_get_response(IDTYPE dst, struct shim_ipc_msg* msg, void** resp);
 /*!
  * \brief Broadcast an IPC message
  *
@@ -155,35 +133,20 @@ int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dest, un
  * Send an IPC message \p msg to all known (connected) processes except for \p exclude_vmid.
  */
 int broadcast_ipc(struct shim_ipc_msg* msg, IDTYPE exclude_vmid);
-/*!
- * \brief Callback for a dummy message, just wakes the waiting thread
- *
- * \param src unused (just for interface conformance)
- * \param data unused (just for interface conformance)
- * \param seq sequence number of the message
- */
-int ipc_dummy_callback(IDTYPE src, void* data, unsigned long seq);
 
 /*!
  * \brief Handle a response to a previously sent message
  *
+ * \param src ID of sender
+ * \param data body of the response
  * \param seq sequence number of the original message
- * \param callback callback to be called on the original message
- * \param data passed as the second argument to \p callback
  *
- * Searches for a `shim_ipc_msg_with_ack` sent previously to \p src, which has \p seq sequential
- * number. Then calls \p callback with the found message (or `NULL` if no message was found) as
- * the first argument and \p data as the second.
+ * Searches for a thread waiting for a response to a message previously sent to \p src with
+ * the sequence number \p seq. If such thread is found, it is woken up and \p data is passed to it.
+ * In case of successful return (with value `0`), ownership of \p data is passed to the woken thread
+ * - it should not be freed by the caller of this function! (TODO: fix this interface)
  */
-void ipc_msg_response_handle(unsigned long seq,
-                             void (*callback)(struct shim_ipc_msg_with_ack*, void*), void* data);
-/*!
- * \brief Wake up the thread awaiting for a response to \p req_msg
- *
- * \param req_msg original message which got the response
- * \param data unused (just to conform to #ipc_msg_response_handle callbacks interface)
- */
-void wake_req_msg_thread(struct shim_ipc_msg_with_ack* req_msg, void* data);
+int ipc_response_callback(IDTYPE src, void* data, unsigned long seq);
 
 /* common functions for pid & sysv namespaces */
 int add_ipc_subrange(IDTYPE idx, IDTYPE owner);
@@ -225,9 +188,6 @@ struct shim_ipc_offer {
     IDTYPE size;
 } __attribute__((packed));
 
-int ipc_offer_send(IDTYPE dest, IDTYPE base, IDTYPE size, unsigned long seq);
-int ipc_offer_callback(IDTYPE src, void* data, unsigned long seq);
-
 /* SUBLEASE: lease a range of IDs */
 struct shim_ipc_sublease {
     IDTYPE tenant;
@@ -255,8 +215,6 @@ struct shim_ipc_answer {
     struct ipc_ns_offered answers[];
 } __attribute__((packed));
 
-int ipc_answer_callback(IDTYPE src, void* data, unsigned long seq);
-
 /* PID_KILL: send signal to certain pid */
 struct shim_ipc_pid_kill {
     IDTYPE sender;
@@ -273,7 +231,7 @@ int ipc_pid_kill_callback(IDTYPE src, void* data, unsigned long seq);
 
 /* PID_GETSTATUS: check if certain pid(s) exists */
 struct shim_ipc_pid_getstatus {
-    int npids;
+    size_t npids;
     IDTYPE pids[];
 };
 
@@ -283,17 +241,14 @@ struct pid_status {
     IDTYPE pgid;
 } __attribute__((packed));
 
-int ipc_pid_getstatus_send(IDTYPE dest, int npids, IDTYPE* pids, struct pid_status** status);
-int ipc_pid_getstatus_callback(IDTYPE src, void* data, unsigned long seq);
-
 /* PID_RETSTATUS: return status of pid(s) */
 struct shim_ipc_pid_retstatus {
-    int nstatus;
+    size_t count;
     struct pid_status status[];
 } __attribute__((packed));
 
-int ipc_pid_retstatus_send(IDTYPE dest, int nstatus, struct pid_status* status, unsigned long seq);
-int ipc_pid_retstatus_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_pid_getstatus(IDTYPE dest, int npids, IDTYPE* pids, struct shim_ipc_pid_retstatus** status);
+int ipc_pid_getstatus_callback(IDTYPE src, void* data, unsigned long seq);
 
 int get_all_pid_status(struct pid_status** status);
 
@@ -303,19 +258,13 @@ struct shim_ipc_pid_getmeta {
     enum pid_meta_code code;
 } __attribute__((packed));
 
-int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data);
-int ipc_pid_getmeta_callback(IDTYPE src, void* data, unsigned long seq);
-
 /* PID_RETMETA: return metadata of certain pid */
 struct shim_ipc_pid_retmeta {
-    IDTYPE pid;
-    enum pid_meta_code code;
-    int datasize;
+    size_t datasize;
     char data[];
 } __attribute__((packed));
 
-int ipc_pid_retmeta_send(IDTYPE dest, IDTYPE pid, enum pid_meta_code code, const void* data,
-                         int datasize, unsigned long seq);
-int ipc_pid_retmeta_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_pid_getmeta(IDTYPE pid, enum pid_meta_code code, struct shim_ipc_pid_retmeta** data);
+int ipc_pid_getmeta_callback(IDTYPE src, void* data, unsigned long seq);
 
 #endif /* SHIM_IPC_H_ */

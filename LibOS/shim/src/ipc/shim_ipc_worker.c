@@ -42,26 +42,18 @@ static AEVENTTYPE exit_notification_event;
 static int g_clear_on_worker_exit = 1;
 static PAL_HANDLE g_self_ipc_handle = NULL;
 
-static int ipc_resp_callback(IDTYPE src, void* data, unsigned long seq);
-static int ipc_connect_back_callback(IDTYPE src, void* data, unsigned long seq);
-
 typedef int (*ipc_callback)(IDTYPE src, void* data, unsigned long seq);
 static ipc_callback ipc_callbacks[] = {
-    [IPC_MSG_RESP]          = ipc_resp_callback,
+    [IPC_MSG_RESP]          = ipc_response_callback,
     [IPC_MSG_CONNBACK]      = ipc_connect_back_callback,
-    [IPC_MSG_DUMMY]         = ipc_dummy_callback,
     [IPC_MSG_CHILDEXIT]     = ipc_cld_exit_callback,
     [IPC_MSG_LEASE]         = ipc_lease_callback,
-    [IPC_MSG_OFFER]         = ipc_offer_callback,
     [IPC_MSG_SUBLEASE]      = ipc_sublease_callback,
     [IPC_MSG_QUERY]         = ipc_query_callback,
     [IPC_MSG_QUERYALL]      = ipc_queryall_callback,
-    [IPC_MSG_ANSWER]        = ipc_answer_callback,
     [IPC_MSG_PID_KILL]      = ipc_pid_kill_callback,
     [IPC_MSG_PID_GETSTATUS] = ipc_pid_getstatus_callback,
-    [IPC_MSG_PID_RETSTATUS] = ipc_pid_retstatus_callback,
     [IPC_MSG_PID_GETMETA]   = ipc_pid_getmeta_callback,
-    [IPC_MSG_PID_RETMETA]   = ipc_pid_retmeta_callback,
 };
 
 static void ipc_leader_died_callback(void) {
@@ -107,52 +99,6 @@ static void del_ipc_connection(struct shim_ipc_connection* conn) {
     DkObjectClose(conn->handle);
 
     free(conn);
-}
-
-static int send_ipc_response(IDTYPE dest, int ret, unsigned long seq) {
-    ret = (ret == RESPONSE_CALLBACK) ? 0 : ret;
-
-    struct shim_ipc_resp resp = {
-        .retval = ret,
-    };
-
-    size_t total_msg_size = get_ipc_msg_size(sizeof(resp));
-    struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-    init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size);
-    resp_msg->header.seq = seq;
-
-    memcpy(&resp_msg->data, &resp, sizeof(resp));
-
-    return send_ipc_message(resp_msg, dest);
-}
-
-static void set_request_retval(struct shim_ipc_msg_with_ack* req_msg, void* data) {
-    if (!req_msg) {
-        log_error(LOG_PREFIX "got response to an unknown message\n");
-        return;
-    }
-
-    req_msg->retval = (int)(intptr_t)data;
-    thread_wakeup(req_msg->thread);
-}
-
-static int ipc_resp_callback(IDTYPE src, void* data, unsigned long seq) {
-    struct shim_ipc_resp* resp = (struct shim_ipc_resp*)data;
-    log_debug(LOG_PREFIX "got IPC msg response from %u: %d\n", src, resp->retval);
-
-    ipc_msg_response_handle(seq, set_request_retval, (void*)(intptr_t)resp->retval);
-    return 0;
-}
-
-/* Another process requested that we connect to it. */
-static int ipc_connect_back_callback(IDTYPE src, void* data, unsigned long seq) {
-    __UNUSED(data);
-    size_t total_msg_size = get_ipc_msg_size(0);
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_DUMMY, total_msg_size);
-    msg->header.seq = seq;
-
-    return send_ipc_message(msg, src);
 }
 
 /*
@@ -233,22 +179,18 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
         log_debug(LOG_PREFIX "received IPC message from %u: code=%d size=%lu seq=%lu\n", conn->vmid,
                   msg_code, msg_size, msg_seq);
 
+        int ret = 0;
         if (msg_code < ARRAY_SIZE(ipc_callbacks) && ipc_callbacks[msg_code]) {
-            int ret = ipc_callbacks[msg_code](conn->vmid, msg_data, msg_seq);
-            if ((ret < 0 || ret == RESPONSE_CALLBACK) && msg_seq) {
-                ret = send_ipc_response(conn->vmid, ret, msg_seq);
-                if (ret < 0) {
-                    log_error(LOG_PREFIX "sending IPC msg response to %u failed: %d\n", conn->vmid,
-                              ret);
-                    free(msg_data);
-                    return ret;
-                }
-            }
+            ret = ipc_callbacks[msg_code](conn->vmid, msg_data, msg_seq);
         } else {
             log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg_code);
+            ret = -EINVAL;
         }
 
-        free(msg_data);
+        /* TODO: fix this interface - ownership passing. */
+        if (msg_code != IPC_MSG_RESP || ret != 0) {
+            free(msg_data);
+        }
     } while (size > 0);
 
     return 0;
