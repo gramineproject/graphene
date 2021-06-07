@@ -106,6 +106,18 @@ typedef ptrdiff_t ssize_t;
 #define ARRAY_SIZE(a) (FORCE_STATIC_ARRAY(a) + sizeof(a) / sizeof(a[0]))
 #endif
 
+#define SET_UNALIGNED(a, b) ({                  \
+    __typeof__(b) _b = (b);                     \
+    static_assert(SAME_TYPE((a), _b), "error"); \
+    memcpy(&(a), &_b, sizeof(a));               \
+})
+
+#define GET_UNALIGNED(a) ({             \
+    __typeof__(a) ret;                  \
+    memcpy(&ret, &(a), sizeof(ret));    \
+    ret;                                \
+})
+
 #define DEBUG_BREAK()               \
     do {                            \
         __asm__ volatile("int $3"); \

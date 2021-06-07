@@ -46,7 +46,7 @@ static int sync_msg_send(IDTYPE dest, int code, uint64_t id, int state, size_t d
     memcpy(&msg->data, &msgin, sizeof(msgin));
     memcpy(&((struct shim_ipc_sync*)&msg->data)->data, data, data_size);
 
-    return send_ipc_message(msg, dest);
+    return ipc_send_message(dest, msg);
 }
 
 int ipc_sync_client_send(int code, uint64_t id, int state, size_t data_size, void* data) {

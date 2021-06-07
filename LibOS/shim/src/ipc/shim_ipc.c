@@ -1,16 +1,17 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University
- * Copyright (C) 2021 Intel Corporation
+/* Copyright (C) 2021 Intel Corporation
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
 /*
  * This file provides functions for dealing with outgoing IPC connections, mainly sending IPC
- * messages (`shim_ipc_msg` and `shim_ipc_msg_with_ack`).
+ * messages.
  */
 
 #include <stdbool.h>
+#include <stdint.h>
 
+#include "api.h"
 #include "assert.h"
 #include "avl_tree.h"
 #include "pal.h"
@@ -42,14 +43,22 @@ static bool ipc_connection_cmp(struct avl_tree_node* _a, struct avl_tree_node* _
 static struct avl_tree g_ipc_connections = { .cmp = ipc_connection_cmp };
 static struct shim_lock g_ipc_connections_lock;
 
-static bool msg_with_ack_cmp(struct avl_tree_node* _a, struct avl_tree_node* _b) {
-    struct shim_ipc_msg_with_ack* a = container_of(_a, struct shim_ipc_msg_with_ack, node);
-    struct shim_ipc_msg_with_ack* b = container_of(_b, struct shim_ipc_msg_with_ack, node);
-    return a->msg.header.seq <= b->msg.header.seq;
+struct ipc_msg_waiter {
+    struct avl_tree_node node;
+    PAL_HANDLE event;
+    uint64_t seq;
+    IDTYPE dest;
+    void* response_data;
+};
+
+static bool ipc_msg_waiter_cmp(struct avl_tree_node* _a, struct avl_tree_node* _b) {
+    struct ipc_msg_waiter* a = container_of(_a, struct ipc_msg_waiter, node);
+    struct ipc_msg_waiter* b = container_of(_b, struct ipc_msg_waiter, node);
+    return a->seq <= b->seq;
 }
 
-static struct avl_tree g_msg_with_ack_tree = { .cmp = msg_with_ack_cmp };
-static struct shim_lock g_msg_with_ack_tree_lock;
+static struct avl_tree g_msg_waiters_tree = { .cmp = ipc_msg_waiter_cmp };
+static struct shim_lock g_msg_waiters_tree_lock;
 
 IDTYPE g_self_vmid;
 struct shim_ipc_ids g_process_ipc_ids;
@@ -58,7 +67,7 @@ int init_ipc(void) {
     if (!create_lock(&g_ipc_connections_lock)) {
         return -ENOMEM;
     }
-    if (!create_lock(&g_msg_with_ack_tree_lock)) {
+    if (!create_lock(&g_msg_waiters_tree_lock)) {
         return -ENOMEM;
     }
 
@@ -175,27 +184,41 @@ void remove_outgoing_ipc_connection(IDTYPE dest) {
         _remove_ipc_connection(conn);
     }
     unlock(&g_ipc_connections_lock);
+
+    lock(&g_msg_waiters_tree_lock);
+    struct avl_tree_node* node = avl_tree_first(&g_msg_waiters_tree);
+    /* Usually there are no or very few waiters, so linear loop should be fine. If this becomes
+     * a problem for some reason, we can make `g_msg_waiters_tree` use `dest` as a part of the key
+     * and search for matching entries here. */
+    while (node) {
+        struct ipc_msg_waiter* waiter = container_of(node, struct ipc_msg_waiter, node);
+        if (waiter->dest == dest) {
+            waiter->response_data = NULL;
+            DkEventSet(waiter->event);
+            log_debug("Woke up a thread waiting for a message from a disconnected process\n");
+        }
+        node = avl_tree_next(node);
+    }
+    unlock(&g_msg_waiters_tree_lock);
 }
 
-void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size) {
-    msg->header.size = get_ipc_msg_size(size);
-    msg->header.seq = 0;
-    msg->header.code = code;
+void init_ipc_msg(struct shim_ipc_msg* msg, unsigned char code, size_t size) {
+    SET_UNALIGNED(msg->header.size, get_ipc_msg_size(size));
+    SET_UNALIGNED(msg->header.seq, 0ul);
+    SET_UNALIGNED(msg->header.code, code);
 }
 
-void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t size) {
-    init_ipc_msg(&msg->msg, code, size);
-    msg->thread = NULL;
-    msg->retval = 0;
-    msg->private = NULL;
+void init_ipc_response(struct shim_ipc_msg* msg, uint64_t seq, size_t size) {
+    init_ipc_msg(msg, IPC_MSG_RESP, size);
+    SET_UNALIGNED(msg->header.seq, seq);
 }
 
-static int send_ipc_message_to_conn(struct shim_ipc_msg* msg, struct shim_ipc_connection* conn) {
+static int ipc_send_message_to_conn(struct shim_ipc_connection* conn, struct shim_ipc_msg* msg) {
     log_debug("Sending ipc message to %u\n", conn->vmid);
 
     lock(&conn->lock);
 
-    int ret = write_exact(conn->handle, msg,  msg->header.size);
+    int ret = write_exact(conn->handle, msg,  GET_UNALIGNED(msg->header.size));
     if (ret < 0) {
         log_error("Failed to send IPC msg to %u: %d\n", conn->vmid, ret);
         unlock(&conn->lock);
@@ -207,83 +230,110 @@ static int send_ipc_message_to_conn(struct shim_ipc_msg* msg, struct shim_ipc_co
     return 0;
 }
 
-int send_ipc_message(struct shim_ipc_msg* msg, IDTYPE dst) {
+int ipc_send_message(IDTYPE dest, struct shim_ipc_msg* msg) {
     struct shim_ipc_connection* conn = NULL;
-    int ret = ipc_connect(dst, &conn);
+    int ret = ipc_connect(dest, &conn);
     if (ret < 0) {
         return ret;
     }
 
-    ret = send_ipc_message_to_conn(msg, conn);
+    ret = ipc_send_message_to_conn(conn, msg);
     put_ipc_connection(conn);
     return ret;
 }
 
-void ipc_msg_response_handle(unsigned long seq,
-                             void (*callback)(struct shim_ipc_msg_with_ack*, void*), void* data) {
-    assert(seq);
-    struct shim_ipc_msg_with_ack dummy = {
-        .msg.header.seq = seq,
-    };
-    lock(&g_msg_with_ack_tree_lock);
-    struct shim_ipc_msg_with_ack* msg = NULL;
-    struct avl_tree_node* node = avl_tree_find(&g_msg_with_ack_tree, &dummy.node);
-    if (node) {
-        msg = container_of(node, struct shim_ipc_msg_with_ack, node);
-    }
-    callback(msg, data);
-    unlock(&g_msg_with_ack_tree_lock);
-}
+static int wait_for_response(struct ipc_msg_waiter* waiter) {
+    log_debug("Waiting for a response to %lu\n", waiter->seq);
 
-int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, IDTYPE dst, unsigned long* seq) {
     int ret = 0;
-
-    assert(!msg->thread);
-    msg->thread = get_cur_thread();
-    get_thread(msg->thread);
-
-    thread_prepare_wait();
-
-    static unsigned long ipc_seq_counter = 0;
-    msg->msg.header.seq = __atomic_add_fetch(&ipc_seq_counter, 1, __ATOMIC_RELAXED);
-
-    lock(&g_msg_with_ack_tree_lock);
-    avl_tree_insert(&g_msg_with_ack_tree, &msg->node);
-    unlock(&g_msg_with_ack_tree_lock);
-
-    ret = send_ipc_message(&msg->msg, dst);
-    if (ret < 0)
-        goto out;
-
-    if (seq)
-        *seq = msg->msg.header.seq;
-
-    log_debug("Waiting for response (seq = %lu)\n", msg->msg.header.seq);
-
-    /* TODO: this should be `wait_event` on a special purpose event embedded in `msg`. */
     do {
-        ret = thread_wait(/*timeout_us=*/NULL, /*ignore_pending_signals=*/true);
-        if (ret < 0 && ret != -EINTR)
-            goto out;
+        ret = pal_to_unix_errno(DkEventWait(waiter->event, /*timeout=*/NULL));
     } while (ret == -EINTR);
 
-    log_debug("Finished waiting for response (seq = %lu, ret = %d)\n", msg->msg.header.seq,
-              msg->retval);
-    ret = 0;
+    log_debug("Waiting finished: %d\n", ret);
+    return ret;
+}
 
-out:
-    lock(&g_msg_with_ack_tree_lock);
-    avl_tree_delete(&g_msg_with_ack_tree, &msg->node);
-    unlock(&g_msg_with_ack_tree_lock);
+int ipc_send_msg_and_get_response(IDTYPE dest, struct shim_ipc_msg* msg, void** resp) {
+    static uint64_t ipc_seq_counter = 1;
+    uint64_t seq = __atomic_fetch_add(&ipc_seq_counter, 1, __ATOMIC_RELAXED);
+    SET_UNALIGNED(msg->header.seq, seq);
 
-    if (ret == 0) {
-        ret = msg->retval;
+    struct ipc_msg_waiter waiter = {
+        .seq = seq,
+        .dest = dest,
+        .response_data = NULL,
+    };
+    int ret = DkEventCreate(&waiter.event, /*init_signaled=*/false, /*auto_clear=*/false);
+    if (ret < 0) {
+        return pal_to_unix_errno(ret);
     }
 
-    assert(msg->thread == get_cur_thread());
-    put_thread(msg->thread);
-    msg->thread = NULL;
+    lock(&g_msg_waiters_tree_lock);
+    avl_tree_insert(&g_msg_waiters_tree, &waiter.node);
+    unlock(&g_msg_waiters_tree_lock);
 
+    ret = ipc_send_message(dest, msg);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = wait_for_response(&waiter);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (!waiter.response_data) {
+        log_warning("IPC recipient %u died while we were waiting for a message response\n", dest);
+        ret = -ESRCH;
+    } else {
+        if (resp) {
+            /* We take the ownership of `waiter.response_data`. */
+            *resp = waiter.response_data;
+            waiter.response_data = NULL;
+        }
+        ret = 0;
+    }
+
+out:
+    lock(&g_msg_waiters_tree_lock);
+    avl_tree_delete(&g_msg_waiters_tree, &waiter.node);
+    unlock(&g_msg_waiters_tree_lock);
+    free(waiter.response_data);
+    return ret;
+}
+
+int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
+    int ret = 0;
+    if (!seq) {
+        log_error("Got an IPC response without a sequence number\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    lock(&g_msg_waiters_tree_lock);
+    struct ipc_msg_waiter dummy = {
+        .seq = seq,
+    };
+    struct avl_tree_node* node = avl_tree_find(&g_msg_waiters_tree, &dummy.node);
+    if (!node) {
+        log_error("No thread is waiting for a response with seq: %lu\n", seq);
+        ret = -EINVAL;
+        goto out_unlock;
+    }
+
+    struct ipc_msg_waiter* waiter = container_of(node, struct ipc_msg_waiter, node);
+    waiter->response_data = data;
+    DkEventSet(waiter->event);
+    ret = 0;
+    log_debug("Got an IPC response from %u, seq: %lu\n", src, seq);
+
+out_unlock:
+    unlock(&g_msg_waiters_tree_lock);
+out:
+    if (ret < 0) {
+        free(data);
+    }
     return ret;
 }
 
@@ -291,38 +341,34 @@ int request_leader_connect_back(void) {
     IDTYPE leader = g_process_ipc_ids.leader_vmid;
     assert(leader);
 
-    size_t total_msg_size = get_ipc_msg_with_ack_size(0);
-    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_MSG_CONNBACK, total_msg_size);
+    size_t total_msg_size = get_ipc_msg_size(0);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_MSG_CONNBACK, total_msg_size);
 
     log_debug("sending IPC_MSG_CONNBACK message to %u\n", leader);
 
-    return send_ipc_message_with_ack(msg, leader, NULL);
+    return ipc_send_msg_and_get_response(leader, msg, /*resp=*/NULL);
 }
 
-void wake_req_msg_thread(struct shim_ipc_msg_with_ack* req_msg, void* data) {
+int ipc_connect_back_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(data);
-    if (req_msg) {
-        assert(req_msg->thread);
-        thread_wakeup(req_msg->thread);
-    }
+    /* Send back an empty response. */
+    size_t total_msg_size = get_ipc_msg_size(0);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_response(msg, seq, total_msg_size);
+    log_debug("Sending empty connect back response to: %u\n", src);
+    return ipc_send_message(src, msg);
 }
 
-int ipc_dummy_callback(IDTYPE src, void* data, unsigned long seq) {
-    __UNUSED(src);
-    __UNUSED(data);
-    ipc_msg_response_handle(seq, wake_req_msg_thread, NULL);
-    return 0;
-}
 
-int broadcast_ipc(struct shim_ipc_msg* msg, IDTYPE exclude_id) {
+int ipc_broadcast(struct shim_ipc_msg* msg, IDTYPE exclude_id) {
     lock(&g_ipc_connections_lock);
     struct shim_ipc_connection* conn = node2conn(avl_tree_first(&g_ipc_connections));
 
     int main_ret = 0;
     while (conn) {
         if (conn->vmid != exclude_id) {
-            int ret = send_ipc_message_to_conn(msg, conn);
+            int ret = ipc_send_message_to_conn(conn, msg);
             if (!main_ret) {
                 main_ret = ret;
             }

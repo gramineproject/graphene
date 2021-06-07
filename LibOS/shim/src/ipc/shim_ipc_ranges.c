@@ -481,81 +481,53 @@ int ipc_lease_send(void) {
 
     IDTYPE leader = g_process_ipc_ids.leader_vmid;
 
-    size_t total_msg_size = get_ipc_msg_with_ack_size(0);
-    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_MSG_LEASE, total_msg_size);
+    size_t total_msg_size = get_ipc_msg_size(0);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_MSG_LEASE, total_msg_size);
 
     log_debug("ipc send to %u: IPC_MSG_LEASE\n", leader);
 
-    return send_ipc_message_with_ack(msg, leader, NULL);
-}
+    void* resp = NULL;
+    int ret = ipc_send_msg_and_get_response(leader, msg, &resp);
+    if (ret < 0) {
+        return ret;
+    }
 
-int ipc_lease_callback(IDTYPE src, void* data, unsigned long seq) {
-    __UNUSED(data);
-    log_debug("ipc callback from %u: IPC_MSG_LEASE\n", src);
-
-    IDTYPE base = 0;
-
-    int ret = alloc_ipc_range(src, &base);
-    if (ret < 0)
-        goto out;
-
-    ret = ipc_offer_send(src, base, RANGE_SIZE, seq);
-out:
-    return ret;
-}
-
-int ipc_offer_send(IDTYPE dest, IDTYPE base, IDTYPE size, unsigned long seq) {
-    int ret = 0;
-    struct shim_ipc_offer msgin = {
-        .base = base,
-        .size = size,
-    };
-
-    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin));
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_OFFER, total_msg_size);
-    msg->header.seq = seq;
-
-    memcpy(&msg->data, &msgin, sizeof(msgin));
-
-    log_debug("ipc send to %u: IPC_MSG_OFFER(%u, %u)\n", dest, base, size);
-    ret = send_ipc_message(msg, dest);
-    return ret;
-}
-
-static void msg_add_range(struct shim_ipc_msg_with_ack* req_msg, void* _args) {
-    struct shim_ipc_offer* args = _args;
-
-    switch (args->size) {
+    struct shim_ipc_offer* offer = resp;
+    switch (offer->size) {
         case RANGE_SIZE:
-            add_ipc_range(args->base, g_self_vmid);
+            add_ipc_range(offer->base, g_self_vmid);
+            ret = 0;
             break;
-        case 1:
-            if (req_msg) {
-                struct shim_ipc_sublease* s = (void*)&req_msg->msg.data;
-                add_ipc_subrange(s->idx, s->tenant);
-            }
+        case 0:
+            ret = -EAGAIN;
             break;
         default:
             BUG();
     }
 
-    if (req_msg) {
-        assert(req_msg->thread);
-        thread_wakeup(req_msg->thread);
-    }
+    free(resp);
+    return ret;
 }
 
-int ipc_offer_callback(IDTYPE src, void* data, unsigned long seq) {
-    struct shim_ipc_offer* msgin = data;
+int ipc_lease_callback(IDTYPE src, void* data, uint64_t seq) {
+    __UNUSED(data);
+    log_debug("ipc callback from %u: IPC_MSG_LEASE\n", src);
 
-    log_debug("ipc callback from %u: IPC_MSG_OFFER(%u, %u)\n", src, msgin->base, msgin->size);
+    IDTYPE base = 0;
+    int ret = alloc_ipc_range(src, &base);
 
-    if (msgin->size == RANGE_SIZE || msgin->size == 1) {
-        ipc_msg_response_handle(seq, msg_add_range, msgin);
-    }
-    return 0;
+    struct shim_ipc_offer msgin = {
+        .base = base,
+        .size = ret == 0 ? RANGE_SIZE : 0,
+    };
+    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_response(msg, seq, total_msg_size);
+
+    memcpy(&msg->data, &msgin, sizeof(msgin));
+
+    return ipc_send_message(src, msg);
 }
 
 int ipc_sublease_send(IDTYPE tenant, IDTYPE idx) {
@@ -568,29 +540,74 @@ int ipc_sublease_send(IDTYPE tenant, IDTYPE idx) {
         .idx = idx,
     };
 
-    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(msgin));
-    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_MSG_SUBLEASE, total_msg_size);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_MSG_SUBLEASE, total_msg_size);
 
-    memcpy(&msg->msg.data, &msgin, sizeof(msgin));
+    memcpy(&msg->data, &msgin, sizeof(msgin));
 
     IDTYPE leader = g_process_ipc_ids.leader_vmid;
     log_debug("ipc send to %u: IPC_MSG_SUBLEASE(%u, %u)\n", leader, tenant, idx);
 
-    return send_ipc_message_with_ack(msg, leader, NULL);
+    void* resp = NULL;
+    int ret = ipc_send_msg_and_get_response(leader, msg, &resp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    struct shim_ipc_offer* offer = resp;
+    switch (offer->size) {
+        case 1:
+            add_ipc_subrange(idx, tenant);
+            ret = 0;
+            break;
+        case 0:
+            ret = -EAGAIN;
+            break;
+        default:
+            BUG();
+    }
+
+    free(resp);
+    return ret;
+
 }
 
-int ipc_sublease_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_sublease_callback(IDTYPE src, void* data, uint64_t seq) {
     struct shim_ipc_sublease* msgin = data;
 
     log_debug("ipc callback from %u: IPC_MSG_SUBLEASE(%u, %u)\n", src, msgin->idx, msgin->tenant);
 
     int ret = add_ipc_subrange(msgin->idx, msgin->tenant);
-    if (ret < 0) {
-        return ret;
-    }
 
-    return ipc_offer_send(src, msgin->idx, 1, seq);
+    struct shim_ipc_offer offer = {
+        .base = msgin->idx,
+        .size = ret == 0 ? 1 : 0,
+    };
+    size_t total_msg_size = get_ipc_msg_size(sizeof(offer));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_response(msg, seq, total_msg_size);
+
+    memcpy(&msg->data, &offer, sizeof(offer));
+
+    return ipc_send_message(src, msg);
+}
+
+static int ipc_answer_send(IDTYPE dest, uint64_t seq, size_t answers_cnt,
+                           struct ipc_ns_offered* answers) {
+    struct shim_ipc_answer msgin = {
+        .answers_cnt = answers_cnt,
+    };
+
+    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin) + answers_cnt * sizeof(answers[0]));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_response(msg, seq, total_msg_size);
+
+    memcpy(&msg->data, &msgin, sizeof(msgin));
+    memcpy(&((struct shim_ipc_answer*)&msg->data)->answers, answers,
+           answers_cnt * sizeof(answers[0]));
+
+    return ipc_send_message(dest, msg);
 }
 
 int ipc_query_send(IDTYPE idx) {
@@ -607,98 +624,69 @@ int ipc_query_send(IDTYPE idx) {
         .idx = idx,
     };
 
-    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(msgin));
-    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_MSG_QUERY, total_msg_size);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_MSG_QUERY, total_msg_size);
 
-    memcpy(&msg->msg.data, &msgin, sizeof(msgin));
+    memcpy(&msg->data, &msgin, sizeof(msgin));
 
     IDTYPE leader = g_process_ipc_ids.leader_vmid;
     log_debug("ipc send to %u: IPC_MSG_QUERY(%u)\n", leader, idx);
 
-    return send_ipc_message_with_ack(msg, leader, NULL);
-}
-
-static int ipc_answer_send(IDTYPE dest, size_t answers_cnt, struct ipc_ns_offered* answers,
-                           unsigned long seq) {
-    struct shim_ipc_answer msgin = {
-        .answers_cnt = answers_cnt,
-    };
-
-    size_t total_msg_size = get_ipc_msg_size(sizeof(msgin) + answers_cnt * sizeof(answers[0]));
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_ANSWER, total_msg_size);
-    msg->header.seq = seq;
-
-    memcpy(&msg->data, &msgin, sizeof(msgin));
-    memcpy(&((struct shim_ipc_answer*)&msg->data)->answers, answers,
-           answers_cnt * sizeof(answers[0]));
-
-    if (answers_cnt == 1)
-        log_debug("ipc send to %u: IPC_MSG_ANSWER([%u, %u])\n", dest, answers[0].base,
-                  answers[0].size);
-    else if (answers_cnt)
-        log_debug("ipc send to %u: IPC_MSG_ANSWER([%u, %u], ...)\n", dest, answers[0].base,
-                  answers[0].size);
-
-    return send_ipc_message(msg, dest);
-}
-
-int ipc_answer_callback(IDTYPE src, void* data, unsigned long seq) {
-    struct shim_ipc_answer* msgin = data;
-
-    if (msgin->answers_cnt == 1) {
-        log_debug("ipc callback from %u: IPC_MSG_ANSWER([%u, %u])\n", src, msgin->answers[0].base,
-                  msgin->answers[0].size);
-    } else if (msgin->answers_cnt) {
-        log_debug("ipc callback from %u: IPC_MSG_ANSWER([%u, %u], ...)\n", src,
-                  msgin->answers[0].base, msgin->answers[0].size);
+    void* resp = NULL;
+    int ret = ipc_send_msg_and_get_response(leader, msg, &resp);
+    if (ret < 0) {
+        return ret;
     }
 
-    for (size_t i = 0; i < msgin->answers_cnt; i++) {
-        struct ipc_ns_offered* ans = &msgin->answers[i];
-
-        switch (ans->size) {
-            case RANGE_SIZE:
-                add_ipc_range(ans->base, ans->owner);
-                break;
-            case 1:
-                add_ipc_subrange(ans->base, ans->owner);
-                break;
-            default:
-                break;
-        }
+    struct shim_ipc_answer* answer = resp;
+    switch (answer->answers_cnt) {
+        case 1:;
+            struct ipc_ns_offered* ans = answer->answers;
+            switch (ans->size) {
+                case RANGE_SIZE:
+                    add_ipc_range(ans->base, ans->owner);
+                    break;
+                case 1:
+                    add_ipc_subrange(ans->base, ans->owner);
+                    break;
+                default:
+                    BUG();
+            }
+            ret = 0;
+            break;
+        case 0:
+            ret = -ESRCH;
+            break;
+        default:
+            BUG();
     }
 
-    ipc_msg_response_handle(seq, wake_req_msg_thread, NULL);
-
-    return 0;
+    free(resp);
+    return ret;
 }
 
-int ipc_query_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_query_callback(IDTYPE src, void* data, uint64_t seq) {
     struct shim_ipc_query* msgin = data;
 
     log_debug("ipc callback from %u: IPC_MSG_QUERY(%u)\n", src, msgin->idx);
 
-    struct ipc_range range;
-    int ret = 0;
-    memset(&range, 0, sizeof(struct ipc_range));
+    struct ipc_range range = { 0 };
+    int ret = get_ipc_range(msgin->idx, &range);
+    if (ret < 0) {
+        ret = ipc_answer_send(src, seq, 0, NULL);
+    } else {
+        assert(msgin->idx >= range.base && msgin->idx < range.base + range.size);
+        assert(range.owner);
 
-    ret = get_ipc_range(msgin->idx, &range);
-    if (ret < 0)
-        goto out;
+        struct ipc_ns_offered ans = {
+            .base = range.base,
+            .size = range.size,
+            .owner = range.owner,
+        };
 
-    assert(msgin->idx >= range.base && msgin->idx < range.base + range.size);
-    assert(range.owner);
-
-    struct ipc_ns_offered ans = {
-        .base = range.base,
-        .size = range.size,
-        .owner = range.owner,
-    };
-
-    ret = ipc_answer_send(src, 1, &ans, seq);
-out:
+        ret = ipc_answer_send(src, seq, 1, &ans);
+    }
     return ret;
 }
 
@@ -709,16 +697,44 @@ int ipc_queryall_send(void) {
 
     IDTYPE leader = g_process_ipc_ids.leader_vmid;
 
-    size_t total_msg_size = get_ipc_msg_with_ack_size(0);
-    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_MSG_QUERYALL, total_msg_size);
+    size_t total_msg_size = get_ipc_msg_size(0);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_MSG_QUERYALL, total_msg_size);
 
     log_debug("ipc send to %u: IPC_MSG_QUERYALL\n", leader);
 
-    return send_ipc_message_with_ack(msg, leader, NULL);
+    void* resp = NULL;
+    int ret = ipc_send_msg_and_get_response(leader, msg, &resp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    struct shim_ipc_answer* answer = resp;
+    if (answer->answers_cnt == 0) {
+        ret = -ESRCH;
+    } else {
+        for (size_t i = 0; i < answer->answers_cnt; i++) {
+            struct ipc_ns_offered* ans = &answer->answers[i];
+
+            switch (ans->size) {
+                case RANGE_SIZE:
+                    add_ipc_range(ans->base, ans->owner);
+                    break;
+                case 1:
+                    add_ipc_subrange(ans->base, ans->owner);
+                    break;
+                default:
+                    BUG();
+            }
+        }
+        ret = 0;
+    }
+
+    free(resp);
+    return ret;
 }
 
-int ipc_queryall_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_queryall_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(data);
     log_debug("ipc callback from %u: IPC_MSG_QUERYALL\n", src);
 
@@ -765,7 +781,7 @@ retry:
 
     unlock(&range_map_lock);
 
-    return ipc_answer_send(src, answers_cnt, answers, seq);
+    return ipc_answer_send(src, seq, answers_cnt, answers);
 }
 
 int get_all_pid_status(struct pid_status** status) {
@@ -794,7 +810,7 @@ retry:
         IDTYPE off, idx;
         IDTYPE base;
         IDTYPE pids[RANGE_SIZE];
-        struct pid_status* range_status;
+        struct shim_ipc_pid_retstatus* retstatus = NULL;
 
 #define UNDEF_IDX ((IDTYPE)-1)
 
@@ -830,20 +846,20 @@ retry:
             pids[0] = base + idx;
         }
 
-        ret = ipc_pid_getstatus_send(owner, idx == UNDEF_IDX ? RANGE_SIZE : 1, pids, &range_status);
+        ret = ipc_pid_getstatus(owner, idx == UNDEF_IDX ? RANGE_SIZE : 1, pids, &retstatus);
 
         if (ret > 0) {
-            if (statuses_cnt + ret > bufsize) {
+            if (statuses_cnt + retstatus->count > bufsize) {
                 size_t newsize = bufsize * 2;
 
-                while (statuses_cnt + ret > newsize)
+                while (statuses_cnt + retstatus->count > newsize)
                     newsize *= 2;
 
                 struct pid_status* new_buf = malloc(newsize);
 
                 if (!new_buf) {
                     unlock(&range_map_lock);
-                    free(range_status);
+                    free(retstatus);
                     free(status_buf);
                     return -ENOMEM;
                 }
@@ -855,9 +871,10 @@ retry:
                 bufsize    = newsize;
             }
 
-            memcpy(status_buf + statuses_cnt, range_status, sizeof(struct pid_status) * ret);
-            free(range_status);
-            statuses_cnt += ret;
+            memcpy(status_buf + statuses_cnt, &retstatus->status,
+                   sizeof(struct pid_status) * retstatus->count);
+            free(retstatus);
+            statuses_cnt += retstatus->count;
         }
 
         idx++;
