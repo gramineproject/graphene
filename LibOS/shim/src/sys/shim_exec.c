@@ -171,18 +171,7 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
             return -EFAULT;
     }
 
-    DEFINE_LIST(sharg);
-    struct sharg {
-        LIST_TYPE(sharg) list;
-        int len;
-        char arg[0];
-    };
-    DEFINE_LISTP(sharg);
-    LISTP_TYPE(sharg) shargs;
-    INIT_LISTP(&shargs);
-
     struct shim_handle* exec = NULL;
-reopen:
     if (!(exec = get_new_handle())) {
         return -ENOMEM;
     }
@@ -192,83 +181,11 @@ reopen:
         return ret;
     }
 
-    if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
+    /* TODO: consider handling shebangs, if necessary */
+    if ((ret = check_elf_object(exec)) < 0) {
+        log_warning("file not recognized as ELF\n");
         put_handle(exec);
         return ret;
-    }
-
-    if (ret == -EINVAL) { /* it's a shebang */
-        LISTP_TYPE(sharg) new_shargs = LISTP_INIT;
-        struct sharg* next = NULL;
-        bool ended = false, started = false;
-        char buf[80];
-
-        do {
-            ret = do_handle_read(exec, buf, 80);
-            if (ret <= 0)
-                break;
-
-            char* s = buf;
-            char* c = buf;
-            char* e = buf + ret;
-
-            if (!started) {
-                if (ret < 2 || buf[0] != '#' || buf[1] != '!')
-                    break;
-
-                s += 2;
-                c += 2;
-                started = true;
-            }
-
-            for (; c < e; c++) {
-                if (*c == ' ' || *c == '\n' || c == e - 1) {
-                    int l = (*c == ' ' || *c == '\n') ? c - s : e - s;
-                    if (next) {
-                        struct sharg* sh = __alloca(sizeof(struct sharg) + next->len + l + 1);
-                        sh->len = next->len + l;
-                        memcpy(sh->arg, next->arg, next->len);
-                        memcpy(sh->arg + next->len, s, l);
-                        sh->arg[next->len + l] = 0;
-                        next = sh;
-                    } else {
-                        next = __alloca(sizeof(struct sharg) + l + 1);
-                        next->len = l;
-                        memcpy(next->arg, s, l);
-                        next->arg[l] = 0;
-                    }
-                    if (*c == ' ' || *c == '\n') {
-                        INIT_LIST_HEAD(next, list);
-                        LISTP_ADD_TAIL(next, &new_shargs, list);
-                        next = NULL;
-                        s = c + 1;
-                        if (*c == '\n') {
-                            ended = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        } while (!ended);
-
-        if (!started) {
-            log_warning("file not recognized as ELF or shebang\n");
-            put_handle(exec);
-            return -ENOEXEC;
-        }
-
-        if (next) {
-            INIT_LIST_HEAD(next, list);
-            LISTP_ADD_TAIL(next, &new_shargs, list);
-        }
-
-        struct sharg* first = LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
-        assert(first);
-        log_debug("detected as script: run by %s\n", first->arg);
-        file = first->arg;
-        LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
-        put_handle(exec);
-        goto reopen;
     }
 
     /* If `execve` is invoked concurrently by multiple threads, let only one succeed. From this
