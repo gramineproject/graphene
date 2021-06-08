@@ -65,7 +65,10 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
         ret = send_ipc_message(msg, dest);
         if (ret < 0) {
             /* During sending the message to destination process, it may have terminated and became
-             * a zombie (if it was our child), and kill shouldn't fail. */
+             * a zombie; kill shouldn't fail in this case. The below logic checks if the destination
+             * process is _our_ zombie child -- this doesn't work for a case when the destination
+             * process is not our child (the logic will just loop couple times and return error).
+             * We assume that the latter case doesn't happen in real applications. */
             int wait_iter = 3;
             while (wait_iter--) {
                 if (is_zombie_process(dest_pid)) {
