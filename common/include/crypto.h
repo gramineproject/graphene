@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 #define SHA256_DIGEST_LEN 32
-#define DH_SIZE           256 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c */
+#define DH_SIZE           384 /* DH_SIZE is tied to the choice of parameters in mbedtls_adapter.c */
 
 #ifdef CRYPTO_USE_MBEDTLS
 #define CRYPTO_PROVIDER_SPECIFIED

@@ -905,8 +905,8 @@ int init_enclave(void) {
 }
 
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
-    uint8_t pub[DH_SIZE]   __attribute__((aligned(DH_SIZE)));
-    uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
+    uint8_t pub[DH_SIZE];
+    uint8_t agree[DH_SIZE];
     PAL_NUM pubsz, agreesz;
     LIB_DH_CONTEXT context;
     int64_t bytes;

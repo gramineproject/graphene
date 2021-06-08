@@ -435,11 +435,11 @@ int lib_DhInit(LIB_DH_CONTEXT* context) {
     /* Configure parameters. Note that custom Diffie-Hellman parameters are considered more secure,
      * but require more data be exchanged between the two parties to establish the parameters, so we
      * haven't implemented that yet. */
-    ret = mbedtls_mpi_read_string(&context->P, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_P);
+    ret = mbedtls_mpi_read_string(&context->P, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_3072_P);
     if (ret < 0)
         return mbedtls_to_pal_error(ret);
 
-    ret = mbedtls_mpi_read_string(&context->G, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_G);
+    ret = mbedtls_mpi_read_string(&context->G, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_3072_G);
     if (ret < 0)
         return mbedtls_to_pal_error(ret);
 
