@@ -266,7 +266,7 @@ struct shim_ipc_port;
 
 void sync_client_message_callback(int code, uint64_t id, int state, size_t data_size, void* data);
 void sync_server_message_callback(IDTYPE src, int code, uint64_t id, int state,
-                                size_t data_size, void* data);
+                                  size_t data_size, void* data);
 void sync_server_disconnect_callback(IDTYPE src);
 
 #endif /* SHIM_SYNC_H_ */
