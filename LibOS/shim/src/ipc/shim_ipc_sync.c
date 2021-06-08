@@ -33,16 +33,18 @@ static inline void sync_log(const char* prefix, int code, uint64_t id, int state
 
 static int sync_msg_send(IDTYPE dest, int code, uint64_t id, int state, size_t data_size,
                          void* data) {
+    struct shim_ipc_sync msgin = {
+        .id = id,
+        .state = state,
+        .data_size = data_size,
+    };
+
     size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sync) + data_size);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, code, total_msg_size);
 
-    struct shim_ipc_sync* msgin = (void*)&msg->data;
-    msgin->id = id;
-    msgin->state = state;
-    msgin->data_size = data_size;
-    if (data_size > 0)
-        memcpy(&msgin->data, data, data_size);
+    memcpy(&msg->data, &msgin, sizeof(msgin));
+    memcpy(&((struct shim_ipc_sync*)&msg->data)->data, data, data_size);
 
     return send_ipc_message(msg, dest);
 }
