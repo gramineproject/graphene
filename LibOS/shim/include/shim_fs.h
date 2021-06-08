@@ -130,8 +130,8 @@ struct shim_dentry {
      * different in case of special files (such as named pipes or sockets). */
     struct shim_fs* fs;
 
-    /* Parent of this dentry, within the same filesystem. Use `dentry_up` to get the dentry above
-     * (going across filesystems, if necessary). */
+    /* Parent of this dentry, but only within the same mount. If you need the dentry one level up,
+     * regardless of mounts (i.e. `..`), you should use `dentry_up()` instead. */
     struct shim_dentry* parent;
 
     size_t nchildren;
