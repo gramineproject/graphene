@@ -405,8 +405,8 @@ In real deployments, the user must replace this ``wrap-key`` with her own
 We also re-use the ``pf_crypt`` utility (with its ``libsgx_util.so`` helper
 library and required mbedTLS libraries) that encrypts/decrypts the files::
 
-   cp ../ra-tls-secret-prov/libsgx_util.so .
-   cp ../ra-tls-secret-prov/libmbed*.so* .
+   cp ../ra-tls-secret-prov/libs/libsgx_util.so .
+   cp ../ra-tls-secret-prov/libs/libmbed*.so* .
    cp ../ra-tls-secret-prov/pf_crypt .
 
 Let's also make sure that ``alexnet-pretrained.pt`` network-model file exists
@@ -434,7 +434,7 @@ The user must prepare the secret provisioning server and start it. For this,
 copy the secret provisioning executable and its helper library from
 ``Examples/ra-tls-secret-prov`` to the current directory::
 
-   cp ../ra-tls-secret-prov/libsecret_prov_verify_dcap.so .
+   cp ../ra-tls-secret-prov/libs/libsecret_prov_verify_dcap.so .
    cp ../ra-tls-secret-prov/secret_prov_server_dcap .
 
 Also, copy the server-identifying certificates so that in-Graphene secret
