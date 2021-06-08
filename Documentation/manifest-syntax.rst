@@ -79,6 +79,17 @@ pointing to a mounted file. Relative paths will be interpreted as starting from
 the current working directory (i.e. from ``/`` by default, or ``fs.start_dir``
 if specified).
 
+The recommended usage is to provide an absolute path, and mount the executable
+at that path. For example:
+
+::
+   libos.entrypoint = "/usr/bin/python3.8"
+
+   fs.mount.python.type = "chroot"
+   fs.mount.path = "/usr/bin/python3.8"
+   # Or "file:python3.8" if using a binary from your local directory
+   fs.mount.uri = "file:/usr/bin/python3.8"
+
 .. note ::
    Earlier, ``libos.entrypoint`` was a PAL URI. If you used it with a relative
    path, it's probably enough to remove ``file:`` prefix (convert
