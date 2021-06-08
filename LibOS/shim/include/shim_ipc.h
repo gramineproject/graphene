@@ -437,7 +437,7 @@ struct shim_ipc_sync {
     int state;
     size_t data_size;
     unsigned char data[];
-} __attribute__((packed));
+};
 
 int ipc_sync_client_send(int code, uint64_t id, int state, size_t data_size, void* data);
 int ipc_sync_server_send(IDTYPE dest, int code, uint64_t id, int state, size_t data_size,
