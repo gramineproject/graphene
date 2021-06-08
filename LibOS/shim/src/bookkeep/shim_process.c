@@ -196,19 +196,13 @@ bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE child_uid, int exit_code, int s
     return mark_child_exited(cmp_child_by_pid, (unsigned long)pid, child_uid, exit_code, signal);
 }
 
-bool is_child_process_or_zombie(IDTYPE pid) {
+bool is_zombie_process(IDTYPE pid) {
     bool found = false;
     lock(&g_process.children_lock);
 
-    struct shim_child_process* child;
-    LISTP_FOR_EACH_ENTRY(child, &g_process.children, list) {
-        if (child->pid == pid) {
-            found = true;
-            goto out;
-        }
-    }
-    LISTP_FOR_EACH_ENTRY(child, &g_process.zombies, list) {
-        if (child->pid == pid) {
+    struct shim_child_process* zombie;
+    LISTP_FOR_EACH_ENTRY(zombie, &g_process.zombies, list) {
+        if (zombie->pid == pid) {
             found = true;
             goto out;
         }

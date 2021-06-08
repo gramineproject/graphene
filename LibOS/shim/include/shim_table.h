@@ -132,7 +132,7 @@ long shim_do_setsid(void);
 long shim_do_getpgid(pid_t pid);
 long shim_do_getsid(pid_t pid);
 long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize);
-long shim_do_rt_sigtimedwait(const __sigset_t* allowed_ptr, siginfo_t* info,
+long shim_do_rt_sigtimedwait(const __sigset_t* unblocked_ptr, siginfo_t* info,
                              struct __kernel_timespec* timeout, size_t setsize);
 long shim_do_sigaltstack(const stack_t* ss, stack_t* oss);
 long shim_do_setpriority(int which, int who, int niceval);

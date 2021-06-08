@@ -125,7 +125,7 @@ static uint64_t g_process_pending_signals_cnt = 0;
  * If host signal injection is enabled, this stores the injected signal. Note that we currently
  * support injecting only 1 instance of 1 signal only once, as this feature is meant only for
  * graceful termination of the user application. Note that the only host-injected signal currently
- * supported is SIGTERM; see also `pop_allowed_signal()`.
+ * supported is SIGTERM; see also `pop_unblocked_signal()`.
  */
 static int g_host_injected_signal = 0;
 static bool g_inject_host_signal_enabled = false;
@@ -594,7 +594,7 @@ uintptr_t get_stack_for_sighandler(uintptr_t sp, bool use_altstack) {
     return (uintptr_t)alt_stack->ss_sp + alt_stack->ss_size;
 }
 
-void pop_allowed_signal(__sigset_t* mask, struct shim_signal* signal) {
+void pop_unblocked_signal(__sigset_t* mask, struct shim_signal* signal) {
     assert(signal);
     signal->siginfo.si_signo = 0;
 
@@ -689,7 +689,7 @@ bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr) {
     if (have_forced_signal()) {
         get_forced_signal(&signal);
     } else {
-        pop_allowed_signal(/*mask=*/NULL, &signal);
+        pop_unblocked_signal(/*mask=*/NULL, &signal);
     }
 
     int sig = signal.siginfo.si_signo;

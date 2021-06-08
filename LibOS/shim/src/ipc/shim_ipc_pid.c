@@ -61,16 +61,24 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     } else {
         log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
                   dest_pid, sig);
-        ret = send_ipc_message(msg, dest);
 
-        if ((ret == -EACCES || ret == -EPIPE) && is_child_process_or_zombie(dest_pid)) {
-            /* During sending the message to destination process, it may have terminated: the
-             * destination process becomes a zombie if it was our child, and kill shouldn't fail.
-             * Note that there is a race between receiving a SIGCHLD notification in the IPC worker
-             * thread (thus marking it as a zombie) and sending a KILL in this thread, so we have to
-             * assume here that the destination child process indeed terminated during this KILL. */
-            log_debug("IPC send to terminated child process %u is dropped\n", dest_pid);
-            return 0;
+        int send_attempt = 3;
+        while (send_attempt--) {
+            ret = send_ipc_message(msg, dest);
+            if (!ret)
+                break;
+
+            if (is_zombie_process(dest_pid)) {
+                log_debug("IPC send to terminated child process %u is dropped\n", dest_pid);
+                ret = 0;
+                break;
+            } else {
+                /* There may be a race between receiving a SIGCHLD notification in the IPC worker
+                 * thread (thus marking the destination process as a zombie) and sending a KILL in
+                 * this thread, so we sleep for a bit and retry sending KILL. */
+                uint64_t timeout_us = 10000;
+                thread_wait(&timeout_us, /*ignore_pending_signals=*/false);
+            }
         }
     }
 
