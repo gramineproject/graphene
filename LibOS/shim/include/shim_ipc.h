@@ -12,7 +12,6 @@
 #include "shim_defs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
-#include "shim_sysv.h"
 #include "shim_thread.h"
 #include "shim_types.h"
 
@@ -20,8 +19,6 @@
 #define RESPONSE_CALLBACK 1
 
 #define RANGE_SIZE 32
-
-#define IPC_SEM_NOTIMEOUT    ((unsigned long)-1)
 
 enum {
     IPC_MSG_RESP = 0,
@@ -39,22 +36,12 @@ enum {
     IPC_MSG_PID_RETSTATUS,
     IPC_MSG_PID_GETMETA,
     IPC_MSG_PID_RETMETA,
-    IPC_MSG_SYSV_FINDKEY,
-    IPC_MSG_SYSV_TELLKEY,
-    IPC_MSG_SYSV_DELRES,
-    IPC_MSG_SYSV_MSGSND,
-    IPC_MSG_SYSV_MSGRCV,
-    IPC_MSG_SYSV_SEMOP,
-    IPC_MSG_SYSV_SEMCTL,
-    IPC_MSG_SYSV_SEMRET,
     IPC_MSG_CODE_BOUND,
 };
 
 enum kill_type { KILL_THREAD, KILL_PROCESS, KILL_PGROUP, KILL_ALL };
 
 enum pid_meta_code { PID_META_CRED, PID_META_EXEC, PID_META_CWD, PID_META_ROOT };
-
-enum sysv_type { SYSV_NONE, SYSV_MSGQ, SYSV_SEM, SYSV_SHM };
 
 struct shim_ipc_ids {
     IDTYPE parent_vmid;
@@ -67,7 +54,6 @@ extern struct shim_ipc_ids g_process_ipc_ids;
 int init_ipc(void);
 int init_ns_ranges(void);
 int init_ns_pid(void);
-int init_ns_sysv(void);
 
 /*!
  * \brief Initialize the IPC worker thread
@@ -116,8 +102,6 @@ struct shim_ipc_msg {
 /*
  * XXX: Currently required by:
  * - `msg_add_range` in `LibOS/shim/src/ipc/shim_ipc_ranges.c`,
- * - `msgsnd_callback` in `LibOS/shim/src/ipc/shim_ipc_sysv.c`,
- * - `semret_callback` in `LibOS/shim/src/ipc/shim_ipc_sysv.c`.
  */
 static_assert(offsetof(struct shim_ipc_msg, data) % 8 == 0, "Currently proper alignment is required");
 
@@ -333,96 +317,5 @@ struct shim_ipc_pid_retmeta {
 int ipc_pid_retmeta_send(IDTYPE dest, IDTYPE pid, enum pid_meta_code code, const void* data,
                          int datasize, unsigned long seq);
 int ipc_pid_retmeta_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* sysv namespace */
-struct sysv_key {
-    unsigned long key;
-    enum sysv_type type;
-};
-
-int sysv_add_key(struct sysv_key* key, IDTYPE id);
-int sysv_get_key(struct sysv_key* key, bool delete);
-
-/* SYSV_FINDKEY */
-struct shim_ipc_sysv_findkey {
-    struct sysv_key key;
-} __attribute__((packed));
-
-int ipc_sysv_findkey_send(struct sysv_key* key);
-int ipc_sysv_findkey_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* SYSV_TELLKEY */
-struct shim_ipc_sysv_tellkey {
-    struct sysv_key key;
-    IDTYPE id;
-} __attribute__((packed));
-
-int ipc_sysv_tellkey_send(IDTYPE dest, struct sysv_key* key, IDTYPE id, unsigned long seq);
-int ipc_sysv_tellkey_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* SYSV_DELRES */
-struct shim_ipc_sysv_delres {
-    IDTYPE resid;
-    enum sysv_type type;
-} __attribute__((packed));
-
-int ipc_sysv_delres_send(IDTYPE dest, IDTYPE resid, enum sysv_type type);
-int ipc_sysv_delres_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* SYSV_MSGSND */
-struct shim_ipc_sysv_msgsnd {
-    IDTYPE msgid;
-    long msgtype;
-    size_t size;
-    char msg[];
-} __attribute__((packed));
-
-int ipc_sysv_msgsnd_send(IDTYPE dest, IDTYPE msgid, long msgtype, const void* buf, size_t size,
-                         unsigned long seq);
-int ipc_sysv_msgsnd_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* SYSV_MSGRCV */
-struct shim_ipc_sysv_msgrcv {
-    IDTYPE msgid;
-    long msgtype;
-    size_t size;
-    int flags;
-} __attribute__((packed));
-
-int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_t size);
-int ipc_sysv_msgrcv_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* SYSV_SEMOP */
-struct shim_ipc_sysv_semop {
-    IDTYPE semid;
-    unsigned long timeout;
-    int nsops;
-    struct sembuf sops[];
-};
-
-int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned long timeout,
-                        unsigned long* seq);
-int ipc_sysv_semop_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* SYSV_SEMCTL */
-struct shim_ipc_sysv_semctl {
-    IDTYPE semid;
-    int semnum;
-    int cmd;
-    size_t valsize;
-    unsigned char vals[];
-} __attribute__((packed));
-
-int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t valsize);
-int ipc_sysv_semctl_callback(IDTYPE src, void* data, unsigned long seq);
-
-/* SYSV_SEMRET */
-struct shim_ipc_sysv_semret {
-    size_t valsize;
-    unsigned char vals[];
-} __attribute__((packed));
-
-int ipc_sysv_semret_send(IDTYPE dest, void* vals, size_t valsize, unsigned long seq);
-int ipc_sysv_semret_callback(IDTYPE src, void* data, unsigned long seq);
 
 #endif /* SHIM_IPC_H_ */

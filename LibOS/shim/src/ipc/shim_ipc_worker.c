@@ -62,14 +62,6 @@ static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_PID_RETSTATUS] = ipc_pid_retstatus_callback,
     [IPC_MSG_PID_GETMETA]   = ipc_pid_getmeta_callback,
     [IPC_MSG_PID_RETMETA]   = ipc_pid_retmeta_callback,
-    [IPC_MSG_SYSV_FINDKEY]  = ipc_sysv_findkey_callback,
-    [IPC_MSG_SYSV_TELLKEY]  = ipc_sysv_tellkey_callback,
-    [IPC_MSG_SYSV_DELRES]   = ipc_sysv_delres_callback,
-    [IPC_MSG_SYSV_MSGSND]   = ipc_sysv_msgsnd_callback,
-    [IPC_MSG_SYSV_MSGRCV]   = ipc_sysv_msgrcv_callback,
-    [IPC_MSG_SYSV_SEMOP]    = ipc_sysv_semop_callback,
-    [IPC_MSG_SYSV_SEMCTL]   = ipc_sysv_semctl_callback,
-    [IPC_MSG_SYSV_SEMRET]   = ipc_sysv_semret_callback,
 };
 
 static void ipc_leader_died_callback(void) {

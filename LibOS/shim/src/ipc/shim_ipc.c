@@ -65,8 +65,6 @@ int init_ipc(void) {
     int ret = 0;
     if ((ret = init_ns_ranges()) < 0)
         return ret;
-    if ((ret = init_ns_sysv()) < 0)
-        return ret;
 
     return 0;
 }

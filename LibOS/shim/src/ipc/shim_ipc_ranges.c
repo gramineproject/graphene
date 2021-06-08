@@ -71,19 +71,6 @@ static int nowned = 0;
 static int noffered = 0;
 static int nsubed = 0;
 
-#define KEY_HASH_LEN  8
-#define KEY_HASH_NUM  (1 << KEY_HASH_LEN)
-#define KEY_HASH_MASK (KEY_HASH_NUM - 1)
-
-DEFINE_LIST(key);
-struct key {
-    struct sysv_key key;
-    IDTYPE id;
-    LIST_TYPE(key) hlist;
-};
-DEFINE_LISTP(key);
-static LISTP_TYPE(key) key_map[KEY_HASH_NUM];
-
 static int __extend_range_bitmap(IDTYPE expected) {
     assert(locked(&range_map_lock));
 
@@ -892,61 +879,4 @@ retry:
 
     *status = status_buf;
     return statuses_cnt;
-}
-
-int sysv_add_key(struct sysv_key* key, IDTYPE id) {
-    assert(key);
-
-    LISTP_TYPE(key)* head = &key_map[key->key & KEY_HASH_MASK];
-    struct key* k;
-    int ret = -EEXIST;
-
-    lock(&range_map_lock);
-
-    LISTP_FOR_EACH_ENTRY(k, head, hlist) {
-        if (k->key.key == key->key && k->key.type == key->type)
-            goto out;
-    }
-
-    k = malloc(sizeof(struct key));
-    if (!k) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    k->key.key  = key->key;
-    k->key.type = key->type;
-    k->id       = id;
-    INIT_LIST_HEAD(k, hlist);
-    LISTP_ADD(k, head, hlist);
-
-    log_debug("added key/id pair (%lu, %u) to hash list: %p\n", key->key, id, head);
-    ret = 0;
-out:
-    unlock(&range_map_lock);
-    return ret;
-}
-
-int sysv_get_key(struct sysv_key* key, bool delete) {
-    assert(key);
-
-    LISTP_TYPE(key)* head = &key_map[key->key & KEY_HASH_MASK];
-    struct key* k;
-    int id = -ENOENT;
-
-    lock(&range_map_lock);
-
-    LISTP_FOR_EACH_ENTRY(k, head, hlist) {
-        if (k->key.key == key->key && k->key.type == key->type) {
-            id = k->id;
-            if (delete) {
-                LISTP_DEL(k, head, hlist);
-                free(k);
-            }
-            break;
-        }
-    }
-
-    unlock(&range_map_lock);
-    return id;
 }

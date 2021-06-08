@@ -88,13 +88,6 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
 long shim_do_wait4(pid_t pid, int* stat_addr, int options, struct __kernel_rusage* ru);
 long shim_do_kill(pid_t pid, int sig);
 long shim_do_uname(struct new_utsname* buf);
-long shim_do_semget(key_t key, int nsems, int semflg);
-long shim_do_semop(int semid, struct sembuf* sops, unsigned int nsops);
-long shim_do_semctl(int semid, int semnum, int cmd, unsigned long arg);
-long shim_do_msgget(key_t key, int msgflg);
-long shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg);
-long shim_do_msgrcv(int msqid, void* msgp, size_t msgsz, long msgtyp, int msgflg);
-long shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf);
 long shim_do_fcntl(int fd, int cmd, unsigned long arg);
 long shim_do_fsync(int fd);
 long shim_do_fdatasync(int fd);
@@ -155,8 +148,6 @@ long shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int va
 long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr);
 long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr);
 long shim_do_set_tid_address(int* tidptr);
-long shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
-                        const struct timespec* timeout);
 long shim_do_epoll_create(int size);
 long shim_do_getdents64(int fd, struct linux_dirent64* buf, size_t count);
 long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxevents,

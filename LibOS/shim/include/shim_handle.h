@@ -22,7 +22,6 @@
 #include "list.h"
 #include "pal.h"
 #include "shim_defs.h"
-#include "shim_sysv.h"
 #include "shim_types.h"
 
 /* Handle types. Many of these are used by a single filesystem. */
@@ -40,8 +39,6 @@ enum shim_handle_type {
     TYPE_SOCK,       /* sockets, used by `socket` filesystem */
 
     /* Special handles: */
-    TYPE_SEM,        /* System V semaphores, see `shim_semget.c` */
-    TYPE_MSG,        /* System V messages, see `shim_msgget.c` */
     TYPE_EPOLL,      /* epoll handles, see `shim_epoll.c` */
     TYPE_EVENTFD,    /* eventfd handles, used by `eventfd` filesystem */
 };
@@ -203,52 +200,6 @@ struct shim_dir_handle {
     size_t pos;
 };
 
-struct msg_type;
-struct msg_item;
-struct msg_client;
-
-#define MAX_SYSV_CLIENTS 32
-
-DEFINE_LIST(shim_msg_handle);
-struct shim_msg_handle {
-    unsigned long msqkey; /* msg queue key from user */
-    IDTYPE msqid;         /* msg queue identifier */
-    bool owned;           /* owned by current process */
-    int perm;        /* access permissions */
-    bool deleted;    /* marking the queue deleted */
-    int nmsgs;       /* number of msgs */
-    int currentsize; /* current size in bytes */
-    struct msg_qobj* queue;
-    int queuesize;
-    int queueused;
-    struct msg_qobj* freed;
-    PAL_HANDLE event; /* event for waiting */
-    int ntypes;
-    int maxtypes;
-    struct msg_type* types;
-    LIST_TYPE(shim_msg_handle) key_hlist;
-    LIST_TYPE(shim_msg_handle) qid_hlist;
-};
-
-struct sem_objs;
-
-DEFINE_LIST(shim_sem_handle);
-struct shim_sem_handle {
-    unsigned long semkey;
-    IDTYPE semid;
-    bool owned;
-    int perm;
-    bool deleted;
-    PAL_HANDLE event;
-    int nsems;
-    struct sem_obj* sems;
-    int nreqs;
-    LISTP_TYPE(sem_ops) migrated;
-    LIST_TYPE(shim_sem_handle) list;
-    LIST_TYPE(shim_sem_handle) key_hlist;
-    LIST_TYPE(shim_sem_handle) sid_hlist;
-};
-
 struct shim_str_data {
     REFTYPE ref_count;
     char* str;
@@ -332,8 +283,6 @@ struct shim_handle {
         struct shim_pipe_handle pipe;    /* TYPE_PIPE */
         struct shim_sock_handle sock;    /* TYPE_SOCK */
 
-        struct shim_sem_handle sem;      /* TYPE_SEM */
-        struct shim_msg_handle msg;      /* TYPE_MSG */
         struct shim_epoll_handle epoll;  /* TYPE_EPOLL */
         /* (no data) */                  /* TYPE_EVENTFD */
     } info;
