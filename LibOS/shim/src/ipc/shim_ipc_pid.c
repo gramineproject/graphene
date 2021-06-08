@@ -80,7 +80,7 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
                      * worker thread (thus marking the destination process as a zombie) and sending
                      * a KILL in this thread, so we sleep for a bit and check for zombie again. */
                     uint64_t timeout_us = 10000;
-                    thread_wait(&timeout_us, /*ignore_pending_signals=*/false);
+                    thread_wait(&timeout_us, /*ignore_pending_signals=*/true);
                 }
             }
         }
