@@ -86,9 +86,10 @@ at that path. For example:
    libos.entrypoint = "/usr/bin/python3.8"
 
    fs.mount.python.type = "chroot"
-   fs.mount.path = "/usr/bin/python3.8"
-   # Or "file:python3.8" if using a binary from your local directory
-   fs.mount.uri = "file:/usr/bin/python3.8"
+   fs.mount.python.path = "/usr/bin/python3.8"
+   fs.mount.python.uri = "file:/usr/bin/python3.8"
+   # Or, if using a binary from your local directory:
+   # fs.mount.python.uri = "file:python3.8"
 
 .. note ::
    Earlier, ``libos.entrypoint`` was a PAL URI. If you used it with a relative
