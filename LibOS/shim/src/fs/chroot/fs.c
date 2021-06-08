@@ -398,6 +398,8 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
         lock(&data->lock);
         ret = __query_attr(dent, data, palhdl);
         unlock(&data->lock);
+        if (ret < 0)
+            return ret;
     }
 
     if (!hdl) {
@@ -413,10 +415,13 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
     hdl->info.file.data    = data;
 
     /* files obtained from checkpoint system will have sync handle initialized already */
-    if (!hdl->info.file.sync)
+    if (!hdl->info.file.sync) {
         ret = sync_create(&hdl->info.file.sync, /*id=*/0);
+        if (ret < 0)
+            return ret;
+    }
 
-    return ret;
+    return 0;
 }
 
 static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {

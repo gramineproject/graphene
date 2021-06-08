@@ -127,10 +127,11 @@ int init_sync_client(void) {
         return -ENOMEM;
 
     assert(g_manifest_root);
-    int64_t sync_enable = 0;
-    int ret = toml_int_in(g_manifest_root, "libos.sync.enable", /*defaultval=*/0, &sync_enable);
-    if (ret < 0 || (sync_enable != 0 && sync_enable != 1)) {
-        log_error("Cannot parse 'libos.sync.enable' (the value must be 0 or 1)\n");
+    bool sync_enable = false;
+    int ret = toml_bool_in(g_manifest_root, "libos.sync.enable", /*defaultval=*/false,
+                           &sync_enable);
+    if (ret < 0) {
+        log_error("Cannot parse 'libos.sync.enable' (the value must be `true` or `false`)\n");
         return -EINVAL;
     }
     if (sync_enable) {

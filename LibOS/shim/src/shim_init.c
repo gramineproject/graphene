@@ -477,8 +477,8 @@ noreturn void* shim_init(int argc, void* args) {
         RUN_INIT(init_sync_server);
     }
 
-    /* Note that the in the main process, we initialize both sync server and sync client, and the
-     * client communicates with server over a "loopback" IPC connection. */
+    /* Note that in the main process, we initialize both sync server and sync client, and the client
+     * communicates with server over a "loopback" IPC connection. */
     RUN_INIT(init_sync_client);
 
     log_debug("Shim process initialized\n");

@@ -255,7 +255,8 @@ void sync_destroy(struct sync_handle* handle);
  * - if state is SYNC_STATE_SHARED, no other process is holding a lock in SYNC_STATE_EXCLUSIVE state
  * - if state is SYNC_STATE_EXCLUSIVE, no other process is holding a lock in any state
  */
-bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_size);
+bool sync_lock(struct sync_handle* handle, int state, void* data, size_t data_size)
+    __attribute__((warn_unused_result));
 
 /* Release a handle, updating data associated with it. */
 void sync_unlock(struct sync_handle* handle, void* data, size_t data_size);
