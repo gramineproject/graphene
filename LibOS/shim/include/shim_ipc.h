@@ -434,8 +434,8 @@ int ipc_sysv_semret_callback(IDTYPE src, void* data, unsigned long seq);
 /* SYNC_REQUEST_*, SYNC_CONFIRM_ */
 struct shim_ipc_sync {
     uint64_t id;
-    int state;
     size_t data_size;
+    int state;
     unsigned char data[];
 };
 
