@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LGPL-3.0-or-later */
-# Copyright (C) 2014 Stony Brook University
-# Copyright (C) 2019 Invisible Things Lab
-# Copyright (C) 2020 Intel Corporation
-#                    Michał Kowalczyk <mkow@invisiblethingslab.com>
-#                    Wojtek Porczyk <woju@invisiblethingslab.com>
+# Copyright (C) 2014      Stony Brook University
+# Copyright (C) 2019      Invisible Things Lab
+# Copyright (C) 2020-2021 Intel Corporation
+#                         Michał Kowalczyk <mkow@invisiblethingslab.com>
+#                         Wojtek Porczyk <woju@invisiblethingslab.com>
 
 
 # This is how we detect whether we're installed or running from inside git repo.
@@ -17,61 +17,15 @@ IN_GIT=@IN_GIT@
 
 if test -n "$IN_GIT"
 then
-    echo >&2
-    echo "WARNING: Running from repository is untested and unsupported." >&2
-    echo "Please install Graphene using Meson." >&2
+    echo "Running from repository is broken. Please install Graphene using Meson." >&2
     echo "See https://graphene.readthedocs.io/en/latest/building.html for details." >&2
-    echo >&2
-
-    while :
-    do
-        case "$1" in
-            "SGX")
-                SGX=1
-                export SGX
-                ;;
-            "GDB")
-                GDB=1
-                ;;
-            *)
-                break
-                ;;
-        esac
-        shift
-    done
-
-    RUNTIME_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-    if [ -z "$PAL_HOST" ]; then
-        if ! command -v make >/dev/null; then
-            libpal="$RUNTIME_DIR/libpal-*.so"
-            libpal="$(echo -n "$libpal")"
-            libpal="${libpal//$RUNTIME_DIR\//}"
-            if [ "$libpal" = 'libpal-*.so' ]; then
-                echo "Unable to detect PAL_HOST. Please install the make program."
-                exit 1
-            fi
-
-            array=("$libpal")
-            if [ ${#array[@]} -ne 1 ]; then
-                echo "Multiple libpal detected ($libpal). Please explicitly set the environment variable PAL_HOST."
-                exit 1
-            fi
-
-            PAL_HOST="${libpal%.so}"
-            PAL_HOST="${PAL_HOST#libpal-}"
-        else
-            PAL_HOST=$(make --no-print-directory --quiet -f "$RUNTIME_DIR/../Scripts/Makefile.configs" print_host 2>&1)
-        fi
-    fi
-    PAL_CMD="$RUNTIME_DIR/pal-$PAL_HOST"
-    LIBPAL_PATH=$(realpath "$RUNTIME_DIR/libpal-$PAL_HOST.so")
-    HOST_PAL_PATH=$(realpath "$RUNTIME_DIR/../Pal/src/host/$PAL_HOST")
-else
-    PAL_CMD=@PAL_CMD@
-    LIBPAL_PATH=@LIBPAL_PATH@
-    HOST_PAL_PATH=@HOST_PAL_PATH@
-    SGX=@SGX@
+    exit 1
 fi
+
+PAL_CMD=@PAL_CMD@
+LIBPAL_PATH=@LIBPAL_PATH@
+HOST_PAL_PATH=@HOST_PAL_PATH@
+SGX=@SGX@
 
 APPLICATION=
 ENVS=()
