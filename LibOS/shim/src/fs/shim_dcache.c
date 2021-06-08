@@ -114,8 +114,8 @@ static void free_dentry(struct shim_dentry* dent) {
     assert(LISTP_EMPTY(&dent->children));
     assert(LIST_EMPTY(dent, siblings));
 
-    if (dent->mounted) {
-        put_mount(dent->mounted);
+    if (dent->attached_mount) {
+        put_mount(dent->attached_mount);
     }
 
     /* XXX: We are leaking `data` field here. This field seems to have different meaning for
@@ -398,7 +398,7 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
 
     dump_dentry_mode(&buf, dent->type, dent->perm);
 
-    if (dent->mounted) {
+    if (dent->attached_mount) {
         buf_puts(&buf, "M");
     } else if (!dent->parent) {
         buf_puts(&buf, "*");
@@ -415,8 +415,8 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
     DUMP_FLAG(DENTRY_ISLINK, " -> ", "");
     buf_flush(&buf);
 
-    if (dent->mounted) {
-        struct shim_dentry* root = dent->mounted->root;
+    if (dent->attached_mount) {
+        struct shim_dentry* root = dent->attached_mount->root;
         dump_dentry(root, level + 1);
     } else {
         struct shim_dentry* child;
@@ -478,8 +478,8 @@ BEGIN_CP_FUNC(dentry) {
         if (dent->parent)
             DO_CP_MEMBER(dentry, dent, new_dent, parent);
 
-        if (dent->mounted)
-            DO_CP_MEMBER(mount, dent, new_dent, mounted);
+        if (dent->attached_mount)
+            DO_CP_MEMBER(mount, dent, new_dent, attached_mount);
 
         unlock(&dent->lock);
         ADD_CP_FUNC_ENTRY(off);
@@ -501,7 +501,7 @@ BEGIN_RS_FUNC(dentry) {
     CP_REBASE(dent->mount);
     CP_REBASE(dent->fs);
     CP_REBASE(dent->parent);
-    CP_REBASE(dent->mounted);
+    CP_REBASE(dent->attached_mount);
 
     if (!create_lock(&dent->lock)) {
         return -ENOMEM;
@@ -520,8 +520,8 @@ BEGIN_RS_FUNC(dentry) {
         LISTP_ADD_TAIL(dent, &dent->parent->children, siblings);
     }
 
-    if (dent->mounted) {
-        get_mount(dent->mounted);
+    if (dent->attached_mount) {
+        get_mount(dent->attached_mount);
     }
 }
 END_RS_FUNC(dentry)

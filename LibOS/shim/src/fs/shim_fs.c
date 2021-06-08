@@ -94,13 +94,13 @@ static int __mount_root(void) {
 
     if (fs_root_type && fs_root_uri) {
         log_debug("Mounting root as %s filesystem: from %s to /\n", fs_root_type, fs_root_uri);
-        if ((ret = mount_fs(fs_root_type, fs_root_uri, "/", /*make_synthetic=*/false)) < 0) {
+        if ((ret = mount_fs(fs_root_type, fs_root_uri, "/")) < 0) {
             log_error("Mounting root filesystem failed (%d)\n", ret);
             goto out;
         }
     } else {
         log_debug("Mounting root as chroot filesystem: from file:. to /\n");
-        if ((ret = mount_fs("chroot", URI_PREFIX_FILE, "/", /*make_synthetic=*/false)) < 0) {
+        if ((ret = mount_fs("chroot", URI_PREFIX_FILE, "/")) < 0) {
             log_error("Mounting root filesystem failed (%d)\n", ret);
             goto out;
         }
@@ -117,26 +117,26 @@ static int __mount_sys(void) {
     int ret;
 
     log_debug("Mounting special proc filesystem: /proc\n");
-    if ((ret = mount_fs("proc", NULL, "/proc", /*make_synthetic=*/true)) < 0) {
+    if ((ret = mount_fs("proc", NULL, "/proc")) < 0) {
         log_error("Mounting /proc filesystem failed (%d)\n", ret);
         return ret;
     }
 
     log_debug("Mounting special dev filesystem: /dev\n");
-    if ((ret = mount_fs("dev", NULL, "/dev", /*make_synthetic=*/true)) < 0) {
+    if ((ret = mount_fs("dev", NULL, "/dev")) < 0) {
         log_error("Mounting dev filesystem failed (%d)\n", ret);
         return ret;
     }
 
     log_debug("Mounting terminal device /dev/tty under /dev\n");
-    if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty", /*make_synthetic=*/true)) < 0) {
+    if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty")) < 0) {
         log_error("Mounting terminal device /dev/tty failed (%d)\n", ret);
         return ret;
     }
 
     log_debug("Mounting special sys filesystem: /sys\n");
 
-    if ((ret = mount_fs("sys", NULL, "/sys", /*make_synthetic=*/true)) < 0) {
+    if ((ret = mount_fs("sys", NULL, "/sys")) < 0) {
         log_error("Mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
@@ -213,7 +213,7 @@ static int __mount_one_other(toml_table_t* mount) {
         goto out;
     }
 
-    if ((ret = mount_fs(mount_type, mount_uri, mount_path, /*make_synthetic=*/true)) < 0) {
+    if ((ret = mount_fs(mount_type, mount_uri, mount_path)) < 0) {
         log_error("Mounting %s on %s (type=%s) failed (%d)\n", mount_uri, mount_path, mount_type,
                   -ret);
         goto out;
@@ -363,7 +363,7 @@ struct shim_fs* find_fs(const char* name) {
 static int mount_fs_at_dentry(const char* type, const char* uri, const char* mount_path,
                               struct shim_dentry* mount_point) {
     assert(locked(&g_dcache_lock));
-    assert(!mount_point->mounted);
+    assert(!mount_point->attached_mount);
 
     int ret;
     struct shim_fs* fs = find_fs(type);
@@ -405,7 +405,7 @@ static int mount_fs_at_dentry(const char* type, const char* uri, const char* mou
 
     mount->mount_point = mount_point;
     get_dentry(mount_point);
-    mount_point->mounted = mount;
+    mount_point->attached_mount = mount;
     get_mount(mount);
 
     /* Initialize root dentry of the new filesystem */
@@ -438,8 +438,8 @@ static int mount_fs_at_dentry(const char* type, const char* uri, const char* mou
     return 0;
 
 err:
-    if (mount_point->mounted)
-        mount_point->mounted = NULL;
+    if (mount_point->attached_mount)
+        mount_point->attached_mount = NULL;
 
     if (mount) {
         if (mount->mount_point)
@@ -461,15 +461,13 @@ err:
     return ret;
 }
 
-int mount_fs(const char* type, const char* uri, const char* mount_path, bool make_synthetic) {
+int mount_fs(const char* type, const char* uri, const char* mount_path) {
     int ret;
     struct shim_dentry* mount_point = NULL;
 
     lock(&g_dcache_lock);
 
-    int lookup_flags = LOOKUP_NO_FOLLOW;
-    if (make_synthetic)
-        lookup_flags |= LOOKUP_MAKE_SYNTHETIC;
+    int lookup_flags = LOOKUP_NO_FOLLOW | LOOKUP_MAKE_SYNTHETIC;
     if ((ret = _path_lookupat(g_dentry_root, mount_path, lookup_flags, &mount_point)) < 0) {
         log_warning("error looking up mountpoint %s: %d\n", mount_path, ret);
         goto out;

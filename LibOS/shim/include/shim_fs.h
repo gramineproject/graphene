@@ -140,7 +140,7 @@ struct shim_dentry {
 
     /* Filesystem mounted under this dentry. If set, this dentry is a mountpoint: filesystem
      * operations should use `mounted->fs->root` instead of this dentry. */
-    struct shim_mount* mounted;
+    struct shim_mount* attached_mount;
 
     /* file type: S_IFREG, S_IFDIR, S_IFLNK etc. */
     mode_t type;
@@ -289,25 +289,23 @@ int init_mount(void);
  * \param type Filesystem type (currently defined in `mountable_fs` in `shim_fs.c`)
  * \param uri PAL URI to mount, or NULL if not applicable
  * \param mount_path Path to the mountpoint
- * \param make_synthetic Make synthetic dentries on path to mountpoint (including mountpoint)
  *
  * If successful, this function converts the dentry pointed to by `mount_path` to a mountpoint. That
  * means (assuming the dentry is called `mount_point`):
  *
- * - `mount_point->mounted` is the new filesystem,
- * - `mount_point->mounted->root` is the dentry of new filesystem's root.
+ * - `mount_point->attached_mount` is the new filesystem,
+ * - `mount_point->attached_mount->root` is the dentry of new filesystem's root.
  *
  * Subsequent lookups for `mount_path` and paths starting with `mount_path` will therefore retrieve
  * the new filesystem's root, not the mountpoint.
  *
- * If `make_synthetic` is true, the function will also ensure that the mountpoint exists: new
- * dentries marked with DENTRY_SYNTHETIC will be created, if necessary. This is is a departure from
- * Unix mount, necessary to implement Graphene manifest semantics.
+ * The function will ensure that the mountpoint exists: new dentries marked with DENTRY_SYNTHETIC
+ * will be created, if necessary. This is a departure from Unix mount, necessary to implement
+ * Graphene manifest semantics.
  *
- * TODO: On failure, this function does not clean the synthetic nodes it just created (when
- * `make_synthetic` is true).
+ * TODO: On failure, this function does not clean the synthetic nodes it just created.
  */
-int mount_fs(const char* type, const char* uri, const char* mount_path, bool make_synthetic);
+int mount_fs(const char* type, const char* uri, const char* mount_path);
 
 void get_mount(struct shim_mount* mount);
 void put_mount(struct shim_mount* mount);
@@ -605,8 +603,8 @@ ino_t dentry_ino(struct shim_dentry* dent);
 /*!
  * \brief Allocate and initialize a new dentry
  *
- * \param parent the parent node, or NULL if this is supposed to be the mount root
  * \param mount the mount the dentry is under
+ * \param parent the parent node, or NULL if this is supposed to be the mount root
  * \param name name of the new dentry
  * \param name_len length of the name
  *

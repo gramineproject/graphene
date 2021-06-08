@@ -171,10 +171,10 @@ static int traverse_mount_and_validate(struct shim_dentry** dent) {
     if ((ret = validate_dentry(cur_dent)) < 0)
         goto out;
 
-    while (cur_dent->mounted) {
-        get_dentry(cur_dent->mounted->root);
+    while (cur_dent->attached_mount) {
+        get_dentry(cur_dent->attached_mount->root);
         put_dentry(cur_dent);
-        cur_dent = cur_dent->mounted->root;
+        cur_dent = cur_dent->attached_mount->root;
         if ((ret = validate_dentry(cur_dent)) < 0)
             goto out;
     }
@@ -361,7 +361,6 @@ static int do_path_lookupat(struct shim_dentry* start, const char* path, int fla
         .dent = dent,
         .link_depth = link_depth,
     };
-    dent = NULL;
 
     /* Main part of the algorithm. Repeatedly call `lookup_enter_dentry`, then `lookup_advance`,
      * until we have finished the path. */
@@ -724,8 +723,8 @@ int populate_directory_handle(struct shim_handle* hdl) {
         if (dent->state & DENTRY_VALID) {
             /* Traverse mount */
             struct shim_dentry* cur_dent = dent;
-            while (cur_dent->mounted) {
-                cur_dent = cur_dent->mounted->root;
+            while (cur_dent->attached_mount) {
+                cur_dent = cur_dent->attached_mount->root;
             }
 
             assert(cur_dent->state & DENTRY_VALID);
