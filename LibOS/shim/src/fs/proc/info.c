@@ -8,28 +8,13 @@
  */
 
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "stat.h"
 
-static int proc_info_mode(const char* name, mode_t* mode) {
-    __UNUSED(name);
-    *mode = FILE_R_MODE | S_IFREG;
-    return 0;
-}
+int proc_meminfo_load(struct shim_dentry* dent, char** data, size_t* size) {
+    __UNUSED(dent);
 
-static int proc_info_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    memset(buf, 0, sizeof(struct stat));
-    buf->st_dev  = 1; /* dummy ID of device containing file */
-    buf->st_mode = FILE_R_MODE | S_IFREG;
-    return 0;
-}
-
-static int proc_meminfo_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(name);
-    if (flags & (O_WRONLY | O_RDWR))
-        return -EACCES;
-
-    int len, max = 128;
+    size_t len, max = 128;
     char* str = NULL;
 
     struct {
@@ -63,24 +48,13 @@ retry:
         len += ret;
     }
 
-    struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
-    if (!data) {
-        free(str);
-        return -ENOMEM;
-    }
-
-    memset(data, 0, sizeof(struct shim_str_data));
-    data->str          = str;
-    data->len          = len;
-    hdl->type          = TYPE_STR;
-    hdl->flags         = flags & ~O_RDONLY;
-    hdl->acc_mode      = MAY_READ;
-    hdl->info.str.data = data;
+    *data = str;
+    *size = len;
     return 0;
 }
 
 // FIXME: remove once global realloc is enabled
-static void* realloc(void* ptr, size_t old_size, size_t new_size) {
+static void* realloc_size(void* ptr, size_t old_size, size_t new_size) {
     void* tmp = malloc(new_size);
     if (!tmp) {
         return NULL;
@@ -107,7 +81,7 @@ retry:
     }
 
     if ((size_t)ret >= *size - off) {
-        char* tmp = realloc(*str, *size, *size + 128);
+        char* tmp = realloc_size(*str, *size, *size + 128);
         if (!tmp) {
             return -ENOMEM;
         }
@@ -119,12 +93,8 @@ retry:
     return ret;
 }
 
-static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flags) {
-    // This function only serves one file
-    __UNUSED(name);
-
-    if (flags & (O_WRONLY | O_RDWR))
-        return -EACCES;
+int proc_cpuinfo_load(struct shim_dentry* dent, char** data, size_t* size) {
+    __UNUSED(dent);
 
     size_t len = 0;
     size_t max = 128;
@@ -163,29 +133,7 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
     }
 #undef ADD_INFO
 
-    struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
-    if (!data) {
-        free(str);
-        return -ENOMEM;
-    }
-
-    data->str          = str;
-    data->len          = len;
-    hdl->type          = TYPE_STR;
-    hdl->flags         = flags & ~O_RDONLY;
-    hdl->acc_mode      = MAY_READ;
-    hdl->info.str.data = data;
+    *data = str;
+    *size = len;
     return 0;
 }
-
-struct pseudo_fs_ops fs_meminfo = {
-    .mode = &proc_info_mode,
-    .stat = &proc_info_stat,
-    .open = &proc_meminfo_open,
-};
-
-struct pseudo_fs_ops fs_cpuinfo = {
-    .mode = &proc_info_mode,
-    .stat = &proc_info_stat,
-    .open = &proc_cpuinfo_open,
-};

@@ -775,15 +775,7 @@ BEGIN_RS_FUNC(handle) {
         case TYPE_FILE:
             CP_REBASE(hdl->info.file.sync);
             break;
-        case TYPE_DEV:
-            /* for device handles, info.dev.dev_ops contains function pointers into LibOS; they may
-             * have become invalid due to relocation of LibOS text section in the child, update them
-             */
-            if (dev_update_dev_ops(hdl) < 0) {
-                return -EINVAL;
-            }
-            break;
-        case TYPE_EPOLL: ;
+        case TYPE_EPOLL: {
             int ret = create_event(&hdl->info.epoll.event);
             if (ret < 0) {
                 return ret;
@@ -797,6 +789,7 @@ BEGIN_RS_FUNC(handle) {
             }
             assert(hdl->info.epoll.fds_count == count);
             break;
+        }
         default:
             break;
     }

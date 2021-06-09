@@ -83,41 +83,6 @@ struct shim_file_handle {
 #define FILE_HANDLE_DATA(hdl)  ((hdl)->info.file.data)
 #define FILE_DENTRY_DATA(dent) ((struct shim_file_data*)(dent)->data)
 
-struct shim_dev_ops {
-    /* open: provide a filename relative to the mount point and flags,
-       modify the shim handle */
-    int (*open)(struct shim_handle* hdl, const char* name, int flags);
-
-    /* close: clean up the file state inside the handle */
-    int (*close)(struct shim_handle* hdl);
-
-    /* read: the content from the file opened as handle */
-    ssize_t (*read)(struct shim_handle* hdl, void* buf, size_t count);
-
-    /* write: the content from the file opened as handle */
-    ssize_t (*write)(struct shim_handle* hdl, const void* buf, size_t count);
-
-    /* flush: flush out user buffer */
-    int (*flush)(struct shim_handle* hdl);
-
-    /* seek: the content from the file opened as handle */
-    off_t (*seek)(struct shim_handle* hdl, off_t offset, int whence);
-
-    int (*truncate)(struct shim_handle* hdl, uint64_t len);
-
-    int (*mode)(const char* name, mode_t* mode);
-
-    /* stat, hstat: get status of the file */
-    int (*stat)(const char* name, struct stat* buf);
-    int (*hstat)(struct shim_handle* hdl, struct stat* buf);
-};
-
-int dev_update_dev_ops(struct shim_handle* hdl);
-
-struct shim_dev_handle {
-    struct shim_dev_ops dev_ops;
-};
-
 struct shim_pipe_handle {
     bool ready_for_ops; /* true for pipes, false for FIFOs that were mknod'ed but not open'ed */
     char name[PIPE_URI_SIZE];
@@ -279,7 +244,7 @@ struct shim_handle {
      * by using assert()) */
     union {
         struct shim_file_handle file;    /* TYPE_FILE */
-        struct shim_dev_handle dev;      /* TYPE_DEV */
+        /* (no data) */                  /* TYPE_DEV */
         struct shim_str_handle str;      /* TYPE_STR */
         /* (no data) */                  /* TYPE_PSEUDO */
 
