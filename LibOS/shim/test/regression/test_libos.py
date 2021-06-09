@@ -603,33 +603,42 @@ class TC_31_Syscall(RegressionTestCase):
 
 class TC_40_FileSystem(RegressionTestCase):
     def test_000_proc(self):
-        (DT_DIR, DT_REG) = (4, 8,)
         stdout, _ = self.run_binary(['proc_common'])
-        self.assertIn('/proc/1/..', stdout)
-        self.assertIn('/proc/1/cwd', stdout)
-        self.assertIn('/proc/1/exe', stdout)
-        self.assertIn('/proc/1/root', stdout)
-        self.assertIn('/proc/1/fd', stdout)
-        self.assertIn('/proc/1/maps', stdout)
-        self.assertIn('/proc/self/..', stdout)
-        self.assertIn('/proc/self/cwd', stdout)
-        self.assertIn('/proc/self/exe', stdout)
-        self.assertIn('/proc/self/root', stdout)
-        self.assertIn('/proc/self/fd', stdout)
-        self.assertIn('/proc/self/maps', stdout)
-        self.assertIn('/proc/., type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/1, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/2, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/3, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/4, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/self, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/meminfo, type: {0}'.format(DT_REG), stdout)
-        self.assertIn('/proc/cpuinfo, type: {0}'.format(DT_REG), stdout)
-        self.assertIn('symlink /proc/self/exec resolves to /proc_common', stdout)
-        self.assertIn('/proc/2/cwd/proc_common.c', stdout)
-        self.assertIn('/lib/libpthread.so', stdout)
-        self.assertIn('stack', stdout)
-        self.assertIn('vendor_id', stdout)
+        lines = stdout.splitlines()
+
+        self.assertIn('/proc/meminfo: file', lines)
+        self.assertIn('/proc/cpuinfo: file', lines)
+
+        # /proc/self, /proc/[pid]
+        self.assertIn('/proc/self: link: 2', lines)
+        self.assertIn('/proc/2: directory', lines)
+        self.assertIn('/proc/2/cwd: link: /', lines)
+        self.assertIn('/proc/2/exe: link: /proc_common', lines)
+        self.assertIn('/proc/2/root: link: /', lines)
+        self.assertIn('/proc/2/maps: file', lines)
+
+        # /proc/[pid]/fd
+        self.assertIn('/proc/2/fd/0: link: /dev/tty', lines)
+        self.assertIn('/proc/2/fd/1: link: /dev/tty', lines)
+        self.assertIn('/proc/2/fd/2: link: /dev/tty', lines)
+        self.assertIn('/proc/2/fd/3: link: pipe:[?]', lines)
+        self.assertIn('/proc/2/fd/4: link: pipe:[?]', lines)
+
+        # /proc/[pid]/task/[tid]
+        self.assertIn('/proc/2/task/2: directory', lines)
+        self.assertIn('/proc/2/task/33: directory', lines)
+        self.assertIn('/proc/2/task/33/cwd: link: /', lines)
+        self.assertIn('/proc/2/task/33/exe: link: /proc_common', lines)
+        self.assertIn('/proc/2/task/33/root: link: /', lines)
+        self.assertIn('/proc/2/task/33/fd/0: link: /dev/tty', lines)
+        self.assertIn('/proc/2/task/33/fd/1: link: /dev/tty', lines)
+        self.assertIn('/proc/2/task/33/fd/2: link: /dev/tty', lines)
+
+        # /proc/[ipc-pid]
+        self.assertIn('/proc/1: directory', lines)
+        self.assertIn('/proc/1/cwd: link: /', lines)
+        self.assertIn('/proc/1/exe: link: /proc_common', lines)
+        self.assertIn('/proc/1/root: link: /', lines)
 
     def test_001_devfs(self):
         stdout, _ = self.run_binary(['devfs'])
@@ -662,9 +671,59 @@ class TC_40_FileSystem(RegressionTestCase):
         stdout, _ = self.run_binary(['fdleak'], timeout=10)
         self.assertIn("Test succeeded.", stdout)
 
+    def get_num_cache_levels(self):
+        cpu0 = '/sys/devices/system/cpu/cpu0/'
+        self.assertTrue(os.path.exists(f'{cpu0}/cache/'))
+
+        n = 0
+        while os.path.exists(f'{cpu0}/cache/index{n}'):
+            n += 1
+
+        self.assertGreater(n, 0, "no information about CPU cache found")
+        return n
+
     def test_040_sysfs(self):
+        num_cpus = os.cpu_count()
+        num_cache_levels = self.get_num_cache_levels()
+
         stdout, _ = self.run_binary(['sysfs_common'])
-        self.assertIn('TEST OK', stdout)
+        lines = stdout.splitlines()
+
+        self.assertIn('/sys/devices/system/cpu: directory', lines)
+        for i in range(num_cpus):
+            cpu = f'/sys/devices/system/cpu/cpu{i}'
+            self.assertIn(f'{cpu}: directory', lines)
+            if i == 0:
+                self.assertNotIn(f'{cpu}/online: file', lines)
+            else:
+                self.assertIn(f'{cpu}/online: file', lines)
+
+            self.assertIn(f'{cpu}/topology/core_id: file', lines)
+            self.assertIn(f'{cpu}/topology/physical_package_id: file', lines)
+            self.assertIn(f'{cpu}/topology/core_siblings: file', lines)
+            self.assertIn(f'{cpu}/topology/thread_siblings: file', lines)
+
+            for j in range(num_cache_levels):
+                cache = f'{cpu}/cache/index{j}'
+                self.assertIn(f'{cache}: directory', lines)
+                self.assertIn(f'{cache}/shared_cpu_map: file', lines)
+                self.assertIn(f'{cache}/level: file', lines)
+                self.assertIn(f'{cache}/type: file', lines)
+                self.assertIn(f'{cache}/size: file', lines)
+                self.assertIn(f'{cache}/coherency_line_size: file', lines)
+                self.assertIn(f'{cache}/physical_line_partition: file', lines)
+
+        self.assertIn('/sys/devices/system/node: directory', lines)
+        num_nodes = len([line for line in lines
+                         if re.match(r'/sys/devices/system/node/node[0-9]+:', line)])
+        self.assertGreater(num_nodes, 0)
+        for i in range(num_nodes):
+            node = f'/sys/devices/system/node/node{i}'
+            self.assertIn(f'{node}: directory', lines)
+            self.assertIn(f'{node}/cpumap: file', lines)
+            self.assertIn(f'{node}/distance: file', lines)
+            self.assertIn(f'{node}/hugepages/hugepages-2048kB/nr_hugepages: file', lines)
+            self.assertIn(f'{node}/hugepages/hugepages-1048576kB/nr_hugepages: file', lines)
 
 
 class TC_50_GDB(RegressionTestCase):

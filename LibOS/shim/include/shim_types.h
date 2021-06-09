@@ -1,6 +1,7 @@
 #ifndef _SHIM_TYPES_H_
 #define _SHIM_TYPES_H_
 
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -338,6 +339,9 @@ typedef Elf64_auxv_t elf_auxv_t;
 typedef unsigned int IDTYPE;
 typedef uint16_t FDTYPE;
 typedef uint64_t HASHTYPE;
+
+#define IDTYPE_MAX UINT_MAX
+#define FDTYPE_MAX UINT16_MAX
 
 typedef struct atomic_int REFTYPE;
 

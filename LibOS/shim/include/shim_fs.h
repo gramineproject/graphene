@@ -120,10 +120,11 @@ DEFINE_LISTP(shim_dentry);
 struct shim_dentry {
     int state; /* flags for managing state */
 
-    /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. */
+    /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. Does
+     * not change. */
     struct shim_qstr name;
 
-    /* Mounted filesystem this dentry belongs to */
+    /* Mounted filesystem this dentry belongs to. Does not change. */
     struct shim_mount* mount;
 
     /* Filesystem to use for operations on this file: this is usually `mount->fs`, but can be
@@ -131,7 +132,7 @@ struct shim_dentry {
     struct shim_fs* fs;
 
     /* Parent of this dentry, but only within the same mount. If you need the dentry one level up,
-     * regardless of mounts (i.e. `..`), you should use `dentry_up()` instead. */
+     * regardless of mounts (i.e. `..`), you should use `dentry_up()` instead. Does not change. */
     struct shim_dentry* parent;
 
     size_t nchildren;
@@ -148,6 +149,7 @@ struct shim_dentry {
     /* file permissions: PERM_rwxrwxrwx, etc. */
     mode_t perm;
 
+    /* Filesystem-specific data. Protected by `lock`. */
     void* data;
 
     struct shim_lock lock;
@@ -595,8 +597,6 @@ int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size);
  */
 int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size);
 
-int dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str);
-
 static inline const char* dentry_get_name(struct shim_dentry* dent) {
     return qstrgetstr(&dent->name);
 }
@@ -675,9 +675,6 @@ extern struct shim_fs_ops tmp_fs_ops;
 extern struct shim_d_ops tmp_d_ops;
 
 extern struct shim_fs chroot_builtin_fs;
-extern struct shim_fs proc_builtin_fs;
-extern struct shim_fs dev_builtin_fs;
-extern struct shim_fs sys_builtin_fs;
 extern struct shim_fs tmp_builtin_fs;
 extern struct shim_fs pipe_builtin_fs;
 extern struct shim_fs fifo_builtin_fs;
@@ -686,73 +683,6 @@ extern struct shim_fs epoll_builtin_fs;
 extern struct shim_fs eventfd_builtin_fs;
 
 struct shim_fs* find_fs(const char* name);
-
-/* pseudo file systems (separate treatment since they don't have associated dentries) */
-#define DIR_RX_MODE  0555
-#define FILE_RW_MODE 0666
-#define FILE_R_MODE  0444
-
-extern struct shim_fs_ops dev_fs_ops;
-extern struct shim_d_ops dev_d_ops;
-
-extern struct shim_fs_ops proc_fs_ops;
-extern struct shim_d_ops proc_d_ops;
-
-extern struct shim_fs_ops sys_fs_ops;
-extern struct shim_d_ops sys_d_ops;
-
-struct pseudo_name_ops {
-    int (*match_name)(const char* name);
-    int (*list_name)(const char* name, readdir_callback_t callback, void* arg);
-};
-
-static inline dev_t makedev(unsigned int major, unsigned int minor) {
-    dev_t dev;
-    dev  = (((dev_t)(major & 0x00000fffu)) <<  8);
-    dev |= (((dev_t)(major & 0xfffff000u)) << 32);
-    dev |= (((dev_t)(minor & 0x000000ffu)) <<  0);
-    dev |= (((dev_t)(minor & 0xffffff00u)) << 12);
-    return dev;
-}
-
-struct pseudo_fs_ops {
-    int (*open)(struct shim_handle* hdl, const char* name, int flags);
-    int (*mode)(const char* name, mode_t* mode);
-    int (*stat)(const char* name, struct stat* buf);
-    int (*follow_link)(const char* name, struct shim_qstr* link);
-};
-
-struct pseudo_dir;
-
-struct pseudo_ent {
-    /* pseudo-FS entry is identified by either hardcoded name or at-runtime name_ops */
-    const char* name;
-    const struct pseudo_name_ops* name_ops;
-    const struct pseudo_fs_ops* fs_ops;
-    const struct pseudo_dir* dir; /* NULL if pseudo-FS entry is a file */
-    int type; /* LINUX_DT_REG, LINUX_DT_CHR, etc (if dir != NULL, then always LINUX_DT_DIR) */
-};
-
-struct pseudo_dir {
-    int size;
-    const struct pseudo_ent ent[];
-};
-
-int pseudo_mount(const char* uri, void** mount_data);
-int pseudo_unmount(void* mount_data);
-int pseudo_dir_mode(const char* name, mode_t* mode);
-int pseudo_dir_stat(const char* name, struct stat* buf);
-int pseudo_dir_open(struct shim_handle* hdl, const char* name, int flags);
-int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent* root_ent);
-int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent);
-int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
-                const struct pseudo_ent* root_ent);
-int pseudo_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg,
-                   const struct pseudo_ent* root_ent);
-int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_ent* root_ent);
-int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_ent* root_ent);
-int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link,
-                       const struct pseudo_ent* root_ent);
 
 /* string-type file system */
 int str_add_dir(const char* path, mode_t mode, struct shim_dentry** dent);
@@ -765,19 +695,5 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
 int str_truncate(struct shim_handle* hdl, off_t len);
-
-/* /sys fs related common APIs */
-/* This function extracts first number from a string. Returns a negative error code if no number is
- * found. For example, "3" will be extracted from "cpu/cpu3/topology/core_siblings" */
-int extract_first_num_from_string(const char* path);
-int sys_info_mode(const char* name, mode_t* mode);
-int sys_info_stat(const char* name, struct stat* buf);
-int sys_dir_open(struct shim_handle* hdl, const char* name, int flags);
-int sys_dir_mode(const char* name, mode_t* mode);
-int sys_dir_stat(const char* name, struct stat* buf);
-/* Checks if pathname is a valid path under /sys/; returns 1 on success and 0 on failure */
-int sys_match_resource_num(const char* pathname);
-/* Lists path under /sys/, same as readdir */
-int sys_list_resource_num(const char* pathname, readdir_callback_t callback, void* arg);
 
 #endif /* _SHIM_FS_H_ */

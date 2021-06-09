@@ -16,6 +16,7 @@
  */
 
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "stat.h"
 
 /* user_report_data, target_info and quote are opaque blobs of predefined maximum sizes. Currently
@@ -33,7 +34,7 @@ static size_t g_target_info_size = 0;
 
 static size_t g_report_size = 0;
 
-#define PF_KEY_HEX_SIZE (32 + 1)
+#define PF_KEY_HEX_SIZE 32
 static char g_pf_key_hex[PF_KEY_HEX_SIZE] = {0};
 
 static int init_attestation_struct_sizes(void) {
@@ -54,54 +55,18 @@ static int init_attestation_struct_sizes(void) {
     return 0;
 }
 
-static int dev_attestation_readonly_mode(const char* name, mode_t* mode) {
-    __UNUSED(name);
-    *mode = FILE_R_MODE | S_IFREG;
-    return 0;
-}
-
-static int dev_attestation_readwrite_mode(const char* name, mode_t* mode) {
-    __UNUSED(name);
-    *mode = FILE_RW_MODE | S_IFREG;
-    return 0;
-}
-
-static int dev_attestation_readonly_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    memset(buf, 0, sizeof(*buf));
-    buf->st_dev  = 1; /* dummy ID of device containing file */
-    buf->st_mode = FILE_R_MODE | S_IFREG;
-    return 0;
-}
-
-static int dev_attestation_readwrite_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    memset(buf, 0, sizeof(*buf));
-    buf->st_dev  = 1; /* dummy ID of device containing file */
-    buf->st_mode = FILE_RW_MODE | S_IFREG;
-    return 0;
-}
-
-/* callback for str FS; copies contents of `/dev/attestation/user_report_data` file in the
- * global `g_user_report_data` struct on file close */
-static int user_report_data_modify(struct shim_handle* hdl) {
-    assert(g_user_report_data_size);
-    assert(hdl->type == TYPE_STR);
-    memcpy(&g_user_report_data, hdl->info.str.data->str, g_user_report_data_size);
-    return 0;
-}
-
-/* callback for str FS; copies contents of `/dev/attestation/target_info` file in the global
- * `g_target_info` struct on file close */
-static int target_info_modify(struct shim_handle* hdl) {
-    assert(g_target_info_size);
-    assert(hdl->type == TYPE_STR);
-    memcpy(&g_target_info, hdl->info.str.data->str, g_target_info_size);
-    return 0;
+/* Write at most `max_size` bytes of data to the buffer, padding the rest with zeroes. */
+static void update_buffer(char* buffer, size_t max_size, const char* data, size_t size) {
+   if (size < max_size) {
+       memcpy(buffer, data, size);
+       memset(buffer + size, 0, max_size - size);
+   } else {
+       memcpy(buffer, data, max_size);
+   }
 }
 
 /*!
- * \brief Modify/obtain user-defined report data used in `report` and `quote` pseudo-files.
+ * \brief Modify user-defined report data used in `report` and `quote` pseudo-files.
  *
  * This file `/dev/attestation/user_report_data` can be opened for read and write. Typically, it is
  * opened and written into before opening and reading from `/dev/attestation/report` or
@@ -109,44 +74,19 @@ static int target_info_modify(struct shim_handle* hdl) {
  *
  * In case of SGX, user report data can be an arbitrary string of size 64B.
  */
-static int dev_attestation_user_report_data_open(struct shim_handle* hdl, const char* name,
-                                                 int flags) {
-    __UNUSED(name);
-    __UNUSED(flags);
+static int user_report_data_save(struct shim_dentry* dent, const char* data, size_t size) {
+    __UNUSED(dent);
 
-    if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
-        /* this pseudo-file is only available with Linux-SGX */
-        return -EACCES;
-    }
+    int ret = init_attestation_struct_sizes();
+    if (ret < 0)
+        return ret;
 
-    if (init_attestation_struct_sizes() < 0)
-        return -EACCES;
-
-    struct shim_str_data* data = calloc(1, sizeof(*data));
-    if (!data)
-        return -ENOMEM;
-
-    char* data_str_userreportdata = calloc(1, g_user_report_data_size);
-    if (!data_str_userreportdata) {
-        free(data);
-        return -ENOMEM;
-    }
-
-    memcpy(data_str_userreportdata, &g_user_report_data, g_user_report_data_size);
-
-    data->str      = data_str_userreportdata;
-    data->buf_size = g_user_report_data_size;
-    data->modify   = &user_report_data_modify; /* invoked when file is closed */
-
-    hdl->type          = TYPE_STR;
-    hdl->acc_mode      = MAY_WRITE | MAY_READ;
-    hdl->info.str.data = data;
-    hdl->info.str.ptr  = data_str_userreportdata;
+    update_buffer(g_user_report_data, g_user_report_data_size, data, size);
     return 0;
 }
 
 /*!
- * \brief Modify/obtain target info used in `report` and `quote` pseudo-files.
+ * \brief Modify target info used in `report` and `quote` pseudo-files.
  *
  * This file `/dev/attestation/target_info` can be opened for read and write. Typically, it is
  * opened and written into before opening and reading from `/dev/attestation/report` or
@@ -154,38 +94,14 @@ static int dev_attestation_user_report_data_open(struct shim_handle* hdl, const 
  *
  * In case of SGX, target info is an opaque blob of size 512B.
  */
-static int dev_attestation_target_info_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(name);
-    __UNUSED(flags);
+static int target_info_save(struct shim_dentry* dent, const char* data, size_t size) {
+    __UNUSED(dent);
 
-    if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
-        /* this pseudo-file is only available with Linux-SGX */
-        return -EACCES;
-    }
+    int ret = init_attestation_struct_sizes();
+    if (ret < 0)
+        return ret;
 
-    if (init_attestation_struct_sizes() < 0)
-        return -EACCES;
-
-    struct shim_str_data* data = calloc(1, sizeof(*data));
-    if (!data)
-        return -ENOMEM;
-
-    char* data_str_ti = calloc(1, g_target_info_size);
-    if (!data_str_ti) {
-        free(data);
-        return -ENOMEM;
-    }
-
-    memcpy(data_str_ti, &g_target_info, g_target_info_size);
-
-    data->str      = data_str_ti;
-    data->buf_size = g_target_info_size;
-    data->modify   = &target_info_modify; /* invoked when file is closed */
-
-    hdl->type          = TYPE_STR;
-    hdl->acc_mode      = MAY_WRITE | MAY_READ;
-    hdl->info.str.data = data;
-    hdl->info.str.ptr  = data_str_ti;
+    update_buffer(g_target_info, g_target_info_size, data, size);
     return 0;
 }
 
@@ -198,41 +114,31 @@ static int dev_attestation_target_info_open(struct shim_handle* hdl, const char*
  *
  * In case of SGX, target info is an opaque blob of size 512B.
  */
-static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const char* name,
-                                               int flags) {
-    __UNUSED(name);
-    int ret;
+static int my_target_info_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
+    __UNUSED(dent);
 
-    char* user_report_data     = NULL;
-    char* target_info          = NULL;
-    struct shim_str_data* data = NULL;
+    int ret = init_attestation_struct_sizes();
+    if (ret < 0)
+        return ret;
 
-    if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
-        /* this pseudo-file is only available with Linux-SGX */
-        return -EACCES;
-    }
+    char* user_report_data = NULL;
+    char* target_info = NULL;
 
-    if (init_attestation_struct_sizes() < 0)
-        return -EACCES;
-
-    if (flags & (O_WRONLY | O_RDWR))
-        return -EACCES;
-
-    size_t user_report_data_size = g_user_report_data_size;
-    size_t target_info_size      = g_target_info_size;
-    size_t report_size           = g_report_size;
-
-    user_report_data = calloc(1, user_report_data_size);
+    user_report_data = calloc(1, g_user_report_data_size);
     if (!user_report_data) {
         ret = -ENOMEM;
         goto out;
     }
 
-    target_info = calloc(1, target_info_size);
+    target_info = calloc(1, g_target_info_size);
     if (!target_info) {
         ret = -ENOMEM;
         goto out;
     }
+
+    size_t user_report_data_size = g_user_report_data_size;
+    size_t target_info_size = g_target_info_size;
+    size_t report_size = g_report_size;
 
     /* below invocation returns this enclave's target info because we zeroed out (via calloc)
      * target_info: it's a hint to function to update target_info with this enclave's info */
@@ -248,30 +154,19 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
     assert(target_info_size == g_target_info_size);
     assert(report_size == g_report_size);
 
-    data = calloc(1, sizeof(*data));
-    if (!data) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    data->str      = target_info;
-    data->buf_size = target_info_size;
-    data->len      = target_info_size;
-
-    hdl->type          = TYPE_STR;
-    hdl->acc_mode      = MAY_READ;
-    hdl->info.str.data = data;
-    hdl->info.str.ptr  = target_info;
-
     ret = 0;
+
 out:
-    if (ret < 0) {
+    if (ret == 0) {
+        *out_data = target_info;
+        *out_size = g_target_info_size;
+    } else {
         free(target_info);
-        free(data);
     }
     free(user_report_data);
     return ret;
 }
+
 
 /*!
  * \brief Obtain report via DkAttestationReport() with previously populated user_report_data
@@ -284,70 +179,29 @@ out:
  *
  * In case of SGX, report is a locally obtained EREPORT struct of size 432B.
  */
-static int dev_attestation_report_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(name);
-    int ret;
+static int report_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
+    __UNUSED(dent);
 
-    char* report               = NULL;
-    struct shim_str_data* data = NULL;
-    char* data_str_report      = NULL;
+    int ret = init_attestation_struct_sizes();
+    if (ret < 0)
+        return ret;
 
-    if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
-        /* this pseudo-file is only available with Linux-SGX */
-        return -EACCES;
-    }
-
-    if (!g_target_info_size || !g_user_report_data_size || !g_report_size)
-        return -EACCES;
-
-    if (flags & (O_WRONLY | O_RDWR))
-        return -EACCES;
-
-    report = calloc(1, g_report_size);
-    if (!report) {
-        ret = -ENOMEM;
-        goto out;
-    }
+    char* report = calloc(1, g_report_size);
+    if (!report)
+        return -ENOMEM;
 
     ret = DkAttestationReport(&g_user_report_data, &g_user_report_data_size, &g_target_info,
                               &g_target_info_size, report, &g_report_size);
     if (ret < 0) {
-        ret = -EACCES;
-        goto out;
+        free(report);
+        return -EACCES;
     }
 
-    data = calloc(1, sizeof(*data));
-    if (!data) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    data_str_report = calloc(1, g_report_size);
-    if (!data_str_report) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    memcpy(data_str_report, report, g_report_size);
-
-    data->str      = data_str_report;
-    data->buf_size = g_report_size;
-    data->len      = g_report_size;
-
-    hdl->type          = TYPE_STR;
-    hdl->acc_mode      = MAY_READ;
-    hdl->info.str.data = data;
-    hdl->info.str.ptr  = data_str_report;
-
-    ret = 0;
-out:
-    if (ret < 0) {
-        free(data_str_report);
-        free(data);
-    }
-    free(report);
-    return ret;
+    *out_data = report;
+    *out_size = g_report_size;
+    return 0;
 }
+
 
 /*!
  * \brief Obtain quote by communicating with the outside-of-enclave service.
@@ -363,83 +217,41 @@ out:
  *
  * In case of SGX, the obtained quote is the SGX quote created by the Quoting Enclave.
  */
-static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(name);
-    int ret;
+static int quote_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
+    __UNUSED(dent);
 
-    uint8_t* quote             = NULL;
-    char* data_str_quote       = NULL;
-    struct shim_str_data* data = NULL;
-
-    if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
-        /* this pseudo-file is only available with Linux-SGX */
-        return -EACCES;
-    }
-
-    if (!g_user_report_data_size)
-        return -EACCES;
-
-    if (flags & (O_WRONLY | O_RDWR))
-        return -EACCES;
+    int ret = init_attestation_struct_sizes();
+    if (ret < 0)
+        return ret;
 
     size_t quote_size = QUOTE_MAX_SIZE;
-    quote = calloc(1, quote_size);
-    if (!quote) {
-        ret = -ENOMEM;
-        goto out;
-    }
+    char* quote = calloc(1, quote_size);
+    if (!quote)
+        return -ENOMEM;
 
     ret = DkAttestationQuote(&g_user_report_data, g_user_report_data_size, quote, &quote_size);
     if (ret < 0) {
-        ret = -EACCES;
-        goto out;
+        free(quote);
+        return -EACCES;
     }
 
-    data = calloc(1, sizeof(*data));
-    if (!data) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    data_str_quote = calloc(1, quote_size);
-    if (!data_str_quote) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    memcpy(data_str_quote, quote, quote_size);
-
-    data->str      = data_str_quote;
-    data->buf_size = quote_size;
-    data->len      = quote_size;
-
-    hdl->type          = TYPE_STR;
-    hdl->acc_mode      = MAY_READ;
-    hdl->info.str.data = data;
-    hdl->info.str.ptr  = data_str_quote;
-
-    ret = 0;
-out:
-    if (ret < 0) {
-        free(data_str_quote);
-        free(data);
-    }
-    free(quote);
-    return ret;
+    *out_data = quote;
+    *out_size = quote_size;
+    return 0;
 }
 
-/* callback for str FS; copies contents of `/dev/attestation/protected_files_key` file in the
- * global `g_pf_key_hex` string on file close and applies new PF key */
-static int pfkey_modify(struct shim_handle* hdl) {
-    assert(hdl->type == TYPE_STR);
-    memcpy(&g_pf_key_hex, hdl->info.str.data->str, sizeof(g_pf_key_hex));
-    g_pf_key_hex[sizeof(g_pf_key_hex) - 1] = '\0';
+static int pfkey_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
+    __UNUSED(dent);
 
-    int ret = DkSetProtectedFilesKey(&g_pf_key_hex);
-    if (ret < 0) {
-        ret = -EACCES;
-    }
-    return ret;
+    size_t size = sizeof(g_pf_key_hex);
+    char* pf_key_hex = malloc(size);
+    if (!pf_key_hex)
+        return -ENOMEM;
+
+    memcpy(pf_key_hex, &g_pf_key_hex, size);
+    *out_data = pf_key_hex;
+    *out_size = size;
+    return 0;
 }
 
 /*!
@@ -451,99 +263,49 @@ static int pfkey_modify(struct shim_handle* hdl) {
  *
  * The PF key must be a 32-char null-terminated AES-GCM encryption key in hex format.
  */
-static int dev_attestation_pfkey_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(name);
-    __UNUSED(flags);
+static int pfkey_save(struct shim_dentry* dent, const char* data, size_t size) {
+    __UNUSED(dent);
 
-    if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
-        /* this pseudo-file is only available with Linux-SGX */
+    if (size != sizeof(g_pf_key_hex)) {
+        log_debug("/dev/attestation/protected_files_key: invalid length\n");
         return -EACCES;
     }
 
-    struct shim_str_data* data = calloc(1, sizeof(*data));
-    if (!data)
-        return -ENOMEM;
+    /* Build a null-terminated string and pass it to `DkSetProtectedFilesKey`. */
+    char buffer[sizeof(g_pf_key_hex) + 1];
+    memcpy(buffer, data, sizeof(g_pf_key_hex));
+    buffer[sizeof(g_pf_key_hex)] = '\0';
+    int ret = DkSetProtectedFilesKey(&buffer);
+    if (ret < 0)
+        return -EACCES;
 
-    char* data_str_pfkey = calloc(1, sizeof(g_pf_key_hex));
-    if (!data_str_pfkey) {
-        free(data);
-        return -ENOMEM;
-    }
-
-    memcpy(data_str_pfkey, &g_pf_key_hex, sizeof(g_pf_key_hex));
-
-    data->str      = data_str_pfkey;
-    data->buf_size = sizeof(g_pf_key_hex);
-    data->modify   = &pfkey_modify; /* invoked when file is closed */
-
-    hdl->type          = TYPE_STR;
-    hdl->acc_mode      = MAY_WRITE | MAY_READ;
-    hdl->info.str.data = data;
-    hdl->info.str.ptr  = data_str_pfkey;
+    memcpy(g_pf_key_hex, data, sizeof(g_pf_key_hex));
     return 0;
 }
 
-static struct pseudo_fs_ops dev_attestation_user_report_data_fs_ops = {
-    .open = &dev_attestation_user_report_data_open,
-    .mode = &dev_attestation_readwrite_mode,
-    .stat = &dev_attestation_readwrite_stat,
-};
+int init_attestation(struct pseudo_node* dev) {
+    if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
+        log_debug("host is not Linux-SGX, skipping /dev/attestation setup\n");
+        return 0;
+    }
 
-static struct pseudo_fs_ops dev_attestation_target_info_fs_ops = {
-    .open = &dev_attestation_target_info_open,
-    .mode = &dev_attestation_readwrite_mode,
-    .stat = &dev_attestation_readwrite_stat,
-};
+    struct pseudo_node* attestation = pseudo_add_dir(dev, "attestation");
 
-static struct pseudo_fs_ops dev_attestation_my_target_info_fs_ops = {
-    .open = &dev_attestation_my_target_info_open,
-    .mode = &dev_attestation_readonly_mode,
-    .stat = &dev_attestation_readonly_stat,
-};
+    struct pseudo_node* user_report_data = pseudo_add_str(attestation, "user_report_data", NULL);
+    user_report_data->perm = PSEUDO_PERM_FILE_RW;
+    user_report_data->str.save = &user_report_data_save;
 
-static struct pseudo_fs_ops dev_attestation_report_fs_ops = {
-    .open = &dev_attestation_report_open,
-    .mode = &dev_attestation_readonly_mode,
-    .stat = &dev_attestation_readonly_stat,
-};
+    struct pseudo_node* target_info = pseudo_add_str(attestation, "target_info", NULL);
+    target_info->perm = PSEUDO_PERM_FILE_RW;
+    target_info->str.save = &target_info_save;
 
-static struct pseudo_fs_ops dev_attestation_quote_fs_ops = {
-    .open = &dev_attestation_quote_open,
-    .mode = &dev_attestation_readonly_mode,
-    .stat = &dev_attestation_readonly_stat,
-};
+    pseudo_add_str(attestation, "my_target_info", &my_target_info_load);
+    pseudo_add_str(attestation, "report", &report_load);
+    pseudo_add_str(attestation, "quote", &quote_load);
 
-static struct pseudo_fs_ops dev_attestation_pfkey_fs_ops = {
-    .open = &dev_attestation_pfkey_open,
-    .mode = &dev_attestation_readwrite_mode,
-    .stat = &dev_attestation_readwrite_stat,
-};
-
-struct pseudo_fs_ops dev_attestation_fs_ops = {
-    .open = &pseudo_dir_open,
-    .mode = &pseudo_dir_mode,
-    .stat = &pseudo_dir_stat,
-};
-
-struct pseudo_dir dev_attestation_dir = {
-    .size = 6,
-    .ent  = {
-        {.name   = "user_report_data",
-         .fs_ops = &dev_attestation_user_report_data_fs_ops,
-         .type   = LINUX_DT_REG},
-        {.name   = "target_info",
-         .fs_ops = &dev_attestation_target_info_fs_ops,
-         .type   = LINUX_DT_REG},
-        {.name   = "my_target_info",
-         .fs_ops = &dev_attestation_my_target_info_fs_ops,
-         .type   = LINUX_DT_REG},
-        {.name = "report",
-         .fs_ops = &dev_attestation_report_fs_ops,
-         .type = LINUX_DT_REG},
-        {.name = "quote",
-         .fs_ops = &dev_attestation_quote_fs_ops,
-         .type = LINUX_DT_REG},
-        {.name   = "protected_files_key",
-         .fs_ops = &dev_attestation_pfkey_fs_ops,
-         .type   = LINUX_DT_REG},
-    }};
+    struct pseudo_node* pfkey = pseudo_add_str(attestation, "protected_files_key",
+                                               &pfkey_load);
+    pfkey->perm = PSEUDO_PERM_FILE_RW;
+    pfkey->str.save = &pfkey_save;
+    return 0;
+}

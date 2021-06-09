@@ -89,7 +89,7 @@ int ipc_pid_getstatus_callback(IDTYPE src, void* data, uint64_t seq) {
     status->pids = msgin->pids;
     status->retstatus.count = 0;
 
-    ret = walk_thread_list(&check_thread, &status, /*one_shot=*/false);
+    ret = walk_thread_list(&check_thread, status, /*one_shot=*/false);
     if (ret < 0 && ret != -ESRCH)
         return ret;
 
@@ -214,7 +214,7 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
                 unlock(&g_process.fs_lock);
                 goto out;
             }
-            datasize = bufsize - 1;
+            datasize = bufsize;
             unlock(&g_process.fs_lock);
             break;
         }

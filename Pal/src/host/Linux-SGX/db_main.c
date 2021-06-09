@@ -142,12 +142,14 @@ fail:
  * buffer is malformed E.g., "20abc" or "3,4,5" or "xyz123" or "512H".
  * Use case: To extract integer from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
 static long extract_long_from_buffer(const char* buf) {
-    char* end = NULL;
+    const char* end = NULL;
     unsigned long intval;
 
+    while (*buf == ' ' || *buf == '\t')
+        buf++;
+
     /* Intentionally using unsigned long to adapt for variable bitness. */
-    str_to_ulong(buf, 10, &intval, &end);
-    if (end == buf || intval > LONG_MAX)
+    if (str_to_ulong(buf, 10, &intval, &end) < 0 || intval > LONG_MAX)
         return -EINVAL;
 
     if (end[0] != '\0') {
@@ -175,11 +177,10 @@ static long count_bits_set_from_resource_map(const char* buf) {
         if (*buf == '\0')
             break;
 
-        char* end = NULL;
+        const char* end = NULL;
         /* Linux uses different bitmap size depending on the host arch. We intentionally use
          * unsigned long to adapt for this variable bitness. */
-        bool overflowed = str_to_ulong(buf, 16, &bitmap, &end);
-        if (end == buf || overflowed)
+        if (str_to_ulong(buf, 16, &bitmap, &end) < 0)
             return -EINVAL;
 
         if (*end != '\0' && *end != ',' && *end != '\n')
@@ -212,11 +213,10 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
         if (*buf == '\0')
             break;
 
-        char* end = NULL;
+        const char* end = NULL;
         unsigned long firstint;
         /* Intentionally using unsigned long to adapt for variable bitness. */
-        str_to_ulong(buf, 10, &firstint, &end);
-        if (end == buf || firstint > LONG_MAX)
+        if (str_to_ulong(buf, 10, &firstint, &end) < 0 || firstint > LONG_MAX)
             return -EINVAL;
 
         if (ordered) {
@@ -234,8 +234,7 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
             /* HW resource range, count how many HW resources are in range */
             buf = end + 1;
             unsigned long secondint;
-            str_to_ulong(buf, 10, &secondint, &end);
-            if (end == buf || secondint > LONG_MAX)
+            if (str_to_ulong(buf, 10, &secondint, &end) < 0 || secondint > LONG_MAX)
                 return -EINVAL;
 
             unsigned long diff;
