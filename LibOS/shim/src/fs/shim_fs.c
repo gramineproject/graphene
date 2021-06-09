@@ -13,6 +13,7 @@
 #include "pal_error.h"
 #include "shim_checkpoint.h"
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_process.h"
@@ -30,6 +31,7 @@ struct shim_fs* builtin_fs[] = {
     &socket_builtin_fs,
     &epoll_builtin_fs,
     &eventfd_builtin_fs,
+    &pseudo_builtin_fs,
 };
 
 static struct shim_lock mount_mgr_lock;
@@ -119,6 +121,15 @@ static int __mount_sys(void) {
     log_debug("Mounting special proc filesystem: /proc\n");
     if ((ret = mount_fs("proc", NULL, "/proc")) < 0) {
         log_error("Mounting /proc filesystem failed (%d)\n", ret);
+        return ret;
+    }
+
+    if ((ret = init_procfs()) < 0)
+        return ret;
+
+    log_debug("Mounting special proc filesystem: /proc2\n");
+    if ((ret = mount_fs("pseudo", "proc", "/proc2")) < 0) {
+        log_error("Mounting /proc2 filesystem failed (%d)\n", ret);
         return ret;
     }
 

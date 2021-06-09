@@ -19,6 +19,7 @@
 #include "shim_utils.h"
 
 static noreturn void libos_clean_and_exit(int exit_code) {
+    dump_dcache(NULL);
     /*
      * TODO: if we are the IPC leader, we need to either:
      * 1) kill all other Graphene processes

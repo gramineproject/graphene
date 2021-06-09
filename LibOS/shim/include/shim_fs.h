@@ -684,6 +684,7 @@ extern struct shim_fs fifo_builtin_fs;
 extern struct shim_fs socket_builtin_fs;
 extern struct shim_fs epoll_builtin_fs;
 extern struct shim_fs eventfd_builtin_fs;
+extern struct shim_fs pseudo_builtin_fs;
 
 struct shim_fs* find_fs(const char* name);
 

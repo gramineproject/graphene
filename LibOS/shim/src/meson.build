@@ -35,6 +35,7 @@ libos_sources = files(
     'fs/shim_fs.c',
     'fs/shim_fs_hash.c',
     'fs/shim_fs_pseudo.c',
+    'fs/shim_fs_pseudo2.c',
     'fs/shim_namei.c',
     'fs/socket/fs.c',
     'fs/str/fs.c',
