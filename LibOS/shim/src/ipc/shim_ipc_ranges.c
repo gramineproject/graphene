@@ -793,7 +793,7 @@ int get_all_pid_status(struct pid_status** status) {
     size_t statuses_cnt = 0;
     size_t bufsize = RANGE_SIZE;
 
-    struct pid_status* status_buf = malloc(bufsize);
+    struct pid_status* status_buf = malloc(bufsize * sizeof(status_buf[0]));
     if (!status_buf)
         return -ENOMEM;
 
@@ -848,7 +848,7 @@ retry:
 
         ret = ipc_pid_getstatus(owner, idx == UNDEF_IDX ? RANGE_SIZE : 1, pids, &retstatus);
 
-        if (ret > 0) {
+        if (ret >= 0 && retstatus->count > 0) {
             if (statuses_cnt + retstatus->count > bufsize) {
                 size_t newsize = bufsize * 2;
 
@@ -873,8 +873,8 @@ retry:
 
             memcpy(status_buf + statuses_cnt, &retstatus->status,
                    sizeof(struct pid_status) * retstatus->count);
-            free(retstatus);
             statuses_cnt += retstatus->count;
+            free(retstatus);
         }
 
         idx++;

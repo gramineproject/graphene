@@ -165,3 +165,26 @@ int64_t parse_size_str(const char* str) {
 
     return size;
 }
+
+int parse_uint(const char* str, unsigned int* value) {
+    unsigned int _value = 0;
+
+    if (*str == '\0')
+        return -1;
+
+    while (*str != '\0') {
+        if (!('0' <= *str && *str <= '9'))
+            return -1;
+
+        if (__builtin_umul_overflow(_value, 10, &_value))
+            return -1;
+
+        if (__builtin_uadd_overflow(_value, *str - '0', &_value))
+            return -1;
+
+        str++;
+    }
+
+    *value = _value;
+    return 0;
+}

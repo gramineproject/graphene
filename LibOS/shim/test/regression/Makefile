@@ -153,6 +153,12 @@ LDLIBS-attestation += ../../../../common/src/crypto/mbedtls/install/lib/libmbedc
 CFLAGS-fp_multithread += -pthread -fno-builtin  # see comment in the test's source
 LDLIBS-fp_multithread += -lm
 
+proc_common: proc_common.o dump.o
+	$(call cmd,cmulti)
+
+sysfs_common: sysfs_common.o dump.o
+	$(call cmd,cmulti)
+
 %: %.c
 	$(call cmd,csingle)
 
@@ -182,4 +188,5 @@ clean-tmp:
 		__pycache__ \
 		libos-regression.xml \
 		testfile \
-		tmp/*
+		tmp/* \
+		*.o

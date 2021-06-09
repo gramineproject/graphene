@@ -168,6 +168,9 @@ long long strtoll(const char* s, char** endptr, int base);
 bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr);
 int atoi(const char* nptr);
 long int atol(const char* nptr);
+/* Converts a string to unsigned int. Requires the string to be non-empty, consist only of decimal
+ * digits, and not overflow. Returns 0 on success, -1 on failure. */
+int parse_uint(const char* str, unsigned int* value);
 
 int islower(int c);
 int toupper(int c);

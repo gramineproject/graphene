@@ -339,20 +339,6 @@ int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size) {
     return dentry_path(dent, /*relative=*/true, path, size);
 }
 
-int dentry_abs_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str) {
-    char* path;
-    size_t size;
-    int ret = dentry_abs_path(dent, &path, &size);
-    if (ret < 0)
-        return ret;
-
-    char* retval = qstrsetstr(str, path, size - 1);
-    free(path);
-    if (!retval)
-        return -ENOMEM;
-    return 0;
-}
-
 static int dump_dentry_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
     log_always("%.*s\n", (int)size, str);

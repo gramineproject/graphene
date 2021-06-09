@@ -13,6 +13,7 @@
 #include "pal_error.h"
 #include "shim_checkpoint.h"
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_process.h"
@@ -21,15 +22,13 @@
 
 struct shim_fs* builtin_fs[] = {
     &chroot_builtin_fs,
-    &proc_builtin_fs,
-    &dev_builtin_fs,
-    &sys_builtin_fs,
     &tmp_builtin_fs,
     &pipe_builtin_fs,
     &fifo_builtin_fs,
     &socket_builtin_fs,
     &epoll_builtin_fs,
     &eventfd_builtin_fs,
+    &pseudo_builtin_fs,
 };
 
 static struct shim_lock mount_mgr_lock;
@@ -58,6 +57,15 @@ int init_fs(void) {
         destroy_mem_mgr(mount_mgr);
         return -ENOMEM;
     }
+
+    int ret;
+    if ((ret = init_procfs()) < 0)
+        return ret;
+    if ((ret = init_devfs()) < 0)
+        return ret;
+    if ((ret = init_sysfs()) < 0)
+        return ret;
+
     return 0;
 }
 
@@ -117,13 +125,13 @@ static int __mount_sys(void) {
     int ret;
 
     log_debug("Mounting special proc filesystem: /proc\n");
-    if ((ret = mount_fs("proc", NULL, "/proc")) < 0) {
-        log_error("Mounting /proc filesystem failed (%d)\n", ret);
+    if ((ret = mount_fs("pseudo", "proc", "/proc")) < 0) {
+        log_error("Mounting proc filesystem failed (%d)\n", ret);
         return ret;
     }
 
     log_debug("Mounting special dev filesystem: /dev\n");
-    if ((ret = mount_fs("dev", NULL, "/dev")) < 0) {
+    if ((ret = mount_fs("pseudo", "dev", "/dev")) < 0) {
         log_error("Mounting dev filesystem failed (%d)\n", ret);
         return ret;
     }
@@ -135,8 +143,7 @@ static int __mount_sys(void) {
     }
 
     log_debug("Mounting special sys filesystem: /sys\n");
-
-    if ((ret = mount_fs("sys", NULL, "/sys")) < 0) {
+    if ((ret = mount_fs("pseudo", "sys", "/sys")) < 0) {
         log_error("Mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
