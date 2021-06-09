@@ -27,6 +27,8 @@
 #include "protected-files/protected_files.h"
 #include "spinlock.h"
 
+#define LOCAL_ATTESTATION_CHALLENGE_STR "GRAPHENE_LOCAL_ATTESTATION_CHALLENGE"
+
 /*
  * For SGX, the creation of a child process requires a clean enclave and a secure channel
  * between the parent and child processes (enclaves). The establishment of the secure
@@ -83,21 +85,24 @@ static int hash_session_key(const PAL_SESSION_KEY* session_key, sgx_report_data_
 
     ret = lib_SHA256Init(&sha);
     if (ret < 0)
-        goto fail;
+        return ret;
 
     /* newly established session key between two enclaves is the only secure component here */
     ret = lib_SHA256Update(&sha, (uint8_t*)session_key, sizeof(*session_key));
     if (ret < 0)
-        goto fail;
+        return ret;
+
+    /* add a constant tag */
+    ret = lib_SHA256Update(&sha, (uint8_t*)LOCAL_ATTESTATION_CHALLENGE_STR,
+                           sizeof(LOCAL_ATTESTATION_CHALLENGE_STR));
+    if (ret < 0)
+        return ret;
 
     ret = lib_SHA256Final(&sha, (uint8_t*)data);
     if (ret < 0)
-        goto fail;
+        return ret;
 
     return 0;
-fail:
-    log_error("Failed to hash the session key between two enclaves: %d\n", ret);
-    return ret;
 }
 
 bool is_remote_enclave_ok(const PAL_SESSION_KEY* session_key, sgx_measurement_t* mr_enclave,
@@ -137,6 +142,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args
         return unix_to_pal_error(ret);
 
     PAL_HANDLE child = malloc(HANDLE_SIZE(process));
+    if (!child)
+        return -PAL_ERROR_NOMEM;
+
     SET_HANDLE_TYPE(child, process);
     HANDLE_HDR(child)->flags |= RFD(0) | WFD(0);
     child->process.stream      = stream_fd;
@@ -197,9 +205,12 @@ failed:
 
 int init_child_process(PAL_HANDLE* parent_handle) {
     if (g_pal_sec.enclave_flags & PAL_ENCLAVE_INITIALIZED)
-        return false;
+        return -PAL_ERROR_DENIED;
 
     PAL_HANDLE parent = malloc(HANDLE_SIZE(process));
+    if (!parent)
+        return -PAL_ERROR_NOMEM;
+
     SET_HANDLE_TYPE(parent, process);
     HANDLE_HDR(parent)->flags |= RFD(0) | WFD(0);
 
