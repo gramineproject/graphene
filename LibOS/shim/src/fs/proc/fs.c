@@ -8,6 +8,8 @@
  */
 
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
+#include "shim_thread.h"
 
 extern const struct pseudo_name_ops nm_thread;
 extern const struct pseudo_fs_ops fs_thread;
@@ -24,12 +26,6 @@ extern const struct pseudo_fs_ops fs_cpuinfo;
 static const struct pseudo_dir proc_root_dir = {
     .size = 5,
     .ent  = {
-        {.name     = "self",
-         .fs_ops   = &fs_thread,
-         .dir      = &dir_thread},
-        {.name_ops = &nm_thread,
-         .fs_ops   = &fs_thread,
-         .dir      = &dir_thread},
         {.name_ops = &nm_ipc_thread,
          .fs_ops   = &fs_ipc_thread,
          .dir      = &dir_ipc_thread},
@@ -115,3 +111,44 @@ struct shim_fs proc_builtin_fs = {
     .fs_ops = &proc_fs_ops,
     .d_ops  = &proc_d_ops,
 };
+
+int proc_self_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
+    __UNUSED(dent);
+    IDTYPE pid = get_cur_tid();
+    char str[11];
+    snprintf(str, sizeof(str), "%u", pid);
+    if (!qstrsetstr(link, str, strlen(str)))
+        return -ENOMEM;
+    return 0;
+}
+
+static void init_thread_dir(struct pseudo2_ent* ent) {
+    ent->match_name = proc_thread_match_name;
+    ent->list_names = proc_thread_list_names;
+
+    pseudo_add_link(ent, "root", proc_thread_follow_link);
+    pseudo_add_link(ent, "cwd", proc_thread_follow_link);
+    pseudo_add_link(ent, "exe", proc_thread_follow_link);
+    pseudo_add_str(ent, "maps", proc_thread_maps_get_content);
+    pseudo_add_str(ent, "cmdline", proc_thread_cmdline_get_content);
+
+    struct pseudo2_ent* fd = pseudo_add_dir(ent, "fd");
+    struct pseudo2_ent* fd_link = pseudo_add_link(fd, NULL, &proc_thread_fd_follow_link);
+    fd_link->match_name = proc_thread_fd_match_name;
+    fd_link->list_names = proc_thread_fd_list_names;
+}
+
+int init_procfs(void) {
+    struct pseudo2_ent* root = pseudo_add_root_dir("proc");
+
+    pseudo_add_link(root, "self", &proc_self_follow_link);
+
+    struct pseudo2_ent* thread_pid = pseudo_add_dir(root, NULL);
+    init_thread_dir(thread_pid);
+
+    struct pseudo2_ent* thread_task = pseudo_add_dir(thread_pid, "task");
+    struct pseudo2_ent* thread_tid = pseudo_add_dir(thread_task, NULL);
+    init_thread_dir(thread_tid);
+
+    return 0;
+}

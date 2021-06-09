@@ -16,11 +16,14 @@ static struct pseudo2_ent* pseudo_find_root(const char* name) {
     return NULL;
 }
 
-static struct pseudo2_ent* pseudo_find(struct pseudo2_ent* parent_ent, const char* name) {
+static struct pseudo2_ent* pseudo_find(struct shim_dentry* parent, const char* name) {
+    struct pseudo2_ent* parent_ent = parent->data;
     assert(parent_ent->type == PSEUDO_DIR);
     struct pseudo2_ent* ent;
     LISTP_FOR_EACH_ENTRY(ent, &parent_ent->dir.children, siblings) {
         if (ent->name && strcmp(name, ent->name) == 0) {
+            return ent;
+        } else if (ent->match_name && ent->match_name(parent, name) >= 0) {
             return ent;
         }
     }
@@ -80,8 +83,7 @@ static int pseudo2_open(struct shim_handle* hdl, struct shim_dentry* dent, int f
 static int pseudo2_lookup(struct shim_dentry* dent) {
     struct pseudo2_ent* ent;
     if (dent->parent) {
-        struct pseudo2_ent* parent_ent = dent->parent->data;
-        ent = pseudo_find(parent_ent, qstrgetstr(&dent->name));
+        ent = pseudo_find(dent->parent, qstrgetstr(&dent->name));
         if (!ent)
             return -ENOENT;
     } else {
@@ -143,15 +145,24 @@ static int pseudo2_follow_link(struct shim_dentry* dent, struct shim_qstr* link)
 }
 
 static int pseudo2_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
+    int ret;
+
     struct pseudo2_ent* parent_ent = dent->data;
     if (parent_ent->type != PSEUDO_DIR)
         return -ENOTDIR;
 
     struct pseudo2_ent* ent;
     LISTP_FOR_EACH_ENTRY(ent, &parent_ent->dir.children, siblings) {
-        int ret = callback(ent->name, arg);
-        if (ret < 0)
-            return ret;
+        if (ent->name) {
+            ret = callback(ent->name, arg);
+            if (ret < 0)
+                return ret;
+        }
+        if (ent->list_names) {
+            ret = ent->list_names(dent, callback, arg);
+            if (ret < 0)
+                return ret;
+        }
     }
     return 0;
 }
@@ -270,7 +281,7 @@ struct shim_fs pseudo_builtin_fs = {
 };
 
 /////////////////
-
+/*
 static int self_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
     __UNUSED(dent);
     qstrsetstr(link, "3", strlen("3"));
@@ -279,20 +290,27 @@ static int self_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
 
 static int get_str(struct shim_dentry* dent, char** str, size_t* len) {
     __UNUSED(dent);
-    *str = strdup("hello");
+    *str = strdup("hello\n");
     if (!*str)
         return -ENOMEM;
     *len = strlen(*str);
     return 0;
 }
 
-int init_procfs(void) {
-    struct pseudo2_ent* root = pseudo_add_root_dir("proc");
-    pseudo_add_dir(root, "1");
-    pseudo_add_dir(root, "2");
-    struct pseudo2_ent* three = pseudo_add_dir(root, "3");
-    pseudo_add_link(root, "self", &self_follow_link);
+static bool pid_match_name(struct shim_dentry* parent, const char* name) {
+    __UNUSED(parent);
+    return !strcmp(name, "1") || !strcmp(name, "2") || !strcmp(name, "3");
+}
 
-    pseudo_add_str(three, "str", &get_str);
+static int pid_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
+    __UNUSED(parent);
+    int ret;
+    if ((ret = callback("1", arg)) < 0)
+        return ret;
+    if ((ret = callback("2", arg)) < 0)
+        return ret;
+    if ((ret = callback("3", arg)) < 0)
+        return ret;
     return 0;
 }
+*/

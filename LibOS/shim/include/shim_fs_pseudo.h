@@ -17,6 +17,9 @@ struct pseudo2_ent {
     struct pseudo2_ent* parent;
 
     const char* name;
+    int (*match_name)(struct shim_dentry* parent, const char* name);
+    int (*list_names)(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
+
     enum pseudo_type type;
 
     LIST_TYPE(pseudo2_ent) siblings;
@@ -30,7 +33,7 @@ struct pseudo2_ent {
     } link;
 
     struct {
-        int (*get_content)(struct shim_dentry* dent, char** str, size_t* len);
+        int (*get_content)(struct shim_dentry* dent, char** content, size_t* size);
     } str;
 };
 
@@ -46,6 +49,17 @@ struct pseudo2_ent* pseudo_add_str(struct pseudo2_ent* parent_ent, const char* n
 
 extern struct shim_fs pseudo_builtin_fs;
 
+/* procfs */
+
 int init_procfs(void);
+int proc_self_follow_link(struct shim_dentry* dent, struct shim_qstr* link);
+int proc_thread_match_name(struct shim_dentry* parent, const char* name);
+int proc_thread_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
+int proc_thread_follow_link(struct shim_dentry* dent, struct shim_qstr* link);
+int proc_thread_maps_get_content(struct shim_dentry* dent, char** content, size_t* size);
+int proc_thread_cmdline_get_content(struct shim_dentry* dent, char** content, size_t* size);
+int proc_thread_fd_match_name(struct shim_dentry* parent, const char* name);
+int proc_thread_fd_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
+int proc_thread_fd_follow_link(struct shim_dentry* dent, struct shim_qstr* link);
 
 #endif /* SHIM_FS_PSEUDO_H_ */
