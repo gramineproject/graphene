@@ -43,7 +43,7 @@ static AEVENTTYPE exit_notification_event;
 static int g_clear_on_worker_exit = 1;
 static PAL_HANDLE g_self_ipc_handle = NULL;
 
-typedef int (*ipc_callback)(IDTYPE src, void* data, unsigned long seq);
+typedef int (*ipc_callback)(IDTYPE src, void* data, uint64_t seq);
 static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_RESP]          = ipc_response_callback,
     [IPC_MSG_CONNBACK]      = ipc_connect_back_callback,
@@ -145,8 +145,8 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
             size += tmp_size;
         }
 
-        assert(GET_UNALIGNED(buf.msg_header.size) >= sizeof(struct ipc_msg_header));
         size_t msg_size = GET_UNALIGNED(buf.msg_header.size);
+        assert(msg_size >= sizeof(struct ipc_msg_header));
         size_t data_size = msg_size - sizeof(struct ipc_msg_header);
         void* msg_data = malloc(data_size);
         if (!msg_data) {
@@ -183,13 +183,14 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
         int ret = 0;
         if (msg_code < ARRAY_SIZE(ipc_callbacks) && ipc_callbacks[msg_code]) {
             ret = ipc_callbacks[msg_code](conn->vmid, msg_data, msg_seq);
+            if (ret < 0) {
+                log_error(LOG_PREFIX "error running IPC callback %u: %d", msg_code, ret);
+            }
         } else {
             log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg_code);
-            ret = -EINVAL;
         }
 
-        /* TODO: fix this interface - ownership passing. */
-        if (msg_code != IPC_MSG_RESP || ret != 0) {
+        if (msg_code != IPC_MSG_RESP) {
             free(msg_data);
         }
     } while (size > 0);

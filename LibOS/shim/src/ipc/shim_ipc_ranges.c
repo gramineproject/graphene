@@ -510,7 +510,7 @@ int ipc_lease_send(void) {
     return ret;
 }
 
-int ipc_lease_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_lease_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(data);
     log_debug("ipc callback from %u: IPC_MSG_LEASE\n", src);
 
@@ -573,7 +573,7 @@ int ipc_sublease_send(IDTYPE tenant, IDTYPE idx) {
 
 }
 
-int ipc_sublease_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_sublease_callback(IDTYPE src, void* data, uint64_t seq) {
     struct shim_ipc_sublease* msgin = data;
 
     log_debug("ipc callback from %u: IPC_MSG_SUBLEASE(%u, %u)\n", src, msgin->idx, msgin->tenant);
@@ -593,7 +593,7 @@ int ipc_sublease_callback(IDTYPE src, void* data, unsigned long seq) {
     return ipc_send_message(src, msg);
 }
 
-static int ipc_answer_send(IDTYPE dest, unsigned long seq, size_t answers_cnt,
+static int ipc_answer_send(IDTYPE dest, uint64_t seq, size_t answers_cnt,
                            struct ipc_ns_offered* answers) {
     struct shim_ipc_answer msgin = {
         .answers_cnt = answers_cnt,
@@ -666,7 +666,7 @@ int ipc_query_send(IDTYPE idx) {
     return ret;
 }
 
-int ipc_query_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_query_callback(IDTYPE src, void* data, uint64_t seq) {
     struct shim_ipc_query* msgin = data;
 
     log_debug("ipc callback from %u: IPC_MSG_QUERY(%u)\n", src, msgin->idx);
@@ -734,7 +734,7 @@ int ipc_queryall_send(void) {
     return ret;
 }
 
-int ipc_queryall_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_queryall_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(data);
     log_debug("ipc callback from %u: IPC_MSG_QUERYALL\n", src);
 

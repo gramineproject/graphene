@@ -9,6 +9,7 @@
  */
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "api.h"
 #include "assert.h"
@@ -45,7 +46,7 @@ static struct shim_lock g_ipc_connections_lock;
 struct ipc_msg_waiter {
     struct avl_tree_node node;
     PAL_HANDLE event;
-    unsigned long seq;
+    uint64_t seq;
     void* response_data;
 };
 
@@ -190,7 +191,7 @@ void init_ipc_msg(struct shim_ipc_msg* msg, unsigned char code, size_t size) {
     SET_UNALIGNED(msg->header.code, code);
 }
 
-void init_ipc_response(struct shim_ipc_msg* msg, unsigned long seq, size_t size) {
+void init_ipc_response(struct shim_ipc_msg* msg, uint64_t seq, size_t size) {
     init_ipc_msg(msg, IPC_MSG_RESP, size);
     SET_UNALIGNED(msg->header.seq, seq);
 }
@@ -212,9 +213,9 @@ static int ipc_send_message_to_conn(struct shim_ipc_connection* conn, struct shi
     return 0;
 }
 
-int ipc_send_message(IDTYPE dst, struct shim_ipc_msg* msg) {
+int ipc_send_message(IDTYPE dest, struct shim_ipc_msg* msg) {
     struct shim_ipc_connection* conn = NULL;
-    int ret = ipc_connect(dst, &conn);
+    int ret = ipc_connect(dest, &conn);
     if (ret < 0) {
         return ret;
     }
@@ -229,16 +230,16 @@ static int wait_for_response(struct ipc_msg_waiter* waiter) {
 
     int ret = 0;
     do {
-        ret = pal_to_unix_errno(DkEventWait(waiter->event, NULL));
+        ret = pal_to_unix_errno(DkEventWait(waiter->event, /*timeout=*/NULL));
     } while (ret == -EINTR);
 
     log_debug("Waiting finished: %d\n", ret);
     return ret;
 }
 
-int ipc_send_msg_and_get_response(IDTYPE dst, struct shim_ipc_msg* msg, void** resp) {
-    static unsigned long ipc_seq_counter = 0;
-    unsigned long seq = __atomic_fetch_add(&ipc_seq_counter, 1, __ATOMIC_RELAXED);
+int ipc_send_msg_and_get_response(IDTYPE dest, struct shim_ipc_msg* msg, void** resp) {
+    static uint64_t ipc_seq_counter = 1;
+    uint64_t seq = __atomic_fetch_add(&ipc_seq_counter, 1, __ATOMIC_RELAXED);
     SET_UNALIGNED(msg->header.seq, seq);
 
     struct ipc_msg_waiter waiter = {
@@ -254,7 +255,7 @@ int ipc_send_msg_and_get_response(IDTYPE dst, struct shim_ipc_msg* msg, void** r
     avl_tree_insert(&g_msg_waiters_tree, &waiter.node);
     unlock(&g_msg_waiters_tree_lock);
 
-    ret = ipc_send_message(dst, msg);
+    ret = ipc_send_message(dest, msg);
     if (ret < 0) {
         goto out;
     }
@@ -265,6 +266,11 @@ int ipc_send_msg_and_get_response(IDTYPE dst, struct shim_ipc_msg* msg, void** r
     }
 
     if (resp) {
+        if (!waiter.response_data) {
+            log_error("IPC response contains no response data!\n");
+            BUG();
+        }
+        /* We take the ownership of `waiter.response_data`. */
         *resp = waiter.response_data;
         waiter.response_data = NULL;
     }
@@ -278,7 +284,12 @@ out:
     return ret;
 }
 
-int ipc_response_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
+    if (!seq) {
+        log_error("Got an IPC response without a sequence number\n");
+        return -EINVAL;
+    }
+
     int ret = 0;
     lock(&g_msg_waiters_tree_lock);
     struct ipc_msg_waiter dummy = {
@@ -298,6 +309,9 @@ int ipc_response_callback(IDTYPE src, void* data, unsigned long seq) {
     log_debug("Got an IPC response from %u, seq: %lu\n", src, seq);
 
 out:
+    if (ret < 0) {
+        free(data);
+    }
     unlock(&g_msg_waiters_tree_lock);
     return ret;
 }
@@ -315,17 +329,18 @@ int request_leader_connect_back(void) {
     return ipc_send_msg_and_get_response(leader, msg, /*resp=*/NULL);
 }
 
-int ipc_connect_back_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_connect_back_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(data);
     /* Send back an empty response. */
     size_t total_msg_size = get_ipc_msg_size(0);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_response(msg, seq, total_msg_size);
+    log_debug("Sending empty connect back response to: %u\n", src);
     return ipc_send_message(src, msg);
 }
 
 
-int broadcast_ipc(struct shim_ipc_msg* msg, IDTYPE exclude_id) {
+int ipc_broadcast(struct shim_ipc_msg* msg, IDTYPE exclude_id) {
     lock(&g_ipc_connections_lock);
     struct shim_ipc_connection* conn = node2conn(avl_tree_first(&g_ipc_connections));
 

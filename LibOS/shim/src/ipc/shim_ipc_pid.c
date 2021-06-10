@@ -59,7 +59,7 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
 
     if (type == KILL_ALL && !g_process_ipc_ids.leader_vmid) {
         log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, dest_pid, sig);
-        ret = broadcast_ipc(msg, /*exclude_id=*/0);
+        ret = ipc_broadcast(msg, /*exclude_id=*/0);
     } else {
         log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
                   dest_pid, sig);
@@ -107,7 +107,7 @@ int ipc_kill_all(IDTYPE sender, int sig) {
     return ipc_pid_kill_send(KILL_ALL, sender, /*dest_pid=*/0, /*target=*/0, sig);
 }
 
-int ipc_pid_kill_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_pid_kill_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(seq);
     struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)data;
 
@@ -138,7 +138,7 @@ int ipc_pid_kill_callback(IDTYPE src, void* data, unsigned long seq) {
                 struct shim_ipc_msg* msg = __alloca(total_msg_size);
                 init_ipc_msg(msg, IPC_MSG_PID_KILL, total_msg_size);
                 memcpy(&msg->data, msgin, sizeof(*msgin));
-                ret = broadcast_ipc(msg, src);
+                ret = ipc_broadcast(msg, src);
                 if (ret < 0) {
                     break;
                 }
@@ -201,7 +201,7 @@ out:
     return ret;
 }
 
-int ipc_pid_getstatus_callback(IDTYPE src, void* data, unsigned long seq) {
+int ipc_pid_getstatus_callback(IDTYPE src, void* data, uint64_t seq) {
     struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)data;
     int ret = 0;
 
@@ -225,6 +225,13 @@ int ipc_pid_getstatus_callback(IDTYPE src, void* data, unsigned long seq) {
     init_ipc_response(msg, seq, total_msg_size);
 
     memcpy(&msg->data, &status->retstatus, msg_content_size);
+
+    if (status->retstatus.count) {
+        log_debug("IPC send to %u: shim_ipc_pid_retstatus{%lu, ...}\n", src,
+                  status->retstatus.count);
+    } else {
+        log_debug("IPC send to %u: shim_ipc_pid_retstatus{0, []}\n", src);
+    }
 
     return ipc_send_message(src, msg);
 }
@@ -265,7 +272,7 @@ int ipc_pid_getmeta(IDTYPE pid, enum pid_meta_code code, struct shim_ipc_pid_ret
     return 0;
 }
 
-int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, unsigned long seq) {
+int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
     struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)msg_data;
     int ret = 0;
 
@@ -346,6 +353,8 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, unsigned long seq) {
 
     memcpy(&msg->data, &retmeta, sizeof(retmeta));
     memcpy(&((struct shim_ipc_pid_retmeta*)&msg->data)->data, data, datasize);
+
+    log_debug("IPC send to %u: shim_ipc_pid_retmeta{%lu, ...}\n", src, datasize);
 
     ret = ipc_send_message(src, msg);
 
