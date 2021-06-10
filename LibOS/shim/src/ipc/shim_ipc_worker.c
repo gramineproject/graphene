@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#include "api.h"
 #include "assert.h"
 #include "cpu.h"
 #include "list.h"
@@ -144,16 +145,16 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
             size += tmp_size;
         }
 
-        assert(buf.msg_header.size >= sizeof(struct ipc_msg_header));
-        size_t msg_size = buf.msg_header.size;
+        assert(GET_UNALIGNED(buf.msg_header.size) >= sizeof(struct ipc_msg_header));
+        size_t msg_size = GET_UNALIGNED(buf.msg_header.size);
         size_t data_size = msg_size - sizeof(struct ipc_msg_header);
         void* msg_data = malloc(data_size);
         if (!msg_data) {
             return -ENOMEM;
         }
 
-        unsigned char msg_code = buf.msg_header.code;
-        unsigned long msg_seq = buf.msg_header.seq;
+        unsigned char msg_code = GET_UNALIGNED(buf.msg_header.code);
+        unsigned long msg_seq = GET_UNALIGNED(buf.msg_header.seq);
 
         if (msg_size <= size) {
             /* Already got the whole message (and possibly part of the next one). */

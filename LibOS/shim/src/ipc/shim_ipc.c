@@ -10,6 +10,7 @@
 
 #include <stdbool.h>
 
+#include "api.h"
 #include "assert.h"
 #include "avl_tree.h"
 #include "pal.h"
@@ -183,15 +184,15 @@ void remove_outgoing_ipc_connection(IDTYPE dest) {
     unlock(&g_ipc_connections_lock);
 }
 
-void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size) {
-    msg->header.size = get_ipc_msg_size(size);
-    msg->header.seq = 0;
-    msg->header.code = code;
+void init_ipc_msg(struct shim_ipc_msg* msg, unsigned char code, size_t size) {
+    SET_UNALIGNED(msg->header.size, get_ipc_msg_size(size));
+    SET_UNALIGNED(msg->header.seq, 0ul);
+    SET_UNALIGNED(msg->header.code, code);
 }
 
 void init_ipc_response(struct shim_ipc_msg* msg, unsigned long seq, size_t size) {
     init_ipc_msg(msg, IPC_MSG_RESP, size);
-    msg->header.seq = seq;
+    SET_UNALIGNED(msg->header.seq, seq);
 }
 
 static int ipc_send_message_to_conn(struct shim_ipc_connection* conn, struct shim_ipc_msg* msg) {
@@ -199,7 +200,7 @@ static int ipc_send_message_to_conn(struct shim_ipc_connection* conn, struct shi
 
     lock(&conn->lock);
 
-    int ret = write_exact(conn->handle, msg,  msg->header.size);
+    int ret = write_exact(conn->handle, msg,  GET_UNALIGNED(msg->header.size));
     if (ret < 0) {
         log_error("Failed to send IPC msg to %u: %d\n", conn->vmid, ret);
         unlock(&conn->lock);
@@ -236,11 +237,12 @@ static int wait_for_response(struct ipc_msg_waiter* waiter) {
 }
 
 int ipc_send_msg_and_get_response(IDTYPE dst, struct shim_ipc_msg* msg, void** resp) {
-    static unsigned long ipc_seq_counter = 1;
-    msg->header.seq = __atomic_fetch_add(&ipc_seq_counter, 1, __ATOMIC_RELAXED);
+    static unsigned long ipc_seq_counter = 0;
+    unsigned long seq = __atomic_fetch_add(&ipc_seq_counter, 1, __ATOMIC_RELAXED);
+    SET_UNALIGNED(msg->header.seq, seq);
 
     struct ipc_msg_waiter waiter = {
-        .seq = msg->header.seq,
+        .seq = seq,
         .response_data = NULL,
     };
     int ret = DkEventCreate(&waiter.event, /*init_signaled=*/false, /*auto_clear=*/false);
@@ -277,11 +279,6 @@ out:
 }
 
 int ipc_response_callback(IDTYPE src, void* data, unsigned long seq) {
-    if (!seq) {
-        log_error("Got an IPC response without a sequence number\n");
-        return -EINVAL;
-    }
-
     int ret = 0;
     lock(&g_msg_waiters_tree_lock);
     struct ipc_msg_waiter dummy = {

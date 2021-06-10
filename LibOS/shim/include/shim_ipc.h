@@ -78,7 +78,7 @@ void remove_outgoing_ipc_connection(IDTYPE dest);
  */
 int request_leader_connect_back(void);
 /*!
- * \brief Callback for a IPC connection request
+ * \brief Callback for an IPC connection request
  *
  * Parameters as per IPC callback interface.
  * See also: #request_leader_connect_back
@@ -100,7 +100,7 @@ static inline size_t get_ipc_msg_size(size_t payload) {
     return sizeof(struct shim_ipc_msg) + payload;
 }
 
-void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size);
+void init_ipc_msg(struct shim_ipc_msg* msg, unsigned char code, size_t size);
 void init_ipc_response(struct shim_ipc_msg* msg, unsigned long seq, size_t size);
 
 /*!
