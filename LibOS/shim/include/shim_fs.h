@@ -675,7 +675,6 @@ extern struct shim_fs_ops tmp_fs_ops;
 extern struct shim_d_ops tmp_d_ops;
 
 extern struct shim_fs chroot_builtin_fs;
-extern struct shim_fs proc_builtin_fs;
 extern struct shim_fs dev_builtin_fs;
 extern struct shim_fs sys_builtin_fs;
 extern struct shim_fs tmp_builtin_fs;
@@ -695,9 +694,6 @@ struct shim_fs* find_fs(const char* name);
 
 extern struct shim_fs_ops dev_fs_ops;
 extern struct shim_d_ops dev_d_ops;
-
-extern struct shim_fs_ops proc_fs_ops;
-extern struct shim_d_ops proc_d_ops;
 
 extern struct shim_fs_ops sys_fs_ops;
 extern struct shim_d_ops sys_d_ops;

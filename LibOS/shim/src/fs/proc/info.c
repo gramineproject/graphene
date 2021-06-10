@@ -8,26 +8,11 @@
  */
 
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "stat.h"
 
-static int proc_info_mode(const char* name, mode_t* mode) {
-    __UNUSED(name);
-    *mode = FILE_R_MODE | S_IFREG;
-    return 0;
-}
-
-static int proc_info_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    memset(buf, 0, sizeof(struct stat));
-    buf->st_dev  = 1; /* dummy ID of device containing file */
-    buf->st_mode = FILE_R_MODE | S_IFREG;
-    return 0;
-}
-
-static int proc_meminfo_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(name);
-    if (flags & (O_WRONLY | O_RDWR))
-        return -EACCES;
+int proc_meminfo_get_content(struct shim_dentry* dent, char** content, size_t* size) {
+    __UNUSED(dent);
 
     int len, max = 128;
     char* str = NULL;
@@ -69,13 +54,8 @@ retry:
         return -ENOMEM;
     }
 
-    memset(data, 0, sizeof(struct shim_str_data));
-    data->str          = str;
-    data->len          = len;
-    hdl->type          = TYPE_STR;
-    hdl->flags         = flags & ~O_RDONLY;
-    hdl->acc_mode      = MAY_READ;
-    hdl->info.str.data = data;
+    *content = str;
+    *size = len;
     return 0;
 }
 
@@ -119,12 +99,8 @@ retry:
     return ret;
 }
 
-static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flags) {
-    // This function only serves one file
-    __UNUSED(name);
-
-    if (flags & (O_WRONLY | O_RDWR))
-        return -EACCES;
+int proc_cpuinfo_get_content(struct shim_dentry* dent, char** content, size_t* size) {
+    __UNUSED(dent);
 
     size_t len = 0;
     size_t max = 128;
@@ -169,23 +145,7 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
         return -ENOMEM;
     }
 
-    data->str          = str;
-    data->len          = len;
-    hdl->type          = TYPE_STR;
-    hdl->flags         = flags & ~O_RDONLY;
-    hdl->acc_mode      = MAY_READ;
-    hdl->info.str.data = data;
+    *content = str;
+    *size = len;
     return 0;
 }
-
-struct pseudo_fs_ops fs_meminfo = {
-    .mode = &proc_info_mode,
-    .stat = &proc_info_stat,
-    .open = &proc_meminfo_open,
-};
-
-struct pseudo_fs_ops fs_cpuinfo = {
-    .mode = &proc_info_mode,
-    .stat = &proc_info_stat,
-    .open = &proc_cpuinfo_open,
-};

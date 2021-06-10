@@ -1,48 +1,20 @@
-#include <asm/fcntl.h>
-#include <asm/mman.h>
-#include <asm/unistd.h>
-#include <errno.h>
-#include <limits.h>
-#include <linux/fcntl.h>
-#include <stdalign.h>
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Paweł Marczewski <pawel@invisiblethingslab.com>
+ */
+
+/*
+ * Implementation of `/proc/<pid>` and `/proc/<pid>/task/<tid>`, for local process.
+ */
 
 #include "pal.h"
-#include "pal_error.h"
-#include "perm.h"
 #include "shim_fs.h"
 #include "shim_fs_pseudo.h"
-#include "shim_handle.h"
-#include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_process.h"
-#include "shim_table.h"
 #include "shim_thread.h"
-#include "shim_utils.h"
-#include "stat.h"
+#include "shim_types.h"
 #include "shim_vma.h"
-
-static int parse_uint(const char* str, unsigned int* value) {
-    unsigned int _value = 0;
-
-    if (*str == '\0')
-        return -1;
-
-    while (*str != '\0') {
-        if (!('0' <= *str && *str <= '9'))
-            return -1;
-
-        if (__builtin_umul_overflow(_value, 10, &_value))
-            return -1;
-
-        if (__builtin_uadd_overflow(_value, *str - '0', &_value))
-            return -1;
-
-        str++;
-    }
-
-    *value = _value;
-    return 0;
-}
 
 int proc_thread_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
     __UNUSED(dent);
@@ -76,7 +48,6 @@ out:
     put_dentry(dent);
     return ret;
 }
-
 
 int proc_thread_maps_get_content(struct shim_dentry* dent, char** content, size_t* size) {
     __UNUSED(dent);
@@ -187,20 +158,44 @@ int proc_thread_cmdline_get_content(struct shim_dentry* dent, char** content, si
     return 0;
 }
 
-int proc_thread_match_name(struct shim_dentry* parent, const char* name) {
+int proc_thread_pid_match_name(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
 
     IDTYPE pid;
     if (parse_uint(name, &pid) < 0)
         return -ENOENT;
 
-    struct shim_thread* thread = lookup_thread(pid);
+    if (pid != g_process.pid)
+        return -ENOENT;
 
-    if (thread) {
-        put_thread(thread);
-        return 0;
-    }
-    return -ENOENT;
+    return 0;
+}
+
+int proc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
+    __UNUSED(parent);
+    IDTYPE pid = g_process.pid;
+    char name[11];
+    snprintf(name, sizeof(name), "%u", pid);
+    int ret = callback(name, arg);
+    if (ret < 0)
+        return ret;
+
+    return 0;
+}
+
+int proc_thread_tid_match_name(struct shim_dentry* parent, const char* name) {
+    __UNUSED(parent);
+
+    IDTYPE tid;
+    if (parse_uint(name, &tid) < 0)
+        return -ENOENT;
+
+    struct shim_thread* thread = lookup_thread(tid);
+    if (!thread)
+        return -ENOENT;
+
+    put_thread(thread);
+    return 0;
 }
 
 struct walk_thread_arg {
@@ -220,7 +215,7 @@ static int walk_cb(struct shim_thread* thread, void* arg) {
     return 1;
 }
 
-int proc_thread_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
+int proc_thread_tid_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
     __UNUSED(parent);
     struct walk_thread_arg args = {
         .callback = callback,

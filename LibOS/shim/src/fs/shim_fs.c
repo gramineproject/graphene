@@ -22,7 +22,6 @@
 
 struct shim_fs* builtin_fs[] = {
     &chroot_builtin_fs,
-    &proc_builtin_fs,
     &dev_builtin_fs,
     &sys_builtin_fs,
     &tmp_builtin_fs,
@@ -60,6 +59,11 @@ int init_fs(void) {
         destroy_mem_mgr(mount_mgr);
         return -ENOMEM;
     }
+
+    int ret;
+    if ((ret = init_procfs()) < 0)
+        return ret;
+
     return 0;
 }
 
@@ -119,17 +123,8 @@ static int __mount_sys(void) {
     int ret;
 
     log_debug("Mounting special proc filesystem: /proc\n");
-    if ((ret = mount_fs("proc", NULL, "/proc")) < 0) {
-        log_error("Mounting /proc filesystem failed (%d)\n", ret);
-        return ret;
-    }
-
-    if ((ret = init_procfs()) < 0)
-        return ret;
-
-    log_debug("Mounting special proc filesystem: /proc2\n");
-    if ((ret = mount_fs("pseudo", "proc", "/proc2")) < 0) {
-        log_error("Mounting /proc2 filesystem failed (%d)\n", ret);
+    if ((ret = mount_fs("pseudo", "proc", "/proc")) < 0) {
+        log_error("Mounting proc filesystem failed (%d)\n", ret);
         return ret;
     }
 
