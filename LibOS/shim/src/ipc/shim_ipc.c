@@ -285,12 +285,13 @@ out:
 }
 
 int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
+    int ret = 0;
     if (!seq) {
         log_error("Got an IPC response without a sequence number\n");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
-    int ret = 0;
     lock(&g_msg_waiters_tree_lock);
     struct ipc_msg_waiter dummy = {
         .seq = seq,
@@ -299,7 +300,7 @@ int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
     if (!node) {
         log_error("No thread is waiting for a response with seq: %lu\n", seq);
         ret = -EINVAL;
-        goto out;
+        goto out_unlock;
     }
 
     struct ipc_msg_waiter* waiter = container_of(node, struct ipc_msg_waiter, node);
@@ -308,11 +309,12 @@ int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
     ret = 0;
     log_debug("Got an IPC response from %u, seq: %lu\n", src, seq);
 
+out_unlock:
+    unlock(&g_msg_waiters_tree_lock);
 out:
     if (ret < 0) {
         free(data);
     }
-    unlock(&g_msg_waiters_tree_lock);
     return ret;
 }
 
