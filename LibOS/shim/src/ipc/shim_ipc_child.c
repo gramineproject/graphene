@@ -65,6 +65,7 @@ int ipc_cld_exit_callback(IDTYPE src, void* data, uint64_t seq) {
     } else {
         log_error("Unknown process sent a child-death notification: pid: %d, vmid: %u\n",
                   msgin->pid, src);
+        return -EINVAL;
     }
 
     return 0;

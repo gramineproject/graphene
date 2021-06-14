@@ -75,6 +75,7 @@ static void disconnect_callbacks(struct shim_ipc_connection* conn) {
      * no place that can notice disconnection of an outgoing connection other than a failure to send
      * data via such connection. We try to remove an outgoing IPC connection to a process that just
      * disconnected here - usually we have connections set up in both ways.
+     * This also wakes all message response waiters (if there are any).
     */
     remove_outgoing_ipc_connection(conn->vmid);
 }
@@ -185,6 +186,7 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
             ret = ipc_callbacks[msg_code](conn->vmid, msg_data, msg_seq);
             if (ret < 0) {
                 log_error(LOG_PREFIX "error running IPC callback %u: %d", msg_code, ret);
+                DkProcessExit(1);
             }
         } else {
             log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg_code);

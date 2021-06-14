@@ -47,6 +47,7 @@ struct ipc_msg_waiter {
     struct avl_tree_node node;
     PAL_HANDLE event;
     uint64_t seq;
+    IDTYPE dest;
     void* response_data;
 };
 
@@ -183,6 +184,22 @@ void remove_outgoing_ipc_connection(IDTYPE dest) {
         _remove_ipc_connection(conn);
     }
     unlock(&g_ipc_connections_lock);
+
+    lock(&g_msg_waiters_tree_lock);
+    struct avl_tree_node* node = avl_tree_first(&g_msg_waiters_tree);
+    /* Usually there are no or very few waiters, so linear loop should be fine. If this becomes
+     * a problem for some reason, we can make `g_msg_waiters_tree` use `dest` as a part of the key
+     * and search for matching entries here. */
+    while (node) {
+        struct ipc_msg_waiter* waiter = container_of(node, struct ipc_msg_waiter, node);
+        if (waiter->dest == dest) {
+            waiter->response_data = NULL;
+            DkEventSet(waiter->event);
+            log_debug("Woke up a thread waiting for a message from a disconnected process\n");
+        }
+        node = avl_tree_next(node);
+    }
+    unlock(&g_msg_waiters_tree_lock);
 }
 
 void init_ipc_msg(struct shim_ipc_msg* msg, unsigned char code, size_t size) {
@@ -244,6 +261,7 @@ int ipc_send_msg_and_get_response(IDTYPE dest, struct shim_ipc_msg* msg, void** 
 
     struct ipc_msg_waiter waiter = {
         .seq = seq,
+        .dest = dest,
         .response_data = NULL,
     };
     int ret = DkEventCreate(&waiter.event, /*init_signaled=*/false, /*auto_clear=*/false);
@@ -265,16 +283,17 @@ int ipc_send_msg_and_get_response(IDTYPE dest, struct shim_ipc_msg* msg, void** 
         goto out;
     }
 
-    if (resp) {
-        if (!waiter.response_data) {
-            log_error("IPC response contains no response data!\n");
-            BUG();
+    if (!waiter.response_data) {
+        log_warning("IPC recipient %u died while we were waiting for a message response\n", dest);
+        ret = -ESRCH;
+    } else {
+        if (resp) {
+            /* We take the ownership of `waiter.response_data`. */
+            *resp = waiter.response_data;
+            waiter.response_data = NULL;
         }
-        /* We take the ownership of `waiter.response_data`. */
-        *resp = waiter.response_data;
-        waiter.response_data = NULL;
+        ret = 0;
     }
-    ret = 0;
 
 out:
     lock(&g_msg_waiters_tree_lock);

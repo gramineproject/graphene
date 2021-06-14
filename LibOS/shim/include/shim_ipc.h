@@ -69,7 +69,8 @@ int connect_to_process(IDTYPE dest);
  *
  * \param dest vmid of the destination process
  *
- * If there is no outgoing connection to \p dest, does nothing.
+ * If there is no outgoing connection to \p dest, does nothing. If any thread waits for a response
+ * to a message sent to \p dest, it is woken up and notified about the disconnect.
  */
 void remove_outgoing_ipc_connection(IDTYPE dest);
 /*!
@@ -264,6 +265,7 @@ struct shim_ipc_pid_getmeta {
 /* PID_RETMETA: return metadata of certain pid */
 struct shim_ipc_pid_retmeta {
     size_t datasize;
+    int ret_val;
     char data[];
 } __attribute__((packed));
 

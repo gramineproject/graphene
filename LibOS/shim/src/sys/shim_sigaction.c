@@ -408,10 +408,15 @@ int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig) {
         pgid = current_pgid;
     }
 
+    /* TODO: currently process groups are not supported. */
+#if 0
     int ret = ipc_kill_pgroup(sender, pgid, sig);
     if (ret < 0 && ret != -ESRCH) {
         return ret;
     }
+#else
+    int ret = -ENOSYS;
+#endif
 
     if (current_pgid != pgid) {
         return ret;

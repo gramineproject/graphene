@@ -64,7 +64,8 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
         log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
                   dest_pid, sig);
 
-        ret = ipc_send_message(dest, msg);
+        void* resp = NULL;
+        ret = ipc_send_msg_and_get_response(dest, msg, &resp);
         if (ret < 0) {
             /* During sending the message to destination process, it may have terminated and became
              * a zombie; kill shouldn't fail in this case. The below logic checks if the destination
@@ -85,6 +86,9 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
                     thread_wait(&timeout_us, /*ignore_pending_signals=*/true);
                 }
             }
+        } else {
+            ret = *(int*)resp;
+            free(resp);
         }
     }
 
@@ -108,18 +112,13 @@ int ipc_kill_all(IDTYPE sender, int sig) {
 }
 
 int ipc_pid_kill_callback(IDTYPE src, void* data, uint64_t seq) {
-    __UNUSED(seq);
     struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)data;
 
     log_debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", src, msgin->sender,
               msgin->type, msgin->id, msgin->signum);
 
-    if (msgin->signum == 0) {
-        /* If signal number is 0, then no signal is sent, but process existence is still checked. */
-        return 0;
-    }
-
     int ret = 0;
+    bool response_expected = true;
 
     switch (msgin->type) {
         case KILL_THREAD:
@@ -142,9 +141,26 @@ int ipc_pid_kill_callback(IDTYPE src, void* data, uint64_t seq) {
                 if (ret < 0) {
                     break;
                 }
+            } else {
+                response_expected = false;
             }
+
             ret = do_kill_proc(msgin->sender, g_process.pid, msgin->signum);
             break;
+        default:
+            BUG();
+    }
+
+    if (response_expected) {
+        static_assert(SAME_TYPE(ret, int), "receiver assumes int");
+        size_t total_msg_size = get_ipc_msg_size(sizeof(ret));
+        struct shim_ipc_msg* msg = __alloca(total_msg_size);
+        init_ipc_response(msg, seq, total_msg_size);
+        memcpy(&msg->data, &ret, sizeof(ret));
+
+        ret = ipc_send_message(src, msg);
+    } else {
+        ret = 0;
     }
     return ret;
 }
@@ -262,9 +278,14 @@ int ipc_pid_getmeta(IDTYPE pid, enum pid_meta_code code, struct shim_ipc_pid_ret
 
     log_debug("ipc send to %u: IPC_MSG_PID_GETMETA(%u, %s)\n", dest, pid, pid_meta_code_str[code]);
 
-    void* resp = NULL;
-    ret = ipc_send_msg_and_get_response(dest, msg, &resp);
+    struct shim_ipc_pid_retmeta* resp = NULL;
+    ret = ipc_send_msg_and_get_response(dest, msg, (void**)&resp);
     if (ret < 0) {
+        return ret;
+    }
+    if (resp->ret_val != 0) {
+        ret = resp->ret_val;
+        free(resp);
         return ret;
     }
 
@@ -283,10 +304,11 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
     void* data = NULL;
     size_t datasize = 0;
     size_t bufsize = 0;
+    int resp_ret_val = 0;
 
     if (!thread) {
-        ret = -ESRCH;
-        goto out;
+        resp_ret_val = -ESRCH;
+        goto out_send;
     }
 
     switch (msgin->code) {
@@ -295,6 +317,7 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
             bufsize = sizeof(IDTYPE) * 2;
             data = malloc(bufsize);
             if (!data) {
+                unlock(&thread->lock);
                 ret = -ENOMEM;
                 goto out;
             }
@@ -321,12 +344,12 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
                    dent = g_process.root;
                    break;
                default:
-                   break;
+                   BUG();
             }
             if (!dent) {
                 unlock(&g_process.fs_lock);
                 ret = -ENOENT;
-                break;
+                goto out;
             }
             if ((ret = dentry_abs_path(dent, (char**)&data, &bufsize)) < 0) {
                 unlock(&g_process.fs_lock);
@@ -337,15 +360,13 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
             break;
         }
         default:
-            ret = -EINVAL;
-            break;
+            BUG();
     }
 
-    if (ret < 0)
-        goto out;
-
+out_send:;
     struct shim_ipc_pid_retmeta retmeta = {
         .datasize = datasize,
+        .ret_val = resp_ret_val,
     };
     size_t total_msg_size = get_ipc_msg_size(sizeof(retmeta) + datasize);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
