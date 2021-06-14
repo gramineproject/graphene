@@ -9,6 +9,7 @@
 
 #include "api.h"
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 
 /* Sub-directory /sys/devices/system/cpu/cpuX/cache is implemented in separate file cache_info.c */
 extern const struct pseudo_dir cpunum_cache_dir;
@@ -129,3 +130,55 @@ const struct pseudo_dir sys_cpu_dir = {
         {.name_ops = &cpunum_ops, .dir = &cpunum_dir,  .type = LINUX_DT_DIR},
     }
 };
+
+int sys_cpu_general_get_content(struct shim_dentry* dent, char** content, size_t* size) {
+    const char* name = qstrgetstr(&dent->name);
+    const char* str;
+
+    if (strcmp(name, "online") == 0) {
+        str = g_pal_control->topo_info.online_logical_cores;
+    } else if (strcmp(name, "possible") == 0) {
+        str = g_pal_control->topo_info.possible_logical_cores;
+    } else {
+        log_debug("unrecognized file: %s\n", name);
+        return -ENOENT;
+    }
+
+    return sys_get_content(str, content, size);
+}
+
+int sys_cpu_get_content(struct shim_dentry* dent, char** content, size_t* size) {
+    const char* name = qstrgetstr(&dent->name);
+    struct shim_dentry* cpuX = dent->parent;
+
+    int cpu_num = sys_resource_find(cpuX->parent, qstrgetstr(&cpuX->name),
+                                    /*callback=*/NULL, /*arg=*/NULL);
+    if (cpu_num < 0)
+        return cpu_num;
+
+    PAL_CORE_TOPO_INFO* core_topology = &g_pal_control->topo_info.core_topology[cpu_num];
+    const char* str;
+    if (strcmp(name, "online") == 0) {
+        /* TODO: core 0 is always online, so file /sys/devices/system/cpu/cpu0/online doesn't exist */
+        if (cpu_num == 0) {
+            str = "1";
+        } else {
+            str = core_topology->is_logical_core_online;
+        }
+    } else if (strcmp(name, "core_id") == 0) {
+        str = core_topology->core_id;
+    } else if (strcmp(name, "physical_package_id") == 0) {
+        char buf[12];
+        snprintf(buf, sizeof(buf), "%d\n", g_pal_control->cpu_info.cpu_socket[cpu_num]);
+        str = buf;
+    } else if (strcmp(name, "core_siblings") == 0) {
+        str = core_topology->core_siblings;
+    } else if (strcmp(name, "thread_siblings") == 0) {
+        str = core_topology->thread_siblings;
+    } else {
+        log_debug("unrecognized file: %s\n", name);
+        return -ENOENT;
+    }
+
+    return sys_get_content(str, content, size);
+}

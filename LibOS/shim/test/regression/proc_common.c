@@ -15,6 +15,7 @@ static int dump(const char* path);
 
 static int dump_dir(const char* path) {
     printf("%s: directory\n", path);
+    fflush(stdout);
 
     char buf[4096];
     size_t path_len = strlen(path);
@@ -71,6 +72,7 @@ out:
 
 static int dump_file(const char* path) {
     printf("%s: file\n", path);
+    fflush(stdout);
 
     FILE* f = fopen(path, "r");
     if (!f) {
@@ -94,12 +96,14 @@ static int dump_file(const char* path) {
         for (size_t i = 0; i < n; i++) {
             printf("%c", buf[i]);
             if (buf[i] == '\n') {
+                fflush(stdout);
                 printf("%s: ", path);
             }
         }
     } while (n > 0);
 
     printf("\n");
+    fflush(stdout);
     ret = 0;
 out:
     close_ret = fclose(f);
@@ -122,6 +126,7 @@ static int dump(const char* path) {
     switch (statbuf.st_mode & S_IFMT) {
         case S_IFBLK:
             printf("%s: block device\n", path);
+            fflush(stdout);
             break;
         case S_IFCHR:
             printf("%s: character device\n", path);
@@ -139,6 +144,7 @@ static int dump(const char* path) {
                 return -1;
             }
             printf("%s: link: %.*s\n", path, (int) n, buf);
+            fflush(stdout);
             break;
         }
         case S_IFREG: {
@@ -149,6 +155,7 @@ static int dump(const char* path) {
         }
         case S_IFSOCK:
             printf("%s: socket\n", path);
+            fflush(stdout);
             break;
         default:
             fprintf(stderr, "unknown file type: %s\n", path);

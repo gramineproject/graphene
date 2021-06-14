@@ -10,6 +10,7 @@
 
 #include "api.h"
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 
 static int cache_info_open(struct shim_handle* hdl, const char* name, int flags) {
     char filename[32];
@@ -107,3 +108,44 @@ const struct pseudo_dir cpunum_cache_dir = {
         {.name_ops = &cache_ops, .fs_ops = &cache_info, .dir = &cache_idx_dir, .type = LINUX_DT_DIR},
     }
 };
+
+
+int sys_cache_get_content(struct shim_dentry* dent, char** content, size_t* size) {
+    const char* name = qstrgetstr(&dent->name);
+    /* we're at /sys/devices/system/cpu/cpu0/cache/indexX/ */
+    struct shim_dentry* indexX = dent->parent;
+    struct shim_dentry* cpuX = dent->parent->parent->parent;
+
+    int cache_num = sys_resource_find(indexX->parent, qstrgetstr(&indexX->name),
+                                    /*callback=*/NULL, /*arg=*/NULL);
+    if (cache_num < 0)
+        return cache_num;
+
+    int cpu_num = sys_resource_find(cpuX->parent, qstrgetstr(&cpuX->name),
+                                    /*callback=*/NULL, /*arg=*/NULL);
+    if (cpu_num < 0)
+        return cpu_num;
+
+    PAL_CORE_CACHE_INFO* cache = &g_pal_control->topo_info.core_topology[cpu_num].cache[cache_num];
+    const char* str;
+    if (strcmp(name, "shared_cpu_map") == 0) {
+        str = cache->shared_cpu_map;
+    } else if (strcmp(name, "level") == 0) {
+        str = cache->level;
+    } else if (strcmp(name, "type") == 0) {
+        str = cache->type;
+    } else if (strcmp(name, "size") == 0) {
+        str = cache->size;
+    } else if (strcmp(name, "coherency_line_size") == 0) {
+        str = cache->coherency_line_size;
+    } else if (strcmp(name, "number_of_sets") == 0) {
+        str = cache->number_of_sets;
+    } else if (strcmp(name, "physical_line_partition") == 0) {
+        str = cache->physical_line_partition;
+    } else {
+        log_debug("Unrecognized file: %s\n", name);
+        return -ENOENT;
+    }
+
+    return sys_get_content(str, content, size);
+}

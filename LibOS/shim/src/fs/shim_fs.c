@@ -63,6 +63,8 @@ int init_fs(void) {
     int ret;
     if ((ret = init_procfs()) < 0)
         return ret;
+    if ((ret = init_sysfs()) < 0)
+        return ret;
 
     return 0;
 }
@@ -141,11 +143,17 @@ static int __mount_sys(void) {
     }
 
     log_debug("Mounting special sys filesystem: /sys\n");
-
-    if ((ret = mount_fs("sys", NULL, "/sys")) < 0) {
+    if ((ret = mount_fs("pseudo", "sys", "/sys")) < 0) {
         log_error("Mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
+
+    /*
+    log_debug("Mounting special sys filesystem: /sys\n");
+    if ((ret = mount_fs("sys", NULL, "/sys")) < 0) {
+        log_error("Mounting sys filesystem failed (%d)\n", ret);
+        return ret;
+        }*/
 
     return 0;
 }

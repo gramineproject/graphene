@@ -69,4 +69,18 @@ int proc_ipc_thread_pid_match_name(struct shim_dentry* parent, const char* name)
 int proc_ipc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
 int proc_ipc_thread_follow_link(struct shim_dentry* dent, struct shim_qstr* link);
 
+/* sysfs */
+
+int init_sysfs(void);
+int sys_get_content(const char* str, char** content, size_t* size);
+int sys_resource_find(struct shim_dentry* parent, const char* name, readdir_callback_t callback,
+                      void* arg);
+int sys_resource_match_name(struct shim_dentry* parent, const char* name);
+int sys_resource_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
+int sys_node_general_get_content(struct shim_dentry* dent, char** content, size_t* size);
+int sys_node_get_content(struct shim_dentry* dent, char** content, size_t* size);
+int sys_cpu_general_get_content(struct shim_dentry* dent, char** content, size_t* size);
+int sys_cpu_get_content(struct shim_dentry* dent, char** content, size_t* size);
+int sys_cache_get_content(struct shim_dentry* dent, char** content, size_t* size);
+
 #endif /* SHIM_FS_PSEUDO_H_ */

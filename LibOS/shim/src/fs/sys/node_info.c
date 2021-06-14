@@ -9,6 +9,7 @@
 
 #include "api.h"
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 
 static int node_info_open(struct shim_handle* hdl, const char* name, int flags) {
     char filename[32];
@@ -122,3 +123,56 @@ const struct pseudo_dir sys_node_dir = {
         {.name_ops = &nodenum_ops, .dir = &node_num_dir, .type = LINUX_DT_DIR},
     }
 };
+
+int sys_node_general_get_content(struct shim_dentry* dent, char** content, size_t* size) {
+    const char* name = qstrgetstr(&dent->name);
+    const char* str;
+    if (strcmp(name, "online") == 0) {
+        str = g_pal_control->topo_info.online_nodes;
+    } else {
+        log_debug("unrecognized file: %s\n", name);
+        return -ENOENT;
+    }
+
+    return sys_get_content(str, content, size);
+}
+
+
+int sys_node_get_content(struct shim_dentry* dent, char** content, size_t* size) {
+    const char* name = qstrgetstr(&dent->name);
+    struct shim_dentry* nodeX;
+
+    if (strstartswith(qstrgetstr(&dent->parent->name), "hugepages")) {
+        /* we're under /sys/devices/system/node/nodeX/hugepages/hugepages-X/ */
+        nodeX = dent->parent->parent->parent;
+    } else {
+        /* we're under /sys/devices/system/node/nodeX/ */
+        nodeX = dent->parent;
+    }
+
+    int node_num = sys_resource_find(nodeX->parent, qstrgetstr(&nodeX->name),
+                                     /*callback=*/NULL, /*arg=*/NULL);
+    if (node_num < 0)
+        return node_num;
+
+    PAL_NUMA_TOPO_INFO* numa_topology = &g_pal_control->topo_info.numa_topology[node_num];
+    const char* str;
+    if (strcmp(name, "cpumap" ) == 0) {
+        str = numa_topology->cpumap;
+    } else if (strcmp(name, "distance") == 0) {
+        str = numa_topology->distance;
+    } else if (strcmp(name, "nr_hugepages") == 0) {
+        const char* parent_name = qstrgetstr(&dent->parent->name);
+        if (strcmp(parent_name, "hugepages-2048kB") == 0) {
+            str = numa_topology->hugepages[HUGEPAGES_2M].nr_hugepages;
+        } else if (strcmp(parent_name, "hugepages-1048576kB") == 0) {
+            str = numa_topology->hugepages[HUGEPAGES_1G].nr_hugepages;
+        }
+    }
+    if (!str) {
+        log_debug("unrecognized file: %s\n", name);
+        return -ENOENT;
+    }
+
+    return sys_get_content(str, content, size);
+}
