@@ -217,7 +217,7 @@ static pf_context_t* ipf_open(const char* path, pf_file_mode_t mode, bool create
         goto out;
     }
 
-    if (strlen(path) > PATH_MAX_SIZE - 1) {
+    if (path && strlen(path) > PATH_MAX_SIZE - 1) {
         pf->last_error = PF_STATUS_PATH_TOO_LONG;
         goto out;
     }
