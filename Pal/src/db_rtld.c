@@ -117,17 +117,11 @@ void setup_elf_hash(struct link_map* map) {
     map->l_chain = hash;
 }
 
-/* Map in the shared object NAME, actually located in REALNAME, and already
-   opened on FD */
+/* Map in the shared object NAME, actually located in REALNAME, and already opened on FD */
 static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_type type,
                                                  void* fbp, size_t fbp_len, bool do_copy_dyn) {
     struct link_map* l = new_elf_object(_DkStreamRealpath(handle), type);
     int ret;
-
-    if (handle == NULL) {
-        print_error("cannot stat shared object", PAL_ERROR_INVAL);
-        return NULL;
-    }
 
     /* This is the ELF header.  We read it in `open_verify'.  */
     const ElfW(Ehdr)* header = (void*)fbp;
