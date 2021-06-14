@@ -302,6 +302,7 @@ struct cpuid_leaf {
  *       different sockets in a multisocket system and thus should not be declared with
  *       `.cache = true` below, but we don't know of any such systems and currently ignore this */
 static const struct cpuid_leaf cpuid_known_leaves[] = {
+    /* basic CPUID leaf functions start here */
     {.leaf = 0x00, .zero_subleaf = true,  .cache = true},  /* Highest Func Param and Manufacturer */
     {.leaf = 0x01, .zero_subleaf = true,  .cache = false}, /* Processor Info and Feature Bits */
     {.leaf = 0x02, .zero_subleaf = true,  .cache = true},  /* Cache and TLB Descriptor */
@@ -310,13 +311,18 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     {.leaf = 0x05, .zero_subleaf = true,  .cache = true},  /* MONITOR/MWAIT */
     {.leaf = 0x06, .zero_subleaf = true,  .cache = true},  /* Thermal and Power Management */
     {.leaf = 0x07, .zero_subleaf = false, .cache = true},  /* Structured Extended Feature Flags */
+    /* NOTE: 0x08 leaf is reserved, see code below */
     {.leaf = 0x09, .zero_subleaf = true,  .cache = true},  /* Direct Cache Access Information */
     {.leaf = 0x0A, .zero_subleaf = true,  .cache = true},  /* Architectural Performance Monitoring */
     {.leaf = 0x0B, .zero_subleaf = false, .cache = false}, /* Extended Topology Enumeration */
+    /* NOTE: 0x0C leaf is reserved, see code below */
     {.leaf = 0x0D, .zero_subleaf = false, .cache = true},  /* Processor Extended State Enumeration */
+    /* NOTE: 0x0E leaf is reserved, see code below */
     {.leaf = 0x0F, .zero_subleaf = false, .cache = true},  /* Intel RDT Monitoring */
     {.leaf = 0x10, .zero_subleaf = false, .cache = true},  /* RDT/L2/L3 Cache Allocation Tech */
+    /* NOTE: 0x11 leaf is reserved, see code below */
     {.leaf = 0x12, .zero_subleaf = false, .cache = true},  /* Intel SGX Capability */
+    /* NOTE: 0x13 leaf is reserved, see code below */
     {.leaf = 0x14, .zero_subleaf = false, .cache = true},  /* Intel Processor Trace Enumeration */
     {.leaf = 0x15, .zero_subleaf = true,  .cache = true},  /* Time Stamp Counter/Core Clock */
     {.leaf = 0x16, .zero_subleaf = true,  .cache = true},  /* Processor Frequency Information */
@@ -324,8 +330,18 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     {.leaf = 0x18, .zero_subleaf = false, .cache = true},  /* Deterministic Address Translation */
     {.leaf = 0x19, .zero_subleaf = true,  .cache = true},  /* Key Locker */
     {.leaf = 0x1A, .zero_subleaf = true,  .cache = false}, /* Hybrid Information Enumeration */
+    /* NOTE: 0x1B leaf is not recognized, see code below */
+    /* NOTE: 0x1C leaf is not recognized, see code below */
+    /* NOTE: 0x1D leaf is not recognized, see code below */
+    /* NOTE: 0x1E leaf is not recognized, see code below */
     {.leaf = 0x1F, .zero_subleaf = false, .cache = false}, /* Intel V2 Ext Topology Enumeration */
+    /* basic CPUID leaf functions end here */
 
+    /* invalid CPUID leaf functions (no existing or future CPU will return any meaningful
+     * information in these leaves) occupy 40000000 - 4FFFFFFFH -- they are treated the same as
+     * unrecognized leaves, see code below */
+
+    /* extended CPUID leaf functions start here */
     {.leaf = 0x80000000, .zero_subleaf = true, .cache = true}, /* Get Highest Extended Function */
     {.leaf = 0x80000001, .zero_subleaf = true, .cache = true}, /* Extended Processor Info */
     {.leaf = 0x80000002, .zero_subleaf = true, .cache = true}, /* Processor Brand String 1 */
@@ -335,14 +351,17 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     {.leaf = 0x80000006, .zero_subleaf = true, .cache = true}, /* Extended L2 Cache Features */
     {.leaf = 0x80000007, .zero_subleaf = true, .cache = true}, /* Advanced Power Management */
     {.leaf = 0x80000008, .zero_subleaf = true, .cache = true}, /* Virtual/Physical Address Sizes */
+    /* extended CPUID leaf functions end here */
 };
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    /* leaves 0x40000000 to 0x4FFFFFFF are used by virtualization software (KVM, Hyper-V, etc.),
-     * they return all zeros on bare metal; runtimes like JVM query these leaves to learn about
-     * the underlying virtualization software */
-    if (leaf >= 0x40000000 && leaf <= 0x4FFFFFFF) {
-        /* let Graphene report that there is no virtualization software */
+    /* A few basic leaves are considered reserved and always return zeros; see corresponding EAX
+     * cases in the "Operation" section of CPUID description in Intel SDM, Vol. 2A, Chapter 3.2.
+     *
+     * NOTE: Leaves 0x11 and 0x13 are not marked as reserved in Intel SDM but the actual CPUs return
+     *       all-zeros on them (as if these leaves are reserved). It is unclear why this discrepancy
+     *       exists, but we decided to emulate how actual CPUs behave. */
+    if (leaf == 0x08 || leaf == 0x0C || leaf == 0x0E || leaf == 0x11 || leaf == 0x13) {
         values[0] = 0;
         values[1] = 0;
         values[2] = 0;
@@ -351,15 +370,26 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     }
 
     const struct cpuid_leaf* known_leaf = NULL;
-    for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
         if (leaf == cpuid_known_leaves[i].leaf) {
             known_leaf = &cpuid_known_leaves[i];
             break;
         }
     }
 
-    if (!known_leaf)
-        goto fail;
+    if (!known_leaf) {
+        /* leaf is not recognized (EAX value is outside of recongized range for CPUID), return info
+         * for highest basic information leaf (see cpuid_known_leaves table; currently 0x1F); see
+         * the DEFAULT case in the "Operation" section of CPUID description in Intel SDM, Vol. 2A,
+         * Chapter 3.2 */
+        leaf = 0x1F;
+        for (size_t i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
+            if (leaf == cpuid_known_leaves[i].leaf) {
+                known_leaf = &cpuid_known_leaves[i];
+                break;
+            }
+        }
+    }
 
     if ((leaf == 0x07 && subleaf != 0 && subleaf != 1) ||
         (leaf == 0x0F && subleaf != 0 && subleaf != 1) ||
@@ -385,8 +415,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     return 0;
 fail:
-    log_error("Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...", leaf,
-              subleaf);
+    log_error("Unrecognized leaf/subleaf in CPUID (EAX=0x%x, ECX=0x%x). Exiting...", leaf, subleaf);
     _DkProcessExit(1);
 }
 
