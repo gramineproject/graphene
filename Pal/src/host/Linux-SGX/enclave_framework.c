@@ -800,13 +800,14 @@ no_trusted:
 
         ret = get_norm_path(toml_allowed_file_str + URI_PREFIX_FILE_LEN,
                             norm_path + URI_PREFIX_FILE_LEN, &norm_path_len);
-        free(toml_allowed_file_str);
 
         if (ret < 0) {
             log_error("Path (%s) normalization failed: %s\n",
                       toml_allowed_file_str + URI_PREFIX_FILE_LEN, pal_strerror(ret));
+            free(toml_allowed_file_str);
             goto no_allowed;
         }
+        free(toml_allowed_file_str);
 
         register_trusted_file(norm_path, NULL, /*check_duplicates=*/false);
     }
