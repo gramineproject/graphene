@@ -39,7 +39,6 @@ static inline int eventfd_type(int options) {
  * `options` holds eventfd's flags */
 static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* uri, int access,
                             int share, int create, int options) {
-    int ret;
     __UNUSED(access);
     __UNUSED(share);
 
@@ -48,18 +47,22 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
     }
 
     /* Using create arg as a work-around (note: initval is uint32 but create is int32).*/
-    ret = ocall_eventfd(create, eventfd_type(options));
+    int fd = ocall_eventfd(create, eventfd_type(options));
 
-    if (ret < 0)
-        return unix_to_pal_error(ret);
+    if (fd < 0)
+        return unix_to_pal_error(fd);
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(eventfd));
+    if (!hdl) {
+        ocall_close(fd);
+        return -PAL_ERROR_NOMEM;
+    }
     SET_HANDLE_TYPE(hdl, eventfd);
 
     /* Note: using index 0, given that there is only 1 eventfd FD per pal-handle. */
     HANDLE_HDR(hdl)->flags = RFD(0) | WFD(0);
 
-    hdl->eventfd.fd          = ret;
+    hdl->eventfd.fd          = fd;
     hdl->eventfd.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
     *handle = hdl;
 

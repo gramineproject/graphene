@@ -637,6 +637,10 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     size_t len = URI_MAX;
     path = malloc(len);
+    if (!path) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
     ret = get_norm_path(uri, path, &len);
     if (ret < 0) {
         log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
@@ -777,10 +781,8 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
         return -PAL_ERROR_INVAL;
 
-    int ret;
-
     if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {
-        ret = ocall_mkdir(uri, share);
+        int ret = ocall_mkdir(uri, share);
 
         if (ret < 0) {
             if (ret == -EEXIST && create & PAL_CREATE_ALWAYS)
@@ -791,15 +793,19 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         }
     }
 
-    ret = ocall_open(uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options), 0);
-    if (ret < 0)
-        return unix_to_pal_error(ret);
+    int fd = ocall_open(uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options), 0);
+    if (fd < 0)
+        return unix_to_pal_error(fd);
 
     int len        = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
+    if (!hdl) {
+        ocall_close(fd);
+        return -PAL_ERROR_NOMEM;
+    }
     SET_HANDLE_TYPE(hdl, dir);
     HANDLE_HDR(hdl)->flags |= RFD(0);
-    hdl->dir.fd = ret;
+    hdl->dir.fd = fd;
     char* path  = (void*)hdl + HANDLE_SIZE(dir);
     memcpy(path, uri, len + 1);
     hdl->dir.realpath    = (PAL_STR)path;

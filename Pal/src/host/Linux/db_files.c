@@ -322,10 +322,8 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
         return -PAL_ERROR_INVAL;
 
-    int ret = 0;
-
     if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {
-        ret = INLINE_SYSCALL(mkdir, 2, uri, share);
+        int ret = INLINE_SYSCALL(mkdir, 2, uri, share);
 
         if (ret < 0) {
             if (ret == -EEXIST && create & PAL_CREATE_ALWAYS)
@@ -336,17 +334,20 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         }
     }
 
-    ret = INLINE_SYSCALL(open, 3, uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options) | O_CLOEXEC,
-                         0);
-
-    if (ret < 0)
-        return unix_to_pal_error(ret);
+    int fd = INLINE_SYSCALL(open, 3, uri,
+                            O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options) | O_CLOEXEC, 0);
+    if (fd < 0)
+        return unix_to_pal_error(fd);
 
     size_t len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
+    if (!hdl) {
+        INLINE_SYSCALL(close, 1, fd);
+        return -PAL_ERROR_NOMEM;
+    }
     SET_HANDLE_TYPE(hdl, dir);
     HANDLE_HDR(hdl)->flags |= RFD(0);
-    hdl->dir.fd = ret;
+    hdl->dir.fd = fd;
     char* path = (void*)hdl + HANDLE_SIZE(dir);
     memcpy(path, uri, len + 1);
     hdl->dir.realpath    = (PAL_STR)path;
