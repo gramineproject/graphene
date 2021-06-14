@@ -357,6 +357,8 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
     return 0;
 }
 
+/* This function doesn't clean up resources on failure, assuming that we terminate right away in
+ * such case. */
 static int parse_host_topo_info(struct pal_sec* sec_info) {
     if (sec_info->online_logical_cores > INT64_MAX)
         return -1;
@@ -737,6 +739,10 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     /* set up thread handle */
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
+    if (!first_thread) {
+        log_error("Out of memory\n");
+        ocall_exit(1, true);
+    }
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tcs = g_enclave_base + GET_ENCLAVE_TLS(tcs_offset);
     /* child threads are assigned TIDs 2,3,...; see pal_start_thread() */

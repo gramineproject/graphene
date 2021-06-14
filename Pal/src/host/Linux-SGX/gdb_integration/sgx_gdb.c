@@ -374,7 +374,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
     struct enclave_dbginfo eib = {.pid = -1};
     char memdev_path[40];
     uint64_t flags;
-    long int ret;
+    int ret;
     int fd;
 
     /* Check if corresponding memdevice of this thread was already opened;
@@ -392,13 +392,13 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
 
     for (int off = 0; off < sizeof(eib); off += sizeof(long)) {
         errno = 0;
-        ret = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
-        if (ret < 0 && errno != 0) {
+        long val = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
+        if (val < 0 && errno != 0) {
             /* benign failure: enclave is not yet initialized */
             return -1;
         }
 
-        memcpy((void*)&eib + off, &ret, sizeof(ret));
+        memcpy((void*)&eib + off, &val, sizeof(val));
     }
 
     /* Check again if corresponding memdevice was already opened but now
@@ -432,10 +432,11 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
 
         void* flags_addr = eib.tcs_addrs[i] + offsetof(sgx_arch_tcs_t, flags);
 
-        ret = pread(fd, &flags, sizeof(flags), (off_t)flags_addr);
-        if (ret < sizeof(flags)) {
+        ssize_t bytes_read = pread(fd, &flags, sizeof(flags), (off_t)flags_addr);
+        if (bytes_read < 0 || (size_t)bytes_read < sizeof(flags)) {
             DEBUG("Cannot read TCS flags (address = %p)\n", flags_addr);
-            return -2;
+            ret = -2;
+            goto out_err;
         }
 
         if (flags & TCS_FLAGS_DBGOPTIN)
@@ -444,10 +445,11 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
         flags |= TCS_FLAGS_DBGOPTIN;
         DEBUG("Setting TCS debug flag at %p (%lx)\n", flags_addr, flags);
 
-        ret = pwrite(fd, &flags, sizeof(flags), (off_t)flags_addr);
-        if (ret < sizeof(flags)) {
+        ssize_t bytes_written = pwrite(fd, &flags, sizeof(flags), (off_t)flags_addr);
+        if (bytes_written < 0 || (size_t)bytes_written < sizeof(flags)) {
             DEBUG("Cannot write TCS flags (address = %p)\n", flags_addr);
-            return -2;
+            ret = -2;
+            goto out_err;
         }
     }
 
@@ -462,6 +464,9 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
     g_memdevs_cnt++;
 
     return 0;
+out_err:
+    close(fd);
+    return ret;
 }
 
 static int is_in_enclave(pid_t tid, struct enclave_dbginfo* ei) {

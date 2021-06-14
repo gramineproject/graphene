@@ -298,17 +298,19 @@ int DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM* count, PAL_PTR buf
    of streams by their URI */
 int _DkStreamAttributesQuery(const char* uri, PAL_STREAM_ATTR* attr) {
     struct handle_ops* ops = NULL;
-    char* type             = NULL;
+    char* type = NULL;
 
     int ret = parse_stream_uri(&uri, &type, &ops);
-
     if (ret < 0)
         return ret;
 
-    if (!ops->attrquery)
-        return -PAL_ERROR_NOTSUPPORT;
+    if (!ops->attrquery) {
+        ret = -PAL_ERROR_NOTSUPPORT;
+        goto out;
+    }
 
     ret = ops->attrquery(type, uri, attr);
+out:
     free(type);
     return ret;
 }
@@ -531,12 +533,11 @@ int DkReceiveHandle(PAL_HANDLE handle, PAL_HANDLE* cargo) {
 
 int DkStreamChangeName(PAL_HANDLE hdl, PAL_STR uri) {
     struct handle_ops* ops = NULL;
-    char* type             = NULL;
+    char* type = NULL;
     int ret;
 
     if (uri) {
         ret = parse_stream_uri(&uri, &type, &ops);
-
         if (ret < 0) {
             return ret;
         }
@@ -545,11 +546,12 @@ int DkStreamChangeName(PAL_HANDLE hdl, PAL_STR uri) {
     const struct handle_ops* hops = HANDLE_OPS(hdl);
 
     if (!hops || !hops->rename || (ops && hops != ops)) {
-        free(type);
-        return -PAL_ERROR_NOTSUPPORT;
+        ret = -PAL_ERROR_NOTSUPPORT;
+        goto out;
     }
 
     ret = hops->rename(hdl, type, uri);
+out:
     free(type);
     return ret;
 }

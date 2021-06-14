@@ -339,6 +339,7 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
                 } else if (errno == EAGAIN || errno == EINTR) {
                     continue;
                 } else {
+                    close(fd);
                     return;
                 }
             }

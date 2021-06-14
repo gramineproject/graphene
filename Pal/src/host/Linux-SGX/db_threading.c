@@ -92,11 +92,11 @@ __attribute__((__optimize__("-fno-stack-protector"))) void pal_start_thread(void
     /* UNREACHABLE */
 }
 
-/* _DkThreadCreate for internal use. Create an internal thread
-   inside the current process. The arguments callback and param
-   specify the starting function and parameters */
 int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* param) {
+    int ret;
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
+    if (!new_thread)
+        return -PAL_ERROR_NOMEM;
     SET_HANDLE_TYPE(new_thread, thread);
     /*
      * tid will be filled later by pal_start_thread()
@@ -106,6 +106,10 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     new_thread->thread.tcs = NULL;
     INIT_LIST_HEAD(&new_thread->thread, list);
     struct thread_param* thread_param = malloc(sizeof(struct thread_param));
+    if (!thread_param) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out_err;
+    }
     thread_param->callback = callback;
     thread_param->param    = param;
     new_thread->thread.param = (void*)thread_param;
@@ -114,17 +118,26 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     LISTP_ADD_TAIL(&new_thread->thread, &g_thread_list, list);
     spinlock_unlock(&g_thread_list_lock);
 
-    int ret = ocall_clone_thread();
-    if (ret < 0)
-        return unix_to_pal_error(ret);
+    ret = ocall_clone_thread();
+    if (ret < 0) {
+        ret = unix_to_pal_error(ret);
+        spinlock_lock(&g_thread_list_lock);
+        LISTP_DEL(&new_thread->thread, &g_thread_list, list);
+        spinlock_unlock(&g_thread_list_lock);
+        goto out_err;
+    }
 
     /* There can be subtle race between the parent and child so hold the parent until child updates
-       its tcs. */
+     * its tcs. */
     while (!__atomic_load_n(&new_thread->thread.tcs, __ATOMIC_ACQUIRE))
         CPU_RELAX();
 
     *handle = new_thread;
     return 0;
+out_err:
+    free(thread_param);
+    free(new_thread);
+    return ret;
 }
 
 /* PAL call DkThreadYieldExecution. Yield the execution
