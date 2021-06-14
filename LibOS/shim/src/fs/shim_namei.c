@@ -683,10 +683,10 @@ static int populate_directory(struct shim_dentry* dent) {
         put_dentry(child);
         if (ret < 0) {
             if (ret != -EACCES) {
-                /* Fail on underlying lookup errors, except -EACCES (for which we will just ignore the
-                 * file). The lookup might fail with -EACCES for host symlinks pointing to inaccessible
-                 * target, since the "chroot" filesystem transparently follows symlinks instead of
-                 * reporting them to Graphene. */
+                /* Fail on underlying lookup errors, except -EACCES (for which we will just ignore
+                 * the file). The lookup might fail with -EACCES for host symlinks pointing to
+                 * inaccessible target, since the "chroot" filesystem transparently follows symlinks
+                 * instead of reporting them to Graphene. */
                 goto out;
             }
             continue;
