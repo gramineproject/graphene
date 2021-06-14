@@ -68,6 +68,29 @@ static void test_cpuid_leaf_0xd(void) {
     memset(&r, 0, sizeof(r));
 }
 
+static void test_cpuid_leaf_reserved(void) {
+    /* Graphene returns all zeros for reserved CPUID leaves */
+    struct regs r = {0, };
+
+    cpuid(0x8, 0x00, &r); /* subleaf value doesn't matter */
+    if (r.eax || r.ebx || r.ecx || r.edx)
+        abort();
+    memset(&r, 0, sizeof(r));
+
+    cpuid(0xE, 0x42, &r); /* subleaf value doesn't matter */
+    if (r.eax || r.ebx || r.ecx || r.edx)
+        abort();
+}
+
+static void test_cpuid_leaf_not_recognized(void) {
+    /* in case of unrecognized leaves, Graphene returns info for highest basic information leaf */
+    struct regs r = {0, };
+
+    cpuid(0x13, 0x00, &r);
+    /* we don't care about return values, just check that they are not all-zeros */
+    if (!r.eax && !r.ebx && !r.ecx && !r.edx)
+        abort();
+}
 
 static void test_cpuid_leaf_invalid(void) {
     /* Graphene returns all zeros for CPUID leaves 0x40000000 - 0x4FFFFFFF ("no virtualization") */
@@ -85,6 +108,8 @@ static void test_cpuid_leaf_invalid(void) {
 
 int main(int argc, char** argv, char** envp) {
     test_cpuid_leaf_0xd();
+    test_cpuid_leaf_reserved();
+    test_cpuid_leaf_not_recognized();
     test_cpuid_leaf_invalid();
     printf("CPUID test passed.\n");
     return 0;
