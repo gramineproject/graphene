@@ -454,7 +454,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
 
     int ret;
     bool is_epid;
-    sgx_spid_t spid;
+    sgx_spid_t spid = {0};
     bool linkable;
 
     /* read sgx.ra_client_spid from manifest (must be hex string) */
@@ -466,7 +466,6 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         return -PAL_ERROR_INVAL;
     }
 
-    memset(&spid, 0, sizeof(spid));
     if (!ra_client_spid_str || strlen(ra_client_spid_str) == 0) {
         /* No Software Provider ID (SPID) specified in the manifest, it is DCAP attestation --
          * for DCAP, spid and linkable arguments are ignored (we unset them for sanity) */
