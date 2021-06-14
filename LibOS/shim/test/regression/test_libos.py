@@ -596,33 +596,40 @@ class TC_31_Syscall(RegressionTestCase):
 
 class TC_40_FileSystem(RegressionTestCase):
     def test_000_proc(self):
-        (DT_DIR, DT_REG) = (4, 8,)
         stdout, _ = self.run_binary(['proc_common'])
-        self.assertIn('/proc/1/..', stdout)
-        self.assertIn('/proc/1/cwd', stdout)
-        self.assertIn('/proc/1/exe', stdout)
-        self.assertIn('/proc/1/root', stdout)
-        self.assertIn('/proc/1/fd', stdout)
-        self.assertIn('/proc/1/maps', stdout)
-        self.assertIn('/proc/self/..', stdout)
-        self.assertIn('/proc/self/cwd', stdout)
-        self.assertIn('/proc/self/exe', stdout)
-        self.assertIn('/proc/self/root', stdout)
-        self.assertIn('/proc/self/fd', stdout)
-        self.assertIn('/proc/self/maps', stdout)
-        self.assertIn('/proc/., type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/1, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/2, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/3, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/4, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/self, type: {0}'.format(DT_DIR), stdout)
-        self.assertIn('/proc/meminfo, type: {0}'.format(DT_REG), stdout)
-        self.assertIn('/proc/cpuinfo, type: {0}'.format(DT_REG), stdout)
-        self.assertIn('symlink /proc/self/exec resolves to /proc_common', stdout)
-        self.assertIn('/proc/2/cwd/proc_common.c', stdout)
-        self.assertIn('/lib/libpthread.so', stdout)
-        self.assertIn('stack', stdout)
-        self.assertIn('vendor_id', stdout)
+        lines = stdout.splitlines()
+
+        self.assertIn('/proc/meminfo: file', lines)
+        self.assertIn('/proc/cpuinfo: file', lines)
+
+        # /proc/self, /proc/[pid]
+        self.assertIn('/proc/self: link: 2', lines)
+        self.assertIn('/proc/2: directory', lines)
+        self.assertIn('/proc/2/cwd: link: /', lines)
+        self.assertIn('/proc/2/exe: link: /proc_common', lines)
+        self.assertIn('/proc/2/root: link: /', lines)
+        self.assertIn('/proc/2/maps: file', lines)
+
+        # /proc/[pid]/fd
+        self.assertIn('/proc/2/fd/0: link: /dev/tty', lines)
+        self.assertIn('/proc/2/fd/1: link: /dev/tty', lines)
+        self.assertIn('/proc/2/fd/2: link: /dev/tty', lines)
+
+        # /proc/[pid]/task/[tid]
+        self.assertIn('/proc/2/task/2: directory', lines)
+        self.assertIn('/proc/2/task/33: directory', lines)
+        self.assertIn('/proc/2/task/33/cwd: link: /', lines)
+        self.assertIn('/proc/2/task/33/exe: link: /proc_common', lines)
+        self.assertIn('/proc/2/task/33/root: link: /', lines)
+        self.assertIn('/proc/2/task/33/fd/0: link: /dev/tty', lines)
+        self.assertIn('/proc/2/task/33/fd/1: link: /dev/tty', lines)
+        self.assertIn('/proc/2/task/33/fd/2: link: /dev/tty', lines)
+
+        # /proc/[ipc-pid]
+        self.assertIn('/proc/1: directory', lines)
+        self.assertIn('/proc/1/cwd: link: /', lines)
+        self.assertIn('/proc/1/exe: link: /proc_common', lines)
+        self.assertIn('/proc/1/root: link: /', lines)
 
     def test_001_devfs(self):
         stdout, _ = self.run_binary(['devfs'])
