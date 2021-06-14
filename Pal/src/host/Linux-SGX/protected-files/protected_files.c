@@ -417,7 +417,6 @@ static bool ipf_close(pf_context_t* pf) {
     free(pf->debug_buffer);
 #endif
     erase_memory(pf, sizeof(struct pf_context));
-    free(pf);
 
     return retval;
 }
@@ -1240,9 +1239,14 @@ pf_status_t pf_close(pf_context_t* pf) {
     if (!g_initialized)
         return PF_STATUS_UNINITIALIZED;
 
-    if (ipf_close(pf))
+    if (ipf_close(pf)) {
+        free(pf);
         return PF_STATUS_SUCCESS;
-    return pf->last_error;
+    }
+
+    pf_status_t ret = pf->last_error;
+    free(pf);
+    return ret;
 }
 
 pf_status_t pf_get_size(pf_context_t* pf, uint64_t* size) {
