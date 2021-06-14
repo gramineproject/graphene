@@ -27,6 +27,7 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "cpu.h"
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "pal_internal.h"
@@ -144,6 +145,11 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup) {
 
     sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        /* We can't really recover from here. Should be unreachable without the host doing malicious
+         * things. */
+        die_or_inf_loop();
+    }
     WRITE_ONCE(ms->ms_exitcode, exitcode);
     WRITE_ONCE(ms->ms_is_exitgroup, is_exitgroup);
 
