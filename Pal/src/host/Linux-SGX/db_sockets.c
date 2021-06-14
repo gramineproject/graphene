@@ -173,10 +173,11 @@ static int inet_create_uri(char* buf, size_t buf_size, struct sockaddr* addr, si
     return 0;
 }
 
-/* parse the uri for a socket stream. The uri might have both binding
-   address and connecting address, or connecting address only. The form
-   of uri will be either "bind-addr:bind-port:connect-addr:connect-port"
-   or "addr:port". */
+/*
+ * Parse a URI for a socket stream. The URI might have both binding address and connecting
+ * address, or connecting address only. The form of URI will be either
+ * "bind-addr:bind-port:connect-addr:connect-port" or "addr:port".
+ */
 static int socket_parse_uri(char* uri, struct sockaddr** bind_addr, size_t* bind_addrlen,
                             struct sockaddr** dest_addr, size_t* dest_addrlen) {
     int ret;
@@ -274,6 +275,8 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
         return ret;
+    if (!bind_addr)
+        return -PAL_ERROR_INVAL;
 
     struct sockopt sock_options;
 
@@ -446,7 +449,8 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
         return ret;
 
-    assert(bind_addr);
+    if (!bind_addr)
+        return -PAL_ERROR_INVAL;
     assert(bind_addrlen == addr_size(bind_addr));
 
     struct sockopt sock_options;
