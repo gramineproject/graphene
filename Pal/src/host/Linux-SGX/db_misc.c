@@ -466,11 +466,11 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         return -PAL_ERROR_INVAL;
     }
 
+    memset(&spid, 0, sizeof(spid));
     if (!ra_client_spid_str || strlen(ra_client_spid_str) == 0) {
         /* No Software Provider ID (SPID) specified in the manifest, it is DCAP attestation --
          * for DCAP, spid and linkable arguments are ignored (we unset them for sanity) */
         is_epid = false;
-        memset(&spid, 0, sizeof(spid));
         linkable = false;
     } else {
         /* SPID specified in the manifest, it is EPID attestation -- read spid and linkable */
