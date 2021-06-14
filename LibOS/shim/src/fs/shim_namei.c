@@ -226,9 +226,9 @@ static int lookup_enter_dentry(struct lookup* lookup) {
             if (lookup->link_depth >= MAX_LINK_DEPTH)
                 return -ELOOP;
 
-            /* If this is not the final segment (without slash), the nested lookup has
-             * different options: it always follows symlinks, needs to always find the
-             * target, and the target has to be a directory. */
+            /* If this is not the final segment (or it is the final segment, but ends with slash),
+             * the nested lookup has different options: it always follows symlinks, needs to always
+             * find the target, and the target has to be a directory. */
             int sub_flags = lookup->flags;
             if (!is_final || has_slash) {
                 sub_flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
@@ -247,6 +247,13 @@ static int lookup_enter_dentry(struct lookup* lookup) {
     }
 
     if (lookup->dent->state & DENTRY_NEGATIVE) {
+        /*
+         * The file does not exist:
+         *
+         * - if LOOKUP_MAKE_SYNTHETIC is set, create a synthetic dentry,
+         * - if LOOKUP_CREATE is set, allow it (but only as the last path segment),
+         * - otherwise, fail with -ENOENT.
+         */
         if (lookup->flags & LOOKUP_MAKE_SYNTHETIC) {
             lookup->dent->state &= ~DENTRY_NEGATIVE;
             lookup->dent->state |= DENTRY_VALID | DENTRY_SYNTHETIC;
@@ -256,10 +263,20 @@ static int lookup_enter_dentry(struct lookup* lookup) {
             } else {
                 lookup->dent->type = S_IFREG;
             }
-        } else if (!is_final || !(lookup->flags & LOOKUP_CREATE)) {
+        } else if (is_final && (lookup->flags & LOOKUP_CREATE)) {
+            /* proceed with a negative dentry */
+        } else {
             return -ENOENT;
         }
     } else if (!(lookup->dent->state & DENTRY_ISDIRECTORY)) {
+        /*
+         * The file exists, but is not a directory. We expect a directory (and need to fail with
+         * -ENOTDIR) in the following cases:
+         *
+         * - if this is an intermediate path segment,
+         * - if this is the final path segment, but the path ends with a slash,
+         * - if LOOKUP_DIRECTORY is set.
+         */
         if (!is_final || has_slash || (lookup->flags & LOOKUP_DIRECTORY)) {
             return -ENOTDIR;
         }
