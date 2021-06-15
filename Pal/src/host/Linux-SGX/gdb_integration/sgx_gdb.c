@@ -374,7 +374,6 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
     struct enclave_dbginfo eib = {.pid = -1};
     char memdev_path[40];
     uint64_t flags;
-    long int sc_ret;
     int ret;
     int fd;
 
@@ -393,13 +392,13 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
 
     for (int off = 0; off < sizeof(eib); off += sizeof(long)) {
         errno = 0;
-        sc_ret = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
-        if (sc_ret < 0 && errno != 0) {
+        long val = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
+        if (val < 0 && errno != 0) {
             /* benign failure: enclave is not yet initialized */
             return -1;
         }
 
-        memcpy((void*)&eib + off, &sc_ret, sizeof(sc_ret));
+        memcpy((void*)&eib + off, &val, sizeof(val));
     }
 
     /* Check again if corresponding memdevice was already opened but now
@@ -433,8 +432,8 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
 
         void* flags_addr = eib.tcs_addrs[i] + offsetof(sgx_arch_tcs_t, flags);
 
-        sc_ret = pread(fd, &flags, sizeof(flags), (off_t)flags_addr);
-        if (sc_ret < sizeof(flags)) {
+        ssize_t bytes_read = pread(fd, &flags, sizeof(flags), (off_t)flags_addr);
+        if (bytes_read < sizeof(flags)) {
             DEBUG("Cannot read TCS flags (address = %p)\n", flags_addr);
             ret = -2;
             goto out_err;
@@ -446,8 +445,8 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
         flags |= TCS_FLAGS_DBGOPTIN;
         DEBUG("Setting TCS debug flag at %p (%lx)\n", flags_addr, flags);
 
-        sc_ret = pwrite(fd, &flags, sizeof(flags), (off_t)flags_addr);
-        if (sc_ret < sizeof(flags)) {
+        ssize_t bytes_written = pwrite(fd, &flags, sizeof(flags), (off_t)flags_addr);
+        if (bytes_written < sizeof(flags)) {
             DEBUG("Cannot write TCS flags (address = %p)\n", flags_addr);
             ret = -2;
             goto out_err;
