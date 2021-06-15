@@ -433,7 +433,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
         void* flags_addr = eib.tcs_addrs[i] + offsetof(sgx_arch_tcs_t, flags);
 
         ssize_t bytes_read = pread(fd, &flags, sizeof(flags), (off_t)flags_addr);
-        if (bytes_read < sizeof(flags)) {
+        if (bytes_read < 0 || (size_t)bytes_read < sizeof(flags)) {
             DEBUG("Cannot read TCS flags (address = %p)\n", flags_addr);
             ret = -2;
             goto out_err;
@@ -446,7 +446,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
         DEBUG("Setting TCS debug flag at %p (%lx)\n", flags_addr, flags);
 
         ssize_t bytes_written = pwrite(fd, &flags, sizeof(flags), (off_t)flags_addr);
-        if (bytes_written < sizeof(flags)) {
+        if (bytes_written < 0 || (size_t)bytes_written < sizeof(flags)) {
             DEBUG("Cannot write TCS flags (address = %p)\n", flags_addr);
             ret = -2;
             goto out_err;
