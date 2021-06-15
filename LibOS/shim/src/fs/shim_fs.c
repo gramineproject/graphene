@@ -23,7 +23,6 @@
 struct shim_fs* builtin_fs[] = {
     &chroot_builtin_fs,
     &dev_builtin_fs,
-    &sys_builtin_fs,
     &tmp_builtin_fs,
     &pipe_builtin_fs,
     &fifo_builtin_fs,

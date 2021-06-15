@@ -132,6 +132,15 @@ static int pseudo2_mode(struct shim_dentry* dent, mode_t* mode) {
     return 0;
 };
 
+static int count_nlink(const char* name, void* arg) {
+    __UNUSED(name);
+    size_t* nlink = arg;
+    (*nlink)++;
+    return 0;
+}
+
+static int pseudo2_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg);
+
 static int pseudo2_stat(struct shim_dentry* dent, struct stat* buf) {
     struct pseudo2_ent* ent = pseudo_find(dent);
     if (!ent)
@@ -141,7 +150,12 @@ static int pseudo2_stat(struct shim_dentry* dent, struct stat* buf) {
     buf->st_dev = 1;
     buf->st_mode = dent->type | dent->perm;
     if (ent->type == PSEUDO_DIR) {
-        buf->st_nlink = 3;
+        /* This is not very efficient, but libraries like hwloc check `nlink` in some places. */
+        size_t nlink = 2; // Initialize to 2 for `.` and parent
+        int ret = pseudo2_readdir(dent, &count_nlink, &nlink);
+        if (ret < 0)
+            return 0;
+        buf->st_nlink = nlink;
     } else {
         buf->st_nlink = 1;
     }

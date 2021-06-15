@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Paweł Marczewski <pawel@invisiblethingslab.com>
+ */
 
 #ifndef SHIM_FS_PSEUDO_H_
 #define SHIM_FS_PSEUDO_H_
@@ -73,8 +77,7 @@ int proc_ipc_thread_follow_link(struct shim_dentry* dent, struct shim_qstr* link
 
 int init_sysfs(void);
 int sys_get_content(const char* str, char** content, size_t* size);
-int sys_resource_find(struct shim_dentry* parent, const char* name, readdir_callback_t callback,
-                      void* arg);
+int sys_resource_find(struct shim_dentry* parent, const char* name);
 int sys_resource_match_name(struct shim_dentry* parent, const char* name);
 int sys_resource_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
 int sys_node_general_get_content(struct shim_dentry* dent, char** content, size_t* size);
@@ -82,5 +85,7 @@ int sys_node_get_content(struct shim_dentry* dent, char** content, size_t* size)
 int sys_cpu_general_get_content(struct shim_dentry* dent, char** content, size_t* size);
 int sys_cpu_get_content(struct shim_dentry* dent, char** content, size_t* size);
 int sys_cache_get_content(struct shim_dentry* dent, char** content, size_t* size);
+int sys_cpu_online_match_name(struct shim_dentry* parent, const char* name);
+int sys_cpu_online_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
 
 #endif /* SHIM_FS_PSEUDO_H_ */

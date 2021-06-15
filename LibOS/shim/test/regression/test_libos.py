@@ -663,8 +663,46 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn("Test succeeded.", stdout)
 
     def test_040_sysfs(self):
+        num_cpus = os.cpu_count()
+
         stdout, _ = self.run_binary(['sysfs_common'])
-        self.assertIn('TEST OK', stdout)
+        lines = stdout.splitlines()
+
+        self.assertIn('/sys/devices/system/cpu: directory', lines)
+        for i in range(num_cpus):
+            cpu = f'/sys/devices/system/cpu/cpu{i}'
+            self.assertIn(f'{cpu}: directory', lines)
+            if i == 0:
+                self.assertNotIn(f'{cpu}/online: file', lines)
+            else:
+                self.assertIn(f'{cpu}/online: file', lines)
+
+            self.assertIn(f'{cpu}/topology/core_id: file', lines)
+            self.assertIn(f'{cpu}/topology/physical_package_id: file', lines)
+            self.assertIn(f'{cpu}/topology/core_siblings: file', lines)
+            self.assertIn(f'{cpu}/topology/thread_siblings: file', lines)
+
+            for j in range(3):
+                cache = f'{cpu}/cache/index{j}'
+                self.assertIn(f'{cache}: directory', lines)
+                self.assertIn(f'{cache}/shared_cpu_map: file', lines)
+                self.assertIn(f'{cache}/level: file', lines)
+                self.assertIn(f'{cache}/type: file', lines)
+                self.assertIn(f'{cache}/size: file', lines)
+                self.assertIn(f'{cache}/coherency_line_size: file', lines)
+                self.assertIn(f'{cache}/physical_line_partition: file', lines)
+
+        self.assertIn('/sys/devices/system/node: directory', lines)
+        num_nodes = len([line for line in lines
+                         if re.match(r'/sys/devices/system/node/node[0-9]+:', line)])
+        self.assertGreater(num_nodes, 0)
+        if i in range(num_nodes):
+            node = f'/sys/devices/system/node/node{i}'
+            self.assertIn(f'{node}: directory', lines)
+            self.assertIn(f'{node}/cpumap: file', lines)
+            self.assertIn(f'{node}/distance: file', lines)
+            self.assertIn(f'{node}/hugepages/hugepages-2048kB/nr_hugepages: file', lines)
+            self.assertIn(f'{node}/hugepages/hugepages-1048576kB/nr_hugepages: file', lines)
 
 
 class TC_50_GDB(RegressionTestCase):

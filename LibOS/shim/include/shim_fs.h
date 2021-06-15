@@ -676,7 +676,6 @@ extern struct shim_d_ops tmp_d_ops;
 
 extern struct shim_fs chroot_builtin_fs;
 extern struct shim_fs dev_builtin_fs;
-extern struct shim_fs sys_builtin_fs;
 extern struct shim_fs tmp_builtin_fs;
 extern struct shim_fs pipe_builtin_fs;
 extern struct shim_fs fifo_builtin_fs;
@@ -694,9 +693,6 @@ struct shim_fs* find_fs(const char* name);
 
 extern struct shim_fs_ops dev_fs_ops;
 extern struct shim_d_ops dev_d_ops;
-
-extern struct shim_fs_ops sys_fs_ops;
-extern struct shim_d_ops sys_d_ops;
 
 struct pseudo_name_ops {
     int (*match_name)(const char* name);
@@ -762,19 +758,5 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
 int str_truncate(struct shim_handle* hdl, off_t len);
-
-/* /sys fs related common APIs */
-/* This function extracts first number from a string. Returns a negative error code if no number is
- * found. For example, "3" will be extracted from "cpu/cpu3/topology/core_siblings" */
-int extract_first_num_from_string(const char* path);
-int sys_info_mode(const char* name, mode_t* mode);
-int sys_info_stat(const char* name, struct stat* buf);
-int sys_dir_open(struct shim_handle* hdl, const char* name, int flags);
-int sys_dir_mode(const char* name, mode_t* mode);
-int sys_dir_stat(const char* name, struct stat* buf);
-/* Checks if pathname is a valid path under /sys/; returns 1 on success and 0 on failure */
-int sys_match_resource_num(const char* pathname);
-/* Lists path under /sys/, same as readdir */
-int sys_list_resource_num(const char* pathname, readdir_callback_t callback, void* arg);
 
 #endif /* _SHIM_FS_H_ */
