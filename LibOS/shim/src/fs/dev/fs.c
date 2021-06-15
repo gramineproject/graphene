@@ -8,6 +8,7 @@
  */
 
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 
 extern const struct pseudo_fs_ops dev_null_fs_ops;
 extern const struct pseudo_fs_ops dev_tty_fs_ops;
@@ -217,3 +218,53 @@ struct shim_fs dev_builtin_fs = {
     .fs_ops = &dev_fs_ops,
     .d_ops  = &dev_d_ops,
 };
+
+int init_devfs(void) {
+    struct pseudo2_ent* root = pseudo_add_root_dir("dev");
+
+    /* Device minor numbers for pseudo-devices:
+     * https://elixir.bootlin.com/linux/v5.9/source/drivers/char/mem.c#L950 */
+
+    struct pseudo2_ent* null = pseudo_add_dev(root, "null");
+    null->perm = PSEUDO_MODE_FILE_RW;
+    null->dev.major = 1;
+    null->dev.minor = 3;
+    null->dev.dev_ops.read = &dev_null_read;
+    null->dev.dev_ops.write = &dev_null_write;
+    null->dev.dev_ops.seek = &dev_null_seek;
+    null->dev.dev_ops.truncate = &dev_null_truncate;
+
+    struct pseudo2_ent* zero = pseudo_add_dev(root, "zero");
+    zero->perm = PSEUDO_MODE_FILE_RW;
+    zero->dev.major = 1;
+    zero->dev.minor = 5;
+    zero->dev.dev_ops.read = &dev_zero_read;
+    zero->dev.dev_ops.write = &dev_null_write;
+    zero->dev.dev_ops.seek = &dev_null_seek;
+    zero->dev.dev_ops.truncate = &dev_null_truncate;
+
+    struct pseudo2_ent* random = pseudo_add_dev(root, "random");
+    random->perm = PSEUDO_MODE_FILE_RW;
+    random->dev.major = 1;
+    random->dev.minor = 8;
+    random->dev.dev_ops.read = &dev_random_read;
+    /* writes in /dev/random add entropy in normal Linux, but not implemented in Graphene */
+    random->dev.dev_ops.write = &dev_null_write;
+    random->dev.dev_ops.seek = &dev_null_seek;
+
+    struct pseudo2_ent* urandom = pseudo_add_dev(root, "urandom");
+    urandom->perm = PSEUDO_MODE_FILE_RW;
+    urandom->dev.major = 1;
+    urandom->dev.minor = 9;
+    /* /dev/urandom is implemented the same as /dev/random, so it has the same operations */
+    urandom->dev.dev_ops = random->dev.dev_ops;
+
+    struct pseudo2_ent* stdin = pseudo_add_link(root, "stdin", NULL);
+    stdin->link.target = "/proc/self/fd/0";
+    struct pseudo2_ent* stdout = pseudo_add_link(root, "stdout", NULL);
+    stdout->link.target = "/proc/self/fd/0";
+    struct pseudo2_ent* stderr = pseudo_add_link(root, "stderr", NULL);
+    stderr->link.target = "/proc/self/fd/0";
+
+    return 0;
+}

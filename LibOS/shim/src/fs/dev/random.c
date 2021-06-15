@@ -8,9 +8,10 @@
  */
 
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "stat.h"
 
-static ssize_t dev_random_read(struct shim_handle* hdl, void* buf, size_t count) {
+ssize_t dev_random_read(struct shim_handle* hdl, void* buf, size_t count) {
     __UNUSED(hdl);
     int ret = DkRandomBitsRead(buf, count);
 

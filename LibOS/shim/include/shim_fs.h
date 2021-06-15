@@ -699,6 +699,7 @@ struct pseudo_name_ops {
     int (*list_name)(const char* name, readdir_callback_t callback, void* arg);
 };
 
+// TODO move to pseudo.c
 static inline dev_t makedev(unsigned int major, unsigned int minor) {
     dev_t dev;
     dev  = (((dev_t)(major & 0x00000fffu)) <<  8);

@@ -62,6 +62,8 @@ int init_fs(void) {
     int ret;
     if ((ret = init_procfs()) < 0)
         return ret;
+    if ((ret = init_devfs()) < 0)
+        return ret;
     if ((ret = init_sysfs()) < 0)
         return ret;
 
@@ -135,6 +137,12 @@ static int __mount_sys(void) {
         return ret;
     }
 
+    log_debug("Mounting special dev filesystem: /dev\n");
+    if ((ret = mount_fs("pseudo", "dev", "/dev2")) < 0) {
+        log_error("Mounting dev filesystem failed (%d)\n", ret);
+        return ret;
+    }
+
     log_debug("Mounting terminal device /dev/tty under /dev\n");
     if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty")) < 0) {
         log_error("Mounting terminal device /dev/tty failed (%d)\n", ret);
@@ -146,13 +154,6 @@ static int __mount_sys(void) {
         log_error("Mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
-
-    /*
-    log_debug("Mounting special sys filesystem: /sys\n");
-    if ((ret = mount_fs("sys", NULL, "/sys")) < 0) {
-        log_error("Mounting sys filesystem failed (%d)\n", ret);
-        return ret;
-        }*/
 
     return 0;
 }

@@ -90,15 +90,21 @@ static int pseudo2_open(struct shim_handle* hdl, struct shim_dentry* dent, int f
             }
 
             memset(data, 0, sizeof(struct shim_str_data));
-            data->str          = str;
-            data->len          = len;
-            hdl->type          = TYPE_STR;
-            hdl->flags         = flags & ~O_RDONLY;
-            hdl->acc_mode      = MAY_READ;
+            data->str = str;
+            data->len = len;
+            hdl->type = TYPE_STR;
             hdl->info.str.data = data;
             break;
         }
+
+        case PSEUDO_DEV: {
+            hdl->type = TYPE_DEV;
+            break;
+        }
     }
+    hdl->flags = flags & ~O_ACCMODE;
+    hdl->acc_mode = ACC_MODE(flags & O_ACCMODE);
+
     return 0;
 }
 
@@ -107,23 +113,23 @@ static int pseudo2_lookup(struct shim_dentry* dent) {
     if (!ent)
         return -ENOENT;
 
-    dent->data = ent;
     switch (ent->type) {
         case PSEUDO_DIR:
             dent->state |= DENTRY_ISDIRECTORY;
             dent->type = S_IFDIR;
-            dent->perm = PERM_r_x______;
             break;
         case PSEUDO_LINK:
             dent->state |= DENTRY_ISLINK;
             dent->type = S_IFLNK;
-            dent->perm = PERM_rwxrwxrwx;
             break;
         case PSEUDO_STR:
             dent->type = S_IFREG;
-            dent->perm = PERM_r________;
+            break;
+        case PSEUDO_DEV:
+            dent->type = S_IFCHR;
             break;
     }
+    dent->perm = ent->perm;
     return 0;
 };
 
@@ -149,15 +155,23 @@ static int pseudo2_stat(struct shim_dentry* dent, struct stat* buf) {
     memset(buf, 0, sizeof(*buf));
     buf->st_dev = 1;
     buf->st_mode = dent->type | dent->perm;
-    if (ent->type == PSEUDO_DIR) {
-        /* This is not very efficient, but libraries like hwloc check `nlink` in some places. */
-        size_t nlink = 2; // Initialize to 2 for `.` and parent
-        int ret = pseudo2_readdir(dent, &count_nlink, &nlink);
-        if (ret < 0)
-            return 0;
-        buf->st_nlink = nlink;
-    } else {
-        buf->st_nlink = 1;
+    switch (ent->type) {
+        case PSEUDO_DIR: {
+            /* This is not very efficient, but libraries like hwloc check `nlink` in some places. */
+            size_t nlink = 2; // Initialize to 2 for `.` and parent
+            int ret = pseudo2_readdir(dent, &count_nlink, &nlink);
+            if (ret < 0)
+                return 0;
+            buf->st_nlink = nlink;
+            break;
+        }
+        case PSEUDO_DEV:
+            buf->st_rdev = makedev(ent->dev.major, ent->dev.minor);
+            buf->st_nlink = 1;
+            break;
+        default:
+            buf->st_nlink = 1;
+            break;
     }
     return 0;
 }
@@ -174,9 +188,15 @@ static int pseudo2_follow_link(struct shim_dentry* dent, struct shim_qstr* link)
 
     if (ent->type != PSEUDO_LINK)
         return -EINVAL;
-    assert(ent->link.follow_link);
 
-    return ent->link.follow_link(dent, link);
+    if (ent->link.follow_link)
+        return ent->link.follow_link(dent, link);
+
+    assert(ent->link.target);
+    if (!qstrsetstr(link, ent->link.target, strlen(ent->link.target)))
+        return -ENOMEM;
+
+    return 0;
 }
 
 static int pseudo2_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
@@ -205,59 +225,148 @@ static int pseudo2_readdir(struct shim_dentry* dent, readdir_callback_t callback
 }
 
 static ssize_t pseudo2_read(struct shim_handle* hdl, void* buf, size_t count) {
-    int ret;
     assert(hdl->dentry);
     struct pseudo2_ent* ent = pseudo_find(hdl->dentry);
     if (!ent)
         return -ENOENT;
     switch (ent->type) {
         case PSEUDO_STR:
-            ret = str_read(hdl, buf, count);
+            return str_read(hdl, buf, count);
+            break;
+
+        case PSEUDO_DEV:
+            if (!ent->dev.dev_ops.read)
+                return -EACCES;
+            return ent->dev.dev_ops.read(hdl, buf, count);
+
+        default:
+            return -ENOSYS;
+    }
+}
+
+static ssize_t pseudo2_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    assert(hdl->dentry);
+    struct pseudo2_ent* ent = pseudo_find(hdl->dentry);
+    if (!ent)
+        return -ENOENT;
+    switch (ent->type) {
+        case PSEUDO_STR:
+            return str_write(hdl, buf, count);
+
+        case PSEUDO_DEV:
+            if (!ent->dev.dev_ops.write)
+                return -EACCES;
+            return ent->dev.dev_ops.write(hdl, buf, count);
             break;
 
         default:
             return -ENOSYS;
     }
-    return ret;
 }
 
 static off_t pseudo2_seek(struct shim_handle* hdl, off_t offset, int whence) {
-    int ret;
     assert(hdl->dentry);
     struct pseudo2_ent* ent = pseudo_find(hdl->dentry);
     if (!ent)
         return -ENOENT;
     switch (ent->type) {
         case PSEUDO_STR:
-            ret = str_seek(hdl, offset, whence);
-            break;
+            return str_seek(hdl, offset, whence);
+
+        case PSEUDO_DEV:
+            if (!ent->dev.dev_ops.seek)
+                return -EACCES;
+            return ent->dev.dev_ops.seek(hdl, offset, whence);
 
         default:
             return -ENOSYS;
     }
-    return ret;
 }
 
-static int pseudo2_close(struct shim_handle* hdl) {
-    int ret;
+static int pseudo2_truncate(struct shim_handle* hdl, off_t len) {
     assert(hdl->dentry);
     struct pseudo2_ent* ent = pseudo_find(hdl->dentry);
     if (!ent)
         return -ENOENT;
     switch (ent->type) {
         case PSEUDO_STR:
-            ret = str_close(hdl);
-            break;
+            /* e.g. fopen("w") wants to truncate; since these are pre-populated files,
+             * just ignore */
+            return 0;
+
+        case PSEUDO_DEV:
+            if (!ent->dev.dev_ops.truncate)
+                return -EACCES;
+            return ent->dev.dev_ops.truncate(hdl, len);
 
         default:
-            /* do nothing */
-            break;
+            return -ENOSYS;
     }
-    return ret;
+}
+
+static int pseudo2_flush(struct shim_handle* hdl) {
+    assert(hdl->dentry);
+    struct pseudo2_ent* ent = pseudo_find(hdl->dentry);
+    if (!ent)
+        return -ENOENT;
+    switch (ent->type) {
+        case PSEUDO_STR:
+            return str_flush(hdl);
+            break;
+
+        case PSEUDO_DEV:
+            if (!ent->dev.dev_ops.flush)
+                return 0;
+            return ent->dev.dev_ops.flush(hdl);
+
+        default:
+            return 0;
+    }
+}
+
+static int pseudo2_close(struct shim_handle* hdl) {
+    assert(hdl->dentry);
+    struct pseudo2_ent* ent = pseudo_find(hdl->dentry);
+    if (!ent)
+        return -ENOENT;
+    switch (ent->type) {
+        case PSEUDO_STR:
+            return str_close(hdl);
+
+        case PSEUDO_DEV:
+            if (!ent->dev.dev_ops.close)
+                return 0;
+            return ent->dev.dev_ops.close(hdl);
+
+        default:
+            return 0;
+    }
+}
+
+static off_t pseudo2_poll(struct shim_handle* hdl, int poll_type) {
+    if (poll_type == FS_POLL_SZ)
+        return 0;
+
+    assert(hdl->dentry);
+    struct pseudo2_ent* ent = pseudo_find(hdl->dentry);
+    if (!ent)
+        return -ENOENT;
+    switch (ent->type) {
+        case PSEUDO_DEV: {
+            off_t ret = 0;
+            if ((poll_type & FS_POLL_RD) && ent->dev.dev_ops.read)
+                ret |= FS_POLL_RD;
+            if ((poll_type & FS_POLL_WR) && ent->dev.dev_ops.write)
+                ret |= FS_POLL_WR;
+            return ret;
+        }
+        default:
+            return -ENOSYS;
+    }
 }
 
 static struct pseudo2_ent* pseudo_add_ent(struct pseudo2_ent* parent_ent, const char* name,
-                                         enum pseudo_type type) {
+                                          enum pseudo_type type) {
     struct pseudo2_ent* ent = malloc(sizeof(*ent));
     if (!ent) {
         log_error("Out of memory when allocating pseudo entity");
@@ -283,6 +392,7 @@ struct pseudo2_ent* pseudo_add_root_dir(const char* name) {
 
 struct pseudo2_ent* pseudo_add_dir(struct pseudo2_ent* parent_ent, const char* name) {
     struct pseudo2_ent* ent = pseudo_add_ent(parent_ent, name, PSEUDO_DIR);
+    ent->perm = PSEUDO_MODE_DIR;
     return ent;
 }
 
@@ -290,6 +400,7 @@ struct pseudo2_ent* pseudo_add_link(struct pseudo2_ent* parent_ent, const char* 
                                     int (*follow_link)(struct shim_dentry*, struct shim_qstr*)) {
     struct pseudo2_ent* ent = pseudo_add_ent(parent_ent, name, PSEUDO_LINK);
     ent->link.follow_link = follow_link;
+    ent->perm = PSEUDO_MODE_LINK;
     return ent;
 }
 
@@ -297,6 +408,13 @@ struct pseudo2_ent* pseudo_add_str(struct pseudo2_ent* parent_ent, const char* n
                                    int (*get_content)(struct shim_dentry*, char**, size_t*)) {
     struct pseudo2_ent* ent = pseudo_add_ent(parent_ent, name, PSEUDO_STR);
     ent->str.get_content = get_content;
+    ent->perm = PSEUDO_MODE_FILE_R;
+    return ent;
+}
+
+struct pseudo2_ent* pseudo_add_dev(struct pseudo2_ent* parent_ent, const char* name) {
+    struct pseudo2_ent* ent = pseudo_add_ent(parent_ent, name, PSEUDO_DEV);
+    ent->perm = PSEUDO_MODE_FILE_R;
     return ent;
 }
 
@@ -304,8 +422,12 @@ struct shim_fs_ops pseudo_fs_ops = {
     .mount    = &pseudo2_mount,
     .hstat    = &pseudo2_hstat,
     .read     = &pseudo2_read,
+    .write    = &pseudo2_write,
     .seek     = &pseudo2_seek,
+    .truncate = &pseudo2_truncate,
     .close    = &pseudo2_close,
+    .flush    = &pseudo2_flush,
+    .poll     = &pseudo2_poll,
 };
 
 struct shim_d_ops pseudo_d_ops = {

@@ -8,9 +8,11 @@
  */
 
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "stat.h"
 
-static ssize_t dev_zero_read(struct shim_handle* hdl, void* buf, size_t count) {
+/* TODO move to null.c */
+ssize_t dev_zero_read(struct shim_handle* hdl, void* buf, size_t count) {
     __UNUSED(hdl);
     memset(buf, 0, count);
     return count;
