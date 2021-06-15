@@ -35,7 +35,14 @@ char* g_libpal_path = NULL;
 struct pal_linux_state g_linux_state;
 struct pal_sec g_pal_sec;
 
-static size_t g_page_size = PRESET_PAGESIZE;
+/* for internal PAL objects, Graphene first uses pre-allocated g_mem_pool and then falls back to
+ * _DkVirtualMemoryAlloc(PAL_ALLOC_INTERNAL); the amount of available PAL internal memory is limited
+ * by the variable below */
+size_t g_pal_internal_mem_size = 0;
+char* g_pal_internal_mem_addr = NULL;
+
+size_t g_page_size = PRESET_PAGESIZE;
+
 static int g_uid, g_gid;
 static ElfW(Addr) g_sysinfo_ehdr;
 
@@ -291,6 +298,27 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     g_pal_state.manifest_root = toml_parse(manifest, errbuf, sizeof(errbuf));
     if (!g_pal_state.manifest_root)
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, errbuf);
+
+    ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",
+                             /*defaultval=*/g_page_size, &g_pal_internal_mem_size);
+    if (ret < 0) {
+        INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'loader.pal_internal_mem_size'");
+    }
+
+    void* internal_mem_addr = (void*)ARCH_MMAP(NULL, g_pal_internal_mem_size,
+                                               PROT_READ | PROT_WRITE,
+                                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    if (IS_ERR_P(internal_mem_addr)) {
+        INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate PAL internal memory pool");
+    }
+
+    ret = add_preloaded_range((uintptr_t)internal_mem_addr,
+                              (uintptr_t)internal_mem_addr + g_pal_internal_mem_size,
+                              "pal_internal_mem");
+    if (ret < 0) {
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+    }
+    g_pal_internal_mem_addr = internal_mem_addr;
 
     /* call to main function */
     pal_main((PAL_NUM)g_linux_state.parent_process_id, parent, first_thread,

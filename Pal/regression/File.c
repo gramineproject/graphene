@@ -59,7 +59,7 @@ int main(int argc, char** argv, char** envp) {
 
         /* test file map */
 
-        void* mem1 = NULL;
+        void* mem1 = (void*)pal_control.user_address.start;
         ret = DkStreamMap(file1, &mem1, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, PAGE_SIZE);
         if (ret >= 0 && mem1) {
             memcpy(buffer1, mem1, 40);

@@ -423,6 +423,9 @@ int DkStreamMap(PAL_HANDLE handle, PAL_PTR* addr, PAL_FLG prot, PAL_NUM offset, 
     assert(addr);
     void* map_addr = *addr;
 
+    /* TODO: we must not allow NULL addresses here, but sendfile() in LibOS does it -- it must be
+     *       re-written and then this function should enforce `map_addr != NULL` */
+
     if (!handle) {
         return -PAL_ERROR_INVAL;
     }
