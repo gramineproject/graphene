@@ -1,4 +1,5 @@
-/* XXX: What on earth is this supposed to be, an attempt to fit most UBs in one file? */
+/* XXX: What on earth is this supposed to be, an attempt to fit most UBs in one file?
+ * XXX: +1, please someone rm rf this file. */
 
 #include <stdbool.h>
 
@@ -30,13 +31,15 @@ int main(int argc, char** argv, char** envp) {
     DkSetExceptionHandler(handler, PAL_EVENT_MEMFAULT);
 
     void* mem1 = NULL;
-    int ret = DkVirtualMemoryAlloc(&mem1, UNIT * 4, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    int ret = DkVirtualMemoryAlloc(&mem1, UNIT * 4, PAL_ALLOC_INTERNAL,
+                                   PAL_PROT_READ | PAL_PROT_WRITE);
 
     if (!ret && mem1)
         pal_printf("Memory Allocation OK\n");
 
     void* mem2 = NULL;
-    ret = DkVirtualMemoryAlloc(&mem2, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    ret = DkVirtualMemoryAlloc(&mem2, UNIT, PAL_ALLOC_INTERNAL,
+                               PAL_PROT_READ | PAL_PROT_WRITE);
 
     if (!ret && mem2) {
         c                    = count;

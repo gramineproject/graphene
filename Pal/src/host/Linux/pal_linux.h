@@ -103,6 +103,10 @@ int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void
 /* PAL main function */
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);
 
+extern size_t g_page_size;
+extern char* g_pal_internal_mem_addr;
+extern size_t g_pal_internal_mem_size;
+
 extern uintptr_t g_vdso_start;
 extern uintptr_t g_vdso_end;
 bool is_in_vdso(uintptr_t addr);
@@ -136,8 +140,8 @@ void signal_setup(void);
 extern char __text_start, __text_end, __data_start, __data_end;
 #define TEXT_START ((void*)(&__text_start))
 #define TEXT_END   ((void*)(&__text_end))
-#define DATA_START ((void*)(&__text_start))
-#define DATA_END   ((void*)(&__text_end))
+#define DATA_START ((void*)(&__data_start))
+#define DATA_END   ((void*)(&__data_end))
 
 #define ADDR_IN_PAL_OR_VDSO(addr) \
         (((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END) || is_in_vdso(addr))

@@ -362,6 +362,8 @@ static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim
         if (do_mapi && !bufi) {
             boffi = offi - ALLOC_ALIGN_DOWN(offi);
 
+            /* TODO: mmap below invokes DkStreamMap() with NULL address; this is wrong -- we need
+             *       VMA bookkeeping; see also comment in DkStreamMap() implementation */
             if (fsi->fs_ops->mmap(hdli, &bufi, ALLOC_ALIGN_UP(bufsize + boffi), PROT_READ, MAP_FILE,
                                   offi - boffi) < 0) {
                 do_mapi = false;
@@ -381,6 +383,8 @@ static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim
         if (do_mapo && !bufo) {
             boffo = offo - ALLOC_ALIGN_DOWN(offo);
 
+            /* TODO: mmap below invokes DkStreamMap() with NULL address; this is wrong -- we need
+             *       VMA bookkeeping; see also comment in DkStreamMap() implementation */
             if (fso->fs_ops->mmap(hdlo, &bufo, ALLOC_ALIGN_UP(bufsize + boffo), PROT_WRITE,
                                   MAP_FILE, offo - boffo) < 0) {
                 do_mapo = false;
