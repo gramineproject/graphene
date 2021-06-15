@@ -27,8 +27,8 @@ int main(int argc, const char** argv, const char** envp) {
         sizes_sum += strlen(argv[i]) + 1;
     }
 
-    size_t chunk_size = argv[argc - 1] + strlen(argv[argc - 1]) - argv[0];
-    if (sizes_sum != chunk_size + 1) {
+    size_t chunk_size = argv[argc - 1] + strlen(argv[argc - 1]) - argv[0] + 1;
+    if (sizes_sum != chunk_size) {
         printf("argv strings are not adjacent or not in increasing order\n");
         return 1;
     }
