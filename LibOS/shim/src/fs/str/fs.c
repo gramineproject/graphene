@@ -139,7 +139,7 @@ static ssize_t str_maybe_expand_buf(struct shim_str_handle* strhdl, size_t size)
         size_t new_size = 0;
 
         if (data->str) {
-            new_size = data->buf_size * 2;
+            new_size = data->buf_size ?: 1;
 
             while (size > new_size) {
                 new_size *= 2;

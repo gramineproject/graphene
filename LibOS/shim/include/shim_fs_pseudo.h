@@ -17,6 +17,29 @@ enum pseudo_type {
     PSEUDO_DEV = 4,
 };
 
+struct shim_dev_ops {
+    /* open: provide a filename relative to the mount point and flags,
+       modify the shim handle */
+    int (*open)(struct shim_handle* hdl, struct shim_dentry* dent, int flags);
+
+    /* close: clean up the file state inside the handle */
+    int (*close)(struct shim_handle* hdl);
+
+    /* read: the content from the file opened as handle */
+    ssize_t (*read)(struct shim_handle* hdl, void* buf, size_t count);
+
+    /* write: the content from the file opened as handle */
+    ssize_t (*write)(struct shim_handle* hdl, const void* buf, size_t count);
+
+    /* flush: flush out user buffer */
+    int (*flush)(struct shim_handle* hdl);
+
+    /* seek: the content from the file opened as handle */
+    off_t (*seek)(struct shim_handle* hdl, off_t offset, int whence);
+
+    int (*truncate)(struct shim_handle* hdl, uint64_t len);
+};
+
 #define PSEUDO_MODE_DIR     PERM_r_xr_xr_x
 #define PSEUDO_MODE_FILE_R  PERM_r__r__r__
 #define PSEUDO_MODE_FILE_RW PERM_rw_rw_rw_
@@ -49,6 +72,7 @@ struct pseudo2_ent {
 
         struct {
             int (*get_content)(struct shim_dentry* dent, char** content, size_t* size);
+            int (*modify)(struct shim_handle* hdl);
         } str;
 
         struct {
@@ -102,6 +126,7 @@ off_t dev_null_seek(struct shim_handle* hdl, off_t offset, int whence);
 int dev_null_truncate(struct shim_handle* hdl, uint64_t size);
 ssize_t dev_zero_read(struct shim_handle* hdl, void* buf, size_t count);
 ssize_t dev_random_read(struct shim_handle* hdl, void* buf, size_t count);
+int init_attestation(struct pseudo2_ent* dev);
 
 /* sysfs */
 

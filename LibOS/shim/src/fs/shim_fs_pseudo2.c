@@ -75,13 +75,17 @@ static int pseudo2_open(struct shim_handle* hdl, struct shim_dentry* dent, int f
             return -EINVAL;
 
         case PSEUDO_STR: {
-            assert(ent->str.get_content);
             char* str;
             size_t len;
-            ret = ent->str.get_content(dent, &str, &len);
-            if (ret < 0)
-                return ret;
-            assert(str);
+            if (ent->str.get_content) {
+                ret = ent->str.get_content(dent, &str, &len);
+                if (ret < 0)
+                    return ret;
+                assert(str);
+            } else {
+                len = 0;
+                str = NULL;
+            }
 
             struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
             if (!data) {
@@ -90,15 +94,23 @@ static int pseudo2_open(struct shim_handle* hdl, struct shim_dentry* dent, int f
             }
 
             memset(data, 0, sizeof(struct shim_str_data));
-            data->str = str;
-            data->len = len;
             hdl->type = TYPE_STR;
             hdl->info.str.data = data;
+            hdl->info.str.data->str = str;
+            hdl->info.str.data->len = len;
+            hdl->info.str.data->buf_size = len;
+            hdl->info.str.data->modify = ent->str.modify;
+            hdl->info.str.ptr = str;
             break;
         }
 
         case PSEUDO_DEV: {
             hdl->type = TYPE_DEV;
+            if (ent->dev.dev_ops.open) {
+                ret = ent->dev.dev_ops.open(hdl, dent, flags);
+                if (ret < 0)
+                    return ret;
+            }
             break;
         }
     }
@@ -290,9 +302,7 @@ static int pseudo2_truncate(struct shim_handle* hdl, off_t len) {
         return -ENOENT;
     switch (ent->type) {
         case PSEUDO_STR:
-            /* e.g. fopen("w") wants to truncate; since these are pre-populated files,
-             * just ignore */
-            return 0;
+            return str_truncate(hdl, len);
 
         case PSEUDO_DEV:
             if (!ent->dev.dev_ops.truncate)

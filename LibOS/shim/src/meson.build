@@ -23,8 +23,6 @@ libos_sources = files(
     'fs/dev/fs.c',
     'fs/dev/null.c',
     'fs/dev/random.c',
-    'fs/dev/std.c',
-    'fs/dev/zero.c',
     'fs/eventfd/fs.c',
     'fs/pipe/fs.c',
     'fs/proc/fs.c',

@@ -22,7 +22,6 @@
 
 struct shim_fs* builtin_fs[] = {
     &chroot_builtin_fs,
-    &dev_builtin_fs,
     &tmp_builtin_fs,
     &pipe_builtin_fs,
     &fifo_builtin_fs,
@@ -132,13 +131,7 @@ static int __mount_sys(void) {
     }
 
     log_debug("Mounting special dev filesystem: /dev\n");
-    if ((ret = mount_fs("dev", NULL, "/dev")) < 0) {
-        log_error("Mounting dev filesystem failed (%d)\n", ret);
-        return ret;
-    }
-
-    log_debug("Mounting special dev filesystem: /dev\n");
-    if ((ret = mount_fs("pseudo", "dev", "/dev2")) < 0) {
+    if ((ret = mount_fs("pseudo", "dev", "/dev")) < 0) {
         log_error("Mounting dev filesystem failed (%d)\n", ret);
         return ret;
     }
