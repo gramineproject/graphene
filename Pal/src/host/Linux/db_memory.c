@@ -52,14 +52,16 @@ int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
     void* addr = *paddr;
 
     if (alloc_type & PAL_ALLOC_INTERNAL) {
+        size = ALIGN_UP(size, g_page_size);
         spinlock_lock(&g_pal_internal_mem_lock);
         if (size > g_pal_internal_mem_size - g_pal_internal_mem_used) {
             /* requested PAL-internal allocation would exceed the limit, fail */
             spinlock_unlock(&g_pal_internal_mem_lock);
             return -PAL_ERROR_NOMEM;
         }
-        addr = ALIGN_UP_PTR((char*)DATA_END + g_pal_internal_mem_used, g_page_size);
+        addr = g_pal_internal_mem_addr + g_pal_internal_mem_used;
         g_pal_internal_mem_used += size;
+        assert(IS_ALIGNED(g_pal_internal_mem_used, g_page_size));
         spinlock_unlock(&g_pal_internal_mem_lock);
     }
 
