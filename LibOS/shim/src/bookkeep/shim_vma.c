@@ -56,8 +56,8 @@ struct shim_vma {
 };
 
 static void copy_comment(struct shim_vma* vma, const char* comment) {
-    size_t len = MIN(sizeof(vma->comment), strlen(comment) + 1);
-    memcpy(vma->comment, comment, len);
+    size_t size = MIN(sizeof(vma->comment), strlen(comment) + 1);
+    memcpy(vma->comment, comment, size);
     vma->comment[sizeof(vma->comment) - 1] = '\0';
 }
 

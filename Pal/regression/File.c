@@ -9,9 +9,9 @@ char buffer1[BUF_SIZE];
 char buffer2[BUF_SIZE];
 char hex_buf[BUF_SIZE * 2 + 1];
 
-static void print_hex(char* fmt, const void* data, int len) {
-    hex_buf[len * 2] = '\0';
-    for (int i = 0; i < len; i++) {
+static void print_hex(char* fmt, const void* data, size_t size) {
+    hex_buf[size * 2] = '\0';
+    for (int i = 0; i < size; i++) {
         unsigned char b = ((unsigned char*)data)[i];
         hex_buf[i * 2]     = NUM_TO_HEX(b >> 4);
         hex_buf[i * 2 + 1] = NUM_TO_HEX(b & 0xf);

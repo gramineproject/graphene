@@ -439,14 +439,17 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** o
     ElfW(Phdr)* phdr = NULL;
     int phdr_malloced = 0;
 
-    int len = _DkStreamRead(handle, 0, FILEBUF_SIZE, &fb, NULL, 0);
+    int64_t read_ret = _DkStreamRead(handle, 0, FILEBUF_SIZE, &fb, NULL, 0);
 
-    if ((size_t)len < sizeof(ElfW(Ehdr))) {
-        if (len < 0)
-            ret = len;
-        else
-            ret = -PAL_ERROR_INVAL;
-        errstring = "ELF file with a strange size";
+    if (read_ret < 0) {
+        ret = read_ret;
+        errstring = "reading ELF file failed";
+        goto verify_failed;
+    }
+    size_t size = read_ret;
+    if (size < sizeof(ElfW(Ehdr))) {
+        ret = -PAL_ERROR_INVAL;
+        errstring = "too small for an ELF";
         goto verify_failed;
     }
 
@@ -481,7 +484,7 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** o
     size_t maplength = ehdr->e_phnum * sizeof(ElfW(Phdr));
 
     /* if e_phoff + maplength is smaller than the data read */
-    if (ehdr->e_phoff + maplength <= (size_t)len) {
+    if (ehdr->e_phoff + maplength <= size) {
         phdr = (void*)(&fb + ehdr->e_phoff);
     } else {
         /* ...otherwise, we have to read again */
@@ -497,7 +500,7 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** o
         }
     }
 
-    if (!(map = map_elf_object_by_handle(handle, type, &fb, len, true))) {
+    if (!(map = map_elf_object_by_handle(handle, type, &fb, size, true))) {
         ret = -PAL_ERROR_INVAL;
         errstring = "unexpected failure";
         goto verify_failed;

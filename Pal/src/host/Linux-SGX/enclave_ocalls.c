@@ -356,7 +356,7 @@ int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4])
 
 int ocall_open(const char* pathname, int flags, unsigned short mode) {
     int retval = 0;
-    size_t len = pathname ? strlen(pathname) + 1 : 0;
+    size_t path_size = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_open_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -368,7 +368,7 @@ int ocall_open(const char* pathname, int flags, unsigned short mode) {
 
     WRITE_ONCE(ms->ms_flags, flags);
     WRITE_ONCE(ms->ms_mode, mode);
-    void* untrusted_pathname = sgx_copy_to_ustack(pathname, len);
+    void* untrusted_pathname = sgx_copy_to_ustack(pathname, path_size);
     if (!untrusted_pathname) {
         sgx_reset_ustack(old_ustack);
         return -EPERM;
@@ -765,7 +765,7 @@ int ocall_ftruncate(int fd, uint64_t length) {
 
 int ocall_mkdir(const char* pathname, unsigned short mode) {
     int retval = 0;
-    size_t len = pathname ? strlen(pathname) + 1 : 0;
+    size_t path_size = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_mkdir_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -776,7 +776,7 @@ int ocall_mkdir(const char* pathname, unsigned short mode) {
     }
 
     WRITE_ONCE(ms->ms_mode, mode);
-    void* untrusted_pathname = sgx_copy_to_ustack(pathname, len);
+    void* untrusted_pathname = sgx_copy_to_ustack(pathname, path_size);
     if (!untrusted_pathname) {
         sgx_reset_ustack(old_ustack);
         return -EPERM;
@@ -882,8 +882,8 @@ int ocall_create_process(size_t nargs, const char** args, int* stream_fd, unsign
 
     WRITE_ONCE(ms->ms_nargs, nargs);
     for (size_t i = 0; i < nargs; i++) {
-        size_t len = args[i] ? strlen(args[i]) + 1 : 0;
-        void* unstrusted_arg = args[i] ? sgx_copy_to_ustack(args[i], len) : NULL;
+        size_t size = args[i] ? strlen(args[i]) + 1 : 0;
+        void* unstrusted_arg = args[i] ? sgx_copy_to_ustack(args[i], size) : NULL;
 
         if (args[i] && !unstrusted_arg) {
             sgx_reset_ustack(old_ustack);
@@ -1408,8 +1408,8 @@ out:
 
 int ocall_rename(const char* oldpath, const char* newpath) {
     int retval = 0;
-    int oldlen = oldpath ? strlen(oldpath) + 1 : 0;
-    int newlen = newpath ? strlen(newpath) + 1 : 0;
+    size_t old_size = oldpath ? strlen(oldpath) + 1 : 0;
+    size_t new_size = newpath ? strlen(newpath) + 1 : 0;
     ms_ocall_rename_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1419,8 +1419,8 @@ int ocall_rename(const char* oldpath, const char* newpath) {
         return -EPERM;
     }
 
-    void* untrusted_oldpath = sgx_copy_to_ustack(oldpath, oldlen);
-    void* untrusted_newpath = sgx_copy_to_ustack(newpath, newlen);
+    void* untrusted_oldpath = sgx_copy_to_ustack(oldpath, old_size);
+    void* untrusted_newpath = sgx_copy_to_ustack(newpath, new_size);
     if (!untrusted_oldpath || !untrusted_newpath) {
         sgx_reset_ustack(old_ustack);
         return -EPERM;
@@ -1438,7 +1438,7 @@ int ocall_rename(const char* oldpath, const char* newpath) {
 
 int ocall_delete(const char* pathname) {
     int retval = 0;
-    size_t len = pathname ? strlen(pathname) + 1 : 0;
+    size_t path_size = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_delete_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1448,7 +1448,7 @@ int ocall_delete(const char* pathname) {
         return -EPERM;
     }
 
-    void* untrusted_pathname = sgx_copy_to_ustack(pathname, len);
+    void* untrusted_pathname = sgx_copy_to_ustack(pathname, path_size);
     if (!untrusted_pathname) {
         sgx_reset_ustack(old_ustack);
         return -EPERM;
@@ -1467,7 +1467,7 @@ int ocall_debug_map_add(const char* name, void* addr) {
     int retval = 0;
 
 #ifdef DEBUG
-    size_t len = strlen(name) + 1;
+    size_t size = strlen(name) + 1;
     ms_ocall_debug_map_add_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1477,7 +1477,7 @@ int ocall_debug_map_add(const char* name, void* addr) {
         return -EPERM;
     }
 
-    void* untrusted_name = sgx_copy_to_ustack(name, len);
+    void* untrusted_name = sgx_copy_to_ustack(name, size);
     if (!untrusted_name) {
         sgx_reset_ustack(old_ustack);
         return -EPERM;

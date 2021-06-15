@@ -35,8 +35,8 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         return -PAL_ERROR_INVAL;
 
     /* prepare the file handle */
-    size_t len     = strlen(uri) + 1;
-    PAL_HANDLE hdl = calloc(1, HANDLE_SIZE(file) + len);
+    size_t uri_size = strlen(uri) + 1;
+    PAL_HANDLE hdl = calloc(1, HANDLE_SIZE(file) + uri_size);
     if (!hdl)
         return -PAL_ERROR_NOMEM;
 
@@ -44,7 +44,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     char* path = (void*)hdl + HANDLE_SIZE(file);
     int ret;
-    if ((ret = get_norm_path(uri, path, &len)) < 0) {
+    if ((ret = get_norm_path(uri, path, &uri_size)) < 0) {
         log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
         free(hdl);
         return ret;
@@ -740,7 +740,7 @@ static int file_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     if (!handle->file.realpath)
         return 0;
 
-    int len   = strlen(handle->file.realpath);
+    size_t len = strlen(handle->file.realpath);
     char* tmp = strcpy_static(buffer, URI_PREFIX_FILE, count);
 
     if (!tmp || buffer + count < tmp + len + 1)
@@ -797,7 +797,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     if (fd < 0)
         return unix_to_pal_error(fd);
 
-    int len        = strlen(uri);
+    size_t len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
     if (!hdl) {
         ocall_close(fd);

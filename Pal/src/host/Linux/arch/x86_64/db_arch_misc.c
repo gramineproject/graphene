@@ -176,7 +176,8 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
         ci->cpu_model  += BIT_EXTRACT_LE(words[CPUID_WORD_EAX], 16, 20) << 4;
     }
 
-    int flen = 0, fmax = 80;
+    size_t flen = 0;
+    size_t fmax = 80;
     char* flags = malloc(fmax);
     if (!flags) {
         rv = -PAL_ERROR_NOMEM;
@@ -188,7 +189,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
             continue;
 
         if (BIT_EXTRACT_LE(words[CPUID_WORD_EDX], i, i + 1)) {
-            int len = strlen(g_cpu_flags[i]);
+            size_t len = strlen(g_cpu_flags[i]);
             if (flen + len + 1 > fmax) {
                 char* new_flags = malloc(fmax * 2);
                 if (!new_flags) {

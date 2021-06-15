@@ -223,11 +223,11 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
      * located adjacently and (2) in increasing order. */
     const char** new_argv = stack_low_addr;
     for (const char** a = argv; *a; a++) {
-        size_t len = strlen(*a) + 1;
-        const char** argv_ptr = ALLOCATE_FROM_LOW_ADDR(sizeof(const char*)); /* ptr to argv[i] */
-        memcpy(argv_str, *a, len);                                           /* argv[i] string */
+        size_t size = strlen(*a) + 1;
+        const char** argv_ptr = ALLOCATE_FROM_LOW_ADDR(sizeof(const char*));  /* ptr to argv[i] */
+        memcpy(argv_str, *a, size);                                           /* argv[i] string */
         *argv_ptr = argv_str;
-        argv_str += len;
+        argv_str += size;
     }
     *((const char**)ALLOCATE_FROM_LOW_ADDR(sizeof(const char*))) = NULL;
 
@@ -240,11 +240,11 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
 
     const char** new_envp = stack_low_addr;
     for (const char** e = envp; *e; e++) {
-        size_t len = strlen(*e) + 1;
+        size_t size = strlen(*e) + 1;
         const char** envp_ptr = ALLOCATE_FROM_LOW_ADDR(sizeof(const char*)); /* ptr to envp[i] */
-        memcpy(envp_str, *e, len);                                           /* envp[i] string */
+        memcpy(envp_str, *e, size);                                          /* envp[i] string */
         *envp_ptr = envp_str;
-        envp_str += len;
+        envp_str += size;
     }
     *((const char**)ALLOCATE_FROM_LOW_ADDR(sizeof(const char*))) = NULL;
 
