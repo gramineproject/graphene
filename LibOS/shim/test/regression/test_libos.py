@@ -268,29 +268,36 @@ class TC_02_OpenMP(RegressionTestCase):
     'only relevant to SGX.')
 class TC_03_FileCheckPolicy(RegressionTestCase):
     def test_000_strict_success(self):
-        stdout, _ = self.run_binary(['file_check_policy_strict', 'trusted_testfile'])
-
+        stdout, _ = self.run_binary(['file_check_policy_strict', 'read', 'trusted_testfile'])
         self.assertIn('file_check_policy succeeded', stdout)
 
     def test_001_strict_fail(self):
         with self.expect_returncode(2):
-            self.run_binary(['file_check_policy_strict', 'unknown_testfile'])
+            self.run_binary(['file_check_policy_strict', 'read', 'unknown_testfile'])
 
-    def test_002_allow_all_but_log_success(self):
-        stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log',
+    def test_002_strict_fail_create(self):
+        with self.expect_returncode(2):
+            # this tests a previous bug in Graphene that allowed creating unknown files
+            self.run_binary(['file_check_policy_strict', 'append', 'unknown_testfile'])
+
+    def test_003_allow_all_but_log_unknown(self):
+        stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log', 'read',
                                           'unknown_testfile'])
-
         self.assertIn('Allowing access to an unknown file due to file_check_policy settings: '
                       'file:unknown_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
-    def test_003_allow_all_but_log_fail(self):
-        stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log',
+    def test_004_allow_all_but_log_trusted(self):
+        stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log', 'read',
                                           'trusted_testfile'])
-
         self.assertNotIn('Allowing access to an unknown file due to file_check_policy settings: '
                          'file:trusted_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
+
+    def test_005_allow_all_but_log_trusted_create_fail(self):
+        with self.expect_returncode(2):
+            # this fails because modifying trusted files is prohibited
+            self.run_binary(['file_check_policy_allow_all_but_log', 'append', 'trusted_testfile'])
 
 @unittest.skipUnless(HAS_SGX,
     'These tests are only meaningful on SGX PAL because only SGX supports attestation.')
