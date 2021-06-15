@@ -92,10 +92,6 @@ __attribute__((__optimize__("-fno-stack-protector"))) void pal_start_thread(void
     /* UNREACHABLE */
 }
 
-/*
- * Creates an internal thread inside the current process. The arguments callback and param specify
- * the starting function and parameters.
- */
 int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* param) {
     int ret;
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
