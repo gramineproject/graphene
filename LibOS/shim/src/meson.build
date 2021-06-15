@@ -45,7 +45,7 @@ libos_sources = files(
     'fs/tmpfs/fs.c',
     'ipc/shim_ipc.c',
     'ipc/shim_ipc_child.c',
-    'ipc/shim_ipc_pid.c',
+    'ipc/shim_ipc_process_info.c',
     'ipc/shim_ipc_ranges.c',
     'ipc/shim_ipc_signal.c',
     'ipc/shim_ipc_sync.c',
