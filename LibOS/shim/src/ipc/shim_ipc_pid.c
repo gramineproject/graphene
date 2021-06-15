@@ -355,7 +355,7 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
                 unlock(&g_process.fs_lock);
                 goto out;
             }
-            datasize = bufsize;
+            datasize = bufsize - 1;
             unlock(&g_process.fs_lock);
             break;
         }
