@@ -27,6 +27,7 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "cpu.h"
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "pal_internal.h"
