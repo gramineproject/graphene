@@ -453,11 +453,12 @@ Allowed files
 
     sgx.allowed_files.[identifier] = "[URI]"
 
-This syntax specifies the files that are allowed to be loaded into the enclave
-unconditionally. These files are not cryptographically hashed and are thus not
-protected. It is insecure to allow files containing code or critical
-information; developers must not allow files blindly! Instead, use trusted or
-protected files.
+This syntax specifies the files that are allowed to be created or loaded into
+the enclave unconditionally. In other words, allowed files can be opened for
+reading/writing and can be created if they do not exist already. Allowed files
+are not cryptographically hashed and are thus not protected. It is insecure to
+mark files as allowed if they contain code or critical information; developers
+must not allow files blindly! Instead, use trusted or protected files.
 
 Trusted files
 ^^^^^^^^^^^^^
@@ -466,12 +467,14 @@ Trusted files
 
     sgx.trusted_files.[identifier] = "[URI]"
 
-This syntax specifies the files to be cryptographically hashed, and thus allowed
-to be loaded into the enclave. The signer tool will automatically generate
-hashes of these files and add them into the SGX-specific manifest
-(``.manifest.sgx``). This is especially useful for shared libraries:
-a |~| trusted library cannot be silently replaced by a malicious host because
-the hash verification will fail.
+This syntax specifies the files to be cryptographically hashed and thus allowed
+to be loaded into the enclave. This implies that trusted files can be only
+opened for reading (not for writing) and cannot be created if they do not exist
+already. The signer tool will automatically generate hashes of these files and
+add them into the SGX-specific manifest (``.manifest.sgx``). Marking files as
+trusted is especially useful for shared libraries: a |~| trusted library cannot
+be silently replaced by a malicious host because the hash verification will
+fail.
 
 Protected files
 ^^^^^^^^^^^^^^^
@@ -509,11 +512,15 @@ File check policy
 
 This syntax specifies the file check policy, determining the behavior of
 authentication when opening files. By default, only files explicitly listed as
-_trusted_files_ or _allowed_files_ declared in the manifest are allowed for
-access. If the file check policy is ``allow_all_but_log``, all files other than
-trusted and allowed are allowed for access, and Graphene-SGX emits a warning
-message for every such file. This is a convenient way to determine the set of
-files that the ported application uses.
+``trusted_files`` or ``allowed_files`` declared in the manifest are allowed for
+access.
+
+If the file check policy is ``allow_all_but_log``, all files other than trusted
+and allowed are allowed for access, and Graphene-SGX emits a warning message for
+every such file. Effectively, this policy operates on all unknown files as if
+they were listed as ``allowed_files``. (However, this policy still does not
+allow writing/creating files specified as trusted.) This policy is a convenient
+way to determine the set of files that the ported application uses.
 
 Attestation and quotes
 ^^^^^^^^^^^^^^^^^^^^^^
