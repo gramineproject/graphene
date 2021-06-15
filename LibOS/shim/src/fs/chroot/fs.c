@@ -73,8 +73,8 @@ static int chroot_mount(const char* uri, void** mount_data) {
     if (!(*uri))
         uri = ".";
 
-    int uri_len = strlen(uri);
-    int data_size = uri_len + 1 + sizeof(struct mount_data);
+    size_t uri_len = strlen(uri);
+    size_t data_size = uri_len + 1 + sizeof(struct mount_data);
 
     struct mount_data* mdata = (struct mount_data*)malloc(data_size);
 
@@ -94,7 +94,7 @@ static int chroot_unmount(void* mount_data) {
 }
 
 static int alloc_concat_uri(int type, const char* root, size_t root_len, const char* path,
-                              size_t path_len, char** out, size_t* out_len) {
+                            size_t path_len, char** out, size_t* out_len) {
     const char* prefix = NULL;
 
     switch (type) {
@@ -117,14 +117,14 @@ static int alloc_concat_uri(int type, const char* root, size_t root_len, const c
     }
 
     size_t prefix_len = strlen(prefix);
-    size_t alloc_len = prefix_len + root_len + 1 + path_len + 1; // one for '/', one for '\0'
-    char* buf = malloc(alloc_len);
+    size_t alloc_size = prefix_len + root_len + 1 + path_len + 1; // one for '/', one for '\0'
+    char* buf = malloc(alloc_size);
     if (!buf) {
         return -ENOMEM;
     }
 
     *out = buf;
-    *out_len = alloc_len - 1; // return length does not include trailing '\0'
+    *out_len = alloc_size - 1; // return length does not include trailing '\0'
 
     memcpy(buf, prefix, prefix_len);
     buf += prefix_len;
@@ -903,13 +903,13 @@ static ssize_t chroot_checkpoint(void** checkpoint, void* mount_data) {
 
 static int chroot_migrate(void* checkpoint, void** mount_data) {
     struct mount_data* mdata = checkpoint;
-    size_t alloc_len = mdata->root_uri_len + sizeof(struct mount_data) + 1;
+    size_t alloc_size = mdata->root_uri_len + sizeof(struct mount_data) + 1;
 
-    void* new_data = malloc(alloc_len);
+    void* new_data = malloc(alloc_size);
     if (!new_data)
         return -ENOMEM;
 
-    memcpy(new_data, mdata, alloc_len);
+    memcpy(new_data, mdata, alloc_size);
     *mount_data = new_data;
 
     return 0;

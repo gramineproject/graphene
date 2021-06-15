@@ -33,8 +33,8 @@ int main(void) {
     }
     printf("pselect() on write event returned %d file descriptors\n", ret);
 
-    size_t len = strlen(string) + 1;
-    if (write(fd[1], string, len) != len) {
+    size_t size = strlen(string) + 1;
+    if (write(fd[1], string, size) != size) {
         perror("write error");
         return 1;
     }

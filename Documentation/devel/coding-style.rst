@@ -136,6 +136,9 @@ Conventions and high-level style
    #. Macros and global constants should be ``NAMED_THIS_WAY``.
    #. Functions, structures and variables should be ``named_this_way``.
    #. Global variables should be prefixed with ``g_`` (e.g. ``g_thread_list``).
+   #. "size" always means size in bytes, "count" means the number of elements
+      (e.g. in an array) and "length" means the length of a C-string
+      (excluding terminating NULL).
 
 #. Types:
 

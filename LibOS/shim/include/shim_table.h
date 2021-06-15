@@ -41,8 +41,8 @@ long shim_do_rt_sigreturn(void);
 long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos);
 long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos);
-long shim_do_readv(int fd, const struct iovec* vec, int vlen);
-long shim_do_writev(int fd, const struct iovec* vec, int vlen);
+long shim_do_readv(unsigned long fd, const struct iovec* vec, unsigned long vlen);
+long shim_do_writev(unsigned long fd, const struct iovec* vec, unsigned long vlen);
 long shim_do_access(const char* file, mode_t mode);
 long shim_do_pipe(int* fildes);
 long shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds,

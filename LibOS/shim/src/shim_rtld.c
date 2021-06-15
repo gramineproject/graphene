@@ -476,7 +476,7 @@ err:
 
 static inline struct link_map* __search_map_by_name(const char* name) {
     struct link_map* l = loaded_libraries;
-    int len            = strlen(name);
+    size_t len = strlen(name);
 
     while (l) {
         if (l->l_name && !memcmp(l->l_name, name, len + 1))
@@ -712,8 +712,8 @@ extern const char** library_paths;
 
 static int __load_interp_object(struct link_map* exec_map) {
     const char* interp_name = exec_map->l_interp_libname;
-    int len                 = strlen(interp_name);
-    const char* filename    = interp_name + len - 1;
+    size_t len = strlen(interp_name);
+    const char* filename = interp_name + len - 1;
     while (filename > interp_name && *filename != '/') {
         filename--;
     }
@@ -726,7 +726,7 @@ static int __load_interp_object(struct link_map* exec_map) {
     char interp_path[STR_SIZE];
 
     for (const char** p = paths; *p; p++) {
-        int plen = strlen(*p);
+        size_t plen = strlen(*p);
         memcpy(interp_path, *p, plen);
         interp_path[plen] = '/';
         memcpy(interp_path + plen + 1, filename, len + 1);

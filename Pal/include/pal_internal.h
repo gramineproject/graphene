@@ -102,7 +102,7 @@ static inline const struct handle_ops* HANDLE_OPS(PAL_HANDLE handle) {
 extern PAL_HANDLE _h;
 #define HANDLE_SIZE(type) (sizeof(*_h))
 
-static inline int handle_size(PAL_HANDLE handle) {
+static inline size_t handle_size(PAL_HANDLE handle) {
     return sizeof(*handle);
 }
 
