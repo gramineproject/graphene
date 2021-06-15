@@ -17,9 +17,32 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
+#include "spinlock.h"
+
+/* IMPLEMENTATION NOTE: PAL memory allocation assumes that the Linux-PAL executable divides virtual
+ * address space in two parts:
+ *   - the lower part (before TEXT_START) is for LibOS consumption,
+ *   - the upper part (after DATA_END) is for internal PAL consumption.
+ *
+ * This assumes that Linux places the PAL executable far below the main-thread stack, and that there
+ * is nothing else placed in-between the PAL executable and the main-thread stack.
+ *
+ * Internal-PAL allocation is trivial: we simply increment a global pointer to the next available
+ * memory region on allocations and do nothing on deallocations (and fail loudly if the limit
+ * specified in the manifest is exceeded). This wastes memory, but we assume that internal-PAL
+ * allocations are rare, and that PAL doesn't consume much memory anyway. In near future, we need to
+ * overwrite Graphene allocation logic in PAL.
+ */
+
+static size_t g_pal_internal_mem_used = 0;
+static spinlock_t g_pal_internal_mem_lock = INIT_SPINLOCK_UNLOCKED;
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
-    return (addr < DATA_END && addr + size > TEXT_START);
+    if (addr < DATA_END && addr + size > TEXT_START) {
+        log_error("Address %p-%p is not mappable\n", addr, addr + size);
+        return true;
+    }
+    return false;
 }
 
 int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
@@ -27,24 +50,39 @@ int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
     assert(WITHIN_MASK(prot,       PAL_PROT_MASK));
 
     void* addr = *paddr;
-    void* mem = addr;
+
+    if (alloc_type & PAL_ALLOC_INTERNAL) {
+        spinlock_lock(&g_pal_internal_mem_lock);
+        if (size > g_pal_internal_mem_size - g_pal_internal_mem_used) {
+            /* requested PAL-internal allocation would exceed the limit, fail */
+            spinlock_unlock(&g_pal_internal_mem_lock);
+            return -PAL_ERROR_NOMEM;
+        }
+        addr = ALIGN_UP_PTR((char*)DATA_END + g_pal_internal_mem_used, g_page_size);
+        g_pal_internal_mem_used += size;
+        spinlock_unlock(&g_pal_internal_mem_lock);
+    }
+
+    assert(addr);
 
     int flags = PAL_MEM_FLAGS_TO_LINUX(alloc_type, prot | PAL_PROT_WRITECOPY);
     prot = PAL_PROT_TO_LINUX(prot);
 
-    flags |= MAP_ANONYMOUS | (addr ? MAP_FIXED : 0);
-    mem = (void*)ARCH_MMAP(addr, size, prot, flags, -1, 0);
+    flags |= MAP_ANONYMOUS | MAP_FIXED;
+    addr = (void*)ARCH_MMAP(addr, size, prot, flags, -1, 0);
 
-    if (IS_ERR_P(mem))
-        return unix_to_pal_error(-ERRNO_P(mem));
+    if (IS_ERR_P(addr)) {
+        /* note that we don't undo operations on `g_pal_internal_mem_used` in case of internal-PAL
+         * allocations: this could lead to data races, so we just waste some memory on errors */
+        return unix_to_pal_error(-ERRNO_P(addr));
+    }
 
-    *paddr = mem;
+    *paddr = addr;
     return 0;
 }
 
 int _DkVirtualMemoryFree(void* addr, size_t size) {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
-
     return ret < 0 ? unix_to_pal_error(ret) : 0;
 }
 

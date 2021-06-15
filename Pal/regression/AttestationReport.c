@@ -40,24 +40,24 @@ int main(int argc, char** argv) {
                user_report_data_size, target_info_size, report_size);
 
     void* user_report_data = NULL;
-    ret = DkVirtualMemoryAlloc(&user_report_data, ALLOC_ALIGN_UP(user_report_data_size), 0,
-                               PAL_PROT_READ | PAL_PROT_WRITE);
+    ret = DkVirtualMemoryAlloc(&user_report_data, ALLOC_ALIGN_UP(user_report_data_size),
+                               PAL_ALLOC_INTERNAL, PAL_PROT_READ | PAL_PROT_WRITE);
     if (ret < 0) {
         pal_printf("ERROR: Cannot allocate memory for user_report_data\n");
         return -1;
     }
 
     void* target_info = NULL;
-    ret = DkVirtualMemoryAlloc(&target_info, ALLOC_ALIGN_UP(target_info_size), 0,
-                               PAL_PROT_READ | PAL_PROT_WRITE);
+    ret = DkVirtualMemoryAlloc(&target_info, ALLOC_ALIGN_UP(target_info_size),
+                               PAL_ALLOC_INTERNAL, PAL_PROT_READ | PAL_PROT_WRITE);
     if (ret < 0) {
         pal_printf("ERROR: Cannot allocate memory for target_info\n");
         return -1;
     }
 
     void* report = NULL;
-    ret = DkVirtualMemoryAlloc(&report, ALLOC_ALIGN_UP(report_size), 0,
-                               PAL_PROT_READ | PAL_PROT_WRITE);
+    ret = DkVirtualMemoryAlloc(&report, ALLOC_ALIGN_UP(report_size),
+                               PAL_ALLOC_INTERNAL, PAL_PROT_READ | PAL_PROT_WRITE);
     if (ret < 0) {
         pal_printf("ERROR: Cannot allocate memory for report\n");
         return -1;

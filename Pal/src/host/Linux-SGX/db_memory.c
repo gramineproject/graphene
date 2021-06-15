@@ -42,11 +42,6 @@ int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot)
 
     void* addr = *paddr;
 
-    if ((alloc_type & PAL_ALLOC_INTERNAL) && addr) {
-        /* internal-PAL memory allocation never uses fixed addresses */
-        return -PAL_ERROR_INVAL;
-    }
-
     void* mem = get_enclave_pages(addr, size, alloc_type & PAL_ALLOC_INTERNAL);
     if (!mem)
         return addr ? -PAL_ERROR_DENIED : -PAL_ERROR_NOMEM;
