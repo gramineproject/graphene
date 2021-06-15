@@ -305,9 +305,9 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'loader.pal_internal_mem_size'");
     }
 
-    void* internal_mem_addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, g_pal_internal_mem_size,
-                                                    PROT_READ | PROT_WRITE,
-                                                    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    void* internal_mem_addr = (void*)ARCH_MMAP(NULL, g_pal_internal_mem_size,
+                                               PROT_READ | PROT_WRITE,
+                                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (IS_ERR_P(internal_mem_addr)) {
         INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate PAL internal memory pool");
     }
