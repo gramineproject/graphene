@@ -686,68 +686,6 @@ extern struct shim_fs pseudo_builtin_fs;
 
 struct shim_fs* find_fs(const char* name);
 
-/* pseudo file systems (separate treatment since they don't have associated dentries) */
-#define DIR_RX_MODE  0555
-#define FILE_RW_MODE 0666
-#define FILE_R_MODE  0444
-
-extern struct shim_fs_ops dev_fs_ops;
-extern struct shim_d_ops dev_d_ops;
-
-struct pseudo_name_ops {
-    int (*match_name)(const char* name);
-    int (*list_name)(const char* name, readdir_callback_t callback, void* arg);
-};
-
-// TODO move to pseudo.c
-static inline dev_t makedev(unsigned int major, unsigned int minor) {
-    dev_t dev;
-    dev  = (((dev_t)(major & 0x00000fffu)) <<  8);
-    dev |= (((dev_t)(major & 0xfffff000u)) << 32);
-    dev |= (((dev_t)(minor & 0x000000ffu)) <<  0);
-    dev |= (((dev_t)(minor & 0xffffff00u)) << 12);
-    return dev;
-}
-
-struct pseudo_fs_ops {
-    int (*open)(struct shim_handle* hdl, const char* name, int flags);
-    int (*mode)(const char* name, mode_t* mode);
-    int (*stat)(const char* name, struct stat* buf);
-    int (*follow_link)(const char* name, struct shim_qstr* link);
-};
-
-struct pseudo_dir;
-
-struct pseudo_ent {
-    /* pseudo-FS entry is identified by either hardcoded name or at-runtime name_ops */
-    const char* name;
-    const struct pseudo_name_ops* name_ops;
-    const struct pseudo_fs_ops* fs_ops;
-    const struct pseudo_dir* dir; /* NULL if pseudo-FS entry is a file */
-    int type; /* LINUX_DT_REG, LINUX_DT_CHR, etc (if dir != NULL, then always LINUX_DT_DIR) */
-};
-
-struct pseudo_dir {
-    int size;
-    const struct pseudo_ent ent[];
-};
-
-int pseudo_mount(const char* uri, void** mount_data);
-int pseudo_unmount(void* mount_data);
-int pseudo_dir_mode(const char* name, mode_t* mode);
-int pseudo_dir_stat(const char* name, struct stat* buf);
-int pseudo_dir_open(struct shim_handle* hdl, const char* name, int flags);
-int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent* root_ent);
-int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent);
-int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
-                const struct pseudo_ent* root_ent);
-int pseudo_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg,
-                   const struct pseudo_ent* root_ent);
-int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_ent* root_ent);
-int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_ent* root_ent);
-int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link,
-                       const struct pseudo_ent* root_ent);
-
 /* string-type file system */
 int str_add_dir(const char* path, mode_t mode, struct shim_dentry** dent);
 int str_add_file(const char* path, mode_t mode, struct shim_dentry** dent);

@@ -93,7 +93,7 @@ int proc_ipc_thread_follow_link(struct shim_dentry* dent, struct shim_qstr* link
     if (ret < 0)
         return ret;
 
-    if (!qstrsetstr(link, ipc_data, strlen(ipc_data))) {
+    if (!qstrsetstr(link, ipc_data->data, ipc_data->datasize)) {
         free(ipc_data);
         return -ENOMEM;
     }
