@@ -490,7 +490,7 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** o
     size_t maplength = ehdr->e_phnum * sizeof(ElfW(Phdr));
 
     /* if e_phoff + maplength is smaller than the data read */
-    if (ehdr->e_phoff + maplength <= (size_t)size) {
+    if (ehdr->e_phoff + maplength <= size) {
         phdr = (void*)(&fb + ehdr->e_phoff);
     } else {
         /* ...otherwise, we have to read again */
