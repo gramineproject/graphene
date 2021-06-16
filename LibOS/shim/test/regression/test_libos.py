@@ -283,14 +283,14 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
     def test_003_allow_all_but_log_unknown(self):
         stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log', 'read',
                                           'unknown_testfile'])
-        self.assertIn('Allowing access to an unknown file due to file_check_policy settings: '
+        self.assertIn('Allowing access to unknown file due to file_check_policy settings: '
                       'file:unknown_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
     def test_004_allow_all_but_log_trusted(self):
         stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log', 'read',
                                           'trusted_testfile'])
-        self.assertNotIn('Allowing access to an unknown file due to file_check_policy settings: '
+        self.assertNotIn('Allowing access to unknown file due to file_check_policy settings: '
                          'file:trusted_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
