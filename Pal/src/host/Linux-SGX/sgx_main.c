@@ -40,7 +40,7 @@
 
 #include "sysdeps/generic/ldsodefs.h"
 
-size_t g_page_size = PRESET_PAGESIZE;
+const size_t g_page_size = PRESET_PAGESIZE;
 
 char* g_pal_loader_path = NULL;
 char* g_libpal_path = NULL;

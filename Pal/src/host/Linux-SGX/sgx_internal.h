@@ -19,9 +19,7 @@
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
 #define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
 
-/* constants and macros to help rounding addresses to page
-   boundaries */
-extern size_t g_page_size;
+extern const size_t g_page_size;
 
 #undef IS_ALLOC_ALIGNED
 #undef IS_ALLOC_ALIGNED_PTR

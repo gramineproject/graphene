@@ -103,7 +103,7 @@ int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void
 /* PAL main function */
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);
 
-extern size_t g_page_size;
+extern const size_t g_page_size;
 extern char* g_pal_internal_mem_addr;
 extern size_t g_pal_internal_mem_size;
 

@@ -156,9 +156,6 @@ noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE parent_process, PAL_HANDL
 
 /* For initialization */
 
-/* Called very early, its implementation should have no dependencies. */
-unsigned long _DkGetAllocationAlignment(void);
-
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end);
 bool _DkCheckMemoryMappable(const void* addr, size_t size);
 PAL_NUM _DkGetProcessId(void);

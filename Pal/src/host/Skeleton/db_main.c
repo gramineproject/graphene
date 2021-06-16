@@ -15,10 +15,6 @@
 /* must implement "pal_start", and call "pal_main" inside */
 void pal_start(void);
 
-unsigned long _DkGetAllocationAlignment(void) {
-    return 0;
-}
-
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     /* needs to be implemented */
 }

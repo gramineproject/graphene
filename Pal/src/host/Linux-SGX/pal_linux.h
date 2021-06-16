@@ -58,6 +58,7 @@ int init_child_process(PAL_HANDLE* parent);
 
 #ifdef IN_ENCLAVE
 
+extern const size_t g_page_size;
 extern size_t g_pal_internal_mem_size;
 
 struct pal_sec;

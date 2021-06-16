@@ -41,7 +41,7 @@ struct pal_sec g_pal_sec;
 size_t g_pal_internal_mem_size = 0;
 char* g_pal_internal_mem_addr = NULL;
 
-size_t g_page_size = PRESET_PAGESIZE;
+const size_t g_page_size = PRESET_PAGESIZE;
 
 static int g_uid, g_gid;
 static ElfW(Addr) g_sysinfo_ehdr;
@@ -79,7 +79,9 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
     for (ElfW(auxv_t)* av = (ElfW(auxv_t)*)(e + 1); av->a_type != AT_NULL; av++) {
         switch (av->a_type) {
             case AT_PAGESZ:
-                g_page_size = av->a_un.a_val;
+                if (av->a_un.a_val != g_page_size) {
+                    INIT_FAIL(PAL_ERROR_INVAL, "Unexpected AT_PAGESZ auxiliary vector");
+                }
                 break;
             case AT_UID:
             case AT_EUID:
@@ -97,10 +99,6 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
     *out_argc = argc;
     *out_argv = argv;
     *out_envp = envp;
-}
-
-unsigned long _DkGetAllocationAlignment(void) {
-    return g_page_size;
 }
 
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
@@ -171,7 +169,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         INIT_FAIL(-ret, "_DkSystemTimeQuery() failed");
 
     /* Initialize alloc_align as early as possible, a lot of PAL APIs depend on this being set. */
-    g_pal_state.alloc_align = _DkGetAllocationAlignment();
+    g_pal_state.alloc_align = g_page_size;
     assert(IS_POWER_OF_2(g_pal_state.alloc_align));
 
     int argc;

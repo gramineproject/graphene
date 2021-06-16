@@ -10,7 +10,6 @@
 
 struct atomic_int g_allocated_pages;
 
-static size_t g_page_size = PRESET_PAGESIZE;
 static void* g_heap_bottom;
 static void* g_heap_top;
 

@@ -43,11 +43,7 @@ PAL_SESSION_KEY g_master_key = {0};
  * limited by the variable below */
 size_t g_pal_internal_mem_size = 0;
 
-size_t g_page_size = PRESET_PAGESIZE;
-
-unsigned long _DkGetAllocationAlignment(void) {
-    return g_page_size;
-}
+const size_t g_page_size = PRESET_PAGESIZE;
 
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     *start = (PAL_PTR)g_pal_sec.heap_min;
@@ -535,7 +531,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
 
     /* Initialize alloc_align as early as possible, a lot of PAL APIs depend on this being set. */
-    g_pal_state.alloc_align = _DkGetAllocationAlignment();
+    g_pal_state.alloc_align = g_page_size;
     assert(IS_POWER_OF_2(g_pal_state.alloc_align));
 
     struct pal_sec sec_info;
