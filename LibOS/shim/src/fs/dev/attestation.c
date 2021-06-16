@@ -236,7 +236,7 @@ static int pfkey_save(struct shim_dentry* dent, const char* data, size_t size) {
     __UNUSED(dent);
 
     char buffer[PF_KEY_HEX_SIZE];
-    static_assert(sizeof(buffer) == sizeof(g_pf_key_hex));
+    static_assert(sizeof(buffer) == sizeof(g_pf_key_hex), "buffer size mismatch");
 
     update_buffer(buffer, PF_KEY_HEX_SIZE - 1, data, size);
     buffer[PF_KEY_HEX_SIZE - 1] = '\0';
