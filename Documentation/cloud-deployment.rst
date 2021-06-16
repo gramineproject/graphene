@@ -102,10 +102,9 @@ cluster.
 
 .. warning::
 
-       This example relies on insecure arguments provided at runtime and should
-       not be used production. To use trusted arguments, please see the `manpage
-       of GSC
-       <https://graphene.readthedocs.io/en/latest/manpages/gsc.html#using-graphene-s-trusted-command-line-arguments>`__.
+   This example relies on insecure arguments provided at runtime and should not
+   be used production. To use trusted arguments, please see the `manpage of GSC
+   <https://graphene.readthedocs.io/en/latest/manpages/gsc.html#using-graphene-s-trusted-command-line-arguments>`__.
 
 #. Pull Python image::
 
