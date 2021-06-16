@@ -188,4 +188,5 @@ clean-tmp:
 		__pycache__ \
 		libos-regression.xml \
 		testfile \
-		tmp/*
+		tmp/* \
+		*.o
