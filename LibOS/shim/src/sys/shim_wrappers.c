@@ -19,7 +19,7 @@ long shim_do_readv(unsigned long fd, const struct iovec* vec, unsigned long vlen
     if (!is_user_memory_readable(vec, sizeof(*vec) * vlen))
         return -EINVAL;
 
-    for (unsigned long i = 0; i < vlen; i++) {
+    for (size_t i = 0; i < vlen; i++) {
         if (vec[i].iov_base) {
             if (!access_ok(vec[i].iov_base, vec[i].iov_len))
                 return -EINVAL;
@@ -41,7 +41,7 @@ long shim_do_readv(unsigned long fd, const struct iovec* vec, unsigned long vlen
 
     ssize_t bytes = 0;
 
-    for (unsigned long i = 0; i < vlen; i++) {
+    for (size_t i = 0; i < vlen; i++) {
         if (!vec[i].iov_base)
             continue;
 
@@ -82,7 +82,7 @@ long shim_do_writev(unsigned long fd, const struct iovec* vec, unsigned long vle
     if (!is_user_memory_readable(vec, sizeof(*vec) * vlen))
         return -EINVAL;
 
-    for (unsigned long i = 0; i < vlen; i++) {
+    for (size_t i = 0; i < vlen; i++) {
         if (vec[i].iov_base) {
             if (!access_ok(vec[i].iov_base, vec[i].iov_len))
                 return -EINVAL;
@@ -104,7 +104,7 @@ long shim_do_writev(unsigned long fd, const struct iovec* vec, unsigned long vle
 
     ssize_t bytes = 0;
 
-    for (unsigned long i = 0; i < vlen; i++) {
+    for (size_t i = 0; i < vlen; i++) {
         if (!vec[i].iov_base)
             continue;
 
