@@ -698,7 +698,7 @@ class TC_40_FileSystem(RegressionTestCase):
         num_nodes = len([line for line in lines
                          if re.match(r'/sys/devices/system/node/node[0-9]+:', line)])
         self.assertGreater(num_nodes, 0)
-        if i in range(num_nodes):
+        for i in range(num_nodes):
             node = f'/sys/devices/system/node/node{i}'
             self.assertIn(f'{node}: directory', lines)
             self.assertIn(f'{node}/cpumap: file', lines)
