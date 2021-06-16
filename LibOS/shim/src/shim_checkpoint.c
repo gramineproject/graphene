@@ -583,8 +583,6 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
          */
         log_error("failed to send process creation ack to the child: %d\n", ret);
         (void)mark_child_exited_by_vmid(child_vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
-    } else {
-        ipc_sublease_send(child_vmid, thread_description->tid);
     }
 
     ret = 0;

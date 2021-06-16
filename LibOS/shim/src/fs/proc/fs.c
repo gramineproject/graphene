@@ -64,7 +64,8 @@ int init_procfs(void) {
 
     struct pseudo_node* ipc_thread_pid = pseudo_add_dir(root, /*name=*/NULL);
     ipc_thread_pid->name_exists = &proc_ipc_thread_pid_name_exists;
-    ipc_thread_pid->list_names = &proc_ipc_thread_pid_list_names;
+    /* Listing remote processes is not currently supported. */
+    ipc_thread_pid->list_names = NULL;
     init_ipc_thread_dir(ipc_thread_pid);
 
     return 0;

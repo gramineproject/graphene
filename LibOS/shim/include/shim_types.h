@@ -336,12 +336,11 @@ struct linux_file_handle {
 typedef Elf64_auxv_t elf_auxv_t;
 
 /* typedef for shim internal types */
-typedef unsigned int IDTYPE;
+typedef uint32_t IDTYPE;
+#define IDTYPE_MAX UINT32_MAX
 typedef uint16_t FDTYPE;
-typedef uint64_t HASHTYPE;
-
-#define IDTYPE_MAX UINT_MAX
 #define FDTYPE_MAX UINT16_MAX
+typedef uint64_t HASHTYPE;
 
 typedef struct atomic_int REFTYPE;
 

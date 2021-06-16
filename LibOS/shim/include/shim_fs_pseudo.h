@@ -183,8 +183,6 @@ bool proc_thread_fd_name_exists(struct shim_dentry* parent, const char* name);
 int proc_thread_fd_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
 int proc_thread_fd_follow_link(struct shim_dentry* dent, char** out_target);
 bool proc_ipc_thread_pid_name_exists(struct shim_dentry* parent, const char* name);
-int proc_ipc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback,
-                                   void* arg);
 int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** out_target);
 
 /* devfs */

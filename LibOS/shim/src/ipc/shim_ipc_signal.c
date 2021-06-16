@@ -23,7 +23,7 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
             dest = g_process_ipc_ids.leader_vmid;
         }
     } else {
-        ret = find_owner(dest_pid, &dest);
+        ret = ipc_get_id_owner(dest_pid, &dest);
         if (ret < 0) {
             return ret;
         }

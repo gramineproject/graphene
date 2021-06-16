@@ -452,9 +452,12 @@ noreturn void* shim_init(int argc, void* args) {
             log_error("shim_init: failed to establish IPC connection to parent: %d\n", ret);
             DkProcessExit(1);
         }
-        ret = request_leader_connect_back();
+
+        /* This has also a (very much desired) side effect of the IPC leader making a connection to
+         * this process, so that it's included in all broadcast messages. */
+        ret = ipc_change_id_owner(g_process.pid, g_self_vmid);
         if (ret < 0) {
-            log_error("shim_init: failed to request an IPC connection from IPC leader: %d\n", ret);
+            log_debug("shim_init: failed to change child process PID ownership: %d\n", ret);
             DkProcessExit(1);
         }
 
