@@ -106,6 +106,8 @@ typedef ptrdiff_t ssize_t;
 #define ARRAY_SIZE(a) (FORCE_STATIC_ARRAY(a) + sizeof(a) / sizeof(a[0]))
 #endif
 
+#define IS_SIGNED(T) ((T)-1 < (T)1)
+
 #define SET_UNALIGNED(a, b) ({                  \
     __typeof__(b) _b = (b);                     \
     static_assert(SAME_TYPE((a), _b), "error"); \

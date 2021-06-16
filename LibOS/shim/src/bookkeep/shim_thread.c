@@ -25,8 +25,6 @@
 #include "shim_thread.h"
 #include "shim_vma.h"
 
-static IDTYPE g_tid_alloc_idx = 0;
-
 /* TODO: consider changing this list to a tree. */
 static LISTP_TYPE(shim_thread) g_thread_list = LISTP_INIT;
 struct shim_lock g_thread_list_lock;
@@ -55,35 +53,6 @@ static struct shim_signal_dispositions* alloc_default_signal_dispositions(void) 
     }
 
     return dispositions;
-}
-
-static IDTYPE get_new_tid(void) {
-    IDTYPE idx;
-
-    lock(&g_thread_list_lock);
-    while (1) {
-        IDTYPE new_idx_hint = g_tid_alloc_idx + 1;
-        idx = allocate_ipc_id(new_idx_hint, 0);
-        if (idx) {
-            break;
-        }
-        idx = allocate_ipc_id(1, new_idx_hint);
-        if (idx) {
-            break;
-        }
-
-        unlock(&g_thread_list_lock);
-        /* We've probably run out of pids - let's get a new range. */
-        if (ipc_lease_send() < 0) {
-            return 0;
-        }
-        lock(&g_thread_list_lock);
-    }
-
-    g_tid_alloc_idx = idx;
-
-    unlock(&g_thread_list_lock);
-    return idx;
 }
 
 static struct shim_thread* alloc_new_thread(void) {
@@ -158,7 +127,13 @@ static int init_main_thread(void) {
     if (cur_thread) {
         /* Thread already initialized (e.g. received via checkpoint). */
         add_thread(cur_thread);
-        return init_ns_pid();
+        assert(cur_thread->tid);
+        return init_id_ranges(cur_thread->tid);
+    }
+
+    int ret = init_id_ranges(/*preload_tid=*/0);
+    if (ret < 0) {
+        return ret;
     }
 
     cur_thread = alloc_new_thread();
@@ -166,7 +141,7 @@ static int init_main_thread(void) {
         return -ENOMEM;
     }
 
-    cur_thread->tid = get_new_tid();
+    cur_thread->tid = get_new_id(/*remove_from_owned=*/false);
     if (!cur_thread->tid) {
         log_error("Cannot allocate pid for the initial thread!\n");
         put_thread(cur_thread);
@@ -189,8 +164,7 @@ static int init_main_thread(void) {
     set_sig_mask(cur_thread, &set);
     unlock(&cur_thread->lock);
 
-    int ret = DkEventCreate(&cur_thread->scheduler_event, /*init_signaled=*/false,
-                            /*auto_clear=*/true);
+    ret = DkEventCreate(&cur_thread->scheduler_event, /*init_signaled=*/false, /*auto_clear=*/true);
     if (ret < 0) {
         put_thread(cur_thread);
         return pal_to_unix_errno(ret);;
@@ -245,13 +219,6 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
 struct shim_thread* get_new_thread(void) {
     struct shim_thread* thread = alloc_new_thread();
     if (!thread) {
-        return NULL;
-    }
-
-    thread->tid = get_new_tid();
-    if (!thread->tid) {
-        log_error("get_new_thread: could not allocate a tid!\n");
-        put_thread(thread);
         return NULL;
     }
 
@@ -379,7 +346,7 @@ void put_thread(struct shim_thread* thread) {
          * being woken up), which would imply `ref_count > 0`. */
 
         if (thread->tid && !is_internal(thread)) {
-            release_ipc_id(thread->tid);
+            release_id(thread->tid);
         }
 
         destroy_lock(&thread->lock);

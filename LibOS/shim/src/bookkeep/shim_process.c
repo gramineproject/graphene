@@ -95,9 +95,6 @@ struct shim_child_process* create_child_process(void) {
 void destroy_child_process(struct shim_child_process* child) {
     assert(LIST_EMPTY(child, list));
 
-    /* This only removes the pid from internal IPC tracking in this process.  */
-    release_ipc_id(child->pid);
-
     free(child);
 }
 

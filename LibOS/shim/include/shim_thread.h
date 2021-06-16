@@ -134,10 +134,26 @@ struct shim_thread_queue {
 };
 
 int init_threading(void);
+int init_id_ranges(IDTYPE preaload_tid);
 
 static inline bool is_internal(struct shim_thread* thread) {
     return thread->tid == 0;
 }
+
+/*!
+ * \brief Allocates new ID
+ *
+ * \param remove_from_owned if true, ID is removed from owned and locally tracked IDs
+ *
+ * \returns new ID on success, `0` on failure (`0` is an invalid ID)
+ */
+IDTYPE get_new_id(bool remove_from_owned);
+/*!
+ * \brief Releases (frees) previously allocated ID
+ *
+ * \param id ID to release
+ */
+void release_id(IDTYPE id);
 
 void free_signal_queue(struct shim_signal_queue* queue);
 
