@@ -366,7 +366,8 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
         return 0;
     }
 
-    /* a few basic leaves are considered reserved and always return zeros */
+    /* a few basic leaves are considered reserved and always return zeros; see corresponding EAX
+     * cases in the "Operation" section of CPUID description in Intel SDM, Vol. 2A, Chapter 3.2 */
     if (leaf == 0x08 || leaf == 0x0C || leaf == 0x0E) {
         values[0] = 0;
         values[1] = 0;
@@ -376,7 +377,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     }
 
     const struct cpuid_leaf* known_leaf = NULL;
-    for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
         if (leaf == cpuid_known_leaves[i].leaf) {
             known_leaf = &cpuid_known_leaves[i];
             break;
@@ -385,7 +386,9 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     if (!known_leaf) {
         /* leaf is not recognized (EAX value is outside of recongized range for CPUID), return info
-         * for highest basic information leaf (see cpuid_known_leaves table; currently 0x1F) */
+         * for highest basic information leaf (see cpuid_known_leaves table; currently 0x1F); see
+         * the DEFAULT case in the "Operation" section of CPUID description in Intel SDM, Vol. 2A,
+         * Chapter 3.2 */
         leaf = 0x1F;
         for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
             if (leaf == cpuid_known_leaves[i].leaf) {

@@ -1,5 +1,6 @@
 /* Sanity checks on values returned by CPUID. */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +11,25 @@ struct regs {
     uint32_t ebx;
     uint32_t ecx;
     uint32_t edx;
-} __attribute__((packed));
+};
+
+static void clear_regs(struct regs* r) {
+    r->eax = 0x0;
+    r->ebx = 0x0;
+    r->ecx = 0x0;
+    r->edx = 0x0;
+}
+
+static void set_dummy_regs(struct regs* r) {
+    r->eax = 0xdead;
+    r->ebx = 0xbeef;
+    r->ecx = 0xdeaf;
+    r->edx = 0xbabe;
+}
+
+static bool are_dummy_regs(struct regs* r) {
+    return r->eax == 0xdead && r->ebx == 0xbeef && r->ecx == 0xdeaf && r->edx == 0xbabe;
+}
 
 static void cpuid(uint32_t leaf, uint32_t subleaf, struct regs* r) {
     __asm__ volatile("cpuid"
@@ -35,47 +54,47 @@ static void test_cpuid_leaf_0xd(void) {
     cpuid(leaf, AVX, &r);
     if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX]))
         abort();
-    memset(&r, 0, sizeof(r));
+    clear_regs(&r);
 
     cpuid(leaf, MPX_1, &r);
     if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[MPX_1]))
         abort();
-    memset(&r, 0, sizeof(r));
+    clear_regs(&r);
 
     cpuid(leaf, MPX_2, &r);
     if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[MPX_2]))
         abort();
-    memset(&r, 0, sizeof(r));
+    clear_regs(&r);
 
     cpuid(leaf, AVX512_1, &r);
     if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX512_1]))
         abort();
-    memset(&r, 0, sizeof(r));
+    clear_regs(&r);
 
     cpuid(leaf, AVX512_2, &r);
     if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX512_2]))
         abort();
-    memset(&r, 0, sizeof(r));
+    clear_regs(&r);
 
     cpuid(leaf, AVX512_3, &r);
     if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX512_3]))
         abort();
-    memset(&r, 0, sizeof(r));
+    clear_regs(&r);
 
     cpuid(leaf, PKRU, &r);
     if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[PKRU]))
         abort();
-    memset(&r, 0, sizeof(r));
 }
 
 static void test_cpuid_leaf_reserved(void) {
     /* Graphene returns all zeros for reserved CPUID leaves */
-    struct regs r = {0, };
+    struct regs r;
+    set_dummy_regs(&r);
 
-    cpuid(0x8, 0x00, &r); /* subleaf value doesn't matter */
+    cpuid(0x8, 0x0, &r); /* subleaf value doesn't matter */
     if (r.eax || r.ebx || r.ecx || r.edx)
         abort();
-    memset(&r, 0, sizeof(r));
+    set_dummy_regs(&r);
 
     cpuid(0xE, 0x42, &r); /* subleaf value doesn't matter */
     if (r.eax || r.ebx || r.ecx || r.edx)
@@ -84,22 +103,24 @@ static void test_cpuid_leaf_reserved(void) {
 
 static void test_cpuid_leaf_not_recognized(void) {
     /* in case of unrecognized leaves, Graphene returns info for highest basic information leaf */
-    struct regs r = {0, };
+    struct regs r;
+    set_dummy_regs(&r);
 
-    cpuid(0x13, 0x00, &r);
-    /* we don't care about return values, just check that they are not all-zeros */
-    if (!r.eax && !r.ebx && !r.ecx && !r.edx)
+    cpuid(0x13, 0x0, &r);
+    /* return values may be anything (including all-zeros), so just check that it's not dummy */
+    if (are_dummy_regs(&r))
         abort();
 }
 
 static void test_cpuid_leaf_invalid(void) {
     /* Graphene returns all zeros for CPUID leaves 0x40000000 - 0x4FFFFFFF ("no virtualization") */
-    struct regs r = {0, };
+    struct regs r;
+    set_dummy_regs(&r);
 
-    cpuid(0x40000000, 0x00, &r); /* subleaf value doesn't matter */
+    cpuid(0x40000000, 0x0, &r); /* subleaf value doesn't matter */
     if (r.eax || r.ebx || r.ecx || r.edx)
         abort();
-    memset(&r, 0, sizeof(r));
+    set_dummy_regs(&r);
 
     cpuid(0x4FFFFFFF, 0x42, &r); /* subleaf value doesn't matter */
     if (r.eax || r.ebx || r.ecx || r.edx)
