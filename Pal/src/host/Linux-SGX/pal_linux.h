@@ -102,9 +102,6 @@ void init_tsc(void);
 int init_enclave(void);
 void init_untrusted_slab_mgr(void);
 
-/* exchange and establish a 256-bit session key */
-int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
-
 /* master key for all enclaves of one application, populated by the first enclave and inherited by
  * all other enclaves (children, their children, etc.); used as master key in pipes' encryption */
 extern PAL_SESSION_KEY g_master_key;
@@ -129,35 +126,47 @@ int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t
                    sgx_report_t* report);
 
 /*!
- * \brief Verify the remote enclave during SGX local attestation.
+ * \brief Verify the peer enclave during SGX local attestation.
  *
- * Verifies that the MR_ENCLAVE of the remote enclave is the same as ours (all Graphene enclaves
- * with the same configuration have the same MR_ENCLAVE), and that the signer of the SGX report is
- * the owner of the newly established session key.
+ * Verifies that the MR_ENCLAVE of the peer enclave is the same as ours (all Graphene enclaves with
+ * the same configuration have the same MR_ENCLAVE), and that the signer of the SGX report is the
+ * owner of the newly established session key.
  *
- * \param  session key  Newly established session key between this enclave and remote enclave.
- * \param  mr_enclave   MR_ENCLAVE of the remote enclave received in its SGX report.
- * \param  remote_data  Remote enclave's SGX report data, contains hash of the session key.
+ * \param  mr_enclave     MR_ENCLAVE of the peer enclave received in its SGX report.
+ * \param  expected_data  Expected SGX report data, contains SHA256(K_e || tag1).
+ * \param  peer_data      Peer enclave's SGX report data, contains SHA256(K_e || tag2).
  * \return 0 on success, negative error code otherwise.
  */
-bool is_remote_enclave_ok(const PAL_SESSION_KEY* session_key, sgx_measurement_t* mr_enclave,
-                          sgx_report_data_t* remote_data);
+bool is_peer_enclave_ok(sgx_measurement_t* mr_enclave, sgx_report_data_t* expected_data,
+                        sgx_report_data_t* peer_data);
+
+/* perform Diffie-Hellman to establish a session key and also produce a hash over (K_e || tag1) for
+ * parent enclave A and a hash over (K_e || tag2) for child enclave B */
+int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* out_key,
+                         sgx_report_data_t* out_parent_report_data,
+                         sgx_report_data_t* out_child_report_data);
+
 /*!
  * \brief Request a local report on an RPC stream (typically called by parent enclave).
  *
  * \param  stream           Stream handle for sending and receiving messages.
- * \param  sgx_report_data  User-defined data to embed into outbound SGX report.
+ * \param  my_report_data   User-defined data to embed into outgoing SGX report.
+ * \param  peer_report_data User-defined data expected in the incoming SGX report.
  * \return 0 on success, negative error code otherwise.
  */
-int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data);
+int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* my_report_data,
+                           sgx_report_data_t* peer_report_data);
+
 /*!
  * \brief Respond with a local report on an RPC stream (typically called by child enclave).
  *
- * \param  stream  stream handle for sending and receiving messages.
- * \param  sgx_report_data  User-defined data to embed into outbound SGX report.
+ * \param  stream           Stream handle for sending and receiving messages.
+ * \param  my_report_data   User-defined data to embed into outgoing SGX report.
+ * \param  peer_report_data User-defined data expected in the incoming SGX report.
  * \return 0 on success, negative error code otherwise.
  */
-int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data);
+int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* my_report_data,
+                           sgx_report_data_t* peer_report_data);
 
 int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* session_key,
                         LIB_SSL_CONTEXT** out_ssl_ctx, const uint8_t* buf_load_ssl_ctx,

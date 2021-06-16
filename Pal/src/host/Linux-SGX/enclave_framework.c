@@ -15,6 +15,9 @@
 #include "spinlock.h"
 #include "toml.h"
 
+#define LOCAL_ATTESTATION_TAG_PARENT_STR "GRAPHENE_LOCAL_ATTESTATION_TAG_PARENT"
+#define LOCAL_ATTESTATION_TAG_CHILD_STR "GRAPHENE_LOCAL_ATTESTATION_TAG_CHILD"
+
 void* g_enclave_base;
 void* g_enclave_top;
 
@@ -171,7 +174,7 @@ int sgx_verify_report(sgx_report_t* report) {
                 (uint8_t*)&check_mac, sizeof(check_mac));
 
     // Clear the report key for security
-    memset(&report_key, 0, sizeof(report_key));
+    erase_memory(&report_key, sizeof(report_key));
 
     log_debug("Verify report:");
     print_report(report);
@@ -956,95 +959,129 @@ int init_enclave(void) {
     return 0;
 }
 
-int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
-    uint8_t pub[DH_SIZE];
-    uint8_t agree[DH_SIZE];
-    PAL_NUM pubsz, agreesz;
+static int hash_over_session_key(const PAL_SESSION_KEY* session_key, const char* tag,
+                                 size_t tag_size, sgx_report_data_t* out_hash) {
+    int ret;
+    LIB_SHA256_CONTEXT sha;
+
+    /* SGX report data is 64B in size, but SHA256 hash is only 32B in size, so pad with zeros */
+    memset(out_hash, 0, sizeof(*out_hash));
+
+    ret = lib_SHA256Init(&sha);
+    if (ret < 0)
+        return ret;
+
+    ret = lib_SHA256Update(&sha, (uint8_t*)session_key, sizeof(*session_key));
+    if (ret < 0)
+        return ret;
+
+    ret = lib_SHA256Update(&sha, (uint8_t*)tag, tag_size);
+    if (ret < 0)
+        return ret;
+
+    return lib_SHA256Final(&sha, (uint8_t*)out_hash);
+}
+
+int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* out_key,
+                         sgx_report_data_t* out_parent_report_data,
+                         sgx_report_data_t* out_child_report_data) {
+    int ret;
     LIB_DH_CONTEXT context;
-    int64_t bytes;
-    int64_t ret;
+
+    uint8_t my_public[DH_SIZE];
+    uint8_t peer_public[DH_SIZE];
+
+    size_t secret_size;
+    uint8_t secret[DH_SIZE];
 
     assert(IS_HANDLE_TYPE(stream, process));
 
+    /* perform unauthenticated DH key exchange to produce two collaterals: the session key K_e and
+     * the assymetric SHA256 hashes over K_e (for later use in SGX report's reportdata) */
     ret = lib_DhInit(&context);
-    if (ret < 0) {
-        log_error("Key Exchange: DH Init failed: %ld", ret);
-        goto out_no_final;
-    }
+    if (ret < 0)
+        return ret;
 
-    pubsz = sizeof(pub);
-    ret = lib_DhCreatePublic(&context, pub, &pubsz);
-    if (ret < 0) {
-        log_error("Key Exchange: DH CreatePublic failed: %ld", ret);
+    ret = lib_DhCreatePublic(&context, my_public, sizeof(my_public));
+    if (ret < 0)
         goto out;
-    }
 
-    assert(pubsz > 0 && pubsz <= DH_SIZE);
-    if (pubsz < DH_SIZE) {
-        /* Insert leading zero bytes if necessary. These values are big-
-         * endian, so we either need to know the length of the bignum or
-         * zero-pad at the beginning instead of the end. This code chooses
-         * to do the latter. */
-        memmove(pub + (DH_SIZE - pubsz), pub, pubsz);
-        memset(pub, 0, DH_SIZE - pubsz);
-    }
-
-    for (bytes = 0, ret = 0; bytes < DH_SIZE; bytes += ret) {
-        ret = _DkStreamWrite(stream, 0, DH_SIZE - bytes, pub + bytes, NULL, 0);
-        if (ret < 0) {
-            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
-                ret = 0;
+    for (int64_t bytes = 0, total = 0; total < (int64_t)sizeof(my_public); total += bytes) {
+        bytes = _DkStreamWrite(stream, 0, sizeof(my_public) - total, my_public + total, NULL, 0);
+        if (bytes < 0) {
+            if (bytes == -PAL_ERROR_INTERRUPTED || bytes == -PAL_ERROR_TRYAGAIN) {
+                bytes = 0;
                 continue;
             }
-            log_error("Failed to exchange the secret key via RPC: %ld", ret);
+            ret = (int)bytes;
             goto out;
         }
     }
 
-    for (bytes = 0, ret = 0; bytes < DH_SIZE; bytes += ret) {
-        ret = _DkStreamRead(stream, 0, DH_SIZE - bytes, pub + bytes, NULL, 0);
-        if (ret < 0) {
-            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
-                ret = 0;
+    for (int64_t bytes = 0, total = 0; total < (int64_t)sizeof(peer_public); total += bytes) {
+        bytes = _DkStreamRead(stream, 0, sizeof(peer_public) - total, peer_public + total, NULL, 0);
+        if (bytes < 0) {
+            if (bytes == -PAL_ERROR_INTERRUPTED || bytes == -PAL_ERROR_TRYAGAIN) {
+                bytes = 0;
                 continue;
             }
-            log_error("Failed to exchange the secret key via RPC: %ld", ret);
+            ret = (int)bytes;
+            goto out;
+        }
+        if (bytes == 0) {
+            /* peer enclave closed the connection prematurely */
+            ret = -PAL_ERROR_DENIED;
             goto out;
         }
     }
 
-    agreesz = sizeof(agree);
-    ret = lib_DhCalcSecret(&context, pub, DH_SIZE, agree, &agreesz);
-    if (ret < 0) {
-        log_error("Key Exchange: DH CalcSecret failed: %ld", ret);
+    secret_size = sizeof(secret);
+    ret = lib_DhCalcSecret(&context, peer_public, sizeof(peer_public), secret, &secret_size);
+    if (ret < 0)
         goto out;
-    }
 
-    assert(agreesz > 0 && agreesz <= sizeof(agree));
+    assert(secret_size > 0 && secret_size <= sizeof(secret));
 
-    ret = lib_HKDF_SHA256(agree, agreesz, /*salt=*/NULL, /*salt_size=*/0, /*info=*/NULL,
-                          /*info_size=*/0, (uint8_t*)key, sizeof(*key));
-    if (ret < 0) {
-        log_error("Failed to derive the session key: %ld", ret);
+    /* derive the session key K_e using HKDF-SHA256 */
+    ret = lib_HKDF_SHA256(secret, secret_size, /*salt=*/NULL, /*salt_size=*/0, /*info=*/NULL,
+                          /*info_size=*/0, (uint8_t*)out_key, sizeof(*out_key));
+    if (ret < 0)
         goto out;
-    }
 
-    log_debug("Key exchange succeeded: %s", ALLOCA_BYTES2HEXSTR(*key));
+    /* calculate SHA256(K_e || tag1) / SHA256(K_e || tag2) for use in SGX report's reportdata
+     * -- as a proof of key identity during subsequent SGX local attestation; note that parent
+     *  enclave A uses the hash (K_e || tag1) and child enclave B uses the hash (K_e || tag2) --
+     *  this is to prevent reflection/interleaving attacks */
+    ret = hash_over_session_key(out_key, LOCAL_ATTESTATION_TAG_PARENT_STR,
+                                sizeof(LOCAL_ATTESTATION_TAG_PARENT_STR), out_parent_report_data);
+    if (ret < 0)
+        goto out;
+
+    ret = hash_over_session_key(out_key, LOCAL_ATTESTATION_TAG_CHILD_STR,
+                                sizeof(LOCAL_ATTESTATION_TAG_CHILD_STR), out_child_report_data);
+    if (ret < 0)
+        goto out;
+
+    log_debug("Key exchange succeeded");
     ret = 0;
 out:
+    /* scrub all temporary buffers */
+    erase_memory(&secret, sizeof(secret));
+    erase_memory(&my_public, sizeof(my_public));
+    erase_memory(&peer_public, sizeof(peer_public));
     lib_DhFinal(&context);
-out_no_final:
+
     return ret;
 }
 
 /*
  * Initalize the request of local report exchange.
  *
- * We refer to this enclave as A and to the other enclave as B, e.g., A is this
- * parent enclave and B is the child enclave in the fork case (for more info,
- * see comments in db_process.c).
+ * We refer to this enclave as A and to the other enclave as B, e.g., A is this parent enclave and B
+ * is the child enclave in the fork case (for more info, see comments in db_process.c).
  */
-int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data) {
+int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* my_report_data,
+                           sgx_report_data_t* peer_report_data) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1093,8 +1130,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
         goto out;
     }
 
-    if (!is_remote_enclave_ok(&stream->process.session_key, &report.body.mr_enclave,
-                              &report.body.report_data)) {
+    if (!is_peer_enclave_ok(&report.body.mr_enclave, peer_report_data, &report.body.report_data)) {
         log_error("Not an allowed enclave (mr_enclave = %s)",
                   ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
@@ -1107,7 +1143,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
     memcpy(&target_info.mr_enclave, &report.body.mr_enclave, sizeof(sgx_measurement_t));
     memcpy(&target_info.attributes, &report.body.attributes, sizeof(sgx_attributes_t));
 
-    ret = sgx_get_report(&target_info, sgx_report_data, &report);
+    ret = sgx_get_report(&target_info, my_report_data, &report);
     if (ret < 0) {
         log_error("Failed to get local report from CPU: %ld", ret);
         goto out;
@@ -1135,11 +1171,11 @@ out:
 /*
  * Respond to the request of local report exchange.
  *
- * We refer to this enclave as B and to the other enclave as A, e.g., B is this
- * child enclave and A is the parent enclave in the fork case (for more info,
- * see comments in db_process.c).
+ * We refer to this enclave as B and to the other enclave as A, e.g., B is this child enclave and A
+ * is the parent enclave in the fork case (for more info, see comments in db_process.c).
  */
-int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data) {
+int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* my_report_data,
+                           sgx_report_data_t* peer_report_data) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1164,7 +1200,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
     }
 
     /* B -> A: report[B -> A] */
-    ret = sgx_get_report(&target_info, sgx_report_data, &report);
+    ret = sgx_get_report(&target_info, my_report_data, &report);
     if (ret < 0) {
         log_error("Failed to get local report from CPU: %ld", ret);
         goto out;
@@ -1205,8 +1241,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
         goto out;
     }
 
-    if (!is_remote_enclave_ok(&stream->process.session_key, &report.body.mr_enclave,
-                              &report.body.report_data)) {
+    if (!is_peer_enclave_ok(&report.body.mr_enclave, peer_report_data, &report.body.report_data)) {
         log_error("Not an allowed enclave (mr_enclave = %s)",
                   ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
