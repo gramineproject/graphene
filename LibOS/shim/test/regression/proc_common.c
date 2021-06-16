@@ -53,6 +53,14 @@ int main(int argc, char** argv) {
         if (dump_path("/proc") < 0)
             return 1;
 
+        /* Currently remote processes are not listed under "/proc", but their metadata is still
+         * accessible. */
+        char buf[0x20];
+        snprintf(buf, sizeof(buf), "/proc/%u", getppid());
+        if (dump_path(buf) < 0) {
+            return 1;
+        }
+
         return 0;
     }
 

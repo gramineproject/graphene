@@ -71,11 +71,7 @@ int init_ipc(void) {
         return -ENOMEM;
     }
 
-    int ret = 0;
-    if ((ret = init_ns_ranges()) < 0)
-        return ret;
-
-    return 0;
+    return init_ipc_ids();
 }
 
 static void get_ipc_connection(struct shim_ipc_connection* conn) {
@@ -336,30 +332,6 @@ out:
     }
     return ret;
 }
-
-int request_leader_connect_back(void) {
-    IDTYPE leader = g_process_ipc_ids.leader_vmid;
-    assert(leader);
-
-    size_t total_msg_size = get_ipc_msg_size(0);
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_MSG_CONNBACK, total_msg_size);
-
-    log_debug("sending IPC_MSG_CONNBACK message to %u\n", leader);
-
-    return ipc_send_msg_and_get_response(leader, msg, /*resp=*/NULL);
-}
-
-int ipc_connect_back_callback(IDTYPE src, void* data, uint64_t seq) {
-    __UNUSED(data);
-    /* Send back an empty response. */
-    size_t total_msg_size = get_ipc_msg_size(0);
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_response(msg, seq, total_msg_size);
-    log_debug("Sending empty connect back response to: %u\n", src);
-    return ipc_send_message(src, msg);
-}
-
 
 int ipc_broadcast(struct shim_ipc_msg* msg, IDTYPE exclude_id) {
     lock(&g_ipc_connections_lock);

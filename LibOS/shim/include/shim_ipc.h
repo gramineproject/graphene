@@ -17,18 +17,14 @@
 #include "shim_thread.h"
 #include "shim_types.h"
 
-#define RANGE_SIZE 32
-
 enum {
     IPC_MSG_RESP = 0,
-    IPC_MSG_CONNBACK,      /*!< Request for establishing a connection to the sender. */
-    IPC_MSG_CHILDEXIT,
-    IPC_MSG_LEASE,
-    IPC_MSG_SUBLEASE,
-    IPC_MSG_QUERY,
-    IPC_MSG_QUERYALL,
+    IPC_MSG_CHILDEXIT,          /*!< Child exit/death information. */
+    IPC_MSG_ALLOC_ID_RANGE,     /*!< Request new IDs range. */
+    IPC_MSG_RELEASE_ID_RANGE,   /*!< Release IDs range. */
+    IPC_MSG_CHANGE_ID_OWNER,    /*!< Change the owner of an ID. */
+    IPC_MSG_GET_ID_OWNER,       /*!< Find the owner of an ID. */
     IPC_MSG_PID_KILL,
-    IPC_MSG_PID_GETSTATUS,
     IPC_MSG_PID_GETMETA,
     IPC_MSG_SYNC_REQUEST_UPGRADE,
     IPC_MSG_SYNC_REQUEST_DOWNGRADE,
@@ -52,8 +48,7 @@ extern IDTYPE g_self_vmid;
 extern struct shim_ipc_ids g_process_ipc_ids;
 
 int init_ipc(void);
-int init_ns_ranges(void);
-int init_ns_pid(void);
+int init_ipc_ids(void);
 
 /*!
  * \brief Initialize the IPC worker thread
@@ -79,20 +74,6 @@ int connect_to_process(IDTYPE dest);
  * to a message sent to \p dest, it is woken up and notified about the disconnect.
  */
 void remove_outgoing_ipc_connection(IDTYPE dest);
-/*!
- * \brief Request the IPC leader to open a one-way connection to this process
- *
- * This makes sure that the IPC leader has an open connection to this process and includes it in all
- * broadcast IPC messages.
- */
-int request_leader_connect_back(void);
-/*!
- * \brief Callback for an IPC connection request
- *
- * Parameters as per IPC callback interface.
- * See also: #request_leader_connect_back
- */
-int ipc_connect_back_callback(IDTYPE src, void* data, uint64_t seq);
 
 struct ipc_msg_header {
     size_t size;
@@ -103,7 +84,7 @@ struct ipc_msg_header {
 struct shim_ipc_msg {
     struct ipc_msg_header header;
     char data[];
-};
+} __attribute__((packed));
 
 static inline size_t get_ipc_msg_size(size_t payload) {
     return sizeof(struct shim_ipc_msg) + payload;
@@ -158,26 +139,6 @@ int ipc_broadcast(struct shim_ipc_msg* msg, IDTYPE exclude_vmid);
  */
 int ipc_response_callback(IDTYPE src, void* data, uint64_t seq);
 
-/* common functions for pid & sysv namespaces */
-int add_ipc_subrange(IDTYPE idx, IDTYPE owner);
-IDTYPE allocate_ipc_id(IDTYPE min, IDTYPE max);
-void release_ipc_id(IDTYPE idx);
-
-/*!
- * \brief Find owner of a given id
- *
- * \param idx id to find owner of
- * \parami[out] owner contains vmid of the process owning \p idx.
- */
-int find_owner(IDTYPE idx, IDTYPE* owner);
-
-struct ipc_ns_offered {
-    IDTYPE base;
-    IDTYPE size;
-    IDTYPE owner;
-} __attribute__((packed));
-
-/* CLD_EXIT: process exit */
 struct shim_ipc_cld_exit {
     IDTYPE ppid, pid;
     IDTYPE uid;
@@ -189,41 +150,60 @@ int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback(IDTYPE src, void* data, uint64_t seq);
 void ipc_child_disconnect_callback(IDTYPE vmid);
 
-int ipc_lease_send(void);
-int ipc_lease_callback(IDTYPE src, void* data, uint64_t seq);
+#define MAX_RANGE_SIZE 0x20
 
-/* OFFER: offer a range of IDs */
-struct shim_ipc_offer {
-    IDTYPE base;
-    IDTYPE size;
-} __attribute__((packed));
+/*!
+ * \brief Request a new ID range from the IPC leader
+ *
+ * \param[out] out_start start of the new ID range
+ * \param[out] out_end end of the new ID range
+ *
+ * Sender becomes the owner of the returned ID range.
+ */
+int ipc_alloc_id_range(IDTYPE* out_start, IDTYPE* out_end);
+int ipc_alloc_id_range_callback(IDTYPE src, void* data, uint64_t seq);
 
-/* SUBLEASE: lease a range of IDs */
-struct shim_ipc_sublease {
-    IDTYPE tenant;
-    IDTYPE idx;
-} __attribute__((packed));
+/*!
+ * \brief Release a previously allocated ID range
+ *
+ * \param start start of the ID range
+ * \param end end of the ID range
+ *
+ * \p start and \p end must denote a full range (for details check #ipc_change_id_owner).
+ */
+int ipc_release_id_range(IDTYPE start, IDTYPE end);
+int ipc_release_id_range_callback(IDTYPE src, void* data, uint64_t seq);
 
-int ipc_sublease_send(IDTYPE tenant, IDTYPE idx);
-int ipc_sublease_callback(IDTYPE src, void* data, uint64_t seq);
+/*!
+ * \brief Change owner of an ID
+ *
+ * \param id ID to change the ownership of
+ * \param new_owner new owner of \p id
+ *
+ * This operation effectively splits an existing ID range. Each (if any) of the range parts must be
+ * later on freed separately. Example:
+ * - process1 owns range 1..10
+ * - `ipc_change_id_owner(id=5, new_owner=process2)`
+ * - now process1 owns ranges 1..4 and 6..10, process2 owns 5..5
+ * - each of these ranges must be freed separately, e.g.
+ *   `ipc_release_id_range(5, 5); ipc_release_id_range(1, 4); ipc_release_id_range(6, 10);`
+ *   is ok to do, but `ipc_release_id_range(5, 10);` is not.
+ * Theoretically speaking any process can free any range (as long as each range is freed only once),
+ * but in the current implementation a process frees only ranges it owns.
+ */
+int ipc_change_id_owner(IDTYPE id, IDTYPE new_owner);
+int ipc_change_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
 
-/* QUERY: query for a certain ID */
-struct shim_ipc_query {
-    IDTYPE idx;
-} __attribute__((packed));
-
-int ipc_query_send(IDTYPE idx);
-int ipc_query_callback(IDTYPE src, void* data, uint64_t seq);
-
-/* QUERYALL: query for all IDs */
-int ipc_queryall_send(void);
-int ipc_queryall_callback(IDTYPE src, void* data, uint64_t seq);
-
-/* ANSWER: reply to the query with my offered IDs */
-struct shim_ipc_answer {
-    size_t answers_cnt;
-    struct ipc_ns_offered answers[];
-} __attribute__((packed));
+/*!
+ * \brief Find the owner of a given id
+ *
+ * \param id id to find the owner of
+ * \param[out] out_owner contains vmid of the process owning \p id
+ *
+ * If nobody owns \p id then `0` is returned in \p out_owner.
+ */
+int ipc_get_id_owner(IDTYPE id, IDTYPE* out_owner);
+int ipc_get_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
 
 /* PID_KILL: send signal to certain pid */
 struct shim_ipc_pid_kill {
@@ -238,29 +218,6 @@ int ipc_kill_thread(IDTYPE sender, IDTYPE dest_pid, IDTYPE target, int sig);
 int ipc_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig);
 int ipc_kill_all(IDTYPE sender, int sig);
 int ipc_pid_kill_callback(IDTYPE src, void* data, uint64_t seq);
-
-/* PID_GETSTATUS: check if certain pid(s) exists */
-struct shim_ipc_pid_getstatus {
-    size_t npids;
-    IDTYPE pids[];
-};
-
-struct pid_status {
-    IDTYPE pid;
-    IDTYPE tgid;
-    IDTYPE pgid;
-} __attribute__((packed));
-
-/* PID_RETSTATUS: return status of pid(s) */
-struct shim_ipc_pid_retstatus {
-    size_t count;
-    struct pid_status status[];
-} __attribute__((packed));
-
-int ipc_pid_getstatus(IDTYPE dest, int npids, IDTYPE* pids, struct shim_ipc_pid_retstatus** status);
-int ipc_pid_getstatus_callback(IDTYPE src, void* data, uint64_t seq);
-
-int get_all_pid_status(struct pid_status** status);
 
 /* PID_GETMETA: get metadata of certain pid */
 struct shim_ipc_pid_getmeta {

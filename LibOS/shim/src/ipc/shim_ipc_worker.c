@@ -45,16 +45,14 @@ static PAL_HANDLE g_self_ipc_handle = NULL;
 
 typedef int (*ipc_callback)(IDTYPE src, void* data, uint64_t seq);
 static ipc_callback ipc_callbacks[] = {
-    [IPC_MSG_RESP]          = ipc_response_callback,
-    [IPC_MSG_CONNBACK]      = ipc_connect_back_callback,
-    [IPC_MSG_CHILDEXIT]     = ipc_cld_exit_callback,
-    [IPC_MSG_LEASE]         = ipc_lease_callback,
-    [IPC_MSG_SUBLEASE]      = ipc_sublease_callback,
-    [IPC_MSG_QUERY]         = ipc_query_callback,
-    [IPC_MSG_QUERYALL]      = ipc_queryall_callback,
-    [IPC_MSG_PID_KILL]      = ipc_pid_kill_callback,
-    [IPC_MSG_PID_GETSTATUS] = ipc_pid_getstatus_callback,
-    [IPC_MSG_PID_GETMETA]   = ipc_pid_getmeta_callback,
+    [IPC_MSG_RESP]              = ipc_response_callback,
+    [IPC_MSG_CHILDEXIT]         = ipc_cld_exit_callback,
+    [IPC_MSG_ALLOC_ID_RANGE]    = ipc_alloc_id_range_callback,
+    [IPC_MSG_RELEASE_ID_RANGE]  = ipc_release_id_range_callback,
+    [IPC_MSG_CHANGE_ID_OWNER]   = ipc_change_id_owner_callback,
+    [IPC_MSG_GET_ID_OWNER]      = ipc_get_id_owner_callback,
+    [IPC_MSG_PID_KILL]          = ipc_pid_kill_callback,
+    [IPC_MSG_PID_GETMETA]       = ipc_pid_getmeta_callback,
 
     [IPC_MSG_SYNC_REQUEST_UPGRADE]   = ipc_sync_request_upgrade_callback,
     [IPC_MSG_SYNC_REQUEST_DOWNGRADE] = ipc_sync_request_downgrade_callback,

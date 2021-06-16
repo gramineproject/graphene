@@ -29,12 +29,29 @@ static noreturn void libos_clean_and_exit(int exit_code) {
 
     struct shim_thread* async_thread = terminate_async_worker();
     if (async_thread) {
-        /* TODO: wait for the thread to exit in host.
-         * This is tracked by the following issue.
-         * https://github.com/oscarlab/graphene/issues/440
+        /* TODO: wait for the thread to finish its tasks and exit in the host OS.
+         * This is tracked by the following issue: https://github.com/oscarlab/graphene/issues/440
          */
         put_thread(async_thread);
     }
+
+    /*
+     * At this point there should be only 2 threads running: this + IPC worker.
+     * XXX: We release current thread's ID, yet we are still running. We never put the (possibly)
+     * last reference to the current thread (from TCB) and there should be no other references to it
+     * lying around, so nothing bad should happen™. Hopefully...
+     */
+    /*
+     * We might still be a zombie in the parent process. In an unlikely case that the parent does
+     * not wait for us for a long time and pids overflow (currently we can have 2**32 pids), IPC
+     * leader could give this ID to somebody else. This could be a nasty conflict.
+     * The problem is that solving this is hard: we would need to make the parent own (or at least
+     * release) our pid, but that would require "reparenting" in case the parent dies before us.
+     * Such solution would also have some nasty consequences: Graphene pid 1 (which I guess would
+     * be the new parent) might not be expecting to have more children than it spawned (normal apps
+     * do not expect that, init process is pretty special).
+     */
+    release_id(get_cur_thread()->tid);
 
     terminate_ipc_worker();
 

@@ -5,12 +5,14 @@
 
 /*
  * Implementation of `/proc/<remote-pid>`. Currently supports only `root`, `cwd` and `exe` symlinks,
- * and does not do any caching.
+ * does not support process listing (you need to know the pid in advance) and does not do any
+ * caching.
  */
 
 #include "shim_fs.h"
 #include "shim_fs_pseudo.h"
 #include "shim_ipc.h"
+#include "shim_process.h"
 
 bool proc_ipc_thread_pid_name_exists(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
@@ -19,50 +21,20 @@ bool proc_ipc_thread_pid_name_exists(struct shim_dentry* parent, const char* nam
     if (pseudo_parse_ulong(name, IDTYPE_MAX, &pid) < 0)
         return false;
 
-    int ret;
-
-    struct pid_status* status;
-    ret = get_all_pid_status(&status);
-    if (ret < 0)
+    if (pid == g_process.pid) {
+        /* This function should report only remote processes. */
         return false;
+    }
 
-    size_t status_num = ret;
-    bool found = false;
-    for (size_t i = 0; i < status_num; i++)
-        if (status[i].pid == status[i].tgid && status[i].pid == pid) {
-            found = true;
-            break;
-        }
-
-    free(status);
-    return found;
-}
-
-int proc_ipc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback,
-                                   void* arg) {
-    __UNUSED(parent);
-
-    int ret;
-
-    struct pid_status* status;
-    ret = get_all_pid_status(&status);
-    if (ret < 0)
-        return ret;
-
-    size_t status_num = ret;
-    for (size_t i = 0; i < status_num; i++)
-        if (status[i].pid == status[i].tgid) {
-            char name[11];
-            snprintf(name, sizeof(name), "%u", status[i].pid);
-            ret = callback(name, arg);
-            if (ret < 0)
-                goto out;
-        }
-
-    ret = 0;
-out:
-    free(status);
-    return ret;
+    /* Send a dummy request to check whether `pid` exists. */
+    struct shim_ipc_pid_retmeta* retmeta = NULL;
+    int ret = ipc_pid_getmeta(pid, PID_META_CRED, &retmeta);
+    if (ret < 0) {
+        /* FIXME: this silences all errors. */
+        return false;
+    }
+    free(retmeta);
+    return true;
 }
 
 int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** out_target) {

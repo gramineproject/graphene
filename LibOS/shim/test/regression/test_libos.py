@@ -210,14 +210,14 @@ class TC_01_Bootstrap(RegressionTestCase):
         stdout, _ = self.run_binary(['multi_pthread'])
 
         # Multiple thread creation
-        self.assertIn('128 Threads Created', stdout)
+        self.assertIn('256 Threads Created', stdout)
 
     @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
     def test_601_multi_pthread_exitless(self):
         stdout, _ = self.run_binary(['multi_pthread_exitless'], timeout=60)
 
         # Multiple thread creation
-        self.assertIn('128 Threads Created', stdout)
+        self.assertIn('256 Threads Created', stdout)
 
     def test_602_fp_multithread(self):
         stdout, _ = self.run_binary(['fp_multithread'])
@@ -634,8 +634,7 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('/proc/2/task/33/fd/1: link: /dev/tty', lines)
         self.assertIn('/proc/2/task/33/fd/2: link: /dev/tty', lines)
 
-        # /proc/[ipc-pid]
-        self.assertIn('/proc/1: directory', lines)
+        # /proc/[ipc-pid]/*
         self.assertIn('/proc/1/cwd: link: /', lines)
         self.assertIn('/proc/1/exe: link: /proc_common', lines)
         self.assertIn('/proc/1/root: link: /', lines)
