@@ -791,7 +791,7 @@ int get_all_pid_status(struct pid_status** status) {
     ipc_queryall_send();
 
     size_t statuses_cnt = 0;
-    size_t bufsize = sizeof(struct pid_status) * RANGE_SIZE;
+    size_t bufsize = RANGE_SIZE;
 
     struct pid_status* status_buf = malloc(bufsize * sizeof(status_buf[0]));
     if (!status_buf)
