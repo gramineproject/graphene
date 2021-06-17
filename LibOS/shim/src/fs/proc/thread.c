@@ -283,6 +283,7 @@ static char* describe_handle(struct shim_handle* hdl) {
         case TYPE_SOCK:    str = "sock:[?]";    break;
         case TYPE_EPOLL:   str = "epoll:[?]";   break;
         case TYPE_EVENTFD: str = "eventfd:[?]"; break;
+        default:           str = "unknown:[?]"; break;
     }
     return strdup(str);
 }
