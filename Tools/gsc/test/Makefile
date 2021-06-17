@@ -5,7 +5,7 @@ MAXTESTNUM ?= 11
 TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 
 GRAPHENE_REPO ?= https://github.com/oscarlab/graphene.git
-GRAPHENE_BRANCH ?= master
+GRAPHENE_BRANCH ?= "2e737e69f076c60918f87d6829bb769925e75fec" # last working commit
 
 # the below default values assume Linux 5.11+ with built-in SGX driver; see ../config.yaml.template
 # for different options (legacy driver, out-of-tree DCAP driver, in-kernel driver)

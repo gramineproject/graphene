@@ -1,4 +1,4 @@
-libos.entrypoint = "/{{binary}}"
+libos.entrypoint = "file:/{{binary}}"
 loader.preload = "file:/graphene/Runtime/libsysdb.so"
 
 loader.env.LD_LIBRARY_PATH = "/graphene/Runtime:{{"{{library_paths}}"}}"
@@ -12,14 +12,14 @@ fs.root.uri = "file:/"
 # Graphene's default working dir is '/', so change the working directory to the desired one
 fs.start_dir = "{{working_dir}}"
 
-sgx.nonpie_binary = true
+sgx.nonpie_binary = 1
 
 {% if insecure_args %}
 # !! INSECURE !! Allow passing command-line arguments from the host without validation.
 # Most Docker images rely on runtime arguments and hence, a more general technique is required.
 # The issue is documented at https://github.com/oscarlab/graphene/issues/1520.
 loader.argv0_override = "{{binary}}"
-loader.insecure__use_cmdline_argv = true
+loader.insecure__use_cmdline_argv = 1
 {% else %}
 loader.argv_src_file = "file:/trusted_argv"
 sgx.trusted_files.trusted_argv = "file:/trusted_argv"

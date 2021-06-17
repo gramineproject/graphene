@@ -6,7 +6,7 @@ Distro: "ubuntu18.04"
 # below; typically, you want to keep the default values though
 Graphene:
     Repository: "https://github.com/oscarlab/graphene.git"
-    Branch:     "master"
+    Branch:     "2e737e69f076c60918f87d6829bb769925e75fec" # last working commit
 
 # Specify the Intel SGX driver installed on your machine (more specifically, on the machine where
 # the graphenized Docker container will run); there are several variants of the SGX driver:

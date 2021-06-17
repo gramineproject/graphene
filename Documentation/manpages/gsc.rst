@@ -9,6 +9,13 @@
     see `issue #1520 <https://github.com/oscarlab/graphene/issues/1520>`__ for a
     description of missing features and security caveats.
 
+.. warning::
+    GSC is currently set to a version of Graphene from 26. May, 2021 (commit
+    2e737e69f076c60918f87d6829bb769925e75fec). This means that GSC does *not*
+    track the latest Graphene and does not incorporate the latest changes and
+    bug fixes. This is a temporary limitation and will be fixed around July
+    2021.
+
 Synopsis
 ========
 
