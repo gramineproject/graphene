@@ -15,8 +15,9 @@
 int proc_ipc_thread_pid_match_name(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
 
-    IDTYPE pid;
-    if (parse_uint(name, &pid) < 0)
+    unsigned long pid;
+    const char* end;
+    if (str_to_ulong(name, 10, &pid, &end) < 0 || *end != '\0' || pid > IDTYPE_MAX)
         return -ENOENT;
 
     int ret;
@@ -73,8 +74,9 @@ int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** target) {
     const char* parent_name = qstrgetstr(&dent->parent->name);
     const char* name = qstrgetstr(&dent->name);
 
-    IDTYPE pid;
-    if (parse_uint(parent_name, &pid) < 0)
+    unsigned long pid;
+    const char* end;
+    if (str_to_ulong(parent_name, 10, &pid, &end) < 0 || *end != '\0' || pid > IDTYPE_MAX)
         return -ENOENT;
 
     enum pid_meta_code ipc_code;

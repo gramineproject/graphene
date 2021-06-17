@@ -161,8 +161,9 @@ int proc_thread_cmdline_load(struct shim_dentry* dent, char** data, size_t* size
 int proc_thread_pid_match_name(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
 
-    IDTYPE pid;
-    if (parse_uint(name, &pid) < 0)
+    unsigned long pid;
+    const char* end;
+    if (str_to_ulong(name, 10, &pid, &end) < 0 || *end != '\0' || pid > IDTYPE_MAX)
         return -ENOENT;
 
     if (pid != g_process.pid)
@@ -186,8 +187,9 @@ int proc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t ca
 int proc_thread_tid_match_name(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
 
-    IDTYPE tid;
-    if (parse_uint(name, &tid) < 0)
+    unsigned long tid;
+    const char* end;
+    if (str_to_ulong(name, 10, &tid, &end) < 0 || *end != '\0' || tid > IDTYPE_MAX)
         return -ENOENT;
 
     struct shim_thread* thread = lookup_thread(tid);
@@ -231,8 +233,9 @@ int proc_thread_tid_list_names(struct shim_dentry* parent, readdir_callback_t ca
 
 int proc_thread_fd_match_name(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
-    unsigned int fd;
-    if (parse_uint(name, &fd) < 0)
+    unsigned long fd;
+    const char* end;
+    if (str_to_ulong(name, 10, &fd, &end) < 0 || *end != '\0' || fd > FDTYPE_MAX)
         return -EINVAL;
 
     struct shim_handle_map* handle_map = get_thread_handle_map(NULL);
@@ -289,8 +292,9 @@ static char* describe_handle(struct shim_handle* hdl) {
 }
 
 int proc_thread_fd_follow_link(struct shim_dentry* dent, char** target) {
-    unsigned int fd;
-    if (parse_uint(qstrgetstr(&dent->name), &fd) < 0)
+    unsigned long fd;
+    const char* end;
+    if (str_to_ulong(qstrgetstr(&dent->name), 10, &fd, &end) < 0 || *end != '\0' || fd > FDTYPE_MAX)
         return -EINVAL;
 
     struct shim_handle_map* handle_map = get_thread_handle_map(NULL);

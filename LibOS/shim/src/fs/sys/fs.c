@@ -38,8 +38,9 @@ static int sys_resource(struct shim_dentry* parent, const char* name, readdir_ca
         if (!strstartswith(name, prefix))
             return -ENOENT;
         size_t prefix_len = strlen(prefix);
-        unsigned int n;
-        if (parse_uint(&name[prefix_len], &n) < 0)
+        unsigned long n;
+        const char* end;
+        if (str_to_ulong(&name[prefix_len], 10, &n, &end) < 0 || *end != '\0')
             return -ENOENT;
         if (n >= (unsigned int)total)
             return -ENOENT;
