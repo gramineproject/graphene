@@ -321,7 +321,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
     assert(tf);
 
     if (create && !tf->allowed) {
-        log_error("Trying to create/write/append an already-created trusted '%s'\n", uri);
+        log_error("Trying to create/write/append an already-created trusted file '%s'\n", uri);
         ret = -PAL_ERROR_DENIED;
         goto out_free;
     }
