@@ -34,7 +34,7 @@ static size_t g_target_info_size = 0;
 
 static size_t g_report_size = 0;
 
-#define PF_KEY_HEX_SIZE (32 + 1)
+#define PF_KEY_HEX_SIZE 32
 static char g_pf_key_hex[PF_KEY_HEX_SIZE] = {0};
 
 static int init_attestation_struct_sizes(void) {
@@ -242,7 +242,7 @@ static int quote_load(struct shim_dentry* dent, char** data, size_t* size) {
 static int pfkey_load(struct shim_dentry* dent, char** data, size_t* size) {
     __UNUSED(dent);
 
-    size_t _size = strlen(g_pf_key_hex);
+    size_t _size = sizeof(g_pf_key_hex);
     char* pf_key_hex = malloc(_size);
     if (!pf_key_hex)
         return -ENOMEM;
@@ -265,30 +265,28 @@ static int pfkey_load(struct shim_dentry* dent, char** data, size_t* size) {
 static int pfkey_save(struct shim_dentry* dent, const char* data, size_t size) {
     __UNUSED(dent);
 
-    char buffer[PF_KEY_HEX_SIZE];
-    static_assert(sizeof(buffer) == sizeof(g_pf_key_hex), "buffer size mismatch");
+    if (size != PF_KEY_HEX_SIZE)
+        return -EINVAL;
 
-    update_buffer(buffer, PF_KEY_HEX_SIZE - 1, data, size);
-    buffer[PF_KEY_HEX_SIZE - 1] = '\0';
-
+    /* Build a null-terminated string and pass it to `DkSetProtectedFilesKey`. */
+    char buffer[PF_KEY_HEX_SIZE + 1];
+    memcpy(buffer, data, PF_KEY_HEX_SIZE);
+    buffer[PF_KEY_HEX_SIZE] = '\0';
     int ret = DkSetProtectedFilesKey(&buffer);
     if (ret < 0)
         return -EACCES;
 
-    memcpy(g_pf_key_hex, buffer, sizeof(g_pf_key_hex));
+    memcpy(g_pf_key_hex, data, PF_KEY_HEX_SIZE);
     return 0;
 }
 
 int init_attestation(struct pseudo_node* dev) {
     if (strcmp(g_pal_control->host_type, "Linux-SGX")) {
-        log_debug("host is not Linux-SGX, skipping /dev/attestation setup");
+        log_debug("host is not Linux-SGX, skipping /dev/attestation setup\n");
         return 0;
     }
 
     struct pseudo_node* attestation = pseudo_add_dir(dev, "attestation");
-
-    g_user_report_data_size = USER_REPORT_DATA_MAX_SIZE;
-    g_target_info_size = TARGET_INFO_MAX_SIZE;
 
     struct pseudo_node* user_report_data = pseudo_add_str(attestation, "user_report_data", NULL);
     user_report_data->perm = PSEUDO_PERM_FILE_RW;

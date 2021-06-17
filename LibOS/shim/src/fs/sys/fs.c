@@ -8,12 +8,14 @@
  * its sub-directories.
  */
 
+#include <limits.h>
+
 #include "shim_fs.h"
 #include "shim_fs_pseudo.h"
 #include "stat.h"
 
-static int sys_resource(struct shim_dentry* parent, const char* name, readdir_callback_t callback,
-                      void* arg) {
+static int sys_resource(struct shim_dentry* parent, const char* name, unsigned int* num,
+                        readdir_callback_t callback, void* arg) {
     const char* parent_name = qstrgetstr(&parent->name);
     int total;
     const char* prefix;
@@ -40,11 +42,14 @@ static int sys_resource(struct shim_dentry* parent, const char* name, readdir_ca
         size_t prefix_len = strlen(prefix);
         unsigned long n;
         const char* end;
-        if (str_to_ulong(&name[prefix_len], 10, &n, &end) < 0 || *end != '\0')
+        if (str_to_ulong(&name[prefix_len], 10, &n, &end) < 0 || *end != '\0' || n > UINT_MAX)
             return -ENOENT;
         if (n >= (unsigned int)total)
             return -ENOENT;
-        return n;
+
+        if (num)
+            *num = n;
+        return 0;
     } else {
         for (unsigned int i = 0; i < (unsigned int)total; i++) {
             char ent_name[42];
@@ -57,12 +62,14 @@ static int sys_resource(struct shim_dentry* parent, const char* name, readdir_ca
     }
 }
 
-int sys_resource_find(struct shim_dentry* dent, const char* name) {
+int sys_resource_find(struct shim_dentry* dent, const char* name, unsigned int* num) {
     struct shim_dentry* parent = dent->parent;
     while (parent) {
         const char* parent_name = qstrgetstr(&parent->name);
-        if (strcmp(parent_name, name) == 0)
-            return sys_resource(parent, qstrgetstr(&dent->name), /*callback=*/NULL, /*arg=*/NULL);
+        if (strcmp(parent_name, name) == 0) {
+            return sys_resource(parent, qstrgetstr(&dent->name), num, /*callback=*/NULL,
+                                /*arg=*/NULL);
+        }
 
         dent = parent;
         parent = parent->parent;
@@ -71,26 +78,26 @@ int sys_resource_find(struct shim_dentry* dent, const char* name) {
 }
 
 int sys_resource_match_name(struct shim_dentry* parent, const char* name) {
-    int ret = sys_resource(parent, name, /*callback=*/NULL, /*arg=*/NULL);
-    if (ret < 0)
-        return ret;
-    return 0;
+    return sys_resource(parent, name, /*num=*/NULL, /*callback=*/NULL, /*arg=*/NULL);
 }
 
 int sys_resource_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
-    return sys_resource(parent, /*name=*/NULL, callback, arg);
+    return sys_resource(parent, /*name=*/NULL, /*num=*/NULL, callback, arg);
 }
 
 int sys_load(const char* str, char** data, size_t* size) {
     assert(str);
-    char* _data = strdup(str);
+
+    /* Use the string (without null terminator) as file data */
+    size_t _size = strlen(str);
+    char* _data = malloc(_size);
     if (!_data)
         return -ENOMEM;
+    memcpy(_data, str, _size);
     *data = _data;
-    *size = strlen(_data);
+    *size = _size;
     return 0;
 }
-
 
 static void init_cpu_dir(struct pseudo_node* cpu) {
     pseudo_add_str(cpu, "online", &sys_cpu_general_load);
@@ -100,7 +107,8 @@ static void init_cpu_dir(struct pseudo_node* cpu) {
     cpuX->match_name = &sys_resource_match_name;
     cpuX->list_names = &sys_resource_list_names;
 
-    /* `cpu/cpuX/online` is not present for cpu0 */
+    /* Create a node for `cpu/cpuX/online`. We provide name callbacks instead of a hardcoded name,
+     * because we want the file to exist for all CPUs *except* `cpu0`. */
     struct pseudo_node* online = pseudo_add_str(cpuX, NULL, &sys_cpu_load);
     online->match_name = &sys_cpu_online_match_name;
     online->list_names = &sys_cpu_online_list_names;

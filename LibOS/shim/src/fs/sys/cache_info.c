@@ -13,13 +13,17 @@
 #include "shim_fs_pseudo.h"
 
 int sys_cache_load(struct shim_dentry* dent, char** data, size_t* size) {
-    int cache_num = sys_resource_find(dent, "cache");
-    if (cache_num < 0)
-        return cache_num;
+    int ret;
 
-    int cpu_num = sys_resource_find(dent, "cpu");
-    if (cpu_num < 0)
-        return cpu_num;
+    unsigned int cache_num;
+    ret = sys_resource_find(dent, "cache", &cache_num);
+    if (ret < 0)
+        return ret;
+
+    unsigned int cpu_num;
+    ret = sys_resource_find(dent, "cpu", &cpu_num);
+    if (ret < 0)
+        return ret;
 
     const char* name = qstrgetstr(&dent->name);
     PAL_CORE_CACHE_INFO* cache = &g_pal_control->topo_info.core_topology[cpu_num].cache[cache_num];
@@ -39,7 +43,7 @@ int sys_cache_load(struct shim_dentry* dent, char** data, size_t* size) {
     } else if (strcmp(name, "physical_line_partition") == 0) {
         str = cache->physical_line_partition;
     } else {
-        log_debug("Unrecognized file: %s\n", name);
+        log_debug("unrecognized file: %s\n", name);
         return -ENOENT;
     }
 

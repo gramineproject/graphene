@@ -29,9 +29,11 @@ int sys_cpu_general_load(struct shim_dentry* dent, char** data, size_t* size) {
 }
 
 int sys_cpu_load(struct shim_dentry* dent, char** data, size_t* size) {
-    int cpu_num = sys_resource_find(dent, "cpu");
-    if (cpu_num < 0)
-        return cpu_num;
+    int ret;
+    unsigned int cpu_num;
+    ret = sys_resource_find(dent, "cpu", &cpu_num);
+    if (ret < 0)
+        return ret;
 
     const char* name = qstrgetstr(&dent->name);
     PAL_CORE_TOPO_INFO* core_topology = &g_pal_control->topo_info.core_topology[cpu_num];
@@ -63,9 +65,11 @@ int sys_cpu_online_match_name(struct shim_dentry* parent, const char* name) {
     if (strcmp(name, "online") != 0)
         return -ENOENT;
 
-    int cpu_num = sys_resource_find(parent, "cpu");
-    if (cpu_num < 0)
-        return cpu_num;
+    int ret;
+    unsigned int cpu_num;
+    ret = sys_resource_find(parent, "cpu", &cpu_num);
+    if (ret < 0)
+        return ret;
 
     if (cpu_num == 0)
         return -ENOENT;
@@ -74,12 +78,14 @@ int sys_cpu_online_match_name(struct shim_dentry* parent, const char* name) {
 }
 
 int sys_cpu_online_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
-    int cpu_num = sys_resource_find(parent, "cpu");
-    if (cpu_num < 0)
-        return cpu_num;
+    int ret;
+    unsigned int cpu_num;
+    ret = sys_resource_find(parent, "cpu", &cpu_num);
+    if (ret < 0)
+        return ret;
 
     if (cpu_num != 0) {
-        int ret = callback("online", arg);
+        ret = callback("online", arg);
         if (ret < 0)
             return ret;
     }

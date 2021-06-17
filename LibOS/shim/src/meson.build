@@ -21,8 +21,6 @@ libos_sources = files(
     'fs/chroot/fs.c',
     'fs/dev/attestation.c',
     'fs/dev/fs.c',
-    'fs/dev/null.c',
-    'fs/dev/random.c',
     'fs/eventfd/fs.c',
     'fs/pipe/fs.c',
     'fs/proc/fs.c',

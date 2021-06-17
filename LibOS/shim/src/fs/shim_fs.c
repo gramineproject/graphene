@@ -53,20 +53,28 @@ int init_fs(void) {
     if (!mount_mgr)
         return -ENOMEM;
 
+    int ret;
     if (!create_lock(&mount_mgr_lock) || !create_lock(&mount_list_lock)) {
-        destroy_mem_mgr(mount_mgr);
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto err;
     }
 
-    int ret;
     if ((ret = init_procfs()) < 0)
-        return ret;
+        goto err;
     if ((ret = init_devfs()) < 0)
-        return ret;
+        goto err;
     if ((ret = init_sysfs()) < 0)
-        return ret;
+        goto err;
 
     return 0;
+
+err:
+    destroy_mem_mgr(mount_mgr);
+    if (lock_created(&mount_mgr_lock))
+        destroy_lock(&mount_mgr_lock);
+    if (lock_created(&mount_list_lock))
+        destroy_lock(&mount_list_lock);
+    return ret;
 }
 
 static struct shim_mount* alloc_mount(void) {

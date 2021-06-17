@@ -5,7 +5,7 @@
 
 /*
  * This file defines the "pseudo" filesystem: a building block for implementing pseudo-FS's such as
- * `/proc` or `/sys`.
+ * `/proc`, `/sys` or `/dev`.
  *
  * A pseudo-filesystem is defined by creating a tree of `pseudo_node` nodes:
  *
@@ -13,18 +13,22 @@
  *     pseudo_add_link(root, "self", &proc_self_follow_link);
  *     pseudo_add_str(root, "cpuinfo", &proc_cpuinfo_load);
  *
- * It can the be mounted by providing the root name ("proc" in the example):
+ * It can then be mounted by providing the root name ("proc" in the example):
  *
  *     ret = mount_fs("pseudo", "proc", "/proc");
  *
  * See the documentation of `pseudo_node` structure for details.
+ *
+ * TODO: The pseudo filesystem currently does not implement proper invalidation for
+ * dynamically-generated directory listings (such as `/proc/<pid>`), so stale dentries might remain
+ * for files that shouldn't exist anymore.
  */
 
 #ifndef SHIM_FS_PSEUDO_H_
 #define SHIM_FS_PSEUDO_H_
 
-#include "perm.h"
 #include "list.h"
+#include "perm.h"
 #include "shim_fs.h"
 
 /* Node types */
@@ -49,7 +53,7 @@ struct shim_dev_ops {
     ssize_t (*read)(struct shim_handle* hdl, void* buf, size_t count);
     ssize_t (*write)(struct shim_handle* hdl, const void* buf, size_t count);
     int (*flush)(struct shim_handle* hdl);
-    off_t (*seek)(struct shim_handle* hdl, off_t offset, int whence);
+    int64_t (*seek)(struct shim_handle* hdl, int64_t offset, int whence);
     int (*truncate)(struct shim_handle* hdl, uint64_t len);
 };
 
@@ -171,19 +175,13 @@ int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** target);
 /* devfs */
 
 int init_devfs(void);
-ssize_t dev_null_read(struct shim_handle* hdl, void* buf, size_t count);
-ssize_t dev_null_write(struct shim_handle* hdl, const void* buf, size_t count);
-off_t dev_null_seek(struct shim_handle* hdl, off_t offset, int whence);
-int dev_null_truncate(struct shim_handle* hdl, uint64_t size);
-ssize_t dev_zero_read(struct shim_handle* hdl, void* buf, size_t count);
-ssize_t dev_random_read(struct shim_handle* hdl, void* buf, size_t count);
 int init_attestation(struct pseudo_node* dev);
 
 /* sysfs */
 
 int init_sysfs(void);
 int sys_load(const char* str, char** data, size_t* size);
-int sys_resource_find(struct shim_dentry* parent, const char* name);
+int sys_resource_find(struct shim_dentry* parent, const char* name, unsigned int* num);
 int sys_resource_match_name(struct shim_dentry* parent, const char* name);
 int sys_resource_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
 int sys_node_general_load(struct shim_dentry* dent, char** data, size_t* size);

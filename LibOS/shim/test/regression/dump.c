@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Paweł Marczewski <pawel@invisiblethingslab.com>
+ */
 
 #define _DEFAULT_SOURCE /* lstat */
 #include <dirent.h>
@@ -15,10 +19,16 @@ static int dump_dir(const char* path) {
     printf("%s: directory\n", path);
     fflush(stdout);
 
-    char buf[4096];
+    size_t buf_size = PATH_MAX;
     size_t path_len = strlen(path);
-    if (path_len + 1 >= sizeof(buf)) {
+    if (path_len + 1 >= buf_size) {
         fprintf(stderr, "path too long: %s\n", path);
+        return -1;
+    }
+
+    char* buf = malloc(buf_size);
+    if (!buf) {
+        fprintf(stderr, "out of memory\n");
         return -1;
     }
     memcpy(buf, path, path_len);
@@ -49,11 +59,13 @@ static int dump_dir(const char* path) {
             continue;
 
         size_t name_len = strlen(dirent->d_name);
-        if (path_len + 1 + name_len + 1 >= sizeof(buf)) {
+        if (path_len + 1 + name_len + 1 >= buf_size) {
             fprintf(stderr, "path too long: %s/%s", path, dirent->d_name);
             ret = -1;
             goto out;
         }
+
+        /* Copy file name and null terminator */
         memcpy(&buf[path_len + 1], dirent->d_name, name_len + 1);
         ret = dump_path(buf);
         if (ret < 0)
@@ -62,6 +74,7 @@ static int dump_dir(const char* path) {
 
     ret = 0;
 out:
+    free(buf);
     close_ret = closedir(dir);
     if (close_ret < 0)
         perror("closedir");
@@ -140,14 +153,21 @@ int dump_path(const char* path) {
                 return -1;
             break;
         case S_IFLNK: {
-            char buf[4096];
-            ssize_t n = readlink(path, buf, sizeof(buf));
+            size_t buf_size = PATH_MAX;
+            char* buf = malloc(buf_size);
+            if (!buf) {
+                fprintf(stderr, "out of memory\n");
+                return -1;
+            }
+            ssize_t n = readlink(path, buf, buf_size);
             if (n < 0) {
+                free(buf);
                 perror("readlink");
                 return -1;
             }
             printf("%s: link: %.*s\n", path, (int) n, buf);
             fflush(stdout);
+            free(buf);
             break;
         }
         case S_IFREG: {

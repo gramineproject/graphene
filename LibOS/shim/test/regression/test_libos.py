@@ -664,8 +664,20 @@ class TC_40_FileSystem(RegressionTestCase):
         stdout, _ = self.run_binary(['fdleak'], timeout=10)
         self.assertIn("Test succeeded.", stdout)
 
+    def get_num_cache_levels(self):
+        cpu0 = '/sys/devices/system/cpu/cpu0/'
+        self.assertTrue(os.path.exists(f'{cpu0}/cache/'))
+
+        n = 0
+        while os.path.exists(f'{cpu0}/cache/index{n}'):
+            n += 1
+
+        self.assertGreater(n, 0, "no information about CPU cache found")
+        return n
+
     def test_040_sysfs(self):
         num_cpus = os.cpu_count()
+        num_cache_levels = self.get_num_cache_levels()
 
         stdout, _ = self.run_binary(['sysfs_common'])
         lines = stdout.splitlines()
@@ -684,7 +696,7 @@ class TC_40_FileSystem(RegressionTestCase):
             self.assertIn(f'{cpu}/topology/core_siblings: file', lines)
             self.assertIn(f'{cpu}/topology/thread_siblings: file', lines)
 
-            for j in range(3):
+            for j in range(num_cache_levels):
                 cache = f'{cpu}/cache/index{j}'
                 self.assertIn(f'{cache}: directory', lines)
                 self.assertIn(f'{cache}/shared_cpu_map: file', lines)

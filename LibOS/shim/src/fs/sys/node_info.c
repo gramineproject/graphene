@@ -25,9 +25,11 @@ int sys_node_general_load(struct shim_dentry* dent, char** data, size_t* size) {
 }
 
 int sys_node_load(struct shim_dentry* dent, char** data, size_t* size) {
-    int node_num = sys_resource_find(dent, "node");
-    if (node_num < 0)
-        return node_num;
+    int ret;
+    unsigned int node_num;
+    ret = sys_resource_find(dent, "node", &node_num);
+    if (ret < 0)
+        return ret;
 
     const char* name = qstrgetstr(&dent->name);
     PAL_NUMA_TOPO_INFO* numa_topology = &g_pal_control->topo_info.numa_topology[node_num];
@@ -45,6 +47,7 @@ int sys_node_load(struct shim_dentry* dent, char** data, size_t* size) {
         }
     }
     if (!str) {
+        log_debug("unrecognized file: %s\n", name);
         return -ENOENT;
     }
 

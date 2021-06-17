@@ -7,10 +7,11 @@
  * This file contains implementation of the "pseudo" filesystem.
  */
 
-#include "stat.h"
 #include "perm.h"
 #include "shim_fs_pseudo.h"
 #include "shim_internal.h"
+#include "shim_lock.h"
+#include "stat.h"
 
 LISTP_TYPE(pseudo_node) g_pseudo_roots = LISTP_INIT;
 
@@ -34,39 +35,55 @@ static struct pseudo_node* pseudo_find_root(const char* name) {
  * Note that we call `pseudo_find`, instead of initializing `dent->data` once on dentry lookup,
  * because the dentry might be restored from a checkpoint. Checkpointing clears the `data` field,
  * which is actually what we want, because we are not able to send `pseudo_node` pointers across
- * processes. Instead, we retrieve the node again on first access.
+ * processes.
+ *
+ * Instead, we retrieve the node on first access to given dentry, and store it in `dent->data`. At
+ * the same time, we also retrieve and cache nodes all the way to the root (see the recursive call
+ * below).
  */
 static struct pseudo_node* pseudo_find(struct shim_dentry* dent) {
-    if (dent->data)
-        return dent->data;
+    struct pseudo_node* node;
+
+    lock(&dent->lock);
+    node = dent->data;
+    unlock(&dent->lock);
+
+    if (node)
+        return node;
 
     if (!dent->parent) {
         /* This is the filesystem root */
-        dent->data = pseudo_find_root(qstrgetstr(&dent->mount->uri));
-        return dent->data;
+        node = pseudo_find_root(qstrgetstr(&dent->mount->uri));
+        goto out;
     }
 
     const char* name = qstrgetstr(&dent->name);
 
     /* Recursive call: find the node for parent */
     struct pseudo_node* parent_node = pseudo_find(dent->parent);
-    if (!parent_node)
-        return NULL;
+    if (!parent_node) {
+        node = NULL;
+        goto out;
+    }
 
-    /* Look for a find child node with matching name */
+    /* Look for a child node with matching name */
     assert(parent_node->type == PSEUDO_DIR);
-    struct pseudo_node* node;
     LISTP_FOR_EACH_ENTRY(node, &parent_node->dir.children, siblings) {
         if (node->name && (strcmp(name, node->name) == 0)) {
-            dent->data = node;
-            return node;
+            goto out;
         }
-        if (node->match_name && node->match_name(dent->parent, name) >= 0) {
-            dent->data = node;
-            return node;
+        if (node->match_name && node->match_name(dent->parent, name) == 0) {
+            goto out;
         }
     }
-    return NULL;
+    node = NULL;
+out:
+    if (node) {
+        lock(&dent->lock);
+        dent->data = node;
+        unlock(&dent->lock);
+    }
+    return node;
 }
 
 static int pseudo_mount(const char* uri, void** mount_data) {
@@ -90,8 +107,6 @@ static int pseudo_modify(struct shim_handle* hdl) {
 }
 
 static int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
-    __UNUSED(hdl);
-    __UNUSED(flags);
     int ret;
     struct pseudo_node* node = pseudo_find(dent);
     if (!node)
@@ -100,6 +115,7 @@ static int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
     switch (node->type) {
         case PSEUDO_DIR:
             hdl->type = TYPE_PSEUDO;
+            /* This is a directory handle, so it will be initialized by `dentry_open`. */
             break;
 
         case PSEUDO_LINK:
@@ -118,13 +134,12 @@ static int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
                 str = NULL;
             }
 
-            struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
+            struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
             if (!data) {
                 free(str);
                 return -ENOMEM;
             }
 
-            memset(data, 0, sizeof(struct shim_str_data));
             hdl->type = TYPE_STR;
             hdl->info.str.data = data;
             hdl->info.str.data->str = str;
@@ -214,7 +229,7 @@ static int pseudo_stat(struct shim_dentry* dent, struct stat* buf) {
             size_t nlink = 2; // Initialize to 2 for `.` and parent
             int ret = pseudo_readdir(dent, &count_nlink, &nlink);
             if (ret < 0)
-                return 0;
+                return ret;
             buf->st_nlink = nlink;
             break;
         }
@@ -295,7 +310,6 @@ static ssize_t pseudo_read(struct shim_handle* hdl, void* buf, size_t count) {
     switch (node->type) {
         case PSEUDO_STR:
             return str_read(hdl, buf, count);
-            break;
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.read)
@@ -320,7 +334,6 @@ static ssize_t pseudo_write(struct shim_handle* hdl, const void* buf, size_t cou
             if (!node->dev.dev_ops.write)
                 return -EACCES;
             return node->dev.dev_ops.write(hdl, buf, count);
-            break;
 
         default:
             return -ENOSYS;
@@ -373,15 +386,14 @@ static int pseudo_flush(struct shim_handle* hdl) {
     switch (node->type) {
         case PSEUDO_STR:
             return str_flush(hdl);
-            break;
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.flush)
-                return 0;
+                return -EINVAL;
             return node->dev.dev_ops.flush(hdl);
 
         default:
-            return 0;
+            return -ENOSYS;
     }
 }
 
@@ -393,8 +405,8 @@ static int pseudo_close(struct shim_handle* hdl) {
     switch (node->type) {
         case PSEUDO_STR:
             /*
-             * TODO: we don't use `str_close` here, because it assumes `hdl->dentry` always contains
-             * string data, which is not the case for pseudofs.
+             * TODO: we don't use `str_close` here, because it assumes `hdl->dentry->data` always
+             * contains string data, and pseudofs uses this field for other purposes.
              *
              * The `str_*` set of functions should probably work differently, but that requires
              * rewriting tmpfs as well.
@@ -446,12 +458,11 @@ static off_t pseudo_poll(struct shim_handle* hdl, int poll_type) {
 
 static struct pseudo_node* pseudo_add_ent(struct pseudo_node* parent_node, const char* name,
                                           enum pseudo_type type) {
-    struct pseudo_node* node = malloc(sizeof(*node));
+    struct pseudo_node* node = calloc(1, sizeof(*node));
     if (!node) {
         log_error("Out of memory when allocating pseudofs node");
         abort();
     }
-    memset(node, 0, sizeof(*node));
     node->name = name;
     node->type = type;
 
