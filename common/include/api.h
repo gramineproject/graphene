@@ -175,9 +175,6 @@ long long strtoll(const char* s, char** endptr, int base);
  * only (no `+`/`-` signs), and not overflow the `unsigned long` type. For base 16, the "0x" prefix
  * is allowed but not required.
  *
- * If `end` is NULL, the string has to contain only the number; otherwise, additional characters
- * after the number are allowed.
- *
  * On success, returns 0, sets `*value` to the value of the number, and `*end` to the first byte
  * after the number.
  */
