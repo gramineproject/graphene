@@ -137,7 +137,7 @@ Conventions and high-level style
    #. Functions, structures and variables should be ``named_this_way``.
    #. Global variables should be prefixed with ``g_`` (e.g. ``g_thread_list``).
    #. "size" always means size in bytes, "length" (or "count") means the number
-      of elements (e.g. in an array, or characters in C-string, excluding the
+      of elements (e.g. in an array, or characters in a C-string, excluding the
       terminating null byte).
 
 #. Types:
