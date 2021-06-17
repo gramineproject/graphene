@@ -474,10 +474,10 @@ Trusted files
 
     sgx.trusted_files.[identifier] = "[URI]"
 
-This syntax specifies the files to be cryptographically hashed build-time, and
-allowed to be accessed by the app in runtime only if their hashes match. The
-signer tool will automatically generate hashes of these files and add them to
-the SGX-specific manifest (``.manifest.sgx``). This is especially useful for
+This syntax specifies the files to be cryptographically hashed at build time,
+and allowed to be accessed by the app in runtime only if their hashes match.
+The signer tool will automatically generate hashes of these files and add them
+to the SGX-specific manifest (``.manifest.sgx``). This is especially useful for
 shared libraries: a |~| trusted library cannot be silently replaced by a
 malicious host because the hash verification will fail.
 
