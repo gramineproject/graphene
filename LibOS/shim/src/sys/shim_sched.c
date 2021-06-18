@@ -156,13 +156,6 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     if (pid == 0)
         get_thread(thread);
 
-    /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
-       some bug in user app. */
-    if (is_internal(thread)) {
-        put_thread(thread);
-        return -ESRCH;
-    }
-
     ret = DkThreadSetCpuAffinity(thread->pal_handle, cpumask_size, user_mask_ptr);
     if (ret < 0) {
         put_thread(thread);
@@ -202,13 +195,6 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
        get_cur_thread(). */
     if (pid == 0)
         get_thread(thread);
-
-    /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
-       some bug in user app. */
-    if (is_internal(thread)) {
-        put_thread(thread);
-        return -ESRCH;
-    }
 
     memset(user_mask_ptr, 0, cpumask_size);
     ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, user_mask_ptr);
