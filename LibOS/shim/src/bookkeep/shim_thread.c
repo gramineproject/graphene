@@ -31,8 +31,6 @@ static IDTYPE g_tid_alloc_idx = 0;
 static LISTP_TYPE(shim_thread) g_thread_list = LISTP_INIT;
 struct shim_lock g_thread_list_lock;
 
-static IDTYPE g_internal_tid_alloc_idx = INTERNAL_TID_BASE;
-
 //#define DEBUG_REF
 
 #ifdef DEBUG_REF
@@ -244,14 +242,6 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
     return thread;
 }
 
-static IDTYPE get_new_internal_tid(void) {
-    IDTYPE idx = __atomic_add_fetch(&g_internal_tid_alloc_idx, 1, __ATOMIC_RELAXED);
-    if (!is_internal_tid(idx)) {
-        return 0;
-    }
-    return idx;
-}
-
 struct shim_thread* get_new_thread(void) {
     struct shim_thread* thread = alloc_new_thread();
     if (!thread) {
@@ -314,18 +304,7 @@ struct shim_thread* get_new_thread(void) {
 }
 
 struct shim_thread* get_new_internal_thread(void) {
-    struct shim_thread* thread = alloc_new_thread();
-    if (!thread) {
-        return NULL;
-    }
-
-    thread->tid = get_new_internal_tid();
-    if (!thread->tid) {
-        put_thread(thread);
-        return NULL;
-    }
-
-    return thread;
+    return alloc_new_thread();
 }
 
 void get_signal_dispositions(struct shim_signal_dispositions* dispositions) {

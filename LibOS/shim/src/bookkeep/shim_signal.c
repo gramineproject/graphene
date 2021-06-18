@@ -311,10 +311,10 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
 
     if (context_is_libos(context))
         log_error("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr, addr,
-                  (void*)ip - (void*)&__load_address, g_self_vmid, is_internal_tid(tid) ? 0 : tid);
+                  (void*)ip - (void*)&__load_address, g_self_vmid, tid);
     else
         log_error("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr, addr,
-                  context ? ip : 0, g_self_vmid, is_internal_tid(tid) ? 0 : tid);
+                  context ? ip : 0, g_self_vmid, tid);
 
     DEBUG_BREAK_ON_FAILURE();
     DkProcessExit(1);
@@ -325,7 +325,7 @@ static void arithmetic_error_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* c
     assert(!is_in_pal);
     assert(context);
 
-    if (is_internal_tid(get_cur_tid()) || context_is_libos(context)) {
+    if (is_internal(get_cur_thread()) || context_is_libos(context)) {
         internal_fault("Internal arithmetic fault", addr, context);
     } else {
         log_debug("arithmetic fault at 0x%08lx\n", pal_context_get_ip(context));
@@ -344,7 +344,7 @@ static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) 
     assert(!is_in_pal);
     assert(context);
 
-    if (is_internal_tid(get_cur_tid()) || context_is_libos(context)) {
+    if (is_internal(get_cur_thread()) || context_is_libos(context)) {
         internal_fault("Internal memory fault", addr, context);
     }
 

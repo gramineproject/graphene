@@ -136,7 +136,7 @@ struct shim_thread_queue {
 int init_threading(void);
 
 static inline bool is_internal(struct shim_thread* thread) {
-    return thread->tid >= INTERNAL_TID_BASE;
+    return thread->tid == 0;
 }
 
 void free_signal_queue(struct shim_signal_queue* queue);

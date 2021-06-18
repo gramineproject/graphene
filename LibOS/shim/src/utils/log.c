@@ -35,11 +35,7 @@ void log_setprefix(shim_tcb_t* tcb) {
     lock(&g_process.fs_lock);
 
     const char* exec_name;
-    if (tcb->tp && is_internal_tid(tcb->tp->tid)) {
-        /* This is an internal thread, use "shim" as executable name (the internal threads do not
-         * refresh the log prefix after `execve`). */
-        exec_name = "shim";
-    } else if (g_process.exec) {
+    if (g_process.exec) {
         if (g_process.exec->dentry) {
             exec_name = qstrgetstr(&g_process.exec->dentry->name);
         } else {
@@ -54,14 +50,13 @@ void log_setprefix(shim_tcb_t* tcb) {
     uint32_t vmid = g_self_vmid;
     size_t total_len;
     if (tcb->tp) {
-        if (!is_internal_tid(tcb->tp->tid)) {
+        if (!is_internal(tcb->tp)) {
             /* normal app thread: show Process ID, Thread ID, and exec name */
             total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:T%u:%s] ",
                                  vmid, tcb->tp->tid, exec_name);
         } else {
-            /* internal LibOS thread: show Process ID, Internal-thread ID, and exec name */
-            total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:i%u:%s] ",
-                                 vmid, tcb->tp->tid - INTERNAL_TID_BASE, exec_name);
+            /* internal LibOS thread: show Process ID and Internal-thread marker */
+            total_len = snprintf(tcb->log_prefix, ARRAY_SIZE(tcb->log_prefix), "[P%u:shim] ", vmid);
         }
     } else if (vmid) {
         /* unknown thread (happens on process init): show just Process ID and exec name */

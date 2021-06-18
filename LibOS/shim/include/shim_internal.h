@@ -23,12 +23,6 @@ void* shim_init(int argc, void* args);
 
 /* important macros and static inline functions */
 
-#define INTERNAL_TID_BASE ((IDTYPE)1 << (sizeof(IDTYPE) * 8 - 1))
-
-static inline bool is_internal_tid(unsigned int tid) {
-    return tid >= INTERNAL_TID_BASE;
-}
-
 extern int g_log_level;
 
 extern const PAL_CONTROL* g_pal_control;
