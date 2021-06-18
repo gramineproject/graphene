@@ -84,9 +84,7 @@ the current working directory (i.e. from ``/`` by default, or ``fs.start_dir``
 if specified).
 
 The recommended usage is to provide an absolute path, and mount the executable
-at that path. For example:
-
-::
+at that path. For example::
 
    libos.entrypoint = "/usr/bin/python3.8"
 
