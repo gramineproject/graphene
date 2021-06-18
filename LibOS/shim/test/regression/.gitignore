@@ -1,6 +1,23 @@
 /*.manifest
 /*.xml
 
+/protected_file.dat
+/testfile
+
+!argv_from_file.manifest
+!debug_log_file.manifest
+!debug_log_inline.manifest
+!env_from_file.manifest
+!env_from_host.manifest
+!file_check_policy_allow_all_but_log.manifest
+!file_check_policy_strict.manifest
+!host_root_fs.manifest
+!init_fail.manifest
+!init_fail2.manifest
+!large_mmap.manifest
+
+/pal_loader
+
 /.cache
 /abort
 /abort_multithread
@@ -77,6 +94,7 @@
 /proc_common
 /proc_cpuinfo
 /proc_path
+/protected_file
 /pselect
 /pthread_set_get_affinity
 /rdtsc
@@ -99,7 +117,6 @@
 /sysfs_common
 /tcp_ipv6_v6only
 /tcp_msg_peek
-/testfile
 /tmp
 /udp
 /unix
