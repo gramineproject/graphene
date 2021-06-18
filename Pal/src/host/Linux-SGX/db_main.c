@@ -149,9 +149,7 @@ static long extract_long_from_buffer(const char* buf) {
         buf++;
 
     /* Intentionally using unsigned long to adapt for variable bitness. */
-    if (str_to_ulong(buf, 10, &intval, &end) < 0)
-        return -EINVAL;
-    if (intval > LONG_MAX)
+    if (str_to_ulong(buf, 10, &intval, &end) < 0 || intval > LONG_MAX)
         return -EINVAL;
 
     if (end[0] != '\0') {
@@ -218,9 +216,7 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
         const char* end = NULL;
         unsigned long firstint;
         /* Intentionally using unsigned long to adapt for variable bitness. */
-        if (str_to_ulong(buf, 10, &firstint, &end) < 0)
-            return -EINVAL;
-        if (firstint > LONG_MAX)
+        if (str_to_ulong(buf, 10, &firstint, &end) < 0 || firstint > LONG_MAX)
             return -EINVAL;
 
         if (ordered) {
@@ -238,9 +234,7 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
             /* HW resource range, count how many HW resources are in range */
             buf = end + 1;
             unsigned long secondint;
-            if (str_to_ulong(buf, 10, &secondint, &end) < 0)
-                return -EINVAL;
-            if (secondint > LONG_MAX)
+            if (str_to_ulong(buf, 10, &secondint, &end) < 0 || secondint > LONG_MAX)
                 return -EINVAL;
 
             unsigned long diff;

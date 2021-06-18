@@ -405,8 +405,9 @@ static int pseudo_close(struct shim_handle* hdl) {
     switch (node->type) {
         case PSEUDO_STR:
             /*
-             * TODO: we don't use `str_close` here, because it assumes `hdl->dentry->data` always
-             * contains string data, and pseudofs uses this field for other purposes.
+             * TODO: we don't use `str_close` here, but free the handle data ourselves. This is
+             * because `str_close` also attempts to free the dentry data (`hdl->dentry->data`), and
+             * pseudofs uses this field for other purposes.
              *
              * The `str_*` set of functions should probably work differently, but that requires
              * rewriting tmpfs as well.
