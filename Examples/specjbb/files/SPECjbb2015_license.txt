@@ -1,0 +1,352 @@
+
+
+
+
+License Number: xxx
+
+
+
+SPEC GENERAL LICENSE AGREEMENT
+
+
+
+Read the terms and conditions of this Agreement carefully before downloading or opening the package containing the SPEC 
+
+product or any accompanying documentation (collectively, the "Materials").  Except where explicitly superseded by wording in 
+
+the attached product license, this Agreement represents the entire Agreement between you and SPEC concerning the Materials 
+
+and supersedes any prior proposal, representation or understanding between the parties.
+
+
+
+Use and Re-Export of SPEC's software is subject to the United States Export Control Administration regulations. The software 
+
+may not be used by unlicensed person or entities and may not be re-exported to another country. See Export Assurance (Clause 
+
+12) of this license. 
+
+
+
+The restrictions and limitations of this Agreement do not apply to those items contained in the Materials that have been 
+
+modified under, or used under, licenses that require free redistribution. SPEC has collected copies or links to copies of all such 
+
+items underneath the directory redistributable_sources, along with the licenses applicable to each item in that directory.
+
+
+
+By downloading or opening this package containing "The Materials", you are accepting and agreeing to the terms of this 
+
+Agreement. If you are not willing to be bound by these terms, you should promptly cease downloading "The Materials" or 
+
+return the package to receive a refund of your money. 
+
+
+
+COMPANY/NAME: 
+
+MAIN SITE: 
+
+
+
+1. Grant. SPEC agrees to grant and USER agrees to accept a nontransferable and nonexclusive license to use and modify the Materials, 
+
+subject to the restrictions and conditions set forth below and in any accompanying product specific license. 
+
+
+
+2. Copies and Location. USER may make only exact and complete copies of the original of the Materials. The original and copies 
+
+thereof may be used only: 
+
+*	By the user, if purchased by a non-corporate entity. This user must also abide by the Export Assurance (Clause 12) of this 
+
+license. 
+
+*	By anyone within the same corporate structure, if purchased by a corporation. Note that a "corporate user" must be identified 
+
+and all technical support and contact with SPEC must be handled through that contact. This user and corporation must also 
+
+abide by the Export Assurance (Clause 12) of this license. 
+
+
+
+USER will not permit any third party to use or copy the original or any copy thereof. In the event of unauthorized transfer or copying, 
+
+USER will pay SPEC a penalty in the amount of one additional fee for each such transfer or copy. 
+
+
+
+3. Scope of Use. The Materials may be used only for the generation of data regarding measurement and analysis of computer system 
+
+(hardware and software) performance and/or power usage on those Materials. Modification or merger with other software is allowed 
+
+only as specified in the Run and Reporting Rules for the given SPEC benchmark or tool product. USER may not distribute the 
+
+Materials or any modification to the Materials with the following exceptions: 
+
+
+
+*	USER may distribute those items specifically included in the directory of redistributable sources according to the 
+
+terms of their open source licenses. 
+
+*	USER may share only with other SPEC licensees of this product modifications created by USER for purposes of 
+
+performance and/or power usage analysis. Such modifications shall be limited to 1) modifying the code to instrument 
+
+the product; or 2) modifying the workload to enable further analysis on systems under the USER's control or 3) a 
+
+combination of 1) and 2). 
+
+
+
+
+
+
+
+In addition to the terms, if you purchased SERT, the following specific terms apply: 
+
+
+
+*	You may NOT use the Materials under contract to produce data for another entity unless that entity also has a license to the 
+
+Materials.
+
+*	You must adhere to the required Run and Reporting Rules located at http://www.spec.org/sert2/SERT-runrules.pdf.
+
+
+
+For performance or power measurement results obtained from such modified product, USER may not 1) represent the results as being 
+
+compliant results of the product or 2) use official SPEC metric name(s) to identify the results. 
+
+
+
+The Materials may include executable code for the SPEC Power and Temperature Daemon (SPEC PTDaemon). The SPEC PTDaemon 
+
+is licensed for use only with the Materials or modifications of the Materials as described herein. It is NOT licensed for use as a 
+
+standalone tool or for integration into a tool that is unrelated to the Materials.
+
+ 
+
+4. Fee. The fee paid by the USER to SPEC for the Materials is in consideration of SPEC's cost in connection with the production and 
+
+distribution of the Materials and is not a royalty. 
+
+
+
+5. Reports. In order to preserve the integrity of SPEC's performance standards, USER agrees to run the Materials in accordance with 
+
+the benchmark product rules published by SPEC for the Materials. If the USER chooses to publicly report measured results, the 
+
+reporting must be strictly in accordance with the SPEC product rules, including the SPEC Fair Use Rule. 
+
+
+
+The SPEC Fair Use Rule is posted at www.spec.org/fairuse.html. SPEC product rules are posted at www.spec.org in the documentation 
+
+pages for each SPEC product. Both the Fair Use rule and the SPEC product rules may be updated from time to time. USERS are 
+
+required to comply with the posted versions of the rules, including all updates. If substantive changes are made to the rules as solely 
+
+determined by SPEC, a notice will be posted at SPEC's top-level page, www.spec.org, to define a transition period during which 
+
+compliance shall be phased in. 
+
+
+
+SPEC practices associated with perceived violations of Fair Use or other license terms can be found at:   
+
+	http://www.spec.org/spec/docs/penaltiesremedies.pdf. 
+
+
+
+In addition to the terms, you agree to comply with the following requirements for public use of information generated by the Materials:
+
+
+
+*	Competitive comparisons that promote the use of one product over another and use numeric data generated by the SERT Suite 
+
+2.x are expressly disallowed.
+
+*	The only information provided by the SERT Suite 2.x that can be used for marketing collateral is the qualification of a server 
+
+configuration or server family for an energy efficiency regulatory program.
+
+*	The only information provided by the SERT Suite 2.x  that can be used for public comparison when removed from the context 
+
+of the full Power and Performance Datasheet is the ENERGY STAR qualification of a server configuration or server family, 
+
+or a similar qualification defined by another regulatory agency. All other publicly available information is provided in the 
+
+datasheet and references must be made to this document in its entirety.
+
+*	If the tool is used for research to generate information outside of energy efficiency regulatory programs, the information may 
+
+not be compared to the results that are associated with an official energy efficiency regulatory program, and competitive 
+
+comparisons may not be made using the data generated.
+
+
+
+6. Term. This Agreement is effective upon USER opening the package containing the Materials or upon downloading the Materials 
+
+from an electronic distribution source and shall continue until terminated. USER may terminate the Agreement at any time by providing 
+
+written notification to SPEC that all copies have been destroyed, but the provisions of Sections 5, 7, 8 and 10 shall survive any 
+
+termination. 
+
+
+
+The license granted as to the current release of the Materials shall terminate when SPEC issues and makes available to the USER a 
+
+subsequent release of such materials. 
+
+
+
+In the event of a breach by the USER of any provision hereof, SPEC may terminate this , and the licenses granted hereunder, in whole 
+
+or as to any portion of the Materials upon 30 days written notice unless the default is cured within such 30-day period. Upon 
+
+termination of the license, USER shall immediately destroy all copies of the Materials and shall provide written notification to SPEC 
+
+that all copies have been destroyed. 
+
+
+
+7. Use of Name. It is acknowledged that all trademark and trade name rights in the names are owned exclusively by SPEC and such 
+
+ownership shall be acknowledged in any use of the name by the USER (i.e. - noting that these are "trademarks of the Standard 
+
+Performance Evaluation Corporation"). 
+
+
+
+8. Ownership of Material: This Agreement does not constitute a sale of the Materials but is only a license to use in accordance with 
+
+the terms of this Agreement. USER acknowledges that title, ownership and all intellectual property rights in and to the Materials and 
+
+any copies are owned by and remain with SPEC.
+
+
+
+9. Indemnity. USER agrees to indemnify and hold SPEC harmless from any claims, expenses, or liabilities caused by USER's use of 
+
+the Materials or by USER's publication or use of data arising from its use of the Materials. 
+
+
+
+Disclaimer of Warranties. SPEC MAKES NO WARRANTIES WHATSOEVER, EXPRESS OR IMPLIED, RELATING TO 
+
+THE SALE, USE OR PERFORMANCE OF THE MATERIALS, INCLUDING WITHOUT LIMITATION, ANY 
+
+WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR USE OR PURPOSE, AND ALL SUCH 
+
+WARRANTIES ARE HEREBY DISCLAIMED AND EXCLUDED BY SPEC. 
+
+
+
+USER RECOGNIZES THAT THE PRODUCTS ARE THE RESULT OF A COOPERATIVE, NON- PROFIT EFFORT AND 
+
+THAT SPEC DOES NOT CONDUCT A TYPICAL BUSINESS. USER ACCEPTS THE MATERIALS "AS IS" AND 
+
+WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED. HOWEVER, IF ANY MEDIA DEFECT IS FOUND IN THE 
+
+MATERIALS WITHIN NINETY (90) DAYS AFTER SHIPMENT TO THE USER, SPEC SHALL REPLACE THE MEDIA 
+
+WITH A COPY WITHOUT MEDIA DEFECT, WHICH SHALL BE USER'S SOLE REMEDY. 
+
+
+
+10. Limitation of Liability. SPEC assumes no liability with respect to the Materials, including liability for infringement of intellectual 
+
+property rights, negligence, or any other liability. 
+
+
+
+SPEC is not aware of any infringement of copyright or patent that may result from its transfer to USER of the Materials. If USER 
+
+receives any notice of infringement, such notice shall be immediately communicated to SPEC who will take immediate action to 
+
+evaluate the claim and, if practicable, modify the Materials as necessary to avoid infringement. USER waives any claim against SPEC 
+
+in the event of such infringement. 
+
+
+
+SPEC's total liability for any reason shall not exceed the amount of the fee paid to SPEC. In no event will SPEC be liable for any 
+
+indirect, special, incidental or consequential damages arising out of or in connection with this Agreement, including the sale, use or 
+
+performance of the Materials, even if SPEC shall have knowledge of the possibility of such damages. 
+
+
+
+11. Maintenance and Support. SPEC has no obligation to provide support, maintenance, updates, modifications or new releases of the 
+
+Materials to USER under this Agreement. 
+
+
+
+12. Export Assurance. Use and re-export of SPEC's software and related technical information is subject to the Export Administration 
+
+Regulations (EAR) of the United States Department of Commerce. USER hereby agrees that USER (a) assumes responsibility for 
+
+compliance with the EAR in its use of the software and technical information, and (b) will not export, re-export, or otherwise disclose 
+
+directly or indirectly, the software, technical data, or any direct product of the software or technical data in violation of the EAR. 
+
+
+
+13. Governing Law. This Agreement shall be construed and governed in accordance with the laws of the State of California. If any 
+
+term of this Agreement is declared void or not enforceable by any competent court of jurisdiction, all other terms shall remain in effect. 
+
+
+
+14. No Waiver. The failure of either party to enforce any term herein or to take action in the event of any violation of these terms shall 
+
+not be deemed a waiver by that party as to the subsequent enforcement of any rights. 
+
+
+
+Copyright (c) 2017 Standard Performance Evaluation Corporation 
+
+All Rights Reserved
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+STANDARD PERFORMANCE EVALUATION CORPORATION
+
+ 
+
+www.spec.org
+
+
+
+
+
+7001 Heritage Village Plaza ? Suite 225 ? Gainesville, VA 20155 ? 703-579-8460 ? FAX 579-8463 ? info@spec.org
+
+ 
+
+
+
+
+
+
+

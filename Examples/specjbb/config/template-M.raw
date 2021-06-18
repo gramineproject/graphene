@@ -1,0 +1,214 @@
+#
+# SAMPLE SPECJBB2015-MultiJVM SUBMISSION TEMPLATE
+#
+
+# ------------- Benchmark and test descriptions -------------------------------------------
+#
+jbb2015.test.specLicense=13
+jbb2015.test.date=<<DATE>>
+jbb2015.test.internalReference=http://www.intel.com
+jbb2015.test.location=Hillsboro OR
+jbb2015.test.testSponsor=Intel Corp
+jbb2015.test.testedBy=Intel Corp
+jbb2015.test.testedByName=Misc
+jbb2015.test.hwVendor=Intel Corp
+jbb2015.test.hwSystem=Misc
+# Enter latest availability dates for hw and sw when using multiple components
+jbb2015.test.hwAvailability=TESTING
+jbb2015.test.swAvailability=TESTING
+# ---------- Overall SUT (System Under Test) descriptions --------------------------
+#
+jbb2015.test.aggregate.SUT.vendor=Intel Corp
+jbb2015.test.aggregate.SUT.vendor.url=http://www.intel.com
+jbb2015.test.aggregate.SUT.systemSource=Single Supplier
+jbb2015.test.aggregate.SUT.systemDesignation=Server Rack
+jbb2015.test.aggregate.SUT.totalSystems=1
+jbb2015.test.aggregate.SUT.allSUTSystemsIdentical=YES
+jbb2015.test.aggregate.SUT.totalNodes=1
+jbb2015.test.aggregate.SUT.allNodesIndentical=YES
+jbb2015.test.aggregate.SUT.nodesPerSystem=1
+jbb2015.test.aggregate.SUT.totalChips=<<TOTAL_CHIPS>>
+jbb2015.test.aggregate.SUT.totalCores=<<TOTAL_CORES>>
+jbb2015.test.aggregate.SUT.totalThreads=<<TOTAL_THREADS>>
+jbb2015.test.aggregate.SUT.totalMemoryInGB=<<TOTAL_MEMORY>>
+jbb2015.test.aggregate.SUT.totalOSImages=1
+jbb2015.test.aggregate.SUT.swEnvironment=Non-virtual
+# ---------------- SUT Product descriptions -----------------------------------------------------
+#
+# Describe each JVM product using following format:
+#jbb2015.product.SUT.sw.jvm.<JVM label>.<param> = <value>
+# Sample configuration for "jvm_1" JVM
+jbb2015.product.SUT.sw.jvm.jvm_1.name=<<JVM>>
+jbb2015.product.SUT.sw.jvm.jvm_1.version=Java HotSpot 64-Bit Server VM, version 11.0.3
+jbb2015.product.SUT.sw.jvm.jvm_1.vendor=Oracle Corporation
+jbb2015.product.SUT.sw.jvm.jvm_1.vendor.url=http://www.oracle.com
+jbb2015.product.SUT.sw.jvm.jvm_1.available=April-2019
+jbb2015.product.SUT.sw.jvm.jvm_1.bitness=64
+jbb2015.product.SUT.sw.jvm.jvm_1.notes=None
+# Describe each OS product using following format:
+#jbb2015.product.SUT.sw.os.<OS label>.<param> = <value>
+# Sample configuration for "os_1" OS
+jbb2015.product.SUT.sw.os.os_1.name=<<OS_NAME>>
+jbb2015.product.SUT.sw.os.os_1.version=<<KERNAL_VERSION>>
+jbb2015.product.SUT.sw.os.os_1.bitness=64
+jbb2015.product.SUT.sw.os.os_1.available=Oct-2018
+jbb2015.product.SUT.sw.os.os_1.vendor=Red Hat
+jbb2015.product.SUT.sw.os.os_1.vendor.url=http://www.redhat.com/
+jbb2015.product.SUT.sw.os.os_1.notes=None
+#jbb2015.product.SUT.sw.other.<OTHER label>.<param> = <value>
+# Sample configuration for "other_1" other
+jbb2015.product.SUT.sw.other.other_1.name=None
+jbb2015.product.SUT.sw.other.other_1.vendor=None
+jbb2015.product.SUT.sw.other.other_1.vendor.url=None
+jbb2015.product.SUT.sw.other.other_1.version=None
+jbb2015.product.SUT.sw.other.other_1.available=None
+jbb2015.product.SUT.sw.other.other_1.bitness=None
+jbb2015.product.SUT.sw.other.other_1.notes=None
+# Describe each HW product using following format:
+#jbb2015.product.SUT.hw.system.<SYSTEM label>.<param> = <value>
+# Sample configuration for "hw_1"
+jbb2015.product.SUT.hw.system.hw_1.name=Intel S9200WK
+jbb2015.product.SUT.hw.system.hw_1.model=S9200WK
+jbb2015.product.SUT.hw.system.hw_1.formFactor=2U
+jbb2015.product.SUT.hw.system.hw_1.cpuName=<<CPU_NAME>>
+jbb2015.product.SUT.hw.system.hw_1.cpuCharacteristics=<<CPU_CHARACTERISTICS>>	
+jbb2015.product.SUT.hw.system.hw_1.nSystems=1
+# all details below are per system basis
+jbb2015.product.SUT.hw.system.hw_1.nodesPerSystem=1
+jbb2015.product.SUT.hw.system.hw_1.chipsPerSystem=<<CHIPS_PER_SYSTEM>>
+jbb2015.product.SUT.hw.system.hw_1.coresPerSystem=<<CORES_PER_SYSTEM>>
+jbb2015.product.SUT.hw.system.hw_1.coresPerChip=<<CORES_PER_CHIP>>
+jbb2015.product.SUT.hw.system.hw_1.threadsPerSystem=<<THREADS_PER_SYSTEM>>
+jbb2015.product.SUT.hw.system.hw_1.threadsPerCore=<<THREADS_PER_CORE>>
+jbb2015.product.SUT.hw.system.hw_1.version=Misc
+jbb2015.product.SUT.hw.system.hw_1.available=Misc
+jbb2015.product.SUT.hw.system.hw_1.cpuFrequency=<<CPU_FREQUENCY>>
+jbb2015.product.SUT.hw.system.hw_1.primaryCache=<<L1_CACHE>>
+jbb2015.product.SUT.hw.system.hw_1.secondaryCache=<<L2_CACHE>>
+jbb2015.product.SUT.hw.system.hw_1.tertiaryCache=<<L3_CACHE>>
+jbb2015.product.SUT.hw.system.hw_1.otherCache=None
+jbb2015.product.SUT.hw.system.hw_1.disk=Toshiba XG5 NVMe SSD 512GB, M.2 PCIe
+jbb2015.product.SUT.hw.system.hw_1.file_system=<<FILE_SYSTEM>>
+jbb2015.product.SUT.hw.system.hw_1.memoryInGB=<<TOTAL_MEMORY>>
+jbb2015.product.SUT.hw.system.hw_1.memoryDIMMS=<<MEMORY_DIMMS>>
+jbb2015.product.SUT.hw.system.hw_1.memoryDetails=<<MEMORY_DETAILS>>
+jbb2015.product.SUT.hw.system.hw_1.networkInterface=Misc
+jbb2015.product.SUT.hw.system.hw_1.psuInstalled=Misc
+jbb2015.product.SUT.hw.system.hw_1.other=Misc
+jbb2015.product.SUT.hw.system.hw_1.sharedEnclosure=None
+jbb2015.product.SUT.hw.system.hw_1.sharedDescription=None
+jbb2015.product.SUT.hw.system.hw_1.sharedComment=None
+jbb2015.product.SUT.hw.system.hw_1.vendor=Intel Corp
+jbb2015.product.SUT.hw.system.hw_1.vendor.url=http://www.intel.com
+jbb2015.product.SUT.hw.system.hw_1.notes=<ul><li>Yes: The test sponsor attests, as of date of publication, that CVE-2017-5754 (Meltdown) is mitigated in the system as tested and documented.</li><li>Yes: The test sponsor attests, as of date of publication, that CVE-2017-5753 (Spectre variant 1) is mitigated in the system as tested and documented.</li><li>Yes: The test sponsor attests, as of date of publication, that CVE-2017-5715 (Spectre variant 2) is mitigated in the system as tested and documented.</li></ul>
+#jbb2015.product.SUT.hw.other.<OTHER label>.<param> = <value>
+# Sample configuration for "network_1" other
+jbb2015.product.SUT.hw.other.network_1.name=None
+jbb2015.product.SUT.hw.other.network_1.vendor=None
+jbb2015.product.SUT.hw.other.network_1.vendor.url=None
+jbb2015.product.SUT.hw.other.network_1.version=None
+jbb2015.product.SUT.hw.other.network_1.available=None
+jbb2015.product.SUT.hw.other.network_1.bitness=None
+jbb2015.product.SUT.hw.other.network_1.notes=None
+# ---------------------------------------------- Config descriptions for unique jvm instances -------------------------
+#
+# Describe unique JVM instances using following format:
+# jbb2015.config.jvmInstances.<JVM Instance label>.<param> = <value>
+# Different jvm_product, agent running, cmdline, tuning, or notes requires unique JVM instance label
+# Sample configuration for "jvm_Ctr_1" JVM instance
+# What component is running on this JVM
+jbb2015.config.jvmInstances.jvm_Ctr_1.agents = Controller
+# can be Controller, TxInjector, Backend for multiJVM and Distributed category 
+# can be Composite for Composite category
+jbb2015.config.jvmInstances.jvm_Ctr_1.jvm_product=jvm_1
+# This MUST be one of the jvm product
+jbb2015.config.jvmInstances.jvm_Ctr_1.cmdline=<<CONTROLLER JVM OPTIONS>>
+jbb2015.config.jvmInstances.jvm_Ctr_1.tuning=None
+jbb2015.config.jvmInstances.jvm_Ctr_1.notes=None
+# Sample configuration for "jvm_Backend_1" JVM instance
+jbb2015.config.jvmInstances.jvm_Backend_1.agents = Backend
+jbb2015.config.jvmInstances.jvm_Backend_1.jvm_product=jvm_1
+jbb2015.config.jvmInstances.jvm_Backend_1.cmdline=<<BACKEND JVM OPTIONS>>
+
+jbb2015.config.jvmInstances.jvm_Backend_1.tuning=numactl used to affinitize each Backend JVM to a single memory node, eg:<ul><li>numactl --cpunodebind=$gnum --localalloc</li></ul>
+jbb2015.config.jvmInstances.jvm_Backend_1.notes=None
+# Sample configuration for "jvm_TxInjector_1" JVM instance
+jbb2015.config.jvmInstances.jvm_TxInjector_1.agents = TxInjector
+jbb2015.config.jvmInstances.jvm_TxInjector_1.jvm_product=jvm_1
+jbb2015.config.jvmInstances.jvm_TxInjector_1.cmdline=<<Injector JVM OPTIONS>>
+jbb2015.config.jvmInstances.jvm_TxInjector_1.tuning=numactl used to affinitize each TxInjector JVM to a single memory node, eg:<ul><li>numactl --cpunodebind=$gnum --localalloc</li></ul>
+jbb2015.config.jvmInstances.jvm_TxInjector_1.notes=None
+# ----------------------------------- Config descriptions for unique OS Images ---------------------------------------
+#
+# Describe unique OS image participated in the run in this section using following format.
+# jbb2015.config.osImages.<OS Image label>.<param> = <value>
+# Any OS image which is different for os_product, tuning, notes or running jvm instances need to have 
+# unique os image label
+# Sample configuration for "os_Image_1" OS image
+# Provide the comma-separated list of <JVM Instances label>(num of Instances of that type)
+# which were running on this OS image.
+# JVM labels should match those from previous section "JVM Instances descriptions"
+jbb2015.config.osImages.os_Image_1.jvmInstances = jvm_Ctr_1(1), jvm_Backend_1(<<GroupCount>>), jvm_TxInjector_1(<<GroupCount>>) 
+# This OS image has jvm instances 1 for Ctr, 4 for TxI and 4 for Backends
+jbb2015.config.osImages.os_Image_1.os_product= os_1
+jbb2015.config.osImages.os_Image_1.tuning=None
+jbb2015.config.osImages.os_Image_1.notes=None
+# ----------------------------- Config descriptions for OS images deployed on a SUT hw -----------------------------
+#
+# Describe how OS Images are deployed across systems
+# The common syntax is:
+# jbb2015.config.SUT.system.<config label>.<param> = <value>
+# Sample configuration for "config_1" host
+# Each config has one or more OS images running.
+# Provide the comma-separated list of OS image labels which were running on this host.
+# OS image labels should match those from previous section "OS image descriptions"
+# format <os Image label (num of OS Image Instances deployed per system)>
+jbb2015.config.SUT.system.config_1.osImages = os_Image_1(1)
+jbb2015.config.SUT.system.config_1.hw_product = hw_1
+jbb2015.config.SUT.system.config_1.nSystems = 1
+jbb2015.config.SUT.system.config_1.tuning = Misc
+jbb2015.config.SUT.system.config_1.notes = None
+jbb2015.config.SUT.system.config_1.swEnvironment = non-virtual
+
+#
+# ---------------------------------------- DO NOT EDIT BELOW THIS LINE -----------------------------------------------
+
+
+## Only SPEC office is allowed to edit lines below
+##
+
+## This field either be empty or encoded value placed by reporter. Any other text will result in error
+jbb2015.result.data=
+
+## Can only be set to [ PASSED / NA / NC / CD ]  where
+## PASSED: accepted; NA: non-available; NC: non-compliant; CD: code defect;
+jbb2015.result.compliant=
+
+## Text explaining reason for Acceptance of a warning
+jbb2015.result.compliant.warning.waived.reason=
+
+## Text explaining reason for NC/NA/CD marking or Acceptance of an error
+jbb2015.result.compliant.reason=
+
+## Link to replacement result if available
+jbb2015.result.compliant.remedy=
+
+jbb2015.result.category=<set by reporter>
+jbb2015.result.group.count=<set by reporter>
+jbb2015.result.metric.max-jOPS=<set by reporter>
+jbb2015.result.metric.critical-jOPS=<set by reporter>
+jbb2015.result.SLA-10000-jOPS=<set by reporter>
+jbb2015.result.SLA-25000-jOPS=<set by reporter>
+jbb2015.result.SLA-50000-jOPS=<set by reporter>
+jbb2015.result.SLA-75000-jOPS=<set by reporter>
+jbb2015.result.SLA-100000-jOPS=<set by reporter>
+
+jbb2015.spec.publication.date=MMM DD, YYYY
+jbb2015.spec.updated.date=<date the result was last updated by SPEC>
+
+## Link to full disclosure report
+jbb2015.spec.disclosure.url=OnSUBMISSION
+
+jbb2015.benchmark.version = 1.02
+jbb2015.benchmark.version.date = Nov 08, 2018
+

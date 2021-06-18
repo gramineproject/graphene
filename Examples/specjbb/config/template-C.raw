@@ -1,0 +1,200 @@
+#
+# SAMPLE SPECJBB2015-Composite SUBMISSION TEMPLATE
+#
+
+# ----------------------------------------- Benchmark and test descriptions -------------------------------------------
+#
+jbb2015.test.specLicense=50
+jbb2015.test.date=Apr 25, 2005
+jbb2015.test.internalReference=http://pluto.eng/specpubs/mar2000/
+jbb2015.test.location=Santa Monica, CA
+jbb2015.test.testSponsor=ABC Corp
+jbb2015.test.testedBy=Neptune Corp.
+jbb2015.test.testedByName=Willie Cando
+jbb2015.test.hwVendor=Poseidon Technologies
+jbb2015.test.hwSystem=STAR T2
+# Enter latest availability dates for hw and sw when using multiple components
+jbb2015.test.hwAvailability=May-2000
+jbb2015.test.swAvailability=May-2000
+# ----------------------------------------- Overall SUT (System Under Test) descriptions --------------------------
+#
+jbb2015.test.aggregate.SUT.vendor=Poseidon Technologies
+jbb2015.test.aggregate.SUT.vendor.url=http://poseidon.com/
+jbb2015.test.aggregate.SUT.systemSource=Single Supplier
+jbb2015.test.aggregate.SUT.systemDesignation=Server Rack
+jbb2015.test.aggregate.SUT.totalSystems=1
+jbb2015.test.aggregate.SUT.allSUTSystemsIdentical= YES
+jbb2015.test.aggregate.SUT.totalNodes=8
+jbb2015.test.aggregate.SUT.allNodesIndentical= YES
+jbb2015.test.aggregate.SUT.nodesPerSystem=8
+jbb2015.test.aggregate.SUT.totalChips=16
+jbb2015.test.aggregate.SUT.totalCores=32
+jbb2015.test.aggregate.SUT.totalThreads=64
+jbb2015.test.aggregate.SUT.totalMemoryInGB=8
+jbb2015.test.aggregate.SUT.totalOSImages=1
+jbb2015.test.aggregate.SUT.swEnvironment= Non-virtual
+
+# ---------------------------------------------- SUT Product descriptions -----------------------------------------------------
+#
+# Describe each JVM product using following format:
+#jbb2015.product.SUT.sw.jvm.<JVM label>.<param> = <value>
+# Sample configuration for "jvm_1" JVM
+jbb2015.product.SUT.sw.jvm.jvm_1.name=Phobic Java 1.5.0
+jbb2015.product.SUT.sw.jvm.jvm_1.version=JDK 7 update 3
+jbb2015.product.SUT.sw.jvm.jvm_1.vendor=Phobos Ltd
+jbb2015.product.SUT.sw.jvm.jvm_1.vendor.url=http://www.phobos.uk.com
+jbb2015.product.SUT.sw.jvm.jvm_1.available=Jan-2000
+jbb2015.product.SUT.sw.jvm.jvm_1.bitness=64
+jbb2015.product.SUT.sw.jvm.jvm_1.notes=note
+# Describe each OS product using following format:
+#jbb2015.product.SUT.sw.os.<OS label>.<param> = <value>
+# Sample configuration for "os_1" OS
+jbb2015.product.SUT.sw.os.os_1.name=Phobos DOS
+jbb2015.product.SUT.sw.os.os_1.version=V33.333 patch-level 78
+jbb2015.product.SUT.sw.os.os_1.bitness=64
+jbb2015.product.SUT.sw.os.os_1.available=May-2000
+jbb2015.product.SUT.sw.os.os_1.vendor=Poseidon Technologies
+jbb2015.product.SUT.sw.os.os_1.vendor.url=http://poseidon.com/
+jbb2015.product.SUT.sw.os.os_1.notes=None
+#jbb2015.product.SUT.sw.other.<OTHER label>.<param> = <value>
+# Sample configuration for "other_1" other
+jbb2015.product.SUT.sw.other.other_1.name=Phobos DOS
+jbb2015.product.SUT.sw.other.other_1.vendor=Poseidon Technologies
+jbb2015.product.SUT.sw.other.other_1.vendor.url=http://poseidon.com/
+jbb2015.product.SUT.sw.other.other_1.version=V33.333 patch-level 78
+jbb2015.product.SUT.sw.other.other_1.available=May-2000
+jbb2015.product.SUT.sw.other.other_1.bitness=64
+jbb2015.product.SUT.sw.other.other_1.notes=None
+# Describe each HW product using following format:
+#jbb2015.product.SUT.hw.system.<SYSTEM label>.<param> = <value>
+# Sample configuration for "hw_1"
+jbb2015.product.SUT.hw.system.hw_1.name=Phobos STAR
+jbb2015.product.SUT.hw.system.hw_1.model=STAR T2
+jbb2015.product.SUT.hw.system.hw_1.formFactor=Tower etc.
+jbb2015.product.SUT.hw.system.hw_1.cpuName= Intel Xeon 2350M
+jbb2015.product.SUT.hw.system.hw_1.cpuCharacteristics=Quad-Core, 2.50GHz, 8MB L3 Cache (Turbo Boost Technology up to 3.50 GHz)
+jbb2015.product.SUT.hw.system.hw_1.nSystems=1
+# all details below are per system basis
+jbb2015.product.SUT.hw.system.hw_1.nodesPerSystem=4
+jbb2015.product.SUT.hw.system.hw_1.chipsPerSystem=4
+jbb2015.product.SUT.hw.system.hw_1.coresPerSystem=4
+jbb2015.product.SUT.hw.system.hw_1.coresPerChip=4
+jbb2015.product.SUT.hw.system.hw_1.threadsPerSystem=4
+jbb2015.product.SUT.hw.system.hw_1.threadsPerCore=4
+jbb2015.product.SUT.hw.system.hw_1.version=V33.333 patch-level 78
+jbb2015.product.SUT.hw.system.hw_1.available=May-2000
+jbb2015.product.SUT.hw.system.hw_1.cpuFrequency=2998
+jbb2015.product.SUT.hw.system.hw_1.primaryCache=16KB(I)+16KB(D) per core
+jbb2015.product.SUT.hw.system.hw_1.secondaryCache=128 KB (I+D) per core
+jbb2015.product.SUT.hw.system.hw_1.tertiaryCache=4MB (I+D) on chip per chip
+jbb2015.product.SUT.hw.system.hw_1.otherCache=None
+jbb2015.product.SUT.hw.system.hw_1.disk=2x 300GB 10K RPM, see notes
+jbb2015.product.SUT.hw.system.hw_1.file_system=UFS
+jbb2015.product.SUT.hw.system.hw_1.memoryInGB=8
+jbb2015.product.SUT.hw.system.hw_1.memoryDIMMS=2 x 4096MB
+jbb2015.product.SUT.hw.system.hw_1.memoryDetails=2Rx8 PC3L-12800E ECC CL11; slots 1A, 1B populated
+jbb2015.product.SUT.hw.system.hw_1.networkInterface=3x 10 Gbit NICs
+jbb2015.product.SUT.hw.system.hw_1.psuInstalled=3 x 550
+jbb2015.product.SUT.hw.system.hw_1.other=4x Sun 8Gb FC Dual GbE HBA ExpressModule
+jbb2015.product.SUT.hw.system.hw_1.sharedEnclosure=None
+jbb2015.product.SUT.hw.system.hw_1.sharedDescription=None
+jbb2015.product.SUT.hw.system.hw_1.sharedComment=None
+jbb2015.product.SUT.hw.system.hw_1.vendor=Poseidon Technologies
+jbb2015.product.SUT.hw.system.hw_1.vendor.url=http://poseidon.com/
+jbb2015.product.SUT.hw.system.hw_1.notes=None
+#jbb2015.product.SUT.hw.other.<OTHER label>.<param> = <value>
+# Sample configuration for "network_1" other
+jbb2015.product.SUT.hw.other.network_1.name=Phobos DOS
+jbb2015.product.SUT.hw.other.network_1.vendor=Poseidon Technologies
+jbb2015.product.SUT.hw.other.network_1.vendor.url=http://poseidon.com/
+jbb2015.product.SUT.hw.other.network_1.version=V33.333 patch-level 78
+jbb2015.product.SUT.hw.other.network_1.available=May-2000
+jbb2015.product.SUT.hw.other.network_1.bitness=n/a
+jbb2015.product.SUT.hw.other.network_1.notes=None
+# ---------------------------------------------- Config descriptions for unique jvm instances -------------------------
+#
+# Describe unique JVM instances using following format:
+# jbb2015.config.jvmInstances.<JVM Instance label>.<param> = <value>
+# Different jvm_product, agent running, cmdline, tuning, or notes requires unique JVM instance label
+# Sample configuration for "jvm_Composite_1" JVM instance
+# What component is running on this JVM
+jbb2015.config.jvmInstances.jvm_Composite_1.agents = Composite 
+# For SPECjbb2015-Composite: Ctr, TxInjector and Backend are inside single JVM called Composite
+jbb2015.config.jvmInstances.jvm_Composite_1.jvm_product=jvm_1
+# This MUST be one of the jvm product
+jbb2015.config.jvmInstances.jvm_Composite_1.cmdline= -ms256m -mx1024m
+jbb2015.config.jvmInstances.jvm_Composite_1.tuning=affinity note 1 <ul><li>note 2</li></ul>
+jbb2015.config.jvmInstances.jvm_Composite_1.notes="Notes here"
+# ----------------------------------- Config descriptions for unique OS Images ---------------------------------------
+#
+# Describe unique OS image participated in the run in this section using following format.
+# jbb2015.config.osImages.<OS Image label>.<param> = <value>
+# Any OS image which is different for os_product, tuning, notes or running jvm instances need to have 
+# unique os image label
+# Sample configuration for "os_Image_1" OS image
+# Provide the comma-separated list of <JVM Instances label>(num of Instances of that type)
+# which were running on this OS image.
+# JVM labels should match those from previous section "JVM Instances descriptions"
+jbb2015.config.osImages.os_Image_1.jvmInstances = jvm_Composite_1(1)
+jbb2015.config.osImages.os_Image_1.os_product= os_1
+jbb2015.config.osImages.os_Image_1.tuning=<ul><li>bufcache=1024</li><li>threads=65536</li></ul>
+jbb2015.config.osImages.os_Image_1.notes=None
+# ----------------------------- Config descriptions for OS images deployed on a SUT hw -----------------------------
+#
+# Describe how OS Images are deployed across systems
+# The common syntax is:
+# jbb2015.config.SUT.system.<config label>.<param> = <value>
+# Sample configuration for "config_1" host
+# Each config has one or more OS images running.
+# Provide the comma-separated list of OS image labels which were running on this host.
+# OS image labels should match those from previous section "OS image descriptions"
+# format <os Image label (num of OS Image Instances deployed per system)>
+jbb2015.config.SUT.system.config_1.osImages = os_Image_1(1)
+jbb2015.config.SUT.system.config_1.hw_product = hw_1
+jbb2015.config.SUT.system.config_1.nSystems = 1
+jbb2015.config.SUT.system.config_1.tuning = tuning
+jbb2015.config.SUT.system.config_1.notes = notes
+jbb2015.config.SUT.system.config_1.swEnvironment = non-virtual
+
+#
+# ---------------------------------------- DO NOT EDIT BELOW THIS LINE -----------------------------------------------
+#
+
+#
+# Only SPEC office is allowed to edit lines below
+#
+
+# This field either be empty or encoded value placed by reporter. Any other text will result in error
+jbb2015.result.data=
+
+# Can only be set to [ PASSED / NA / NC / CD ]  where
+# PASSED: accepted; NA: non-available; NC: non-compliant; CD: code defect;
+jbb2015.result.compliant=
+
+# Text explaining reason for Acceptance of a warning
+jbb2015.result.compliant.warning.waived.reason=
+
+# Text explaining reason for NC/NA/CD marking or Acceptance of an error
+jbb2015.result.compliant.reason=
+
+# Link to replacement result if available
+jbb2015.result.compliant.remedy=
+
+jbb2015.result.category=<set by reporter>
+jbb2015.result.group.count=<set by reporter>
+jbb2015.result.metric.max-jOPS=<set by reporter>
+jbb2015.result.metric.critical-jOPS=<set by reporter>
+jbb2015.result.SLA-10000-jOPS=<set by reporter>
+jbb2015.result.SLA-25000-jOPS=<set by reporter>
+jbb2015.result.SLA-50000-jOPS=<set by reporter>
+jbb2015.result.SLA-75000-jOPS=<set by reporter>
+jbb2015.result.SLA-100000-jOPS=<set by reporter>
+
+jbb2015.spec.publication.date=MMM DD, YYYY
+jbb2015.spec.updated.date=<date the result was last updated by SPEC>
+
+# Link to full disclosure report
+jbb2015.spec.disclosure.url=OnSUBMISSION
+
+jbb2015.benchmark.version = 1.02
+jbb2015.benchmark.version.date = Nov 08, 2018
