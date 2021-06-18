@@ -85,6 +85,8 @@ int str_to_ulong(const char* str, unsigned int base, unsigned long* value, const
             digit = *s - 'a' + 10;
         } else if ('A' <= *s && *s <= 'Z') {
             digit = *s - 'A' + 10;
+        } else {
+            break;
         }
         if (digit >= base)
             break;
