@@ -220,10 +220,10 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
 
         size_t cpu_cnt = g_pal_control->cpu_info.online_logical_cores;
 
-        /* Allocate memory to hold the thread's cpu affinity mask*/
+        /* Allocate memory to hold the thread's cpu affinity mask. */
         size_t max_cpu_bitmask = BITS_TO_LONGS(cpu_cnt);
         size_t bitmask_size_in_bytes = max_cpu_bitmask * sizeof(unsigned long);
-        unsigned long* mask = (unsigned long*)malloc(bitmask_size_in_bytes);
+        unsigned long* mask = malloc(bitmask_size_in_bytes);
         if (!mask)
             return -ENOMEM;
 
@@ -246,8 +246,10 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
         }
 
         /* There should be atleast one bit set as part of the cpu affinity mask */
-        if (num_bits == 0)
+        if (num_bits == 0) {
+            free(mask);
             return -EINVAL;
+        }
 
         /* Generate a random number and use it to find a random bit set in the first non-empty
          * unsigned long of the cpu affinity mask. */
@@ -267,6 +269,7 @@ long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) 
         }
 
         *cpu = __builtin_ctzl(cpumask) + BITS_IN_TYPE(unsigned long) * idx;
+        free(mask);
     }
 
     if (node) {
