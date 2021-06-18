@@ -265,8 +265,10 @@ static int pfkey_load(struct shim_dentry* dent, char** data, size_t* size) {
 static int pfkey_save(struct shim_dentry* dent, const char* data, size_t size) {
     __UNUSED(dent);
 
-    if (size != PF_KEY_HEX_SIZE)
+    if (size != PF_KEY_HEX_SIZE) {
+        log_debug("/dev/attestation/protected_files_key: invalid length\n");
         return -EINVAL;
+    }
 
     /* Build a null-terminated string and pass it to `DkSetProtectedFilesKey`. */
     char buffer[PF_KEY_HEX_SIZE + 1];
@@ -301,7 +303,7 @@ int init_attestation(struct pseudo_node* dev) {
     pseudo_add_str(attestation, "quote", &quote_load);
 
     struct pseudo_node* pfkey = pseudo_add_str(attestation, "protected_files_key",
-                                              &pfkey_load);
+                                               &pfkey_load);
     pfkey->perm = PSEUDO_PERM_FILE_RW;
     pfkey->str.save = &pfkey_save;
     return 0;
