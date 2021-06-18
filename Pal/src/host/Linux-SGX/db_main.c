@@ -142,7 +142,7 @@ fail:
  * buffer is malformed E.g., "20abc" or "3,4,5" or "xyz123" or "512H".
  * Use case: To extract integer from /sys/devices/system/cpu/cpuX/cache/index0/size path. */
 static long extract_long_from_buffer(const char* buf) {
-    char* end = NULL;
+    const char* end = NULL;
     unsigned long intval;
 
     while (*buf == ' ' || *buf == '\t')
@@ -179,7 +179,7 @@ static long count_bits_set_from_resource_map(const char* buf) {
         if (*buf == '\0')
             break;
 
-        char* end = NULL;
+        const char* end = NULL;
         /* Linux uses different bitmap size depending on the host arch. We intentionally use
          * unsigned long to adapt for this variable bitness. */
         if (str_to_ulong(buf, 16, &bitmap, &end) < 0)
@@ -215,7 +215,7 @@ static long sanitize_hw_resource_count(const char* buf, bool ordered) {
         if (*buf == '\0')
             break;
 
-        char* end = NULL;
+        const char* end = NULL;
         unsigned long firstint;
         /* Intentionally using unsigned long to adapt for variable bitness. */
         if (str_to_ulong(buf, 10, &firstint, &end) < 0)
