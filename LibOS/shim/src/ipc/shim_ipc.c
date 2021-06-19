@@ -220,7 +220,8 @@ static int ipc_send_message_to_conn(struct shim_ipc_connection* conn, struct shi
 
     int ret = write_exact(conn->handle, msg,  GET_UNALIGNED(msg->header.size));
     if (ret < 0) {
-        log_error("Failed to send IPC msg to %u: %d\n", conn->vmid, ret);
+        log_error("Failed to send IPC msg\n");
+        log_debug("destination: %u, error: %d\n", conn->vmid, ret);
         unlock(&conn->lock);
         remove_ipc_connection(conn);
         return ret;
@@ -317,7 +318,8 @@ int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
     };
     struct avl_tree_node* node = avl_tree_find(&g_msg_waiters_tree, &dummy.node);
     if (!node) {
-        log_error("No thread is waiting for a response with seq: %lu\n", seq);
+        log_error("No thread is waiting for a response\n");
+        log_debug("sequence number: %lu\n", seq);
         ret = -EINVAL;
         goto out_unlock;
     }

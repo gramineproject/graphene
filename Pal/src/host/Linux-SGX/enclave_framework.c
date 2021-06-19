@@ -560,7 +560,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 
     size_t uri_len = strlen(uri);
     if (uri_len >= URI_MAX) {
-        log_error("Size of file exceeds maximum %dB: %s\n", URI_MAX, uri);
+        log_error("Size of URI exceeds maximum %dB: %s\n", URI_MAX, uri);
         return -PAL_ERROR_INVAL;
     }
 

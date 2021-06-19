@@ -42,14 +42,16 @@ static pf_status_t cb_read(pf_handle_t handle, void* buffer, uint64_t offset, si
             continue;
 
         if (read < 0) {
-            log_error("cb_read(%d, %p, %lu, %lu): read failed: %ld\n", fd, buffer, offset,
-                      size, read);
+            log_error("cb_read() failed\n");
+            log_debug("fd: %d, buffer: %p, offset: %lu, size: %lu, error: %ld\n", fd, buffer,
+                      offset, size, read);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         /* EOF is an error condition, we want to read exactly `size` bytes */
         if (read == 0) {
-            log_error("cb_read(%d, %p, %lu, %lu): EOF\n", fd, buffer, offset, size);
+            log_error("cb_read(): unexpected EOF\n");
+            log_debug("fd: %d, buffer: %p, offset: %lu, size: %lu\n", fd, buffer, offset, size);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -70,14 +72,16 @@ static pf_status_t cb_write(pf_handle_t handle, const void* buffer, uint64_t off
             continue;
 
         if (written < 0) {
-            log_error("cb_write(%d, %p, %lu, %lu): write failed: %ld\n", fd, buffer, offset,
-                      size, written);
+            log_error("cb_write() failed\n");
+            log_debug("fd: %d, buffer: %p, offset: %lu, size: %lu, written: %ld\n", fd, buffer,
+                      offset, size, written);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         /* EOF is an error condition, we want to write exactly `size` bytes */
         if (written == 0) {
-            log_error("cb_write(%d, %p, %lu, %lu): EOF\n", fd, buffer, offset, size);
+            log_error("cb_write(): unexpected EOF\n");
+            log_debug("fd: %d, buffer: %p, offset: %lu, size: %lu\n", fd, buffer, offset, size);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -526,14 +530,16 @@ int init_protected_files(void) {
 static int open_protected_file(const char* path, struct protected_file* pf, pf_handle_t handle,
                                uint64_t size, pf_file_mode_t mode, bool create) {
     if (!g_pf_wrap_key_set) {
-        log_error("pf_open(%d, %s) failed: wrap key was not provided\n", *(int*)handle, path);
+        log_error("pf_open() failed: wrap key was not provided\n");
+        log_debug("handle: %d, path: %s\n", *(int*)handle, path);
         return -PAL_ERROR_DENIED;
     }
 
     pf_status_t pfs;
     pfs = pf_open(handle, path, size, mode, create, &g_pf_wrap_key, &pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("pf_open(%d, %s) failed: %s\n", *(int*)handle, path, pf_strerror(pfs));
+        log_error("pf_open() failed\n");
+        log_debug("handle: %d, path: %s, error: %s\n", *(int*)handle, path, pf_strerror(pfs));
         return -PAL_ERROR_DENIED;
     }
     return 0;
@@ -621,7 +627,7 @@ int unload_protected_file(struct protected_file* pf) {
         return ret;
     pf_status_t pfs = pf_close(pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("unload_protected_file(%p) failed: %s\n", pf, pf_strerror(pfs));
+        log_error("unload_protected_file failed: %s\n", pf_strerror(pfs));
     }
 
     pf->context = NULL;

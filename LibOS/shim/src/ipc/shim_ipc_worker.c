@@ -141,8 +141,8 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                     continue;
                 }
                 ret = pal_to_unix_errno(ret);
-                log_error(LOG_PREFIX "receiving message header from %u failed: %d\n", conn->vmid,
-                          ret);
+                log_error(LOG_PREFIX "receiving message header failed\n");
+                log_debug(LOG_PREFIX "from: %u, error: %d\n", conn->vmid, ret);
                 return ret;
             }
             if (tmp_size == 0) {
@@ -150,8 +150,8 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                     /* EOF on the handle, but exactly on the message boundary. */
                     return 1;
                 }
-                log_error(LOG_PREFIX "receiving message from %u failed: remote closed early\n",
-                          conn->vmid);
+                log_error(LOG_PREFIX "receiving message failed: remote closed early\n");
+                log_debug(LOG_PREFIX "from: %u\n", conn->vmid);
                 return -ENODATA;
             }
             size += tmp_size;
@@ -183,7 +183,8 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                                  data_size - current_size);
             if (ret < 0) {
                 free(msg_data);
-                log_error(LOG_PREFIX "receiving message from %u failed: %d\n", conn->vmid, ret);
+                log_error(LOG_PREFIX "receiving message failed\n");
+                log_debug(LOG_PREFIX "from: %u, error: %d\n", conn->vmid, ret);
                 return ret;
             }
             size = 0;
@@ -196,11 +197,13 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
         if (msg_code < ARRAY_SIZE(ipc_callbacks) && ipc_callbacks[msg_code]) {
             ret = ipc_callbacks[msg_code](conn->vmid, msg_data, msg_seq);
             if (ret < 0) {
-                log_error(LOG_PREFIX "error running IPC callback %u: %d", msg_code, ret);
+                log_error(LOG_PREFIX "error running IPC callback\n");
+                log_debug(LOG_PREFIX "callback: %u, error: %d\n", msg_code, ret);
                 DkProcessExit(1);
             }
         } else {
-            log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg_code);
+            log_error(LOG_PREFIX "received unknown IPC msg type\n");
+            log_debug(LOG_PREFIX "type: %u\n", msg_code);
         }
 
         if (msg_code != IPC_MSG_RESP) {
@@ -277,7 +280,8 @@ static noreturn void ipc_worker_main(void) {
         if (ret_events[0]) {
             /* `exit_notification_event`. */
             if (ret_events[0] & ~PAL_WAIT_READ) {
-                log_error(LOG_PREFIX "unexpected event (%d) on exit handle\n", ret_events[0]);
+                log_error(LOG_PREFIX "unexpected event on exit handle\n");
+                log_debug(LOG_PREFIX "event: %d\n", ret_events[0]);
                 goto out_die;
             }
             log_debug(LOG_PREFIX "exiting worker thread\n");
@@ -300,7 +304,8 @@ static noreturn void ipc_worker_main(void) {
         if (ret_events[1]) {
             /* New connection incoming. */
             if (ret_events[1] & ~PAL_WAIT_READ) {
-                log_error(LOG_PREFIX "unexpected event (%d) on listening handle\n", ret_events[1]);
+                log_error(LOG_PREFIX "unexpected event on listening handle\n");
+                log_debug(LOG_PREFIX "event: %d\n", ret_events[1]);
                 goto out_die;
             }
             PAL_HANDLE new_handle = NULL;
@@ -335,8 +340,8 @@ static noreturn void ipc_worker_main(void) {
                     continue;
                 }
                 if (ret < 0) {
-                    log_error(LOG_PREFIX "failed to receive an IPC message from %u: %d\n",
-                              conn->vmid, ret);
+                    log_error(LOG_PREFIX "failed to receive an IPC message\n");
+                    log_debug(LOG_PREFIX "from: %u, error: %d\n", conn->vmid, ret);
                     /* Let the code below handle this error. */
                     ret_events[i] = PAL_WAIT_ERROR;
                 }

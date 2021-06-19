@@ -385,8 +385,8 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     return 0;
 fail:
-    log_error("Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...\n", leaf,
-              subleaf);
+    log_error("Unrecognized leaf/subleaf in CPUID. Exiting...\n");
+    log_debug("EAX: %u, ECX: %u\n", leaf, subleaf);
     _DkProcessExit(1);
 }
 

@@ -435,7 +435,7 @@ void sync_client_message_callback(int code, uint64_t id, int state, size_t data_
             do_confirm_close(id);
             break;
         default:
-            FATAL("unknown message: %d\n", code);
+            FATAL("unknown message\n");
     }
 }
 

@@ -45,7 +45,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     char* path = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &uri_size)) < 0) {
-        log_error("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
+        log_warning("Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
         free(hdl);
         return ret;
     }
@@ -370,8 +370,8 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     if (prot & PAL_PROT_READ) {
         /* we don't check this on writes since file size may be extended then */
         if (offset >= pf_size) {
-            log_error("pf_file_map(PF fd %d): offset (%lu) >= file size (%lu)\n", fd, offset,
-                      pf_size);
+            log_error("pf_file_map(PF fd %d): wrong offset\n", fd);
+            log_debug("offset (%lu) >= file size (%lu)\n", offset, pf_size);
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
@@ -510,8 +510,8 @@ static int64_t pf_file_setlength(struct protected_file* pf, PAL_HANDLE handle, u
 
     pf_status_t pfs = pf_set_size(pf->context, length);
     if (PF_FAILURE(pfs)) {
-        log_error("pf_file_setlength(PF fd %d, %lu): pf_set_size returned %s\n", fd, length,
-                  pf_strerror(pfs));
+        log_error("pf_file_setlength(PF fd %d): pf_set_size returned %s\n", fd, pf_strerror(pfs));
+        log_debug("length: %lu\n", length);
         return -PAL_ERROR_DENIED;
     }
     return length;

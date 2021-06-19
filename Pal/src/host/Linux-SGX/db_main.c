@@ -395,7 +395,7 @@ static int parse_host_topo_info(struct pal_sec* sec_info) {
 
     if (!IS_IN_RANGE_INCL(sec_info->physical_cores_per_socket, 1, 1 << 13)) {
         log_error("Invalid sec_info.physical_cores_per_socket: %ld\n",
-                sec_info->physical_cores_per_socket);
+                  sec_info->physical_cores_per_socket);
         return -1;
     }
     g_pal_sec.physical_cores_per_socket = sec_info->physical_cores_per_socket;

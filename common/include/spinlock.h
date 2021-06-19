@@ -184,7 +184,8 @@ static inline bool spinlock_is_locked(spinlock_t* lock) {
     }
     unsigned int owner = __atomic_load_n(&lock->owner, __ATOMIC_RELAXED);
     if (owner != get_cur_tid()) {
-        log_error("Unexpected lock ownership: owned by: %d, checked in: %d", owner, get_cur_tid());
+        log_error("Unexpected lock ownership\n");
+        log_debug("owned by: %d, checked in: %d\n", owner, get_cur_tid());
         return false;
     }
     return true;
