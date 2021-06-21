@@ -22,10 +22,10 @@ build of the patched C library is optional but highly recommended for
 performance reasons. The patched C library is built by default.
 
 Graphene currently only works on the x86_64 architecture. Graphene is currently
-tested on Ubuntu 18.04/20.04/21.04, along with Linux kernel version 5.x. We
-recommend building and installing Graphene on Ubuntu with Linux kernel version
-5.11 or higher. If you find problems with Graphene on other Linux distributions,
-please contact us with a |~| detailed `bug report
+tested on Ubuntu 18.04/20.04, along with Linux kernel version 5.x. We recommend
+building and installing Graphene on Ubuntu with Linux kernel version 5.11 or
+higher. If you find problems with Graphene on other Linux distributions, please
+contact us with a |~| detailed `bug report
 <https://github.com/oscarlab/graphene/issues/new>`__.
 
 Installing dependencies
@@ -211,8 +211,7 @@ is available as `separate patches
 The following instructions to patch and compile a Linux kernel with FSGSBASE
 support below are written around Ubuntu 18.04 LTS (Bionic Beaver) with a Linux
 5.4 LTS stable kernel but can be adapted for other distros as necessary. These
-instructions ensure that the resulting kernel has FSGSBASE support and up to
-date security mitigations.
+instructions ensure that the resulting kernel has FSGSBASE support.
 
 #. Clone the repository with patches::
 

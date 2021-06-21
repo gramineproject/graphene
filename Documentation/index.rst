@@ -17,12 +17,14 @@ CPU package (e.g., cold-boot attacks on RAM). Graphene is able to run unmodified
 applications inside SGX enclaves, without the toll of manually porting the
 application to the SGX environment.
 
-Documentation
-=============
+External documentation
+======================
 
-This website contains documentation for the core Graphene functionality. To
-check external contributions, please visit
-https://graphene-contrib.readthedocs.io/en/latest/.
+This website contains the official documentation of Graphene. For external
+contributions and additional resources, please visit
+https://graphene-contrib.readthedocs.io/en/latest/. Note that this link contains
+unofficial documents; these documents are not guaranteed to always be up-to-date
+and correct.
 
 
 Building and running Graphene
