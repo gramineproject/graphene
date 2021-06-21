@@ -43,7 +43,7 @@ void init_tsc(void) {
     }
 }
 
-/* TODO: result comes from the untrusted host, introduce some schielding */
+/* TODO: result comes from the untrusted host, introduce some shielding */
 int _DkSystemTimeQuery(uint64_t* out_usec) {
     int ret;
 

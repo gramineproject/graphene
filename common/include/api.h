@@ -291,7 +291,7 @@ int buf_puts(struct print_buf* buf, const char* str);
 int buf_putc(struct print_buf* buf, char c);
 int buf_flush(struct print_buf* buf);
 
-/* Miscelleneous */
+/* Miscellaneous */
 
 int inet_pton4(const char* src, size_t len, void* dst);
 int inet_pton6(const char* src, size_t len, void* dst);
