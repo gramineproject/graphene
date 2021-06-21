@@ -14,7 +14,7 @@
 int proc_meminfo_load(struct shim_dentry* dent, char** data, size_t* size) {
     __UNUSED(dent);
 
-    size_t len, max = 128;
+    size_t _size, max = 128;
     char* str = NULL;
 
     struct {
@@ -33,23 +33,23 @@ int proc_meminfo_load(struct shim_dentry* dent, char** data, size_t* size) {
 
 retry:
     max *= 2;
-    len = 0;
+    _size = 0;
     free(str);
     str = malloc(max);
     if (!str)
         return -ENOMEM;
 
     for (size_t i = 0; i < ARRAY_SIZE(meminfo); i++) {
-        int ret = snprintf(str + len, max - len, meminfo[i].fmt, meminfo[i].val);
+        int ret = snprintf(str + _size, max - _size, meminfo[i].fmt, meminfo[i].val);
 
-        if (len + ret == max)
+        if (_size + ret == max)
             goto retry;
 
-        len += ret;
+        _size += ret;
     }
 
     *data = str;
-    *size = len;
+    *size = _size;
     return 0;
 }
 
@@ -96,21 +96,21 @@ retry:
 int proc_cpuinfo_load(struct shim_dentry* dent, char** data, size_t* size) {
     __UNUSED(dent);
 
-    size_t len = 0;
+    size_t _size = 0;
     size_t max = 128;
     char* str = malloc(max);
     if (!str) {
         return -ENOMEM;
     }
 
-#define ADD_INFO(fmt, ...)                                           \
-    do {                                                             \
-        int ret = print_to_str(&str, len, &max, fmt, ##__VA_ARGS__); \
-        if (ret < 0) {                                               \
-            free(str);                                               \
-            return ret;                                              \
-        }                                                            \
-        len += ret;                                                  \
+#define ADD_INFO(fmt, ...)                                             \
+    do {                                                               \
+        int ret = print_to_str(&str, _size, &max, fmt, ##__VA_ARGS__); \
+        if (ret < 0) {                                                 \
+            free(str);                                                 \
+            return ret;                                                \
+        }                                                              \
+        _size += ret;                                                  \
     } while (0)
 
     for (size_t n = 0; n < g_pal_control->cpu_info.online_logical_cores; n++) {
@@ -134,6 +134,6 @@ int proc_cpuinfo_load(struct shim_dentry* dent, char** data, size_t* size) {
 #undef ADD_INFO
 
     *data = str;
-    *size = len;
+    *size = _size;
     return 0;
 }

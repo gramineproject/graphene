@@ -4,7 +4,7 @@
  */
 
 /*
- * This file defines the "pseudo" filesystem: a building block for implementing pseudo-FS's such as
+ * This file defines the "pseudo" filesystem: a building block for implementing pseudo-FSes such as
  * `/proc`, `/sys` or `/dev`.
  *
  * A pseudo-filesystem is defined by creating a tree of `pseudo_node` nodes:
@@ -101,7 +101,7 @@ struct pseudo_node {
         /* PSEUDO_LINK */
         struct {
             /*
-             * Read link target. Should allocate a new (null-terminated) string: it will be freed
+             * Reads link target. Should allocate a new (null-terminated) string: it will be freed
              * using `free`.
              *
              * If the callback is not provided, the `target` field will be used instead.
@@ -114,7 +114,7 @@ struct pseudo_node {
         /* PSEUDO_STR */
         struct {
             /*
-             * Provide data for newly-opened file. Should allocate a new buffer: on file close, the
+             * Provides data for newly-opened file. Should allocate a new buffer: on file close, the
              * buffer will be freed using `free`.
              *
              * If the callback is not provided, the opened file will start out empty.

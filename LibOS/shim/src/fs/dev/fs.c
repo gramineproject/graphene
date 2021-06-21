@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
+/* Copyright (C) 2021 Intel Corporation
+ *                    Paweł Marczewski <pawel@invisiblethingslab.com>
+ */
 
 /*!
  * \file
@@ -32,6 +34,7 @@ static int64_t dev_null_seek(struct shim_handle* hdl, int64_t offset, int whence
     return 0;
 }
 
+/* TODO: ftruncate() on /dev/null should fail, but open() with O_TRUNC should succeed */
 static int dev_null_truncate(struct shim_handle* hdl, uint64_t size) {
     __UNUSED(hdl);
     __UNUSED(size);
@@ -96,9 +99,9 @@ int init_devfs(void) {
     struct pseudo_node* stdin = pseudo_add_link(root, "stdin", NULL);
     stdin->link.target = "/proc/self/fd/0";
     struct pseudo_node* stdout = pseudo_add_link(root, "stdout", NULL);
-    stdout->link.target = "/proc/self/fd/0";
+    stdout->link.target = "/proc/self/fd/1";
     struct pseudo_node* stderr = pseudo_add_link(root, "stderr", NULL);
-    stderr->link.target = "/proc/self/fd/0";
+    stderr->link.target = "/proc/self/fd/2";
 
     int ret = init_attestation(root);
     if (ret < 0)

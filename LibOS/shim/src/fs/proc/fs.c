@@ -22,6 +22,7 @@ int proc_self_follow_link(struct shim_dentry* dent, char** target) {
     return 0;
 }
 
+/* `/proc/<pid>` and `/proc/<pid>/task/<tid>` for our local process and threads */
 static void init_thread_dir(struct pseudo_node* ent) {
     pseudo_add_link(ent, "root", &proc_thread_follow_link);
     pseudo_add_link(ent, "cwd", &proc_thread_follow_link);
@@ -35,6 +36,7 @@ static void init_thread_dir(struct pseudo_node* ent) {
     fd_link->list_names = &proc_thread_fd_list_names;
 }
 
+/* `/proc/<pid>` for other processes, uses IPC */
 static void init_ipc_thread_dir(struct pseudo_node* ent) {
     pseudo_add_link(ent, "root", &proc_ipc_thread_follow_link);
     pseudo_add_link(ent, "cwd", &proc_ipc_thread_follow_link);

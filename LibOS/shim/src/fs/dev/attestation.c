@@ -55,6 +55,7 @@ static int init_attestation_struct_sizes(void) {
     return 0;
 }
 
+/* Write at most `max_size` bytes of data to the buffer, padding the rest with zeroes. */
 static void update_buffer(char* buffer, size_t max_size, const char* data, size_t size) {
    if (size < max_size) {
        memcpy(buffer, data, size);
@@ -190,7 +191,7 @@ static int report_load(struct shim_dentry* dent, char** data, size_t* size) {
         return -ENOMEM;
 
     ret = DkAttestationReport(&g_user_report_data, &g_user_report_data_size, &g_target_info,
-                                  &g_target_info_size, report, &g_report_size);
+                              &g_target_info_size, report, &g_report_size);
     if (ret < 0) {
         free(report);
         return -EACCES;
@@ -265,20 +266,20 @@ static int pfkey_load(struct shim_dentry* dent, char** data, size_t* size) {
 static int pfkey_save(struct shim_dentry* dent, const char* data, size_t size) {
     __UNUSED(dent);
 
-    if (size != PF_KEY_HEX_SIZE) {
+    if (size != sizeof(g_pf_key_hex)) {
         log_debug("/dev/attestation/protected_files_key: invalid length\n");
         return -EINVAL;
     }
 
     /* Build a null-terminated string and pass it to `DkSetProtectedFilesKey`. */
-    char buffer[PF_KEY_HEX_SIZE + 1];
-    memcpy(buffer, data, PF_KEY_HEX_SIZE);
+    char buffer[sizeof(g_pf_key_hex) + 1];
+    memcpy(buffer, data, sizeof(g_pf_key_hex));
     buffer[PF_KEY_HEX_SIZE] = '\0';
     int ret = DkSetProtectedFilesKey(&buffer);
     if (ret < 0)
         return -EACCES;
 
-    memcpy(g_pf_key_hex, data, PF_KEY_HEX_SIZE);
+    memcpy(g_pf_key_hex, data, sizeof(g_pf_key_hex));
     return 0;
 }
 

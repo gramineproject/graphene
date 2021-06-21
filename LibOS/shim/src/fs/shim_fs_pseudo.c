@@ -30,7 +30,7 @@ static struct pseudo_node* pseudo_find_root(const char* name) {
 
 /*
  * Find a `pseudo_node` for given dentry. The pointer to retrieved node is cached in the `data`
- * field.
+ * field of the dentry.
  *
  * Note that we call `pseudo_find`, instead of initializing `dent->data` once on dentry lookup,
  * because the dentry might be restored from a checkpoint. Checkpointing clears the `data` field,
@@ -40,6 +40,10 @@ static struct pseudo_node* pseudo_find_root(const char* name) {
  * Instead, we retrieve the node on first access to given dentry, and store it in `dent->data`. At
  * the same time, we also retrieve and cache nodes all the way to the root (see the recursive call
  * below).
+ *
+ * Note that `pseudo_find` might fail for such a checkpointed dentry: for instance, we might have a
+ * dentry for `/proc/<pid>` where the process does not exist anymore. Ideally, we would invalidate
+ * such dentries; for now, all operations on them will return -ENOENT.
  */
 static struct pseudo_node* pseudo_find(struct shim_dentry* dent) {
     struct pseudo_node* node;
@@ -69,7 +73,7 @@ static struct pseudo_node* pseudo_find(struct shim_dentry* dent) {
     /* Look for a child node with matching name */
     assert(parent_node->type == PSEUDO_DIR);
     LISTP_FOR_EACH_ENTRY(node, &parent_node->dir.children, siblings) {
-        if (node->name && (strcmp(name, node->name) == 0)) {
+        if (node->name && strcmp(name, node->name) == 0) {
             goto out;
         }
         if (node->match_name && node->match_name(dent->parent, name) == 0) {
@@ -190,12 +194,12 @@ static int pseudo_lookup(struct shim_dentry* dent) {
     }
     dent->perm = node->perm;
     return 0;
-};
+}
 
 static int pseudo_mode(struct shim_dentry* dent, mode_t* mode) {
     *mode = dent->type | dent->perm;
     return 0;
-};
+}
 
 static int count_nlink(const char* name, void* arg) {
     __UNUSED(name);
@@ -302,38 +306,38 @@ static int pseudo_readdir(struct shim_dentry* dent, readdir_callback_t callback,
     return 0;
 }
 
-static ssize_t pseudo_read(struct shim_handle* hdl, void* buf, size_t count) {
+static ssize_t pseudo_read(struct shim_handle* hdl, void* buf, size_t size) {
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_STR:
-            return str_read(hdl, buf, count);
+            return str_read(hdl, buf, size);
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.read)
                 return -EACCES;
-            return node->dev.dev_ops.read(hdl, buf, count);
+            return node->dev.dev_ops.read(hdl, buf, size);
 
         default:
             return -ENOSYS;
     }
 }
 
-static ssize_t pseudo_write(struct shim_handle* hdl, const void* buf, size_t count) {
+static ssize_t pseudo_write(struct shim_handle* hdl, const void* buf, size_t size) {
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_STR:
-            return str_write(hdl, buf, count);
+            return str_write(hdl, buf, size);
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.write)
                 return -EACCES;
-            return node->dev.dev_ops.write(hdl, buf, count);
+            return node->dev.dev_ops.write(hdl, buf, size);
 
         default:
             return -ENOSYS;
@@ -359,19 +363,19 @@ static off_t pseudo_seek(struct shim_handle* hdl, off_t offset, int whence) {
     }
 }
 
-static int pseudo_truncate(struct shim_handle* hdl, off_t len) {
+static int pseudo_truncate(struct shim_handle* hdl, off_t size) {
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_STR:
-            return str_truncate(hdl, len);
+            return str_truncate(hdl, size);
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.truncate)
                 return -EACCES;
-            return node->dev.dev_ops.truncate(hdl, len);
+            return node->dev.dev_ops.truncate(hdl, size);
 
         default:
             return -ENOSYS;
@@ -403,7 +407,7 @@ static int pseudo_close(struct shim_handle* hdl) {
     if (!node)
         return -ENOENT;
     switch (node->type) {
-        case PSEUDO_STR:
+        case PSEUDO_STR: {
             /*
              * TODO: we don't use `str_close` here, but free the handle data ourselves. This is
              * because `str_close` also attempts to free the dentry data (`hdl->dentry->data`), and
@@ -412,10 +416,12 @@ static int pseudo_close(struct shim_handle* hdl) {
              * The `str_*` set of functions should probably work differently, but that requires
              * rewriting tmpfs as well.
              */
+            int ret = 0;
             if (hdl->flags & (O_WRONLY | O_RDWR)) {
                 int ret = str_flush(hdl);
-                if (ret < 0)
-                    return ret;
+                if (ret < 0) {
+                    log_debug("str_flush() failed, proceeding with close\n");
+                }
             }
 
             if (hdl->info.str.data) {
@@ -423,7 +429,8 @@ static int pseudo_close(struct shim_handle* hdl) {
                 free(hdl->info.str.data);
                 hdl->info.str.data = NULL;
             }
-            return 0;
+            return ret;
+        }
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.close)
@@ -435,6 +442,8 @@ static int pseudo_close(struct shim_handle* hdl) {
     }
 }
 
+/* TODO: add support for polling TYPE_STR handles; currently `shim_do_poll` doesn't call this for
+ * anything else than TYPE_STR and TYPE_DEV */
 static off_t pseudo_poll(struct shim_handle* hdl, int poll_type) {
     if (poll_type == FS_POLL_SZ)
         return 0;
