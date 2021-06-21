@@ -466,6 +466,22 @@ static off_t pseudo_poll(struct shim_handle* hdl, int poll_type) {
     }
 }
 
+int pseudo_parse_ulong(const char* str, unsigned long max_value, unsigned long* value) {
+    unsigned long _value;
+    const char* end;
+
+    if (str_to_ulong(str, 10, &_value, &end) < 0 || *end != '\0' || _value > max_value)
+        return -1;
+
+    /* no leading zeroes */
+    if (_value > 0 && str[0] == '0')
+        return -1;
+
+    *value = _value;
+    return 0;
+}
+
+
 static struct pseudo_node* pseudo_add_ent(struct pseudo_node* parent_node, const char* name,
                                           enum pseudo_type type) {
     struct pseudo_node* node = calloc(1, sizeof(*node));

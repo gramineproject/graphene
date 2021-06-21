@@ -5,6 +5,7 @@
 
 #define _GNU_SOURCE
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -13,8 +14,10 @@
 
 static void* fn(void* arg) {
     /* not to consume CPU, each thread simply sleeps */
-    sleep(10000);
-    return NULL;
+    while (true)
+        sleep(10);
+
+    return NULL; /* not reached */
 }
 
 int main(int argc, char** argv) {

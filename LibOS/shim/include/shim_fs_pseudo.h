@@ -137,6 +137,22 @@ struct pseudo_node {
     };
 };
 
+/*
+ * \brief Convert a string to number (for use in paths)
+ *
+ * \param str the string
+ * \param max_value maximum value
+ * \param[out] value on success, set to the parsed number
+ *
+ * \return 0 on success, -1 on failure
+ *
+ * Recognizes a string that is a unique representation of a number (0 <= value <= max_value):
+ * the string should be non-empty, consist only of digits, and have no leading zeroes.
+ *
+ * Provided for use in `match_name` callback for recognizing pseudo-filesystem file names.
+ */
+int pseudo_parse_ulong(const char* str, unsigned long max_value, unsigned long* value);
+
 struct pseudo_node* pseudo_add_root_dir(const char* name);
 
 struct pseudo_node* pseudo_add_dir(struct pseudo_node* parent_ent, const char* name);

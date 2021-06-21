@@ -21,7 +21,7 @@ static int dump_dir(const char* path) {
 
     size_t buf_size = PATH_MAX;
     size_t path_len = strlen(path);
-    if (path_len + 1 >= buf_size) {
+    if (path_len + 1 > buf_size) {
         fprintf(stderr, "path too long: %s\n", path);
         return -1;
     }
@@ -59,7 +59,7 @@ static int dump_dir(const char* path) {
             continue;
 
         size_t name_len = strlen(dirent->d_name);
-        if (path_len + 1 + name_len + 1 >= buf_size) {
+        if (path_len + 1 + name_len + 1 > buf_size) {
             fprintf(stderr, "path too long: %s/%s", path, dirent->d_name);
             ret = -1;
             goto out;
@@ -76,8 +76,10 @@ static int dump_dir(const char* path) {
 out:
     free(buf);
     close_ret = closedir(dir);
-    if (close_ret < 0)
+    if (close_ret < 0) {
         perror("closedir");
+        return -1;
+    }
     return ret;
 }
 
@@ -100,7 +102,7 @@ static int dump_regular(const char* path) {
 
     do {
         n = fread(buf, 1, sizeof(buf), f);
-        if (ferror(f) < 0) {
+        if (ferror(f) != 0) {
             perror("fread");
             goto out;
         }
@@ -124,8 +126,10 @@ static int dump_regular(const char* path) {
     ret = 0;
 out:
     close_ret = fclose(f);
-    if (close_ret < 0)
+    if (close_ret < 0) {
         perror("fclose");
+        return -1;
+    }
     return ret;
 }
 
@@ -165,7 +169,7 @@ int dump_path(const char* path) {
                 perror("readlink");
                 return -1;
             }
-            printf("%s: link: %.*s\n", path, (int) n, buf);
+            printf("%s: link: %.*s\n", path, (int)n, buf);
             fflush(stdout);
             free(buf);
             break;

@@ -17,41 +17,43 @@
 static int sys_resource(struct shim_dentry* parent, const char* name, unsigned int* num,
                         readdir_callback_t callback, void* arg) {
     const char* parent_name = qstrgetstr(&parent->name);
-    int total;
+    PAL_NUM pal_total;
+    unsigned int total;
     const char* prefix;
 
     if (strcmp(parent_name, "node") == 0) {
-        total = g_pal_control->topo_info.num_online_nodes;
+        pal_total = g_pal_control->topo_info.num_online_nodes;
         prefix = "node";
     } else if (strcmp(parent_name, "cpu") == 0) {
-        total = g_pal_control->cpu_info.online_logical_cores;
+        pal_total = g_pal_control->cpu_info.online_logical_cores;
         prefix = "cpu";
     } else if (strcmp(parent_name, "cache") == 0) {
-        total = g_pal_control->topo_info.num_cache_index;
+        pal_total = g_pal_control->topo_info.num_cache_index;
         prefix = "index";
     } else {
         log_debug("unrecognized resource: %s\n", parent_name);
         return -ENOENT;
     }
 
-    assert(total >= 0);
+    assert(pal_total <= UINT_MAX);
+    total = pal_total;
 
     if (name) {
+        if (total == 0)
+            return -ENOENT;
+
         if (!strstartswith(name, prefix))
             return -ENOENT;
         size_t prefix_len = strlen(prefix);
         unsigned long n;
-        const char* end;
-        if (str_to_ulong(&name[prefix_len], 10, &n, &end) < 0 || *end != '\0' || n > UINT_MAX)
-            return -ENOENT;
-        if (n >= (unsigned int)total)
+        if (pseudo_parse_ulong(&name[prefix_len], total - 1, &n) < 0)
             return -ENOENT;
 
         if (num)
             *num = n;
         return 0;
     } else {
-        for (unsigned int i = 0; i < (unsigned int)total; i++) {
+        for (unsigned int i = 0; i < total; i++) {
             char ent_name[42];
             snprintf(ent_name, sizeof(ent_name), "%s%u", prefix, i);
             int ret = callback(ent_name, arg);
