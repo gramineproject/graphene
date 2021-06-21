@@ -151,7 +151,7 @@ versions of the SDK and driver, download and install them from:
 A 3072-bit RSA private key (PEM format) is required for signing the manifest.
 If you don't have a private key, create it with the following command::
 
-   openssl genrsa -3 -out enclave-key.pem 3072
+   openssl genrsa -3 -out Pal/src/host/Linux-SGX/signer/enclave-key.pem/enclave-key.pem 3072
 
 You can either place the generated enclave key in the default path,
 :file:`Pal/src/host/Linux-SGX/signer/enclave-key.pem`, or specify the key's
