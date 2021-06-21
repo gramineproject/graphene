@@ -14,7 +14,7 @@
 #include "shim_fs_pseudo.h"
 #include "stat.h"
 
-static int sys_resource(struct shim_dentry* parent, const char* name, unsigned int* num,
+static int sys_resource(struct shim_dentry* parent, const char* name, unsigned int* out_num,
                         readdir_callback_t callback, void* arg) {
     const char* parent_name = qstrgetstr(&parent->name);
     PAL_NUM pal_total;
@@ -49,8 +49,8 @@ static int sys_resource(struct shim_dentry* parent, const char* name, unsigned i
         if (pseudo_parse_ulong(&name[prefix_len], total - 1, &n) < 0)
             return -ENOENT;
 
-        if (num)
-            *num = n;
+        if (out_num)
+            *out_num = n;
         return 0;
     } else {
         for (unsigned int i = 0; i < total; i++) {
@@ -79,25 +79,26 @@ int sys_resource_find(struct shim_dentry* dent, const char* name, unsigned int* 
     return -ENOENT;
 }
 
-int sys_resource_match_name(struct shim_dentry* parent, const char* name) {
-    return sys_resource(parent, name, /*num=*/NULL, /*callback=*/NULL, /*arg=*/NULL);
+bool sys_resource_name_exists(struct shim_dentry* parent, const char* name) {
+    int ret = sys_resource(parent, name, /*num=*/NULL, /*callback=*/NULL, /*arg=*/NULL);
+    return ret == 0;
 }
 
 int sys_resource_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
     return sys_resource(parent, /*name=*/NULL, /*num=*/NULL, callback, arg);
 }
 
-int sys_load(const char* str, char** data, size_t* size) {
+int sys_load(const char* str, char** out_data, size_t* out_size) {
     assert(str);
 
     /* Use the string (without null terminator) as file data */
-    size_t _size = strlen(str);
-    char* _data = malloc(_size);
-    if (!_data)
+    size_t size = strlen(str);
+    char* data = malloc(size);
+    if (!data)
         return -ENOMEM;
-    memcpy(_data, str, _size);
-    *data = _data;
-    *size = _size;
+    memcpy(data, str, size);
+    *out_data = data;
+    *out_size = size;
     return 0;
 }
 
@@ -106,13 +107,13 @@ static void init_cpu_dir(struct pseudo_node* cpu) {
     pseudo_add_str(cpu, "possible", &sys_cpu_general_load);
 
     struct pseudo_node* cpuX = pseudo_add_dir(cpu, NULL);
-    cpuX->match_name = &sys_resource_match_name;
+    cpuX->name_exists = &sys_resource_name_exists;
     cpuX->list_names = &sys_resource_list_names;
 
     /* Create a node for `cpu/cpuX/online`. We provide name callbacks instead of a hardcoded name,
      * because we want the file to exist for all CPUs *except* `cpu0`. */
     struct pseudo_node* online = pseudo_add_str(cpuX, NULL, &sys_cpu_load);
-    online->match_name = &sys_cpu_online_match_name;
+    online->name_exists = &sys_cpu_online_name_exists;
     online->list_names = &sys_cpu_online_list_names;
 
     struct pseudo_node* topology = pseudo_add_dir(cpuX, "topology");
@@ -123,7 +124,7 @@ static void init_cpu_dir(struct pseudo_node* cpu) {
 
     struct pseudo_node* cache = pseudo_add_dir(cpuX, "cache");
     struct pseudo_node* indexX = pseudo_add_dir(cache, NULL);
-    indexX->match_name = &sys_resource_match_name;
+    indexX->name_exists = &sys_resource_name_exists;
     indexX->list_names = &sys_resource_list_names;
 
     pseudo_add_str(indexX, "shared_cpu_map", &sys_cache_load);
@@ -138,7 +139,7 @@ static void init_node_dir(struct pseudo_node* node) {
     pseudo_add_str(node, "online", &sys_node_general_load);
 
     struct pseudo_node* nodeX = pseudo_add_dir(node, NULL);
-    nodeX->match_name = &sys_resource_match_name;
+    nodeX->name_exists = &sys_resource_name_exists;
     nodeX->list_names = &sys_resource_list_names;
 
     pseudo_add_str(nodeX, "cpumap", &sys_node_load);

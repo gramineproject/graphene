@@ -12,12 +12,12 @@
 #include "shim_fs_pseudo.h"
 #include "shim_process.h"
 
-int proc_self_follow_link(struct shim_dentry* dent, char** target) {
+int proc_self_follow_link(struct shim_dentry* dent, char** out_target) {
     __UNUSED(dent);
     IDTYPE pid = g_process.pid;
     char name[11];
     snprintf(name, sizeof(name), "%u", pid);
-    if (!(*target = strdup(name)))
+    if (!(*out_target = strdup(name)))
         return -ENOMEM;
     return 0;
 }
@@ -32,7 +32,7 @@ static void init_thread_dir(struct pseudo_node* ent) {
 
     struct pseudo_node* fd = pseudo_add_dir(ent, "fd");
     struct pseudo_node* fd_link = pseudo_add_link(fd, /*name=*/NULL, &proc_thread_fd_follow_link);
-    fd_link->match_name = &proc_thread_fd_match_name;
+    fd_link->name_exists = &proc_thread_fd_name_exists;
     fd_link->list_names = &proc_thread_fd_list_names;
 }
 
@@ -52,18 +52,18 @@ int init_procfs(void) {
     pseudo_add_link(root, "self", &proc_self_follow_link);
 
     struct pseudo_node* thread_pid = pseudo_add_dir(root, /*name=*/NULL);
-    thread_pid->match_name = &proc_thread_pid_match_name;
+    thread_pid->name_exists = &proc_thread_pid_name_exists;
     thread_pid->list_names = &proc_thread_pid_list_names;
     init_thread_dir(thread_pid);
 
     struct pseudo_node* thread_task = pseudo_add_dir(thread_pid, "task");
     struct pseudo_node* thread_tid = pseudo_add_dir(thread_task, /*name=*/NULL);
-    thread_tid->match_name = &proc_thread_tid_match_name;
+    thread_tid->name_exists = &proc_thread_tid_name_exists;
     thread_tid->list_names = &proc_thread_tid_list_names;
     init_thread_dir(thread_tid);
 
     struct pseudo_node* ipc_thread_pid = pseudo_add_dir(root, /*name=*/NULL);
-    ipc_thread_pid->match_name = &proc_ipc_thread_pid_match_name;
+    ipc_thread_pid->name_exists = &proc_ipc_thread_pid_name_exists;
     ipc_thread_pid->list_names = &proc_ipc_thread_pid_list_names;
     init_ipc_thread_dir(ipc_thread_pid);
 

@@ -76,7 +76,7 @@ static struct pseudo_node* pseudo_find(struct shim_dentry* dent) {
         if (node->name && strcmp(name, node->name) == 0) {
             goto out;
         }
-        if (node->match_name && node->match_name(dent->parent, name) == 0) {
+        if (node->name_exists && node->name_exists(dent->parent, name)) {
             goto out;
         }
     }
@@ -466,18 +466,18 @@ static off_t pseudo_poll(struct shim_handle* hdl, int poll_type) {
     }
 }
 
-int pseudo_parse_ulong(const char* str, unsigned long max_value, unsigned long* value) {
-    unsigned long _value;
+int pseudo_parse_ulong(const char* str, unsigned long max_value, unsigned long* out_value) {
+    unsigned long value;
     const char* end;
 
-    if (str_to_ulong(str, 10, &_value, &end) < 0 || *end != '\0' || _value > max_value)
+    if (str_to_ulong(str, 10, &value, &end) < 0 || *end != '\0' || value > max_value)
         return -1;
 
     /* no leading zeroes */
-    if (_value > 0 && str[0] == '0')
+    if (str[0] == '0' && str[1] != '\0')
         return -1;
 
-    *value = _value;
+    *out_value = value;
     return 0;
 }
 

@@ -166,8 +166,8 @@ long long strtoll(const char* s, char** endptr, int base);
  *
  * \param str the string
  * \param base digit base, between 2 and 36
- * \param[out] value on success, set to the parsed number
- * \param[out] end on success, set to the rest of string
+ * \param[out] out_value on success, set to the parsed number
+ * \param[out] out_end on success, set to the rest of string
  *
  * \return 0 on success, -1 on failure
  *
@@ -175,10 +175,11 @@ long long strtoll(const char* s, char** endptr, int base);
  * only (no `+`/`-` signs), and not overflow the `unsigned long` type. For base 16, the "0x" prefix
  * is allowed but not required.
  *
- * On success, returns 0, sets `*value` to the value of the number, and `*end` to the first byte
- * after the number.
+ * On success, returns 0, sets `*out_value` to the value of the number, and `*out_end` to the first
+ * byte after the number.
  */
-int str_to_ulong(const char* str, unsigned int base, unsigned long* value, const char** end);
+int str_to_ulong(const char* str, unsigned int base, unsigned long* out_value,
+                 const char** out_end);
 
 int atoi(const char* nptr);
 long int atol(const char* nptr);

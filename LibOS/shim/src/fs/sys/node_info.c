@@ -11,7 +11,7 @@
 #include "shim_fs.h"
 #include "shim_fs_pseudo.h"
 
-int sys_node_general_load(struct shim_dentry* dent, char** data, size_t* size) {
+int sys_node_general_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     const char* name = qstrgetstr(&dent->name);
     const char* str;
     if (strcmp(name, "online") == 0) {
@@ -21,10 +21,10 @@ int sys_node_general_load(struct shim_dentry* dent, char** data, size_t* size) {
         return -ENOENT;
     }
 
-    return sys_load(str, data, size);
+    return sys_load(str, out_data, out_size);
 }
 
-int sys_node_load(struct shim_dentry* dent, char** data, size_t* size) {
+int sys_node_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     int ret;
     unsigned int node_num;
     ret = sys_resource_find(dent, "node", &node_num);
@@ -51,5 +51,5 @@ int sys_node_load(struct shim_dentry* dent, char** data, size_t* size) {
         return -ENOENT;
     }
 
-    return sys_load(str, data, size);
+    return sys_load(str, out_data, out_size);
 }

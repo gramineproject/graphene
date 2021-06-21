@@ -12,7 +12,7 @@
 #include "shim_fs.h"
 #include "shim_fs_pseudo.h"
 
-int sys_cpu_general_load(struct shim_dentry* dent, char** data, size_t* size) {
+int sys_cpu_general_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     const char* name = qstrgetstr(&dent->name);
     const char* str;
 
@@ -25,10 +25,10 @@ int sys_cpu_general_load(struct shim_dentry* dent, char** data, size_t* size) {
         return -ENOENT;
     }
 
-    return sys_load(str, data, size);
+    return sys_load(str, out_data, out_size);
 }
 
-int sys_cpu_load(struct shim_dentry* dent, char** data, size_t* size) {
+int sys_cpu_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     int ret;
     unsigned int cpu_num;
     ret = sys_resource_find(dent, "cpu", &cpu_num);
@@ -58,23 +58,20 @@ int sys_cpu_load(struct shim_dentry* dent, char** data, size_t* size) {
         return -ENOENT;
     }
 
-    return sys_load(str, data, size);
+    return sys_load(str, out_data, out_size);
 }
 
-int sys_cpu_online_match_name(struct shim_dentry* parent, const char* name) {
+bool sys_cpu_online_name_exists(struct shim_dentry* parent, const char* name) {
     if (strcmp(name, "online") != 0)
-        return -ENOENT;
+        return false;
 
     int ret;
     unsigned int cpu_num;
     ret = sys_resource_find(parent, "cpu", &cpu_num);
     if (ret < 0)
-        return ret;
+        return false;
 
-    if (cpu_num == 0)
-        return -ENOENT;
-
-    return 0;
+    return cpu_num != 0;
 }
 
 int sys_cpu_online_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {

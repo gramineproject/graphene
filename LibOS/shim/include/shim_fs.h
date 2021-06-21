@@ -120,10 +120,11 @@ DEFINE_LISTP(shim_dentry);
 struct shim_dentry {
     int state; /* flags for managing state */
 
-    /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. */
+    /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. Does
+     * not change. */
     struct shim_qstr name;
 
-    /* Mounted filesystem this dentry belongs to */
+    /* Mounted filesystem this dentry belongs to. Does not change. */
     struct shim_mount* mount;
 
     /* Filesystem to use for operations on this file: this is usually `mount->fs`, but can be
@@ -131,7 +132,7 @@ struct shim_dentry {
     struct shim_fs* fs;
 
     /* Parent of this dentry, but only within the same mount. If you need the dentry one level up,
-     * regardless of mounts (i.e. `..`), you should use `dentry_up()` instead. */
+     * regardless of mounts (i.e. `..`), you should use `dentry_up()` instead. Does not change. */
     struct shim_dentry* parent;
 
     size_t nchildren;
@@ -148,6 +149,7 @@ struct shim_dentry {
     /* file permissions: PERM_rwxrwxrwx, etc. */
     mode_t perm;
 
+    /* Filesystem-specific data. Protected by `lock`. */
     void* data;
 
     struct shim_lock lock;

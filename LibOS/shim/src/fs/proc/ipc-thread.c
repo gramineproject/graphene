@@ -12,19 +12,19 @@
 #include "shim_fs_pseudo.h"
 #include "shim_ipc.h"
 
-int proc_ipc_thread_pid_match_name(struct shim_dentry* parent, const char* name) {
+bool proc_ipc_thread_pid_name_exists(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
 
     unsigned long pid;
     if (pseudo_parse_ulong(name, IDTYPE_MAX, &pid) < 0)
-        return -ENOENT;
+        return false;
 
     int ret;
 
     struct pid_status* status;
     ret = get_all_pid_status(&status);
     if (ret < 0)
-        return ret;
+        return false;
 
     size_t status_num = ret;
     bool found = false;
@@ -35,10 +35,7 @@ int proc_ipc_thread_pid_match_name(struct shim_dentry* parent, const char* name)
         }
 
     free(status);
-    if (!found)
-        return -ENOENT;
-
-    return 0;
+    return found;
 }
 
 int proc_ipc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback,
@@ -68,7 +65,7 @@ out:
     return ret;
 }
 
-int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** target) {
+int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** out_target) {
     assert(dent->parent);
     const char* parent_name = qstrgetstr(&dent->parent->name);
     const char* name = qstrgetstr(&dent->name);
@@ -93,8 +90,8 @@ int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** target) {
     if (ret < 0)
         return ret;
 
-    *target = strdup(ipc_data->data);
-    if (!target) {
+    *out_target = strdup(ipc_data->data);
+    if (!*out_target) {
         ret = -ENOMEM;
         goto out;
     }

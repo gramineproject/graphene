@@ -16,7 +16,7 @@
 #include "shim_types.h"
 #include "shim_vma.h"
 
-int proc_thread_follow_link(struct shim_dentry* dent, char** target) {
+int proc_thread_follow_link(struct shim_dentry* dent, char** out_target) {
     __UNUSED(dent);
 
     lock(&g_process.fs_lock);
@@ -39,7 +39,7 @@ int proc_thread_follow_link(struct shim_dentry* dent, char** target) {
     if (!dent)
         return -ENOENT;
 
-    int ret = dentry_abs_path(dent, target, /*size=*/NULL);
+    int ret = dentry_abs_path(dent, out_target, /*size=*/NULL);
     if (ret < 0)
         goto out;
 
@@ -49,7 +49,7 @@ out:
     return ret;
 }
 
-int proc_thread_maps_load(struct shim_dentry* dent, char** data, size_t* size) {
+int proc_thread_maps_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     __UNUSED(dent);
 
     int ret;
@@ -129,8 +129,8 @@ int proc_thread_maps_load(struct shim_dentry* dent, char** data, size_t* size) {
         }
     }
 
-    *data = buffer;
-    *size = offset;
+    *out_data = buffer;
+    *out_size = offset;
     ret = 0;
 
 err:
@@ -143,7 +143,7 @@ err:
     return ret;
 }
 
-int proc_thread_cmdline_load(struct shim_dentry* dent, char** data, size_t* size) {
+int proc_thread_cmdline_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     __UNUSED(dent);
 
     size_t buffer_size = g_process.cmdline_size;
@@ -153,22 +153,19 @@ int proc_thread_cmdline_load(struct shim_dentry* dent, char** data, size_t* size
     }
 
     memcpy(buffer, g_process.cmdline, buffer_size);
-    *data = buffer;
-    *size = buffer_size;
+    *out_data = buffer;
+    *out_size = buffer_size;
     return 0;
 }
 
-int proc_thread_pid_match_name(struct shim_dentry* parent, const char* name) {
+bool proc_thread_pid_name_exists(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
 
     unsigned long pid;
     if (pseudo_parse_ulong(name, IDTYPE_MAX, &pid) < 0)
-        return -ENOENT;
+        return false;
 
-    if (pid != g_process.pid)
-        return -ENOENT;
-
-    return 0;
+    return pid == g_process.pid;
 }
 
 int proc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
@@ -183,19 +180,19 @@ int proc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t ca
     return 0;
 }
 
-int proc_thread_tid_match_name(struct shim_dentry* parent, const char* name) {
+bool proc_thread_tid_name_exists(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
 
     unsigned long tid;
     if (pseudo_parse_ulong(name, IDTYPE_MAX, &tid) < 0)
-        return -ENOENT;
+        return false;
 
     struct shim_thread* thread = lookup_thread(tid);
     if (!thread)
-        return -ENOENT;
+        return false;
 
     put_thread(thread);
-    return 0;
+    return true;
 }
 
 struct walk_thread_arg {
@@ -229,11 +226,11 @@ int proc_thread_tid_list_names(struct shim_dentry* parent, readdir_callback_t ca
     return 0;
 }
 
-int proc_thread_fd_match_name(struct shim_dentry* parent, const char* name) {
+bool proc_thread_fd_name_exists(struct shim_dentry* parent, const char* name) {
     __UNUSED(parent);
     unsigned long fd;
     if (pseudo_parse_ulong(name, FDTYPE_MAX, &fd) < 0)
-        return -EINVAL;
+        return false;
 
     struct shim_handle_map* handle_map = get_thread_handle_map(NULL);
     lock(&handle_map->lock);
@@ -241,11 +238,11 @@ int proc_thread_fd_match_name(struct shim_dentry* parent, const char* name) {
     if (fd > handle_map->fd_top || handle_map->map[fd] == NULL ||
             handle_map->map[fd]->handle == NULL) {
         unlock(&handle_map->lock);
-        return -ENOENT;
+        return false;
     }
 
     unlock(&handle_map->lock);
-    return 0;
+    return true;
 }
 
 int proc_thread_fd_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg) {
@@ -288,7 +285,7 @@ static char* describe_handle(struct shim_handle* hdl) {
     return strdup(str);
 }
 
-int proc_thread_fd_follow_link(struct shim_dentry* dent, char** target) {
+int proc_thread_fd_follow_link(struct shim_dentry* dent, char** out_target) {
     unsigned long fd;
     if (pseudo_parse_ulong(qstrgetstr(&dent->name), FDTYPE_MAX, &fd) < 0)
         return -ENOENT;
@@ -306,12 +303,12 @@ int proc_thread_fd_follow_link(struct shim_dentry* dent, char** target) {
     struct shim_handle* hdl = handle_map->map[fd]->handle;
 
     if (hdl->dentry) {
-        ret = dentry_abs_path(hdl->dentry, target, /*size=*/NULL);
+        ret = dentry_abs_path(hdl->dentry, out_target, /*size=*/NULL);
     } else {
         /* The handle does not correspond to a dentry. Do our best to provide a human-readable link
          * target. */
-        *target = describe_handle(hdl);
-        ret = *target ? 0 : -ENOMEM;
+        *out_target = describe_handle(hdl);
+        ret = *out_target ? 0 : -ENOMEM;
     }
 
     unlock(&handle_map->lock);

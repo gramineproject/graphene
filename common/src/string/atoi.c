@@ -71,11 +71,12 @@ long strtol(const char* s, char** endptr, int base) {
     return (neg ? -val : val);
 }
 
-int str_to_ulong(const char* str, unsigned int base, unsigned long* value, const char** end) {
+int str_to_ulong(const char* str, unsigned int base, unsigned long* out_value,
+                 const char** out_end) {
     if (base == 16 && str[0] == '0' && str[1] == 'x')
         str += 2;
 
-    unsigned long _value = 0;
+    unsigned long value = 0;
     const char* s = str;
     while (*s != '\0') {
         unsigned int digit;
@@ -91,10 +92,10 @@ int str_to_ulong(const char* str, unsigned int base, unsigned long* value, const
         if (digit >= base)
             break;
 
-        if (__builtin_mul_overflow(_value, base, &_value))
+        if (__builtin_mul_overflow(value, base, &value))
             return -1;
 
-        if (__builtin_add_overflow(_value, digit, &_value))
+        if (__builtin_add_overflow(value, digit, &value))
             return -1;
 
         s++;
@@ -103,8 +104,8 @@ int str_to_ulong(const char* str, unsigned int base, unsigned long* value, const
     if (s == str)
         return -1;
 
-    *value = _value;
-    *end = s;
+    *out_value = value;
+    *out_end = s;
     return 0;
 }
 

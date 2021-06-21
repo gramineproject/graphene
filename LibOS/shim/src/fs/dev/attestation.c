@@ -114,7 +114,7 @@ static int target_info_save(struct shim_dentry* dent, const char* data, size_t s
  *
  * In case of SGX, target info is an opaque blob of size 512B.
  */
-static int my_target_info_load(struct shim_dentry* dent, char** data, size_t* size) {
+static int my_target_info_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     __UNUSED(dent);
 
     int ret = init_attestation_struct_sizes();
@@ -158,8 +158,8 @@ static int my_target_info_load(struct shim_dentry* dent, char** data, size_t* si
 
 out:
     if (ret == 0) {
-        *data = target_info;
-        *size = g_target_info_size;
+        *out_data = target_info;
+        *out_size = g_target_info_size;
     } else {
         free(target_info);
     }
@@ -179,7 +179,7 @@ out:
  *
  * In case of SGX, report is a locally obtained EREPORT struct of size 432B.
  */
-static int report_load(struct shim_dentry* dent, char** data, size_t* size) {
+static int report_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     __UNUSED(dent);
 
     int ret = init_attestation_struct_sizes();
@@ -197,8 +197,8 @@ static int report_load(struct shim_dentry* dent, char** data, size_t* size) {
         return -EACCES;
     }
 
-    *data = report;
-    *size = g_report_size;
+    *out_data = report;
+    *out_size = g_report_size;
     return 0;
 }
 
@@ -217,7 +217,7 @@ static int report_load(struct shim_dentry* dent, char** data, size_t* size) {
  *
  * In case of SGX, the obtained quote is the SGX quote created by the Quoting Enclave.
  */
-static int quote_load(struct shim_dentry* dent, char** data, size_t* size) {
+static int quote_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     __UNUSED(dent);
 
     int ret = init_attestation_struct_sizes();
@@ -235,22 +235,22 @@ static int quote_load(struct shim_dentry* dent, char** data, size_t* size) {
         return -EACCES;
     }
 
-    *data = quote;
-    *size = quote_size;
+    *out_data = quote;
+    *out_size = quote_size;
     return 0;
 }
 
-static int pfkey_load(struct shim_dentry* dent, char** data, size_t* size) {
+static int pfkey_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     __UNUSED(dent);
 
-    size_t _size = sizeof(g_pf_key_hex);
-    char* pf_key_hex = malloc(_size);
+    size_t size = sizeof(g_pf_key_hex);
+    char* pf_key_hex = malloc(size);
     if (!pf_key_hex)
         return -ENOMEM;
 
-    memcpy(pf_key_hex, &g_pf_key_hex, _size);
-    *data = pf_key_hex;
-    *size = _size;
+    memcpy(pf_key_hex, &g_pf_key_hex, size);
+    *out_data = pf_key_hex;
+    *out_size = size;
     return 0;
 }
 
@@ -268,7 +268,7 @@ static int pfkey_save(struct shim_dentry* dent, const char* data, size_t size) {
 
     if (size != sizeof(g_pf_key_hex)) {
         log_debug("/dev/attestation/protected_files_key: invalid length\n");
-        return -EINVAL;
+        return -EACCES;
     }
 
     /* Build a null-terminated string and pass it to `DkSetProtectedFilesKey`. */

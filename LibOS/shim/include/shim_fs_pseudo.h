@@ -64,7 +64,7 @@ struct shim_dev_ops {
 
 /*
  * A node of the pseudo filesystem. A single node can describe either a single file, or a family of
- * files (see `match_name` and `list_names` below).
+ * files (see `name_exists` and `list_names` below).
  *
  * The constructors for `pseudo_node` (`pseudo_add_*`) take arguments for most commonly used fields.
  * The node can then be further customized by directly modifying other fields.
@@ -81,9 +81,8 @@ struct pseudo_node {
     /* File name. Can be NULL if the node provides the below callbacks. */
     const char* name;
 
-    /* Verify if a file with a given name exists. Should return 0 if file exists, negative value if
-     * not. */
-    int (*match_name)(struct shim_dentry* parent, const char* name);
+    /* Returns true if a file with a given name exists. */
+    bool (*name_exists)(struct shim_dentry* parent, const char* name);
 
     /* Retrieves all file names for this node. Works the same as `readdir`. */
     int (*list_names)(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
@@ -106,7 +105,7 @@ struct pseudo_node {
              *
              * If the callback is not provided, the `target` field will be used instead.
              */
-            int (*follow_link)(struct shim_dentry* dent, char** target);
+            int (*follow_link)(struct shim_dentry* dent, char** out_target);
 
             const char* target;
         } link;
@@ -119,7 +118,7 @@ struct pseudo_node {
              *
              * If the callback is not provided, the opened file will start out empty.
              */
-            int (*load)(struct shim_dentry* dent, char** data, size_t* size);
+            int (*load)(struct shim_dentry* dent, char** out_data, size_t* out_size);
 
             /* Invoked when saving a modified file (on `close` or `flush`). Optional. */
             int (*save)(struct shim_dentry* dent, const char* data, size_t size);
@@ -142,16 +141,16 @@ struct pseudo_node {
  *
  * \param str the string
  * \param max_value maximum value
- * \param[out] value on success, set to the parsed number
+ * \param[out] out_value on success, set to the parsed number
  *
  * \return 0 on success, -1 on failure
  *
  * Recognizes a string that is a unique representation of a number (0 <= value <= max_value):
  * the string should be non-empty, consist only of digits, and have no leading zeroes.
  *
- * Provided for use in `match_name` callback for recognizing pseudo-filesystem file names.
+ * Provided for use in `name_exists` callback for recognizing pseudo-filesystem file names.
  */
-int pseudo_parse_ulong(const char* str, unsigned long max_value, unsigned long* value);
+int pseudo_parse_ulong(const char* str, unsigned long max_value, unsigned long* out_value);
 
 struct pseudo_node* pseudo_add_root_dir(const char* name);
 
@@ -170,23 +169,23 @@ extern struct shim_fs pseudo_builtin_fs;
 /* procfs */
 
 int init_procfs(void);
-int proc_meminfo_load(struct shim_dentry* dent, char** data, size_t* size);
-int proc_cpuinfo_load(struct shim_dentry* dent, char** data, size_t* size);
-int proc_self_follow_link(struct shim_dentry* dent, char** target);
-int proc_thread_pid_match_name(struct shim_dentry* parent, const char* name);
+int proc_meminfo_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+int proc_cpuinfo_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+int proc_self_follow_link(struct shim_dentry* dent, char** out_target);
+bool proc_thread_pid_name_exists(struct shim_dentry* parent, const char* name);
 int proc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
-int proc_thread_tid_match_name(struct shim_dentry* parent, const char* name);
+bool proc_thread_tid_name_exists(struct shim_dentry* parent, const char* name);
 int proc_thread_tid_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
-int proc_thread_follow_link(struct shim_dentry* dent, char** target);
-int proc_thread_maps_load(struct shim_dentry* dent, char** data, size_t* size);
-int proc_thread_cmdline_load(struct shim_dentry* dent, char** data, size_t* size);
-int proc_thread_fd_match_name(struct shim_dentry* parent, const char* name);
+int proc_thread_follow_link(struct shim_dentry* dent, char** out_target);
+int proc_thread_maps_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+int proc_thread_cmdline_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+bool proc_thread_fd_name_exists(struct shim_dentry* parent, const char* name);
 int proc_thread_fd_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
-int proc_thread_fd_follow_link(struct shim_dentry* dent, char** target);
-int proc_ipc_thread_pid_match_name(struct shim_dentry* parent, const char* name);
+int proc_thread_fd_follow_link(struct shim_dentry* dent, char** out_target);
+bool proc_ipc_thread_pid_name_exists(struct shim_dentry* parent, const char* name);
 int proc_ipc_thread_pid_list_names(struct shim_dentry* parent, readdir_callback_t callback,
                                    void* arg);
-int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** target);
+int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** out_target);
 
 /* devfs */
 
@@ -196,16 +195,16 @@ int init_attestation(struct pseudo_node* dev);
 /* sysfs */
 
 int init_sysfs(void);
-int sys_load(const char* str, char** data, size_t* size);
+int sys_load(const char* str, char** out_data, size_t* out_size);
 int sys_resource_find(struct shim_dentry* parent, const char* name, unsigned int* num);
-int sys_resource_match_name(struct shim_dentry* parent, const char* name);
+bool sys_resource_name_exists(struct shim_dentry* parent, const char* name);
 int sys_resource_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
-int sys_node_general_load(struct shim_dentry* dent, char** data, size_t* size);
-int sys_node_load(struct shim_dentry* dent, char** data, size_t* size);
-int sys_cpu_general_load(struct shim_dentry* dent, char** data, size_t* size);
-int sys_cpu_load(struct shim_dentry* dent, char** data, size_t* size);
-int sys_cache_load(struct shim_dentry* dent, char** data, size_t* size);
-int sys_cpu_online_match_name(struct shim_dentry* parent, const char* name);
+int sys_node_general_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+int sys_node_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+int sys_cpu_general_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+int sys_cpu_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+int sys_cache_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
+bool sys_cpu_online_name_exists(struct shim_dentry* parent, const char* name);
 int sys_cpu_online_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
 
 #endif /* SHIM_FS_PSEUDO_H_ */
