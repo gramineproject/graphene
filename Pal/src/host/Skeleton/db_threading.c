@@ -30,7 +30,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
     die_or_inf_loop();
 }
 
-int _DkThreadResume(PAL_HANDLE threadHandle) {
+int _DkThreadResume(PAL_HANDLE handle) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

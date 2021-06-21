@@ -189,9 +189,9 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo);
 int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* param);
 noreturn void _DkThreadExit(int* clear_child_tid);
 void _DkThreadYieldExecution(void);
-int _DkThreadResume(PAL_HANDLE threadHandle);
+int _DkThreadResume(PAL_HANDLE handle);
 int _DkProcessCreate(PAL_HANDLE* handle, const char** args);
-noreturn void _DkProcessExit(int exitCode);
+noreturn void _DkProcessExit(int exit_code);
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
@@ -207,7 +207,7 @@ int _DkVirtualMemoryFree(void* addr, uint64_t size);
 int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot);
 
 /* DkObject calls */
-int _DkObjectClose(PAL_HANDLE objectHandle);
+int _DkObjectClose(PAL_HANDLE handle);
 int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events,
                          PAL_FLG* ret_events, int64_t timeout_us);
 

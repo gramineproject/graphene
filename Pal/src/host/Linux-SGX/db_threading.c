@@ -166,8 +166,8 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
     ocall_exit(0, /*is_exitgroup=*/false);
 }
 
-int _DkThreadResume(PAL_HANDLE threadHandle) {
-    int ret = ocall_resume_thread(threadHandle->thread.tcs);
+int _DkThreadResume(PAL_HANDLE handle) {
+    int ret = ocall_resume_thread(handle->thread.tcs);
     return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 

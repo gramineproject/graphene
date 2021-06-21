@@ -252,9 +252,9 @@ int DkProcessCreate(PAL_STR* args, PAL_HANDLE* handle);
 /*!
  * \brief Terminate all threads in the process immediately.
  *
- * \param exitCode the exit value returned to the host.
+ * \param exit_code the exit value returned to the host.
  */
-noreturn void DkProcessExit(PAL_NUM exitCode);
+noreturn void DkProcessExit(PAL_NUM exit_code);
 
 /*
  * STREAMS
@@ -682,7 +682,7 @@ int DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events
 /*!
  * \brief Close (deallocate) a PAL handle.
  */
-void DkObjectClose(PAL_HANDLE objectHandle);
+void DkObjectClose(PAL_HANDLE handle);
 
 /*
  * MISC

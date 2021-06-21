@@ -29,12 +29,12 @@ noreturn void DkThreadExit(PAL_PTR clear_child_tid) {
 }
 
 /* PAL call DkThreadResume: resume the execution of a thread which is delayed before */
-int DkThreadResume(PAL_HANDLE threadHandle) {
-    if (!threadHandle || !IS_HANDLE_TYPE(threadHandle, thread)) {
+int DkThreadResume(PAL_HANDLE handle) {
+    if (!handle || !IS_HANDLE_TYPE(handle, thread)) {
         return -PAL_ERROR_INVAL;
     }
 
-    return _DkThreadResume(threadHandle);
+    return _DkThreadResume(handle);
 }
 
 int DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {

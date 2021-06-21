@@ -244,8 +244,8 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
     __builtin_unreachable();
 }
 
-int _DkThreadResume(PAL_HANDLE threadHandle) {
-    int ret = INLINE_SYSCALL(tgkill, 3, g_linux_state.pid, threadHandle->thread.tid, SIGCONT);
+int _DkThreadResume(PAL_HANDLE handle) {
+    int ret = INLINE_SYSCALL(tgkill, 3, g_linux_state.pid, handle->thread.tid, SIGCONT);
 
     if (ret < 0)
         return -PAL_ERROR_DENIED;
