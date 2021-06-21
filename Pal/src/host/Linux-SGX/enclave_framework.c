@@ -262,13 +262,6 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
         goto out_free;
     }
 
-    /* always allow creating files */
-    if (create) {
-        register_trusted_file(uri, NULL, /*check_duplicates=*/true);
-        ret = 0;
-        goto out_free;
-    }
-
     /* Normalize the uri */
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
         log_error("Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
@@ -306,31 +299,55 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
 
     spinlock_unlock(&g_trusted_file_lock);
 
-    if (!tf || tf->allowed) {
-        if (!tf) {
-            if (get_file_check_policy() != FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG) {
-                ret = -PAL_ERROR_DENIED;
-                goto out_free;
-            }
+    if (!tf && get_file_check_policy() != FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG) {
+        ret = -PAL_ERROR_DENIED;
+        goto out_free;
+    }
 
-            log_always("Allowing access to an unknown file due to file_check_policy settings: %s\n",
-                       uri);
-        }
+    if (!tf) {
+        log_always("Allowing access to an unknown file due to file_check_policy settings: %s\n",
+                   uri);
 
-        /* allowed files do not need any integrity, so no need for chunk hashes */
+        PAL_STREAM_ATTR attr;
+        ret = _DkStreamAttributesQuery(normpath, &attr);
+        if (ret < 0)
+            goto out_free;
+
+        *size_ptr = attr.pending_size;
+        *chunk_hashes_ptr = NULL;
+        goto out_free;
+    }
+
+    assert(tf);
+
+    if (create && !tf->allowed) {
+        log_error("Trying to create/write/append an already-created trusted file '%s'\n", uri);
+        ret = -PAL_ERROR_DENIED;
+        goto out_free;
+    }
+
+    if (create) {
+        ret = register_trusted_file(uri, NULL, /*check_duplicates=*/true);
+        goto out_free;
+    }
+
+    if (tf->allowed) {
+        /* allowed files: do not need any integrity, so no need for chunk hashes */
         *chunk_hashes_ptr = NULL;
 
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(normpath, &attr);
-        *size_ptr = ret == 0 ? attr.pending_size : 0;
+        if (ret < 0)
+            goto out_free;
 
-        ret = 0;
+        *size_ptr = attr.pending_size;
         goto out_free;
     }
 
+    /* trusted files: need integrity, so calculate chunk hashes and compare with hash in manifest */
+
     free(uri);
     free(normpath);
-    /* Not needed, just for sanity. */
     uri = NULL;
     normpath = NULL;
 
