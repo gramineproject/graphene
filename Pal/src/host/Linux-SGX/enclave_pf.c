@@ -6,6 +6,7 @@
 #include <linux/fs.h>
 
 #include "crypto.h"
+#include "enclave_pf.h"
 #include "hex.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
@@ -348,12 +349,12 @@ static int register_protected_path(const char* path, struct protected_file** new
     int ret = -PAL_ERROR_NOMEM;
     struct protected_file* new = NULL;
 
-    char* normpath = malloc(URI_MAX);
+    size_t normpath_size = strlen(path) + 1;
+    char* normpath = malloc(normpath_size);
     if (!normpath)
         goto out;
 
-    size_t len = URI_MAX;
-    ret = get_norm_path(path, normpath, &len);
+    ret = get_norm_path(path, normpath, &normpath_size);
     if (ret < 0) {
         log_warning("Couldn't normalize path (%s): %s", path, pal_strerror(ret));
         goto out;

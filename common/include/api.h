@@ -330,8 +330,8 @@ extern const char* const* sys_errlist_internal;
 
 /* Graphene functions */
 
-int get_norm_path(const char* path, char* buf, size_t* size);
-int get_base_name(const char* path, char* buf, size_t* size);
+int get_norm_path(const char* path, char* buf, size_t* inout_size);
+int get_base_name(const char* path, char* buf, size_t* inout_size);
 
 /*!
  * \brief Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long.
