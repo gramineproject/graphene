@@ -53,10 +53,10 @@ MBEDTLS_SRC ?= mbedtls-$(MBEDTLS_VERSION).tar.gz
 MBEDTLS_URI ?= \
 	https://github.com/ARMmbed/mbedtls/archive \
 	https://packages.grapheneproject.io/distfiles
-MBEDTLS_CHECKSUM ?= 35d8d87509cd0d002bddbd5508b9d2b931c5e83747d087234cc7ad551d53fe05
+MBEDTLS_HASH ?= 35d8d87509cd0d002bddbd5508b9d2b931c5e83747d087234cc7ad551d53fe05
 
 crypto/$(MBEDTLS_SRC):
-	../../Scripts/download --output $@ $(foreach mirror,$(MBEDTLS_URI),--url $(mirror)/$(MBEDTLS_SRC)) --sha256 $(MBEDTLS_CHECKSUM)
+	../../Scripts/download --output $@ $(foreach mirror,$(MBEDTLS_URI),--url $(mirror)/$(MBEDTLS_SRC)) --sha256 $(MBEDTLS_HASH)
 
 ifeq ($(DEBUG),1)
 MBED_BUILD_TYPE=Debug
@@ -128,10 +128,10 @@ endif
 UTHASH_URI ?= \
 	https://raw.githubusercontent.com/troydhanson/uthash/8b214aefcb81df86a7e5e0d4fa20e59a6c18bc02/src/uthash.h \
 	https://packages.grapheneproject.io/distfiles/uthash-2.1.0/src/uthash.h
-UTHASH_CHECKSUM ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c2ac
+UTHASH_HASH ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c2ac
 
 uthash.h:
-	../../Scripts/download --output $@ --sha256 $(UTHASH_CHECKSUM) $(foreach mirror,$(UTHASH_URI),--url $(mirror))
+	../../Scripts/download --output $@ --sha256 $(UTHASH_HASH) $(foreach mirror,$(UTHASH_URI),--url $(mirror))
 
 uthash.patched: uthash.h
 	patch -p1 < uthash.patch || exit 255
@@ -142,17 +142,17 @@ TOML_COMMIT ?= 5be06807ad5f2230cad99e15380c4f4076c9dd83
 TOML_H_URI ?= \
 	https://raw.githubusercontent.com/cktan/tomlc99/$(TOML_COMMIT)/toml.h \
 	https://packages.grapheneproject.io/distfiles/tomlc99-$(TOML_COMMIT)/toml.h
-TOML_H_CHECKSUM ?= e79d6d272576561e1b46ee001b0dd6b554330843e6fc7c658a548c659f282ac5
+TOML_H_HASH ?= e79d6d272576561e1b46ee001b0dd6b554330843e6fc7c658a548c659f282ac5
 TOML_C_URI ?= \
 	https://raw.githubusercontent.com/cktan/tomlc99/$(TOML_COMMIT)/toml.c \
 	https://packages.grapheneproject.io/distfiles/tomlc99-$(TOML_COMMIT)/toml.c
-TOML_C_CHECKSUM ?= c21a546ab767a7e40d4f65df179d70357059c15e4439e1980d791625655fbbc6
+TOML_C_HASH ?= c21a546ab767a7e40d4f65df179d70357059c15e4439e1980d791625655fbbc6
 
 toml.h:
-	../../Scripts/download --output $@ --sha256 $(TOML_H_CHECKSUM) $(foreach mirror,$(TOML_H_URI),--url $(mirror))
+	../../Scripts/download --output $@ --sha256 $(TOML_H_HASH) $(foreach mirror,$(TOML_H_URI),--url $(mirror))
 
 toml.c:
-	../../Scripts/download --output $@ --sha256 $(TOML_C_CHECKSUM) $(foreach mirror,$(TOML_C_URI),--url $(mirror))
+	../../Scripts/download --output $@ --sha256 $(TOML_C_HASH) $(foreach mirror,$(TOML_C_URI),--url $(mirror))
 
 toml.patched: toml.h toml.c
 	patch -p1 -l < toml.patch || exit 255

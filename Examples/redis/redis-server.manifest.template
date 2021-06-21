@@ -101,13 +101,13 @@ sgx.thread_num = 8
 #
 # As part of the build process, Graphene-SGX script (`graphene-sgx-sign`) finds each
 # specified file, measures its hash, and outputs the hash in auto-generated
-# entry 'sgx.trusted_checksum.xxx' in auto-generated redis-server.manifest.sgx.
+# entry 'sgx.trusted_hash.xxx' in auto-generated redis-server.manifest.sgx.
 # Note that this happens on the developer machine or a build server.
 #
 # At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
-# and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
-# match, this file is trusted and allowed to be loaded and used. Note that
-# this happens on the client machine.
+# and compares with the one specified in 'sgx.trusted_hash.xxx'. If hashes match, 
+# this file is trusted and allowed to be loaded and used. Note that this happens
+# on the client machine.
 
 sgx.trusted_files.redis-server = "file:redis-server"
 

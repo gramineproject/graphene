@@ -257,10 +257,10 @@ the actual file name.
 The way these Trusted Files work is before Graphene runs PyTorch inside the SGX
 enclave, Graphene generates the final SGX manifest file using
 :command:`graphene-sgx-sign` Graphene utility.  This utility calculates hashes
-of each trusted file and appends them as ``sgx.trusted_checksum.<name>`` to the
+of each trusted file and appends them as ``sgx.trusted_hash.<name>`` to the
 final SGX manifest. When running PyTorch with SGX, Graphene reads trusted files,
-finds their corresponding trusted checksums, and compares the
-calculated-at-runtime checksum against the expected value in the manifest.
+finds their corresponding trusted hashes, and compares the
+calculated-at-runtime hash against the expected value in the manifest.
 
 The PyTorch manifest template also contains ``sgx.allowed_files.<name>``
 entries. They specify files unconditionally allowed by the enclave::

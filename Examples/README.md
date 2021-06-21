@@ -42,5 +42,5 @@ have the following elements:
 Please do not include any tarball of source code or binaries in the
 application samples. If an application requires downloading the source
 code or binaries, please provide instructions in the `README.md`, or
-download them automatically and verify the checksums as part of the
+download them automatically and verify the hashes as part of the
 build process.

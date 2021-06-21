@@ -21,7 +21,7 @@ GNU_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 # ------------------------------------------------------------------------------------------------
 GLIBC_VERSION ?= 2.33
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
-GLIBC_HASH = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
+GLIBC_HASH = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-hashes))
 SHIM_DIR = shim
 BUILD_DIR = glibc-build
 GLIBC_LIBS = \

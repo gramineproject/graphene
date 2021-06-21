@@ -723,7 +723,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
 
     if ((ret = init_trusted_files()) < 0) {
-        log_error("Failed to load the checksums of trusted files: %d\n", ret);
+        log_error("Failed to load the hashes of trusted files: %d\n", ret);
         ocall_exit(1, true);
     }
 

@@ -17,7 +17,7 @@
 void* g_enclave_base;
 void* g_enclave_top;
 
-static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates);
+static int register_trusted_file(const char* uri, const char* hash_str, bool check_duplicates);
 
 bool sgx_is_completely_within_enclave(const void* addr, size_t size) {
     if ((uintptr_t)addr > UINTPTR_MAX - size) {
@@ -555,7 +555,7 @@ failed:
     return ret;
 }
 
-static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates) {
+static int register_trusted_file(const char* uri, const char* hash_str, bool check_duplicates) {
     int ret;
 
     size_t uri_len = strlen(uri);
@@ -590,7 +590,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
     new->uri_len = uri_len;
     memcpy(new->uri, uri, uri_len + 1);
 
-    if (checksum_str) {
+    if (hash_str) {
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(uri, &attr);
         if (ret < 0) {
@@ -600,13 +600,13 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         }
         new->size = attr.pending_size;
 
-        assert(strlen(checksum_str) >= sizeof(sgx_file_hash_t) * 2);
+        assert(strlen(hash_str) >= sizeof(sgx_file_hash_t) * 2);
         for (size_t i = 0; i < sizeof(sgx_file_hash_t); i++) {
-            int8_t byte1 = hex2dec(checksum_str[i * 2]);
-            int8_t byte2 = hex2dec(checksum_str[i * 2 + 1]);
+            int8_t byte1 = hex2dec(hash_str[i * 2]);
+            int8_t byte2 = hex2dec(hash_str[i * 2 + 1]);
 
             if (byte1 < 0 || byte2 < 0) {
-                log_error("Could not parse checksum of file: %s\n", uri);
+                log_error("Could not parse hash of file: %s\n", uri);
                 free(new);
                 return -PAL_ERROR_INVAL;
             }
@@ -643,21 +643,19 @@ static int init_trusted_file(const char* key, const char* uri) {
     int ret;
     char* normpath = NULL;
 
-    /* read sgx.trusted_checksum.<key> entry from manifest */
-    char* fullkey = alloc_concat3("sgx.trusted_checksum.\"", -1, key, -1, "\"", -1);
+    /* read sgx.trusted_hash.<key> entry from manifest */
+    char* fullkey = alloc_concat3("sgx.trusted_hash.\"", -1, key, -1, "\"", -1);
     if (!fullkey)
         return -PAL_ERROR_NOMEM;
 
-    /* NOTE: sgx.trusted_checksum entries are actually SHA-256 hashes, so the better name would be
-     * sgx.trusted_hash but we don't want to break old manifests so we keep the legacy name */
-    char* trusted_checksum_str = NULL;
-    ret = toml_string_in(g_pal_state.manifest_root, fullkey, &trusted_checksum_str);
+    char* trusted_hash_str = NULL;
+    ret = toml_string_in(g_pal_state.manifest_root, fullkey, &trusted_hash_str);
     if (ret < 0) {
         log_error("Cannot parse '%s'\n", fullkey);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
-    if (!trusted_checksum_str) {
+    if (!trusted_hash_str) {
         log_error("Missing '%s' entry\n", fullkey);
         ret = -PAL_ERROR_INVAL;
         goto out;
@@ -685,10 +683,10 @@ static int init_trusted_file(const char* key, const char* uri) {
         goto out;
     }
 
-    ret = register_trusted_file(normpath, trusted_checksum_str, /*check_duplicates=*/false);
+    ret = register_trusted_file(normpath, trusted_hash_str, /*check_duplicates=*/false);
 out:
     free(normpath);
-    free(trusted_checksum_str);
+    free(trusted_hash_str);
     free(fullkey);
     return ret;
 }

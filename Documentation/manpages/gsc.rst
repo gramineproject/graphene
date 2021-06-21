@@ -261,7 +261,7 @@ follows three main stages and produces an image named ``gsc-<image-name>``.
    as the executable path and the library path, and scans the entire image to
    generate a list of trusted files.  GSC excludes files and paths starting with
    :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
-   :file:`/etc/rc`, since checksums are required which either don't exist or may
+   :file:`/etc/rc`, since hashes are required which either don't exist or may
    vary across different deployment machines. GSC combines these variables and
    list of trusted files into a new manifest file. In a last step the entrypoint
    is changed to launch the :file:`apploader.sh` script which generates an Intel

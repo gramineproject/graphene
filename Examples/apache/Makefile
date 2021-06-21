@@ -14,7 +14,7 @@ THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 INSTALL_DIR ?= $(THIS_DIR)install
 HTTPD_SRC ?= $(THIS_DIR)httpd-2.4.46
-HTTPD_CHECKSUM ?= 44b759ce932dc090c0e75c0210b4485ebf6983466fb8ca1b446c8168e1a1aec2
+HTTPD_HASH ?= 44b759ce932dc090c0e75c0210b4485ebf6983466fb8ca1b446c8168e1a1aec2
 
 # Mirros for downloading the Apache source code
 HTTPD_MIRRORS ?= \
@@ -63,7 +63,7 @@ $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
 	cd $(HTTPD_SRC) && patch -p1 -l < ../apache_makefile.patch
 
 $(HTTPD_SRC).tar.gz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) \
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_HASH) \
 		$(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)/$(HTTPD_SRC).tar.gz)
 
 $(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)/bin/httpd

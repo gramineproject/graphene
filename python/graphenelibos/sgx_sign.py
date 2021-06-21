@@ -138,7 +138,7 @@ def get_enclave_attributes(manifest):
     return flags_raw, xfrms_raw, miscs_raw
 
 
-# Generate Checksums / Measurement
+# Generate hashes / measurement
 
 def resolve_uri(uri, check_exist=True):
     if not uri.startswith('file:'):
@@ -676,7 +676,7 @@ def read_manifest(path):
 
     sgx = manifest.setdefault('sgx', {})
     sgx.setdefault('trusted_files', {})
-    sgx.setdefault('trusted_checksum', {})
+    sgx.setdefault('trusted_hash', {})
     sgx.setdefault('enclave_size', DEFAULT_ENCLAVE_SIZE)
     sgx.setdefault('thread_num', DEFAULT_THREAD_NUM)
     sgx.setdefault('isvprodid', 0)
@@ -745,7 +745,7 @@ def main_sign(manifest, args):
     for key, val in expanded_trusted_files:
         uri, _, hash_ = val
         manifest_sgx['trusted_files'][key] = uri
-        manifest_sgx['trusted_checksum'][key] = hash_
+        manifest_sgx['trusted_hash'][key] = hash_
 
     # Populate memory areas
     memory_areas = get_memory_areas(attr, args)
