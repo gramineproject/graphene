@@ -56,7 +56,7 @@ Building
        make ISGX_DRIVER_PATH=/usr/src/linux-headers-`uname -r`/arch/x86/ SGX=1
        meson build -Dsgx=enabled -Ddirect=disabled
        ninja -C build
-       sudo ninja -C install
+       sudo ninja -C build install
 
 #. Build and run :program:`helloworld`::
 
