@@ -19,6 +19,7 @@
 #include "api.h"
 #include "crypto.h"
 #include "enclave_pages.h"
+#include "enclave_pf.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"

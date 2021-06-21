@@ -17,7 +17,6 @@
 #include "pal_defs.h"
 #include "pal_internal.h"
 #include "pal_linux_defs.h"
-#include "protected_files.h"
 #include "sgx_api.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
@@ -93,132 +92,8 @@ bool is_tsc_usable(void);
 uint64_t get_tsc_hz(void);
 void init_tsc(void);
 
-enum {
-    FILE_CHECK_POLICY_STRICT,
-    FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG,
-};
-
-int init_file_check_policy(void);
-int get_file_check_policy(void);
-
-typedef struct {
-    uint8_t bytes[32];
-} sgx_file_hash_t;
-typedef struct {
-    uint8_t bytes[16];
-} sgx_chunk_hash_t;
-
-/*!
- * \brief check if the file to be opened is trusted or allowed, according to the manifest
- *
- * \param file              file handle to be opened
- * \param chunk_hashes_ptr  array of hashes over file chunks
- * \param size_ptr          returns size of opened file
- * \param create            whether this file is newly created
- * \param umem              untrusted memory address at which the file is loaded
- *
- * \return 0 on success, negative error code on failure
- */
-int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint64_t* size_ptr,
-                      int create, void** umem);
-
-/*!
- * \brief Copy and check file contents from untrusted outside buffer to in-enclave buffer
- *
- * \param path            file path (currently only for a log message)
- * \param buf             in-enclave buffer where contents of the file are copied
- * \param umem            start of untrusted file memory mapped outside the enclave
- * \param aligned_offset  offset into file contents to copy, aligned to TRUSTED_CHUNK_SIZE
- * \param aligned_end     end of file contents to copy, aligned to TRUSTED_CHUNK_SIZE
- * \param offset          unaligned offset into file contents to copy
- * \param end             unaligned end of file contents to copy
- * \param chunk_hashes    array of hashes of all file chunks
- * \param file_size       total size of the file
- *
- * \return 0 on success, negative error code on failure
- *
- * If needed, regions at either the beginning or the end of the copied regions are copied into a
- * scratch buffer to avoid a TOCTTOU race. This is done to avoid the following TOCTTOU race
- * condition with the untrusted host as an adversary:
- *       *  Adversary: put good contents in buffer
- *       *  Enclave: buffer check passes
- *       *  Adversary: put bad contents in buffer
- *       *  Enclave: copies in bad buffer contents
- */
-int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* umem,
-                                 off_t aligned_offset, off_t aligned_end, off_t offset, off_t end,
-                                 sgx_chunk_hash_t* chunk_hashes, size_t file_size);
-
-int init_allowed_files(void);
-int init_trusted_files(void);
-
-/* Used to track map buffers for protected files */
-DEFINE_LIST(pf_map);
-struct pf_map {
-    LIST_TYPE(pf_map) list;
-    struct protected_file* pf;
-    void* buffer;
-    uint64_t size;
-    uint64_t offset; /* offset in PF, needed for write buffers when flushing to the PF */
-};
-DEFINE_LISTP(pf_map);
-
-/* List of PF map buffers; this list is traversed on PF flush (on file close) */
-extern LISTP_TYPE(pf_map) g_pf_map_list;
-
-/* Data of a protected file */
-struct protected_file {
-    UT_hash_handle hh;
-    size_t path_len;
-    char* path;
-    pf_context_t* context; /* NULL until PF is opened */
-    int64_t refcount; /* used for deciding when to call unload_protected_file() */
-    int writable_fd; /* fd of underlying file for writable PF, -1 if no writable handles are open */
-};
-
-/* Initialize the PF library, register PFs from the manifest */
-int init_protected_files(void);
-
-/* Take ownership of the global PF lock */
-void pf_lock(void);
-
-/* Release ownership of the global PF lock */
-void pf_unlock(void);
-
-/* Set new wrap key for protected files (e.g., provisioned by remote user) */
-int set_protected_files_key(const char* pf_key_hex);
-
-/* Return a registered PF that matches specified path
-   (or the path is contained in a registered PF directory) */
-struct protected_file* get_protected_file(const char* path);
-
-/* Load and initialize a PF (must be called before any I/O operations)
- *
- * path:   normalized host path
- * fd:     pointer to an opened file descriptor (must point to a valid value for the whole time PF
- *         is being accessed)
- * size:   underlying file size (in bytes)
- * mode:   access mode
- * create: if true, the PF is being created/truncated
- * pf:     (optional) PF pointer if already known
- */
-struct protected_file* load_protected_file(const char* path, int* fd, size_t size,
-                                           pf_file_mode_t mode, bool create,
-                                           struct protected_file* pf);
-
-/* Flush PF map buffers and optionally remove and free them.
-   If pf is NULL, process all maps containing given buffer.
-   If buffer is NULL, process all maps for given pf. */
-int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove);
-
-/* Flush map buffers and unload/close the PF */
-int unload_protected_file(struct protected_file* pf);
-
-/* Find registered PF by path (exact match) */
-struct protected_file* find_protected_file(const char* path);
-
-/* Find protected file by handle (uses handle's path to call find_protected_file) */
-struct protected_file* find_protected_file_handle(PAL_HANDLE handle);
+int init_enclave(void);
+void init_untrusted_slab_mgr(void);
 
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
