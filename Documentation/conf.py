@@ -25,7 +25,7 @@ import recommonmark.parser
 # -- Project information -----------------------------------------------------
 
 project = 'Graphene'
-copyright = '2019, Graphene Contributors'
+copyright = '2019-2021, Graphene Contributors'
 author = 'Graphene Contributors'
 
 # The short X.Y version
