@@ -1,0 +1,35 @@
+libos.entrypoint = "{{ entrypoint }}"
+loader.preload = "file:{{ graphene.libos }}"
+loader.log_level = "{{ log_level }}"
+
+loader.insecure__use_cmdline_argv = true
+
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
+
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
+
+fs.mount.lib2.type = "chroot"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
+
+fs.mount.usr.type = "chroot"
+fs.mount.usr.path = "/usr"
+fs.mount.usr.uri = "file:/usr"
+
+# If using 64G or greater enclave sizes, the JVM flag `-Xmx8G` can be omitted in graphene-sgx.
+sgx.enclave_size = "16G"
+
+# SGX needs minimum 64 threads for loading OpenJDK runtime.
+sgx.thread_num = 64
+
+sgx.trusted_files.java = "file:{{ entrypoint }}"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.jdk_libs = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib"
+sgx.trusted_files.jdk_security = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security"
+sgx.trusted_files.atk_wrapper = "file:/usr/share/java/java-atk-wrapper.jar"
+sgx.trusted_files.hello = "file:MultiThreadMain.class"
+sgx.trusted_files.sync_counter = "file:SyncedCounter.class"
