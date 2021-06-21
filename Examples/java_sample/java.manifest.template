@@ -1,0 +1,140 @@
+# Java manifest example
+#
+# This manifest was prepared and tested on Ubuntu 18.04 and tested with openjdk11
+
+libos.entrypoint = "{{ entrypoint }}"
+
+# Path to the library OS
+loader.preload = "file:{{ graphene.libos }}"
+
+# Graphene log level
+loader.log_level = "{{ log_level }}"
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = true
+
+# Environment variables for java
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}:/usr/lib/jvm/java-11-openjdk-amd64/lib/jli:/usr/lib/jvm/java-11-openjdk-amd64/lib:/usr/lib/jvm/java-11-openjdk-amd64/lib/server:/usr/lib/jvm/java-11-openjdk-amd64/conf"
+
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = true
+
+# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
+# guest. Other parts of the host FS will not be available in the guest.
+
+# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
+
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the Python executable
+fs.mount.lib2.type = "chroot"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
+
+fs.mount.lib3.type = "chroot"
+fs.mount.lib3.path = "/usr/{{ arch_libdir }}"
+fs.mount.lib3.uri = "file:/usr/{{ arch_libdir }}"
+
+# Host-level directory (/usr) required by the Python executable
+fs.mount.usr.type = "chroot"
+fs.mount.usr.path = "/usr"
+fs.mount.usr.uri = "file:/usr"
+
+# Mount /tmp
+fs.mount.tmp.type = "chroot"
+fs.mount.tmp.path = "/tmp"
+fs.mount.tmp.uri = "file:/tmp"
+
+# Mount /etc
+fs.mount.etc.type = "chroot"
+fs.mount.etc.path = "/etc"
+fs.mount.etc.uri = "file:/etc"
+
+# SGX general options
+
+# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
+# size must be specified during signing. If Python needs more virtual memory
+# than the enclave size, Graphene will not be able to allocate it.
+sgx.enclave_size = "64G"
+sgx.static_address = 1
+libos.check_invalid_pointers = false
+
+# Set the maximum number of enclave threads. For SGX v1, the number of enclave
+# TCSes must be specified during signing, so the application cannot use more
+# threads than the number of TCSes. Note that Graphene also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+sgx.thread_num = 1024
+
+sgx.nonpie_binary = true
+sgx.allow_file_creation=true
+
+# SGX trusted libraries
+sgx.trusted_files.java = "file:{{ entrypoint }}"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.libtcmalloc = "file:/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
+sgx.trusted_files.libunwind = "file:/usr/lib/x86_64-linux-gnu/libunwind.so.8"
+sgx.trusted_files.liblzma = "file:/lib/x86_64-linux-gnu/liblzma.so.5"
+
+# Other libraries
+sgx.trusted_files.libjli = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/jli/libjli.so"
+sgx.trusted_files.libz = "file:/lib/x86_64-linux-gnu/libz.so.1"
+sgx.trusted_files.libjava = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libjava.so"
+sgx.trusted_files.libstdcpp = "file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+sgx.trusted_files.libgcc = "file:/lib/x86_64-linux-gnu/libgcc_s.so.1"
+sgx.trusted_files.libnsssystemd  = "file:{{ arch_libdir }}/libnss_systemd.so.2"
+sgx.trusted_files.libjvm = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/server/libjvm.so"
+sgx.trusted_files.libverify = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libverify.so"
+sgx.trusted_files.libjimage = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libjimage.so"
+sgx.trusted_files.libzip = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libzip.so"
+sgx.trusted_files.jvmcfg = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/jvm.cfg"
+sgx.trusted_files.modules = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/modules"
+sgx.trusted_files.libnio = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libnio.so"
+sgx.trusted_files.libnet = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libnet.so"
+sgx.trusted_files.libnss_compat = "file:/lib/x86_64-linux-gnu/libnss_compat.so.2"
+sgx.trusted_files.atk_wrapper = "file:/usr/share/java/java-atk-wrapper.jar"
+sgx.trusted_files.classes_jsa = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/server/classes.jsa"
+sgx.trusted_files.java_security = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security"
+sgx.trusted_files.logging_prop = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/logging.properties"
+sgx.trusted_files.libextnet = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libextnet.so"
+sgx.trusted_files.net_props = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/net.properties"
+sgx.trusted_files.tzdb = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/tzdb.dat"
+sgx.trusted_files.libmanagement = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libmanagement.so"
+sgx.trusted_files.libmanagementexe =  "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libmanagement_ext.so"
+sgx.trusted_files.libsunec = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libsunec.so"
+sgx.trusted_files.default_local_policy = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/security/policy/unlimited/default_local.policy"
+sgx.trusted_files.libawt =  "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libawt.so"
+sgx.trusted_files.libawt_headless =  "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libawt_headless.so"
+sgx.trusted_files.libfontmanager = "file:/usr/lib/jvm/java-11-openjdk-amd64/lib/libfontmanager.so"
+sgx.trusted_files.defaultexportuspolicy = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/security/policy/unlimited/default_US_export.policy"
+sgx.trusted_files.access_props = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/accessibility.properties"
+sgx.trusted_files.swing_props = "file:/usr/lib/jvm/java-11-openjdk-amd64/conf/swing.properties"
+
+#specjbb specific files
+sgx.trusted_files.hello = "file:hello.jar"
+
+# etc files required by Java
+sgx.trusted_files.fonts = "file:/etc/fonts/fonts.conf"
+sgx.trusted_files.timezone = "file:/etc/timezone"
+sgx.trusted_files.localtime = "file:/etc/localtime"
+sgx.trusted_files.lsb_release = "file:/etc/lsb-release"
+sgx.trusted_files.os_release = "file:/etc/os-release"
+sgx.trusted_files.deb_version = "file:/etc/debian_version"
+sgx.trusted_files.mimetypes = "file:/etc/mime.types"
+sgx.trusted_files.defapport = "file:/etc/default/apport"
+
+# Name Service Switch (NSS) and getaddrinfo(3) configuration files
+sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
+sgx.allowed_files.ethers = "file:/etc/ethers"
+sgx.allowed_files.hosts = "file:/etc/hosts"
+sgx.allowed_files.group = "file:/etc/group"
+sgx.allowed_files.passwd = "file:/etc/passwd"
+sgx.allowed_files.gaiconf = "file:/etc/gai.conf"
+sgx.allowed_files.hostconf = "file:/etc/host.conf"
+sgx.allowed_files.resolv = "file:/etc/resolv.conf"
+# SGX untrusted (allowed) files/directories
+sgx.allowed_files.tmp = "file:/tmp"
