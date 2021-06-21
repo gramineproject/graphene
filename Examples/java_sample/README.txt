@@ -1,7 +1,7 @@
 # java sample  execution steps:
 
-This directory contains an example for running a java workload SPECjbb2015
-in Graphene, including the Makefile and a template for generating the manifest.
+This directory contains an example for running a java Sample in Graphene, 
+including the Makefile and a template for generating the manifest.
 The application is tested on Ubuntu 18.04 with both normal Linux and SGX platforms.
 This example is tested with openjdk11.
 
@@ -9,7 +9,7 @@ This example is tested with openjdk11.
 
 ## Installing prerequisites
 
-For generating the manifest and running the SPECjbb2015 workload, please run the
+For generating the manifest and running the Java Sample, run the
 following command to install the required packages (Ubuntu-specific):
 
     sudo apt-get install openjdk-11-jdk
