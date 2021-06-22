@@ -109,6 +109,11 @@
 #define LIST_ASSERT(COND)
 #endif
 
+/* This is intentionally crafted to be in a canonical form on x64, so that it's not stripped from
+ * siginfo_t::si_addr. It's also never accessible from usermode on Linux x86/x64, so it will always
+ * raise an exception. */
+#define INVALID_PTR_CANARY ((void*)0xffffffccccccccccUL)
+
 #define LIST_TYPE(STRUCT_NAME)  struct list_head##_##STRUCT_NAME
 #define LISTP_TYPE(STRUCT_NAME) struct listp##_##STRUCT_NAME
 
@@ -198,6 +203,16 @@
             LIST_ADD_TAIL(NEW, (HEAD)->first, FIELD); \
     } while (0)
 
+#ifdef DEBUG
+#define LIST_DEBUG_ERASE_NODE(NODE, FIELD)       \
+    do {                                         \
+        (NODE)->FIELD.prev = INVALID_PTR_CANARY; \
+        (NODE)->FIELD.next = INVALID_PTR_CANARY; \
+    } while (0)
+#else
+#define LIST_DEBUG_ERASE_NODE(NODE, FIELD) do {} while (0)
+#endif
+
 /* Or deletion needs to know the list root */
 #define LISTP_DEL(NODE, HEAD, FIELD)                           \
     do {                                                       \
@@ -212,6 +227,7 @@
         LIST_ASSERT((NODE)->FIELD.next->FIELD.prev == (NODE)); \
         (NODE)->FIELD.prev->FIELD.next = (NODE)->FIELD.next;   \
         (NODE)->FIELD.next->FIELD.prev = (NODE)->FIELD.prev;   \
+        LIST_DEBUG_ERASE_NODE(NODE, FIELD);                    \
     } while (0)
 
 #define LISTP_DEL_INIT(NODE, HEAD, FIELD) \

@@ -135,7 +135,7 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE c
             child->term_signal = signal;
             child->uid = child_uid;
 
-            LISTP_DEL_INIT(child, &g_process.children, list);
+            LISTP_DEL(child, &g_process.children, list);
             /* TODO: if SIGCHLD is ignored or has SA_NOCLDWAIT flag set, then the child should not
              * become a zombie. */
             LISTP_ADD(child, &g_process.zombies, list);
