@@ -109,6 +109,9 @@
 #define LIST_ASSERT(COND)
 #endif
 
+/* This is intentionally only 32-bit to be in a canonical form on x64, so that it's not stripped
+ * from siginfo_t::si_addr. Downside of this is that there's a chance of it being a valid address,
+ * but it should be quite unlikely on x64. */
 #define INVALID_PTR_CANARY ((void*)0xCCCCCCCC)
 
 #define LIST_TYPE(STRUCT_NAME)  struct list_head##_##STRUCT_NAME
