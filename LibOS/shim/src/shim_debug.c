@@ -51,8 +51,10 @@ void clean_link_map_list(void) {
         link_map_list->l_prev->l_next = NULL;
 
     struct gdb_link_map* m = link_map_list;
-    for (; m; m = m->l_next) {
+    struct gdb_link_map* next;
+    for (; m; m = next) {
         DkDebugMapRemove(m->l_addr);
+        next = m->l_next;
         free(m);
     }
 
