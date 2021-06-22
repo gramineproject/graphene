@@ -112,7 +112,6 @@ static void free_dentry(struct shim_dentry* dent) {
 
     assert(dent->nchildren == 0);
     assert(LISTP_EMPTY(&dent->children));
-    assert(LIST_EMPTY(dent, siblings));
 
     if (dent->attached_mount) {
         put_mount(dent->attached_mount);
@@ -137,7 +136,6 @@ void put_dentry(struct shim_dentry* dent) {
     assert(count >= 0);
 
     if (count == 0) {
-        assert(LIST_EMPTY(dent, siblings));
         assert(LISTP_EMPTY(&dent->children));
         free_dentry(dent);
     }
@@ -153,7 +151,7 @@ void dentry_gc(struct shim_dentry* dent) {
     if ((dent->state & DENTRY_VALID) && !(dent->state & DENTRY_NEGATIVE))
         return;
 
-    LISTP_DEL_INIT(dent, &dent->parent->children, siblings);
+    LISTP_DEL(dent, &dent->parent->children, siblings);
     dent->parent->nchildren--;
     /* This should delete `dent` */
     put_dentry(dent);
