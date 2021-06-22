@@ -66,7 +66,7 @@ libos.check_invalid_pointers = false
 # thread for handling inter-process communication (IPC), and potentially another
 # thread for asynchronous events. Therefore, the actual number of threads that
 # the application can create is (sgx.thread_num - 2).
-sgx.thread_num = 1024
+sgx.thread_num = 32
 
 sgx.nonpie_binary = true
 sgx.allow_file_creation=true
