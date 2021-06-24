@@ -109,10 +109,10 @@
 #define LIST_ASSERT(COND)
 #endif
 
-/* This is intentionally only 32-bit to be in a canonical form on x64, so that it's not stripped
- * from siginfo_t::si_addr. Downside of this is that there's a chance of it being a valid address,
- * but it should be quite unlikely on x64. */
-#define INVALID_PTR_CANARY ((void*)0xCCCCCCCC)
+/* This is intentionally crafted to be in a canonical form on x64, so that it's not stripped from
+ * siginfo_t::si_addr. It's also never accessible from usermode, so it will always raise an
+ * exception. */
+#define INVALID_PTR_CANARY ((void*)0xffffffccccccccccUL)
 
 #define LIST_TYPE(STRUCT_NAME)  struct list_head##_##STRUCT_NAME
 #define LISTP_TYPE(STRUCT_NAME) struct listp##_##STRUCT_NAME
@@ -204,13 +204,13 @@
     } while (0)
 
 #ifdef DEBUG
-#define DEBUG_ERASE_NODE(NODE, FIELD)            \
+#define LIST_DEBUG_ERASE_NODE(NODE, FIELD)       \
     do {                                         \
         (NODE)->FIELD.prev = INVALID_PTR_CANARY; \
         (NODE)->FIELD.next = INVALID_PTR_CANARY; \
     } while (0)
 #else
-#define DEBUG_ERASE_NODE(NODE, FIELD) do {} while (0)
+#define LIST_DEBUG_ERASE_NODE(NODE, FIELD) do {} while (0)
 #endif
 
 /* Or deletion needs to know the list root */
@@ -227,7 +227,7 @@
         LIST_ASSERT((NODE)->FIELD.next->FIELD.prev == (NODE)); \
         (NODE)->FIELD.prev->FIELD.next = (NODE)->FIELD.next;   \
         (NODE)->FIELD.next->FIELD.prev = (NODE)->FIELD.prev;   \
-        DEBUG_ERASE_NODE(NODE, FIELD);                         \
+        LIST_DEBUG_ERASE_NODE(NODE, FIELD);                    \
     } while (0)
 
 #define LISTP_DEL_INIT(NODE, HEAD, FIELD) \

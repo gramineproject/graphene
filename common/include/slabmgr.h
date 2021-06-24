@@ -379,7 +379,7 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
     if (level == (unsigned char)-1) {
         LARGE_MEM_OBJ mem = RAW_TO_OBJ(obj, LARGE_MEM_OBJ_TYPE);
 #ifdef DEBUG
-        memset(OBJ_RAW(mem), 0xCC, mem->size);
+        memset(obj, 0xCC, mem->size);
 #endif
         system_free(mem, mem->size + sizeof(LARGE_MEM_OBJ_TYPE));
         return;
@@ -405,7 +405,7 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
 
     SLAB_OBJ mobj = RAW_TO_OBJ(obj, SLAB_OBJ_TYPE);
 #ifdef DEBUG
-    memset(OBJ_RAW(mobj), 0xCC, slab_levels[mobj->level]);
+    memset(obj, 0xCC, slab_levels[level]);
 #endif
 
     SYSTEM_LOCK();
