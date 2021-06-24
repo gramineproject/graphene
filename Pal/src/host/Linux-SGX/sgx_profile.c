@@ -10,6 +10,8 @@
 
 #ifdef DEBUG
 
+#define USE_STDLIB
+
 #include <assert.h>
 #include <errno.h>
 #include <linux/limits.h>
