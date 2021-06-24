@@ -110,8 +110,8 @@
 #endif
 
 /* This is intentionally crafted to be in a canonical form on x64, so that it's not stripped from
- * siginfo_t::si_addr. It's also never accessible from usermode, so it will always raise an
- * exception. */
+ * siginfo_t::si_addr. It's also never accessible from usermode on Linux x86/x64, so it will always
+ * raise an exception. */
 #define INVALID_PTR_CANARY ((void*)0xffffffccccccccccUL)
 
 #define LIST_TYPE(STRUCT_NAME)  struct list_head##_##STRUCT_NAME
