@@ -9,6 +9,7 @@
 #include "pal_error.h"
 #include "shim_checkpoint.h"
 #include "shim_fs.h"
+#include "shim_fs_lock.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
@@ -313,6 +314,22 @@ struct shim_handle* detach_fd_handle(FDTYPE fd, int* flags, struct shim_handle_m
         handle = __detach_fd_handle(handle_map->map[fd], flags, handle_map);
 
     unlock(&handle_map->lock);
+
+    if (handle && handle->dentry) {
+        /* Clear POSIX locks for a file. We are required to do that every time a FD is closed, even
+         * if the process holds other handles for that file, or duplicated FDs for the same
+         * handle. */
+        struct posix_lock pl = {
+            .type = F_UNLCK,
+            .start = 0,
+            .end = FS_LOCK_EOF,
+            .pid = g_process.pid,
+        };
+        int ret = posix_lock_set(handle->dentry, &pl, /*block=*/false);
+        if (ret < 0)
+            log_warning("error releasing locks: %d", ret);
+    }
+
     return handle;
 }
 

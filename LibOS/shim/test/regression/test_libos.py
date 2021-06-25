@@ -591,6 +591,14 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['gettimeofday'])
         self.assertIn('TEST OK', stdout)
 
+    def test_110_fcntl_lock(self):
+        try:
+            stdout, _ = self.run_binary(['fcntl_lock'])
+        finally:
+            if os.path.exists('tmp/lock_file'):
+                os.remove('tmp/lock_file')
+        self.assertIn('TEST OK', stdout)
+
 class TC_31_Syscall(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX,
         'This test is only meaningful on SGX PAL because only SGX catches raw '

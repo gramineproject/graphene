@@ -32,6 +32,9 @@ enum {
     IPC_MSG_SYNC_CONFIRM_UPGRADE,
     IPC_MSG_SYNC_CONFIRM_DOWNGRADE,
     IPC_MSG_SYNC_CONFIRM_CLOSE,
+    IPC_MSG_POSIX_LOCK_SET,
+    IPC_MSG_POSIX_LOCK_GET,
+    IPC_MSG_POSIX_LOCK_CLEAR_PID,
     IPC_MSG_CODE_BOUND,
 };
 
@@ -252,5 +255,42 @@ int ipc_sync_request_close_callback(IDTYPE src, void* data, unsigned long seq);
 int ipc_sync_confirm_upgrade_callback(IDTYPE src, void* data, unsigned long seq);
 int ipc_sync_confirm_downgrade_callback(IDTYPE src, void* data, unsigned long seq);
 int ipc_sync_confirm_close_callback(IDTYPE src, void* data, unsigned long seq);
+
+/*
+ * POSIX_LOCK_SET: `struct shim_ipc_posix_lock` -> `int`
+ * POSIX_LOCK_GET: `struct shim_ipc_posix_lock` -> `struct shim_ipc_posix_lock_resp`
+ * POSIX_LOCK_CLEAR_PID: `IDTYPE` -> `int`
+ */
+
+struct shim_ipc_posix_lock {
+    /* see `struct posix_lock` in `shim_fs_lock.h` */
+    int type;
+    uint64_t start;
+    uint64_t end;
+    IDTYPE pid;
+
+    bool wait;
+    char path[]; /* null-terminated */
+};
+
+struct shim_ipc_posix_lock_resp {
+    int result;
+
+    /* see `struct posix_lock` in `shim_fs_lock.h` */
+    int type;
+    uint64_t start;
+    uint64_t end;
+    IDTYPE pid;
+};
+
+struct posix_lock;
+
+int ipc_posix_lock_set(const char* path, struct posix_lock* pl, bool wait);
+int ipc_posix_lock_set_send_response(IDTYPE vmid, unsigned long seq, int result);
+int ipc_posix_lock_get(const char* path, struct posix_lock* pl, struct posix_lock* out_pl);
+int ipc_posix_lock_clear_pid(IDTYPE pid);
+int ipc_posix_lock_set_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_posix_lock_get_callback(IDTYPE src, void* data, unsigned long seq);
+int ipc_posix_lock_clear_pid_callback(IDTYPE src, void* data, unsigned long seq);
 
 #endif /* SHIM_IPC_H_ */

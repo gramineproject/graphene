@@ -115,6 +115,8 @@ struct shim_fs_ops {
  * pretends to have many files in a directory. */
 #define DENTRY_MAX_CHILDREN 1000000
 
+struct fs_lock_info;
+
 DEFINE_LIST(shim_dentry);
 DEFINE_LISTP(shim_dentry);
 struct shim_dentry {
@@ -151,6 +153,15 @@ struct shim_dentry {
 
     /* Filesystem-specific data. Protected by `lock`. */
     void* data;
+
+    /* File lock information, stored only in the main process. Protected by `lock`. See
+     * `shim_fs_lock.c`. */
+    struct fs_lock* fs_lock;
+
+    /* True if the file might have locks placed by current process. Used in processes other than
+     * main process, to prevent unnecessary IPC calls on handle close. Protected by `lock`. See
+     * `shim_fs_lock.c`. */
+    bool maybe_has_fs_locks;
 
     struct shim_lock lock;
     REFTYPE ref_count;

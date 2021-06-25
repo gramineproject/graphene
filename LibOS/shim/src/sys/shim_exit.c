@@ -8,6 +8,7 @@
 
 #include "pal.h"
 #include "pal_error.h"
+#include "shim_fs_lock.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_ipc.h"
@@ -94,8 +95,14 @@ noreturn void thread_exit(int error_code, int term_signal) {
         /* UNREACHABLE */
     }
 
+    /* Clear POSIX locks before we notify parent: after a successful `wait()` by parent, our locks
+     * should already be gone. */
+    int ret = posix_lock_clear_pid(g_process.pid);
+    if (ret < 0)
+        log_warning("error clearing POSIX locks: %d", ret);
+
     /* This is the last thread of the process. Let parent know we exited. */
-    int ret = ipc_cld_exit_send(error_code, term_signal);
+    ret = ipc_cld_exit_send(error_code, term_signal);
     if (ret < 0) {
         log_error("Sending IPC process-exit notification failed: %d", ret);
     }

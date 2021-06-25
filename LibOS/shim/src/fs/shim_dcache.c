@@ -453,6 +453,9 @@ BEGIN_CP_FUNC(dentry) {
             new_dent->data = NULL;
         }
 
+        /* `fs_lock` is used only by process leader. */
+        new_dent->fs_lock = NULL;
+
         DO_CP_IN_MEMBER(qstr, new_dent, name);
 
         if (new_dent->mount)
