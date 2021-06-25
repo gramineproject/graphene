@@ -8,6 +8,7 @@
 
 #include "pal.h"
 #include "pal_error.h"
+#include "shim_fs_lock.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_ipc.h"
@@ -24,6 +25,8 @@ static noreturn void libos_clean_and_exit(int exit_code) {
      * 1) kill all other Graphene processes
      * 2) wait for them to exit here, before we terminate the IPC helper
      */
+
+    posix_lock_clear_pid(g_process.pid);
 
     shutdown_sync_client();
 

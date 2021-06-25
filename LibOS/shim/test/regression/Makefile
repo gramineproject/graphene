@@ -27,6 +27,7 @@ c_executables = \
 	exec_victim \
 	exit \
 	exit_group \
+	fcntl_lock \
 	fdleak \
 	file_check_policy \
 	file_size \

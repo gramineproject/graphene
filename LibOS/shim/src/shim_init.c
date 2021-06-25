@@ -17,6 +17,7 @@
 #include "shim_context.h"
 #include "shim_defs.h"
 #include "shim_fs.h"
+#include "shim_fs_lock.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_ipc.h"
@@ -408,6 +409,7 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_str_mgr);
     RUN_INIT(init_rlimit);
     RUN_INIT(init_fs);
+    RUN_INIT(init_fs_lock);
     RUN_INIT(init_dcache);
     RUN_INIT(init_handle);
 
