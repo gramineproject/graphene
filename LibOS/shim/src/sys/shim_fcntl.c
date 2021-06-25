@@ -11,8 +11,10 @@
 #include "pal.h"
 #include "pal_error.h"
 #include "shim_fs.h"
+#include "shim_fs_lock.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
+#include "shim_process.h"
 #include "shim_lock.h"
 #include "shim_table.h"
 #include "shim_thread.h"
@@ -38,10 +40,87 @@ int set_handle_nonblocking(struct shim_handle* hdl, bool on) {
     return ret;
 }
 
+/*
+ * Convert user-mode `struct flock` into our `struct posix_lock`. This mostly means converting the
+ * position parameters (l_whence, l_start, l_len) to an absolute inclusve range [start .. end]. See
+ * `man fcntl` for details.
+ *
+ * We need to return -EINVAL for underflow (positions before start of file), and -EOVERFLOW for
+ * positive overflow.
+ */
+static int flock_to_posix_lock(struct flock* fl, struct shim_handle* hdl, struct posix_lock* pl) {
+    if (!(fl->l_type == F_RDLCK || fl->l_type == F_WRLCK || fl->l_type == F_UNLCK))
+        return -EINVAL;
+
+    int ret;
+
+    struct shim_fs* fs = hdl->fs;
+    assert(fs && fs->fs_ops);
+
+    uint64_t origin;
+    switch (fl->l_whence) {
+        case SEEK_SET:
+            origin = 0;
+            break;
+        case SEEK_CUR: {
+            if (!fs->fs_ops->seek)
+                return -EINVAL;
+
+            off_t pos = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
+            if (pos < 0)
+                return pos;
+            origin = pos;
+            break;
+        }
+        case SEEK_END: {
+            if (!fs->fs_ops->hstat)
+                return -EINVAL;
+
+            struct stat stat;
+            ret = fs->fs_ops->hstat(hdl, &stat);
+            if (ret < 0)
+                return ret;
+            assert(stat.st_size >= 0);
+            origin = stat.st_size;
+            break;
+        }
+        default:
+            return -EINVAL;
+    }
+
+    if (__builtin_add_overflow(origin, fl->l_start, &origin)) {
+        return fl->l_start > 0 ? -EOVERFLOW : -EINVAL;
+    }
+
+    uint64_t start, end;
+    if (fl->l_len > 0) {
+        /* l_len < 0: the range is [origin .. origin + len - 1] */
+        start = origin;
+        if (__builtin_add_overflow(origin, fl->l_len - 1, &end))
+            return -EOVERFLOW;
+    } else if (fl->l_len < 0) {
+        /* l_len < 0: the range is [origin + len .. origin - 1] */
+        if (__builtin_add_overflow(origin, fl->l_len, &start))
+            return -EINVAL;
+        if (__builtin_add_overflow(origin, -1, &end))
+            return -EINVAL;
+    } else {
+        /* l_len == 0: the range is [origin .. EOF] */
+        start = origin;
+        end = FS_LOCK_EOF;
+    }
+
+    pl->type = fl->l_type;
+    pl->start = start;
+    pl->end = end;
+    pl->pid = g_process.pid;
+    return 0;
+}
+
 long shim_do_fcntl(int fd, int cmd, unsigned long arg) {
     struct shim_handle_map* handle_map = get_thread_handle_map(NULL);
     int flags;
-    int ret = -ENOSYS;
+    int ret;
 
     struct shim_handle* hdl = get_fd_handle(fd, &flags, handle_map);
     if (!hdl)
@@ -141,21 +220,43 @@ long shim_do_fcntl(int fd, int cmd, unsigned long arg) {
          *   l_whence, l_start, and l_len fields of lock.  If a conflicting lock
          *   is held by another process, this call returns -1 and sets errno to
          *   EACCES or EAGAIN.
-         */
-        case F_SETLK:
-            ret = -ENOSYS;
-            break;
-
-        /* F_SETLKW (struct flock *)
+         *
+         * F_SETLKW (struct flock *)
          *   As for F_SETLK, but if a conflicting lock is held on the file,
          *   then wait for that lock to be released. If a signal is caught while
          *   waiting, then the call is interrupted and (after the signal handler
          *   has returned) returns immediately (with return value -1 and errno
          *   set to EINTR; see signal(7)).
          */
-        case F_SETLKW:
-            ret = -ENOSYS;
+        case F_SETLK:
+        case F_SETLKW: {
+            struct flock *fl = (struct flock*)arg;
+            if (!is_user_memory_readable(fl, sizeof(*fl))) {
+                ret = -EFAULT;
+                break;
+            }
+
+            if (!hdl->dentry) {
+                /* TODO: Linux allows locks on pipes etc. Our locks work only for "normal" files
+                 * that have a dentry. */
+                ret = -EINVAL;
+                break;
+            }
+
+            if (fl->l_type == F_RDLCK && !(hdl->acc_mode & MAY_READ))
+                return -EINVAL;
+
+            if (fl->l_type == F_WRLCK && !(hdl->acc_mode & MAY_WRITE))
+                return -EINVAL;
+
+            struct posix_lock pl;
+            ret = flock_to_posix_lock(fl, hdl, &pl);
+            if (ret < 0)
+                break;
+
+            ret = posix_lock_set(hdl->dentry, &pl, /*wait=*/cmd == F_SETLKW);
             break;
+        }
 
         /* F_GETLK (struct flock *)
          *   On input to this call, lock describes a lock we would like to place
@@ -167,9 +268,40 @@ long shim_do_fcntl(int fd, int cmd, unsigned long arg) {
          *   l_whence, l_start, and l_len fields of lock and sets l_pid to be
          *   the PID of the process holding that lock.
          */
-        case F_GETLK:
-            ret = -ENOSYS;
+        case F_GETLK: {
+            struct flock *fl = (struct flock*)arg;
+            if (!is_user_memory_readable(fl, sizeof(*fl))
+                    || !is_user_memory_writable(fl, sizeof(*fl))) {
+                ret = -EFAULT;
+                break;
+            }
+
+            if (!hdl->dentry)
+                return -EINVAL;
+
+            struct posix_lock pl;
+            ret = flock_to_posix_lock(fl, hdl, &pl);
+            if (ret < 0)
+                break;
+
+            if (pl.type == F_UNLCK)
+                return -EINVAL;
+
+            struct posix_lock pl2;
+            ret = posix_lock_get(hdl->dentry, &pl, &pl2);
+            if (ret < 0)
+                break;
+
+            fl->l_type = pl2.type;
+            if (pl2.type != F_UNLCK) {
+                fl->l_whence = SEEK_SET;
+                fl->l_start = pl2.start;
+                fl->l_len = pl2.end - pl2.start + 1;
+                fl->l_pid = pl2.pid;
+            }
+            ret = 0;
             break;
+        }
 
         /* F_SETOWN (int)
          *   Set  the process ID or process group ID that will receive SIGIO
@@ -182,6 +314,10 @@ long shim_do_fcntl(int fd, int cmd, unsigned long arg) {
         case F_SETOWN:
             ret = 0;
             /* XXX: DUMMY for now */
+            break;
+
+        default:
+            ret = -EINVAL;
             break;
     }
 
