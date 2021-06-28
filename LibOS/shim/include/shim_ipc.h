@@ -188,6 +188,8 @@ int ipc_release_id_range_callback(IDTYPE src, void* data, uint64_t seq);
  * - each of these ranges must be freed separately, e.g.
  *   `ipc_release_id_range(5, 5); ipc_release_id_range(1, 4); ipc_release_id_range(6, 10);`
  *   is ok to do, but `ipc_release_id_range(5, 10);` is not.
+ * Theoretically speaking any process can free any range (as long as each range is freed only once),
+ * but in the current implementation a process frees only ranges it owns.
  */
 int ipc_change_id_owner(IDTYPE id, IDTYPE new_owner);
 int ipc_change_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
