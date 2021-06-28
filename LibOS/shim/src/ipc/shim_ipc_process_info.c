@@ -29,6 +29,11 @@ int ipc_pid_getmeta(IDTYPE pid, enum pid_meta_code code, struct shim_ipc_pid_ret
     if ((ret = ipc_get_id_owner(pid, &dest)) < 0)
         return ret;
 
+    if (dest == 0) {
+        /* No process owns `pid` thus it does not exist. */
+        return -ESRCH;
+    }
+
     struct shim_ipc_pid_getmeta msgin = {
         .pid = pid,
         .code = code,

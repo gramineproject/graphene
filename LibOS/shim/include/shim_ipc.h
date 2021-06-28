@@ -20,8 +20,8 @@
 enum {
     IPC_MSG_RESP = 0,
     IPC_MSG_CHILDEXIT,          /*!< Child exit/death information. */
-    IPC_MSG_NEW_ID_RANGE,       /*!< Request new IDs range. */
-    IPC_MSG_FREE_ID_RANGE,      /*!< Release IDs range. */
+    IPC_MSG_ALLOC_ID_RANGE,     /*!< Request new IDs range. */
+    IPC_MSG_RELEASE_ID_RANGE,   /*!< Release IDs range. */
     IPC_MSG_CHANGE_ID_OWNER,    /*!< Change the owner of an ID. */
     IPC_MSG_GET_ID_OWNER,       /*!< Find the owner of an ID. */
     IPC_MSG_PID_KILL,
@@ -155,12 +155,12 @@ void ipc_child_disconnect_callback(IDTYPE vmid);
 /*!
  * \brief Request a new ID range from the IPC leader
  *
- * \param start[out] start of the new ID range
- * \param end[out] end of the new ID range
+ * \param[out] out_start start of the new ID range
+ * \param[out] out_end end of the new ID range
  *
  * Sender becomes the owner of the returned ID range.
  */
-int ipc_alloc_id_range(IDTYPE* start, IDTYPE* end);
+int ipc_alloc_id_range(IDTYPE* out_start, IDTYPE* out_end);
 int ipc_alloc_id_range_callback(IDTYPE src, void* data, uint64_t seq);
 
 /*!
@@ -169,7 +169,7 @@ int ipc_alloc_id_range_callback(IDTYPE src, void* data, uint64_t seq);
  * \param start start of the ID range
  * \param end end of the ID range
  *
- * \p start and \p end must denote a full range.
+ * \p start and \p end must denote a full range (for details check #ipc_change_id_owner).
  */
 int ipc_release_id_range(IDTYPE start, IDTYPE end);
 int ipc_release_id_range_callback(IDTYPE src, void* data, uint64_t seq);
@@ -181,7 +181,13 @@ int ipc_release_id_range_callback(IDTYPE src, void* data, uint64_t seq);
  * \param new_owner new owner of \p id
  *
  * This operation effectively splits an existing ID range. Each (if any) of the range parts must be
- * later on freed separately.
+ * later on freed separately. Example:
+ * - process1 owns range 1..10
+ * - `ipc_change_id_owner(id=5, new_owner=process2)`
+ * - now process1 owns ranges 1..4 and 6..10, process2 owns 5..5
+ * - each of these ranges must be freed separately, e.g.
+ *   `ipc_release_id_range(5, 5); ipc_release_id_range(1, 4); ipc_release_id_range(6, 10);`
+ *   is ok to do, but `ipc_release_id_range(5, 10);` is not.
  */
 int ipc_change_id_owner(IDTYPE id, IDTYPE new_owner);
 int ipc_change_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
@@ -190,9 +196,11 @@ int ipc_change_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
  * \brief Find the owner of a given id
  *
  * \param id id to find the owner of
- * \parami[out] owner contains vmid of the process owning \p id
+ * \param[out] out_owner contains vmid of the process owning \p id
+ *
+ * If nobody owns \p id then `0` is returned in \p out_owner.
  */
-int ipc_get_id_owner(IDTYPE id, IDTYPE* owner);
+int ipc_get_id_owner(IDTYPE id, IDTYPE* out_owner);
 int ipc_get_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
 
 /* PID_KILL: send signal to certain pid */

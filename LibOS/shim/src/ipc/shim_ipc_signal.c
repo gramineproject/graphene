@@ -27,6 +27,10 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
         if (ret < 0) {
             return ret;
         }
+        if (dest == 0) {
+            /* No process owns `dest_pid` thus it does not exist. */
+            return -ESRCH;
+        }
     }
 
     struct shim_ipc_pid_kill msgin = {

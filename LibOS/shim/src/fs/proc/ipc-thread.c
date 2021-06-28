@@ -5,7 +5,7 @@
 
 /*
  * Implementation of `/proc/<remote-pid>`. Currently supports only `root`, `cwd` and `exe` symlinks,
- * does not support process listsing (you need to know the pid in advance) and does not do any
+ * does not support process listing (you need to know the pid in advance) and does not do any
  * caching.
  */
 
@@ -30,6 +30,7 @@ bool proc_ipc_thread_pid_name_exists(struct shim_dentry* parent, const char* nam
     struct shim_ipc_pid_retmeta* retmeta = NULL;
     int ret = ipc_pid_getmeta(pid, PID_META_CRED, &retmeta);
     if (ret < 0) {
+        /* FIXME: this silences all errors. */
         return false;
     }
     free(retmeta);

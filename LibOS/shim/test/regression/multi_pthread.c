@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
             if (x != 0) {
                 printf("pthread_create: %d\n", x);
                 ret = 1;
+                goto out;
             }
         }
 
@@ -35,12 +36,13 @@ int main(int argc, char** argv) {
         for (int j = 0; j < CONC_THREAD_NUM; j++) {
             int x = pthread_join(thread[j], NULL);
             if (x != 0) {
-                printf("pthread_create: %d\n", x);
+                printf("pthread_join: %d\n", x);
                 ret = 1;
             }
         }
     }
 
+out:
     printf("%d Threads Created\n", counter);
     return ret;
 }

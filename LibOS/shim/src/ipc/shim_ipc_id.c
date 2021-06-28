@@ -3,6 +3,8 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
+/* This file contains code for management of global ID ranges. */
+
 #include "api.h"
 #include "assert.h"
 #include "avl_tree.h"
@@ -76,7 +78,7 @@ int init_ipc_ids(void) {
 }
 
 /* If a free range was found, sets `*start` and `*end` and returns `true`, if nothing was found
- * returns `false`. */
+ * returns `false`. If a range was returned, it is not larger than `MAX_RANGE_SIZE`. */
 static bool _find_free_id_range(IDTYPE* start, IDTYPE* end) {
     assert(locked(&g_id_owners_tree_lock));
     static_assert(!IS_SIGNED(IDTYPE), "IDTYPE must be unsigned");
@@ -101,7 +103,8 @@ static bool _find_free_id_range(IDTYPE* start, IDTYPE* end) {
         /* `next_id` overlaps `range`. */
         assert(next_id <= range->end);
         if (range->end == IDTYPE_MAX) {
-            /* No ids available in range `[g_last_id + 1, IDTYPE_MAX]`. */
+            /* No ids available in range `[g_last_id + 1, IDTYPE_MAX]`. If wrapping is needed, set
+             * `g_last_id` and call this function again. */
             return false;
         }
         next_id = range->end + 1;
@@ -220,6 +223,7 @@ static void release_id_range(IDTYPE start, IDTYPE end) {
         BUG();
     }
     struct id_range* range = container_of(node, struct id_range, node);
+    assert(range->start == start && range->end == end);
     avl_tree_delete(&g_id_owners_tree, &range->node);
 
     unlock(&g_id_owners_tree_lock);
@@ -249,9 +253,9 @@ out:
     return owner;
 }
 
-int ipc_alloc_id_range(IDTYPE* start, IDTYPE* end) {
+int ipc_alloc_id_range(IDTYPE* out_start, IDTYPE* out_end) {
     if (!g_process_ipc_ids.leader_vmid) {
-        return alloc_id_range(g_self_vmid, start, end);
+        return alloc_id_range(g_self_vmid, out_start, out_end);
     }
 
     size_t msg_size = get_ipc_msg_size(0);
@@ -259,7 +263,9 @@ int ipc_alloc_id_range(IDTYPE* start, IDTYPE* end) {
     if (!msg) {
         return -ENOMEM;
     }
-    init_ipc_msg(msg, IPC_MSG_NEW_ID_RANGE, msg_size);
+    init_ipc_msg(msg, IPC_MSG_ALLOC_ID_RANGE, msg_size);
+
+    log_debug("%s: sending a request\n", __func__);
 
     void* resp = NULL;
     int ret = ipc_send_msg_and_get_response(g_process_ipc_ids.leader_vmid, msg, &resp);
@@ -269,12 +275,14 @@ int ipc_alloc_id_range(IDTYPE* start, IDTYPE* end) {
 
     struct ipc_id_range_msg* range = resp;
     if (range->start && range->end) {
-        *start = range->start;
-        *end = range->end;
+        *out_start = range->start;
+        *out_end = range->end;
         ret = 0;
     } else {
         ret = -EAGAIN;
     }
+
+    log_debug("%s: got a response: [%u, %u]\n", __func__, range->start, range->end);
 
 out:
     free(resp);
@@ -291,6 +299,8 @@ int ipc_alloc_id_range_callback(IDTYPE src, void* data, uint64_t seq) {
         start = 0;
         end = 0;
     }
+
+    log_debug("%s: %d\n", __func__, ret);
 
     struct ipc_id_range_msg range = {
         .start = start,
@@ -319,10 +329,13 @@ int ipc_release_id_range(IDTYPE start, IDTYPE end) {
     if (!msg) {
         return -ENOMEM;
     }
-    init_ipc_msg(msg, IPC_MSG_FREE_ID_RANGE, msg_size);
+    init_ipc_msg(msg, IPC_MSG_RELEASE_ID_RANGE, msg_size);
     memcpy(&msg->data, &range, sizeof(range));
 
+    log_debug("%s: sending a request: [%u, %u]\n", __func__, start, end);
+
     int ret = ipc_send_message(g_process_ipc_ids.leader_vmid, msg);
+    log_debug("%s: ipc_send_message: %d\n", __func__, ret);
     free(msg);
     return ret;
 }
@@ -332,6 +345,7 @@ int ipc_release_id_range_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(seq);
     struct ipc_id_range_msg* range = data;
     release_id_range(range->start, range->end);
+    log_debug("%s: release_id_range(%u, %u)\n", __func__, range->start, range->end);
     return 0;
 }
 
@@ -352,7 +366,10 @@ int ipc_change_id_owner(IDTYPE id, IDTYPE new_owner) {
     init_ipc_msg(msg, IPC_MSG_CHANGE_ID_OWNER, msg_size);
     memcpy(&msg->data, &owner_msg, sizeof(owner_msg));
 
+    log_debug("%s: sending a request (%u, %u)\n", __func__, id, new_owner);
+
     int ret = ipc_send_msg_and_get_response(g_process_ipc_ids.leader_vmid, msg, /*resp=*/NULL);
+    log_debug("%s: ipc_send_msg_and_get_response: %d\n", __func__, ret);
     free(msg);
     return ret;
 }
@@ -360,6 +377,7 @@ int ipc_change_id_owner(IDTYPE id, IDTYPE new_owner) {
 int ipc_change_id_owner_callback(IDTYPE src, void* data, uint64_t seq) {
     struct ipc_id_owner_msg* owner_msg = data;
     int ret = change_id_owner(owner_msg->id, owner_msg->owner);
+    log_debug("%s: change_id_owner(%u, %u): %d\n", __func__, owner_msg->id, owner_msg->owner, ret);
     if (ret < 0) {
         return ret;
     }
@@ -371,9 +389,9 @@ int ipc_change_id_owner_callback(IDTYPE src, void* data, uint64_t seq) {
     return ipc_send_message(src, msg);
 }
 
-int ipc_get_id_owner(IDTYPE id, IDTYPE* owner) {
+int ipc_get_id_owner(IDTYPE id, IDTYPE* out_owner) {
     if (!g_process_ipc_ids.leader_vmid) {
-        *owner = find_id_owner(id);
+        *out_owner = find_id_owner(id);
         return 0;
     }
 
@@ -385,14 +403,18 @@ int ipc_get_id_owner(IDTYPE id, IDTYPE* owner) {
     init_ipc_msg(msg, IPC_MSG_GET_ID_OWNER, msg_size);
     memcpy(&msg->data, &id, sizeof(id));
 
+    log_debug("%s: sending a request: %u\n", __func__, id);
+
     void* resp = NULL;
     int ret = ipc_send_msg_and_get_response(g_process_ipc_ids.leader_vmid, msg, &resp);
     if (ret < 0) {
         goto out;
     }
 
-    *owner = *(IDTYPE*)resp;
+    *out_owner = *(IDTYPE*)resp;
     ret = 0;
+
+    log_debug("%s: got a response: %u\n", __func__, *out_owner);
 
 out:
     free(resp);
@@ -403,6 +425,7 @@ out:
 int ipc_get_id_owner_callback(IDTYPE src, void* data, uint64_t seq) {
     IDTYPE* id = data;
     IDTYPE owner = find_id_owner(*id);
+    log_debug("%s: find_id_owner(%u): %u\n", __func__, *id, owner);
 
     size_t msg_size = get_ipc_msg_size(sizeof(owner));
     struct shim_ipc_msg* msg = __alloca(msg_size);

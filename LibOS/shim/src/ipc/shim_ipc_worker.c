@@ -47,8 +47,8 @@ typedef int (*ipc_callback)(IDTYPE src, void* data, uint64_t seq);
 static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_RESP]              = ipc_response_callback,
     [IPC_MSG_CHILDEXIT]         = ipc_cld_exit_callback,
-    [IPC_MSG_NEW_ID_RANGE]      = ipc_alloc_id_range_callback,
-    [IPC_MSG_FREE_ID_RANGE]     = ipc_release_id_range_callback,
+    [IPC_MSG_ALLOC_ID_RANGE]    = ipc_alloc_id_range_callback,
+    [IPC_MSG_RELEASE_ID_RANGE]  = ipc_release_id_range_callback,
     [IPC_MSG_CHANGE_ID_OWNER]   = ipc_change_id_owner_callback,
     [IPC_MSG_GET_ID_OWNER]      = ipc_get_id_owner_callback,
     [IPC_MSG_PID_KILL]          = ipc_pid_kill_callback,

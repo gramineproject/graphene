@@ -3,6 +3,8 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
+/* This file contains code for management of ID ranges owned by the current process. */
+
 #include "assert.h"
 #include "avl_tree.h"
 #include "cpu.h"
@@ -20,6 +22,7 @@ struct id_range {
     IDTYPE start;
     IDTYPE end;
     unsigned int taken_count;
+    static_assert(MAX_RANGE_SIZE <= UINT_MAX, "`taken_count` is capped by `MAX_RANGE_SIZE`");
 };
 
 static bool id_range_cmp(struct avl_tree_node* _a, struct avl_tree_node* _b) {
@@ -40,12 +43,12 @@ static struct avl_tree g_used_ranges_tree = { .cmp = id_range_cmp };
 static IDTYPE g_last_used_id = 0;
 static struct shim_lock g_ranges_lock;
 
-int init_id_ranges(IDTYPE preaload_tid) {
+int init_id_ranges(IDTYPE preload_tid) {
     if (!create_lock(&g_ranges_lock)) {
         return -ENOMEM;
     }
 
-    if (!preaload_tid) {
+    if (!preload_tid) {
         return 0;
     }
 
@@ -53,8 +56,8 @@ int init_id_ranges(IDTYPE preaload_tid) {
     if (!range) {
         return -ENOMEM;
     }
-    range->start = preaload_tid;
-    range->end = preaload_tid;
+    range->start = preload_tid;
+    range->end = preload_tid;
     range->taken_count = 1;
 
     lock(&g_ranges_lock);
@@ -91,7 +94,7 @@ IDTYPE get_new_id(bool remove_from_owned) {
         g_last_used_id = start - 1;
     }
     assert(g_last_used_id < g_last_range->end);
-    assert(g_last_range->end - g_last_range->start + 1 > g_last_range->taken_count);
+    assert(g_last_range->taken_count < g_last_range->end - g_last_range->start + 1);
 
     ret_id = ++g_last_used_id;
     g_last_range->taken_count++;
