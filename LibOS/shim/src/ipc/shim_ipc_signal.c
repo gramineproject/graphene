@@ -28,8 +28,14 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
             return ret;
         }
         if (dest == 0) {
-            /* No process owns `dest_pid` thus it does not exist. */
-            return -ESRCH;
+            /* No process owns `dest_pid`... */
+            if (is_zombie_process(dest_pid)) {
+                /* ... but it's a zombie! */
+                return 0;
+            } else {
+                /* ... so it does not exist. */
+                return -ESRCH;
+            }
         }
     }
 
