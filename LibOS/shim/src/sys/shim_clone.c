@@ -355,7 +355,8 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
 
         if (ret < 0) {
             /* The child process might have already taken the ownership of `tid`, let's change it
-             * back... */
+             * back (if we still own it, this call will split `tid` from any other range, if it is
+             * a part of one)... */
             int tmp_ret = ipc_change_id_owner(tid, g_self_vmid);
             if (tmp_ret < 0) {
                 log_debug("Failed to change back ID %u owner: %d\n", tid, tmp_ret);
