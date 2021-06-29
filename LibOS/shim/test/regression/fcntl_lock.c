@@ -20,10 +20,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define TEST_FILE "tmp/file"
+#define TEST_DIR "tmp/"
+#define TEST_FILE "tmp/lock_file"
 
 static int g_fd;
-static int g_pipe[2][2];
 
 static const char* str_cmd(int cmd) {
     switch (cmd) {
@@ -158,21 +158,37 @@ static void wait_for_child(void) {
         err(1, "wait");
 }
 
-static void write_pipe(unsigned int i) {
+static void open_pipes(int pipes[2][2]) {
+    for (unsigned int i = 0; i < 2; i++) {
+        if (pipe(pipes[i]) < 0)
+            err(1, "pipe");
+    }
+}
+
+static void close_pipes(int pipes[2][2]) {
+    for (unsigned int i = 0; i < 2; i++) {
+        for (unsigned int j = 0; j < 2; j++) {
+            if (close(pipes[i][j]) < 0)
+                err(1, "close pipe");
+        }
+    }
+}
+
+static void write_pipe(int pipe[2]) {
     char c = 0;
     int ret;
     do {
-        ret = write(g_pipe[i][1], &c, sizeof(c));
+        ret = write(pipe[1], &c, sizeof(c));
     } while (ret == -1 && errno == EINTR);
     if (ret == -1)
         err(1, "write");
 }
 
-static void read_pipe(unsigned int i) {
+static void read_pipe(int pipe[2]) {
     char c;
     int ret;
     do {
-        ret = read(g_pipe[i][0], &c, sizeof(c));
+        ret = read(pipe[0], &c, sizeof(c));
     } while (ret == -1 && errno == EINTR);
     if (ret == -1)
         err(1, "write");
@@ -185,22 +201,27 @@ static void test_child_exit() {
     printf("test child exit...\n");
     unlock(0, 0);
 
+    int pipes[2][2];
+    open_pipes(pipes);
+
     pid_t pid = fork();
     if (pid < 0)
         err(1, "fork");
 
     if (pid == 0) {
         lock_ok(F_WRLCK, 0, 100);
-        write_pipe(0);
-        read_pipe(1);
+        write_pipe(pipes[0]);
+        read_pipe(pipes[1]);
         exit(0);
     }
 
-    read_pipe(0);
+    read_pipe(pipes[0]);
     lock_fail(F_RDLCK, 0, 100);
-    write_pipe(1);
+    write_pipe(pipes[1]);
     lock_wait_ok(F_RDLCK, 0, 100);
+
     wait_for_child();
+    close_pipes(pipes);
 }
 
 /* Test: child takes a lock, and then closes a duplicated FD. The lock should be released. */
@@ -208,14 +229,17 @@ static void test_file_close() {
     printf("test file close...\n");
     unlock(0, 0);
 
+    int pipes[2][2];
+    open_pipes(pipes);
+
     pid_t pid = fork();
     if (pid < 0)
         err(1, "fork");
 
     if (pid == 0) {
         lock_ok(F_WRLCK, 0, 100);
-        write_pipe(0);
-        read_pipe(1);
+        write_pipe(pipes[0]);
+        read_pipe(pipes[1]);
 
         int fd2 = dup(g_fd);
         if (fd2 < 0)
@@ -224,22 +248,27 @@ static void test_file_close() {
         if (close(fd2) < 0)
             err(1, "close");
 
-        read_pipe(1);
+        read_pipe(pipes[1]);
         exit(0);
     }
 
-    read_pipe(0);
+    read_pipe(pipes[0]);
     lock_fail(F_RDLCK, 0, 100);
-    write_pipe(1);
+    write_pipe(pipes[1]);
     lock_wait_ok(F_RDLCK, 0, 100);
-    write_pipe(1);
+    write_pipe(pipes[1]);
+
     wait_for_child();
+    close_pipes(pipes);
 }
 
 /* Test: child waits for parent to release a lock. */
 static void test_child_wait() {
     printf("test child wait...\n");
     unlock(0, 0);
+
+    int pipes[2][2];
+    open_pipes(pipes);
 
     lock_ok(F_RDLCK, 0, 100);
 
@@ -250,15 +279,16 @@ static void test_child_wait() {
     if (pid == 0) {
         lock_ok(F_RDLCK, 0, 100);
         lock_fail(F_WRLCK, 0, 100);
-        write_pipe(0);
+        write_pipe(pipes[0]);
         lock_wait_ok(F_WRLCK, 0, 100);
         exit(0);
     }
 
-    read_pipe(0);
+    read_pipe(pipes[0]);
     unlock(0, 100);
 
     wait_for_child();
+    close_pipes(pipes);
 }
 
 /* Test: parent waits for child to release a lock. */
@@ -266,31 +296,35 @@ static void test_parent_wait() {
     printf("test parent wait...\n");
     unlock(0, 0);
 
+    int pipes[2][2];
+    open_pipes(pipes);
+
     pid_t pid = fork();
     if (pid < 0)
         err(1, "fork");
 
     if (pid == 0) {
         lock_ok(F_RDLCK, 0, 100);
-        write_pipe(0);
-        read_pipe(1);
+        write_pipe(pipes[0]);
+        read_pipe(pipes[1]);
         unlock(0, 100);
-        read_pipe(1);
+        read_pipe(pipes[1]);
         exit(0);
     }
 
     /* parent process: */
 
-    read_pipe(0);
+    read_pipe(pipes[0]);
 
     /* read lock should succeed */
     lock_ok(F_RDLCK, 0, 100);
     lock_fail(F_WRLCK, 0, 100);
-    write_pipe(1);
+    write_pipe(pipes[1]);
     lock_wait_ok(F_WRLCK, 0, 100);
-    write_pipe(1);
+    write_pipe(pipes[1]);
 
     wait_for_child();
+    close_pipes(pipes);
 }
 
 int main(void) {
@@ -302,11 +336,6 @@ int main(void) {
 
     g_fd = fileno(fp);
 
-    for (unsigned int i = 0; i < 2; i++) {
-        if (pipe(g_pipe[i]) < 0)
-            err(1, "pipe");
-    }
-
     test_ranges();
     test_child_exit();
     test_file_close();
@@ -316,12 +345,8 @@ int main(void) {
     if (fclose(fp) == EOF)
         err(1, "fclose");
 
-    for (unsigned int i = 0; i < 2; i++) {
-        if (close(g_pipe[i][0]) < 0)
-            err(1, "close pipe");
-        if (close(g_pipe[i][1]) < 0)
-            err(1, "close pipe");
-    }
+    if (unlink(TEST_FILE) < 0)
+        err(1, "unlink");
 
     printf("TEST OK\n");
     return 0;
