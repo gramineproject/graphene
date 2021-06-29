@@ -12,7 +12,8 @@ static int buf_write_all(const char* str, size_t size, void* arg) {
 static void log_vprintf(const char* fmt, va_list ap, bool append_newline) {
     struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
     buf_vprintf(&buf, fmt, ap);
-    buf_printf(&buf, "\n");
+    if (append_newline)
+        buf_printf(&buf, "\n");
     buf_flush(&buf);
 }
 
