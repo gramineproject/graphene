@@ -256,7 +256,7 @@ static int tmpfs_mmap(struct shim_handle* hdl, void** addr, size_t size, int pro
     __UNUSED(flags);
     __UNUSED(offset);
 
-    log_error("tmpfs_mmap(): mmap() function for tmpfs mount type is not implemented.\n");
+    log_error("tmpfs_mmap(): mmap() function for tmpfs mount type is not implemented.");
     return -ENOSYS;
 }
 

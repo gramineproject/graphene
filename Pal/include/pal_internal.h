@@ -234,7 +234,7 @@ int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
 
 #define INIT_FAIL(exitcode, reason)                                                              \
     do {                                                                                         \
-        log_error("PAL failed at " __FILE__ ":%s:%u (exitcode = %u, reason=%s)\n", __FUNCTION__, \
+        log_error("PAL failed at " __FILE__ ":%s:%u (exitcode = %u, reason=%s)", __FUNCTION__,   \
                   (unsigned int)__LINE__, (unsigned int)(exitcode), reason);                     \
         _DkProcessExit(exitcode);                                                                \
     } while (0)
@@ -243,7 +243,7 @@ int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
     do {                                                                                         \
         log_error("PAL failed at parsing the manifest: %s\n"                                     \
                   "  Graphene switched to the TOML format recently, please update the manifest\n"\
-                  "  (in particular, string values must be put in double quotes)\n", reason);    \
+                  "  (in particular, string values must be put in double quotes)", reason);      \
         _DkProcessExit(exitcode);                                                                \
     } while (0)
 
@@ -282,7 +282,7 @@ void pal_log(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3
 
 #define uthash_fatal(msg)                      \
     do {                                       \
-        log_error("uthash error: %s\n", msg);  \
+        log_error("uthash error: %s", msg);    \
         _DkProcessExit(PAL_ERROR_NOMEM);       \
     } while (0)
 #include "uthash.h"

@@ -31,7 +31,7 @@ static int sys_resource(struct shim_dentry* parent, const char* name, unsigned i
         pal_total = g_pal_control->topo_info.num_cache_index;
         prefix = "index";
     } else {
-        log_debug("unrecognized resource: %s\n", parent_name);
+        log_debug("unrecognized resource: %s", parent_name);
         return -ENOENT;
     }
 

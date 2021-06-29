@@ -92,7 +92,7 @@ void get_dentry(struct shim_dentry* dent) {
 
     const char* path = NULL;
     dentry_abs_path(dent, &path, /*size=*/NULL);
-    log_debug("get dentry %p(%s) (ref_count = %lld)\n", dent, path, count);
+    log_debug("get dentry %p(%s) (ref_count = %lld)", dent, path, count);
     free(path);
 #else
     REF_INC(dent->ref_count);
@@ -131,7 +131,7 @@ void put_dentry(struct shim_dentry* dent) {
 #ifdef DEBUG_REF
     const char* path = NULL;
     dentry_abs_path(dent, &path, /*size=*/NULL);
-    log_debug("put dentry %p(%s) (ref_count = %lld)\n", dent, path, count);
+    log_debug("put dentry %p(%s) (ref_count = %lld)", dent, path, count);
     free(path);
 #endif
     assert(count >= 0);
@@ -175,7 +175,7 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
     }
 
     if (parent && parent->nchildren >= DENTRY_MAX_CHILDREN) {
-        log_warning("get_new_dentry: nchildren limit reached\n");
+        log_warning("get_new_dentry: nchildren limit reached");
         free_dentry(dent);
         return NULL;
     }
@@ -341,7 +341,7 @@ int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size) {
 
 static int dump_dentry_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
-    log_always("%.*s\n", (int)size, str);
+    log_always("%.*s", (int)size, str);
     return 0;
 }
 

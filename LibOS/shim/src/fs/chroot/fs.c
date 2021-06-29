@@ -255,7 +255,7 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
             type = S_IFCHR;
             break;
         default:
-            log_error("unknown PAL handle type: %d\n", pal_attr.handle_type);
+            log_error("unknown PAL handle type: %d", pal_attr.handle_type);
             BUG();
     }
 
@@ -844,7 +844,7 @@ static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback,
                 end++;
 
             if (end == start) {
-                log_error("chroot_readdir: empty name returned from PAL\n");
+                log_error("chroot_readdir: empty name returned from PAL");
                 die_or_inf_loop();
             }
 

@@ -117,7 +117,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
 
     unlock(&async_worker_lock);
 
-    log_debug("Installed async event at %lu\n", now);
+    log_debug("Installed async event at %lu", now);
     set_event(&install_new_event, 1);
     return max_prev_expire_time - now;
 }
@@ -161,7 +161,7 @@ static void shim_async_worker(void* arg) {
 
     /* Assume async worker thread will not drain the stack that PAL provides,
      * so for efficiency we don't swap the stack. */
-    log_debug("Async worker thread started\n");
+    log_debug("Async worker thread started");
 
     /* Simple heuristic to not burn cycles when no async events are installed:
      * async worker thread sleeps IDLE_SLEEP_TIME for MAX_IDLE_CYCLES and
@@ -173,14 +173,14 @@ static void shim_async_worker(void* arg) {
     size_t pals_max_cnt = 32;
     PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + pals_max_cnt));
     if (!pals) {
-        log_error("Allocation of pals failed\n");
+        log_error("Allocation of pals failed");
         goto out_err;
     }
 
     /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
     PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + pals_max_cnt) * 2);
     if (!pal_events) {
-        log_error("Allocation of pal_events failed\n");
+        log_error("Allocation of pal_events failed");
         goto out_err;
     }
     PAL_FLG* ret_events = pal_events + 1 + pals_max_cnt;
@@ -195,7 +195,7 @@ static void shim_async_worker(void* arg) {
         int ret = DkSystemTimeQuery(&now);
         if (ret < 0) {
             ret = pal_to_unix_errno(ret);
-            log_error("DkSystemTimeQuery failed with: %d\n", ret);
+            log_error("DkSystemTimeQuery failed with: %d", ret);
             goto out_err;
         }
 
@@ -219,13 +219,13 @@ static void shim_async_worker(void* arg) {
                     /* grow `pals` to accommodate more objects */
                     PAL_HANDLE* tmp_pals = malloc(sizeof(*tmp_pals) * (1 + pals_max_cnt * 2));
                     if (!tmp_pals) {
-                        log_error("tmp_pals allocation failed\n");
+                        log_error("tmp_pals allocation failed");
                         goto out_err_unlock;
                     }
                     PAL_FLG* tmp_pal_events =
                         malloc(sizeof(*tmp_pal_events) * (2 + pals_max_cnt * 4));
                     if (!tmp_pal_events) {
-                        log_error("tmp_pal_events allocation failed\n");
+                        log_error("tmp_pal_events allocation failed");
                         goto out_err_unlock;
                     }
                     PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + pals_max_cnt * 2;
@@ -278,7 +278,7 @@ static void shim_async_worker(void* arg) {
             async_worker_state  = WORKER_NOTALIVE;
             async_worker_thread = NULL;
             unlock(&async_worker_lock);
-            log_debug("Async worker thread has been idle for some time; stopping it\n");
+            log_debug("Async worker thread has been idle for some time; stopping it");
             break;
         }
         unlock(&async_worker_lock);
@@ -287,7 +287,7 @@ static void shim_async_worker(void* arg) {
         ret = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
         if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             ret = pal_to_unix_errno(ret);
-            log_error("DkStreamsWaitEvents failed with: %d\n", ret);
+            log_error("DkStreamsWaitEvents failed with: %d", ret);
             goto out_err;
         }
         PAL_BOL polled = ret == 0;
@@ -295,7 +295,7 @@ static void shim_async_worker(void* arg) {
         ret = DkSystemTimeQuery(&now);
         if (ret < 0) {
             ret = pal_to_unix_errno(ret);
-            log_error("DkSystemTimeQuery failed with: %d\n", ret);
+            log_error("DkSystemTimeQuery failed with: %d", ret);
             goto out_err;
         }
 
@@ -317,7 +317,7 @@ static void shim_async_worker(void* arg) {
                 /* check if this event is an IO event found in async_list */
                 LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
                     if (tmp->object == pals[i]) {
-                        log_debug("Async IO event triggered at %lu\n", now);
+                        log_debug("Async IO event triggered at %lu", now);
                         LISTP_ADD_TAIL(tmp, &triggered, triggered_list);
                         break;
                     }
@@ -328,11 +328,11 @@ static void shim_async_worker(void* arg) {
         /* check if exit-child or alarm/timer events were triggered */
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
             if (tmp->callback == &cleanup_thread) {
-                log_debug("Thread exited, cleaning up\n");
+                log_debug("Thread exited, cleaning up");
                 LISTP_DEL(tmp, &async_list, list);
                 LISTP_ADD_TAIL(tmp, &triggered, triggered_list);
             } else if (tmp->expire_time && tmp->expire_time <= now) {
-                log_debug("Alarm/timer triggered at %lu (expired at %lu)\n", now, tmp->expire_time);
+                log_debug("Alarm/timer triggered at %lu (expired at %lu)", now, tmp->expire_time);
                 LISTP_DEL(tmp, &async_list, list);
                 LISTP_ADD_TAIL(tmp, &triggered, triggered_list);
             }
@@ -354,7 +354,7 @@ static void shim_async_worker(void* arg) {
     }
 
     put_thread(self);
-    log_debug("Async worker thread terminated\n");
+    log_debug("Async worker thread terminated");
 
     free(pals);
     free(pal_events);
@@ -365,7 +365,7 @@ static void shim_async_worker(void* arg) {
 out_err_unlock:
     unlock(&async_worker_lock);
 out_err:
-    log_error("Terminating the process due to a fatal error in async worker\n");
+    log_error("Terminating the process due to a fatal error in async worker");
     put_thread(self);
     DkProcessExit(1);
 }

@@ -248,7 +248,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         CSIGNAL;
 
     if (flags & ~supported_flags) {
-        log_warning("clone called with unsupported flags argument.\n");
+        log_warning("clone called with unsupported flags argument.");
         return -EINVAL;
     }
 
@@ -268,7 +268,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
      * explicitly disallowed for now. */
     if (flags & CLONE_VM) {
         if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
-            log_warning("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
+            log_warning("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported");
             return -EINVAL;
         }
     }
@@ -279,7 +279,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
          * assume that performance hit is negligible (Graphene has to migrate internal state anyway
          * which is slow) and apps do not rely on insane Linux-specific semantics of vfork().  */
         log_warning("vfork was called by the application, implemented as an alias to fork in "
-                    "Graphene\n");
+                    "Graphene");
         flags &= ~(CLONE_VFORK | CLONE_VM);
     }
 
@@ -335,7 +335,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
 
     IDTYPE tid = get_new_id(/*remove_from_owned=*/clone_new_process);
     if (!tid) {
-        log_error("Could not allocate a tid!\n");
+        log_error("Could not allocate a tid!");
         ret = -EAGAIN;
         goto failed;
     }
@@ -359,14 +359,14 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
              * a part of one)... */
             int tmp_ret = ipc_change_id_owner(tid, g_self_vmid);
             if (tmp_ret < 0) {
-                log_debug("Failed to change back ID %u owner: %d\n", tid, tmp_ret);
+                log_debug("Failed to change back ID %u owner: %d", tid, tmp_ret);
                 /* No way to recover gracefully. */
                 DkProcessExit(1);
             }
             /* ... and release it. */
             tmp_ret = ipc_release_id_range(tid, tid);
             if (tmp_ret < 0) {
-                log_debug("Failed to release ID %u: %d\n", tid, tmp_ret);
+                log_debug("Failed to release ID %u: %d", tid, tmp_ret);
                 /* No way to recover gracefully. */
                 DkProcessExit(1);
             }

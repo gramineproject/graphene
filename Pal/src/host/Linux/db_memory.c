@@ -35,7 +35,7 @@ static spinlock_t g_pal_internal_mem_lock = INIT_SPINLOCK_UNLOCKED;
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     if (addr < DATA_END && addr + size > TEXT_START) {
-        log_error("Address %p-%p is not mappable\n", addr, addr + size);
+        log_error("Address %p-%p is not mappable", addr, addr + size);
         return true;
     }
     return false;

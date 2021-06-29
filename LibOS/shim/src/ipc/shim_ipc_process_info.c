@@ -44,7 +44,7 @@ int ipc_pid_getmeta(IDTYPE pid, enum pid_meta_code code, struct shim_ipc_pid_ret
 
     memcpy(&msg->data, &msgin, sizeof(msgin));
 
-    log_debug("ipc send to %u: IPC_MSG_PID_GETMETA(%u, %s)\n", dest, pid, pid_meta_code_str[code]);
+    log_debug("ipc send to %u: IPC_MSG_PID_GETMETA(%u, %s)", dest, pid, pid_meta_code_str[code]);
 
     struct shim_ipc_pid_retmeta* resp = NULL;
     ret = ipc_send_msg_and_get_response(dest, msg, (void**)&resp);
@@ -65,7 +65,7 @@ int ipc_pid_getmeta_callback(IDTYPE src, void* msg_data, uint64_t seq) {
     struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)msg_data;
     int ret = 0;
 
-    log_debug("ipc callback from %u: IPC_MSG_PID_GETMETA(%u, %s)\n", src, msgin->pid,
+    log_debug("ipc callback from %u: IPC_MSG_PID_GETMETA(%u, %s)", src, msgin->pid,
               pid_meta_code_str[msgin->code]);
 
     struct shim_thread* thread = lookup_thread(msgin->pid);
@@ -143,7 +143,7 @@ out_send:;
     memcpy(&msg->data, &retmeta, sizeof(retmeta));
     memcpy(&((struct shim_ipc_pid_retmeta*)&msg->data)->data, data, datasize);
 
-    log_debug("IPC send to %u: shim_ipc_pid_retmeta{%lu, ...}\n", src, datasize);
+    log_debug("IPC send to %u: shim_ipc_pid_retmeta{%lu, ...}", src, datasize);
 
     ret = ipc_send_message(src, msg);
 

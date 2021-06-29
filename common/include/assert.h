@@ -24,7 +24,7 @@
 #define assert(expr)                                                              \
     ({                                                                            \
         if (expr) {} else {                                                       \
-            log_always("assert failed " __FILE__ ":%d %s\n", __LINE__, #expr);    \
+            log_always("assert failed " __FILE__ ":%d %s", __LINE__, #expr);      \
             abort();                                                              \
         }                                                                         \
         (void)0;                                                                  \

@@ -31,7 +31,7 @@ void* memcpy(void* restrict dest, const void* restrict src, size_t count) {
 
 void* __memcpy_chk(void* restrict dest, const void* restrict src, size_t count, size_t dest_count) {
     if (count > dest_count) {
-        log_always("memcpy() check failed\n");
+        log_always("memcpy() check failed");
         abort();
     }
     return memcpy(dest, src, count);
@@ -59,7 +59,7 @@ void* memmove(void* dest, const void* src, size_t count) {
 
 void* __memmove_chk(void* restrict dest, const void* restrict src, size_t count, size_t dest_count) {
     if (count > dest_count) {
-        log_always("memmove() check failed\n");
+        log_always("memmove() check failed");
         abort();
     }
     return memmove(dest, src, count);

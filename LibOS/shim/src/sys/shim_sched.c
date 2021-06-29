@@ -185,7 +185,7 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
      * to sizeof(long) */
     size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
     if (cpumask_size < bitmask_size_in_bytes) {
-        log_warning("size of cpumask must be at least %lu but supplied cpumask is %u\n",
+        log_warning("size of cpumask must be at least %lu but supplied cpumask is %u",
                     bitmask_size_in_bytes, cpumask_size);
         return -EINVAL;
     }

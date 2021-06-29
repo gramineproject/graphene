@@ -43,7 +43,7 @@ int sys_cache_load(struct shim_dentry* dent, char** out_data, size_t* out_size) 
     } else if (strcmp(name, "physical_line_partition") == 0) {
         str = cache->physical_line_partition;
     } else {
-        log_debug("unrecognized file: %s\n", name);
+        log_debug("unrecognized file: %s", name);
         return -ENOENT;
     }
 

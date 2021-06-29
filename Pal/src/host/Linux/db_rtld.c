@@ -29,13 +29,13 @@ bool is_in_vdso(uintptr_t addr) {
 void _DkDebugMapAdd(const char* name, void* addr) {
     int ret = debug_map_add(name, addr);
     if (ret < 0)
-        log_error("debug_map_add(%s, %p) failed: %d\n", name, addr, ret);
+        log_error("debug_map_add(%s, %p) failed: %d", name, addr, ret);
 }
 
 void _DkDebugMapRemove(void* addr) {
     int ret = debug_map_remove(addr);
     if (ret < 0)
-        log_error("debug_map_remove(%p) failed: %d\n", addr, ret);
+        log_error("debug_map_remove(%p) failed: %d", addr, ret);
 }
 
 void setup_pal_map(struct link_map* pal_map) {
@@ -82,8 +82,7 @@ void setup_vdso_map(ElfW(Addr) addr) {
         }
 
     if (pt_loads_count != 1) {
-        log_warning("The VDSO has %lu PT_LOAD segments, but only 1 was expected.\n",
-                    pt_loads_count);
+        log_warning("The VDSO has %lu PT_LOAD segments, but only 1 was expected.", pt_loads_count);
         g_vdso_start = 0;
         g_vdso_end = 0;
         return;

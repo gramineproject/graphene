@@ -364,13 +364,13 @@ static void do_request_close(IDTYPE vmid, uint64_t id, int cur_state, size_t dat
     free(lease);
 
     if (LISTP_EMPTY(&client->leases)) {
-        log_trace("sync server: deleting unused client: %d\n", client->vmid);
+        log_trace("sync server: deleting unused client: %d", client->vmid);
         HASH_DELETE(hh, g_server_clients, client);
         free(client);
     }
 
     if (LISTP_EMPTY(&handle->leases)) {
-        log_trace("sync server: deleting unused handle: 0x%lx\n", handle->id);
+        log_trace("sync server: deleting unused handle: 0x%lx", handle->id);
         HASH_DELETE(hh, g_server_handles, handle);
         free(handle->data);
         free(handle);

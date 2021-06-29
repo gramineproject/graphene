@@ -144,7 +144,7 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
 
     int fd = INLINE_SYSCALL(open, 3, file_name, O_WRONLY | O_TRUNC | O_CREAT, PERM_rw_r__r__);
     if (fd < 0) {
-        log_error("pd_open: cannot open %s for writing: %d\n", file_name, fd);
+        log_error("pd_open: cannot open %s for writing: %d", file_name, fd);
         return NULL;
     }
 
@@ -163,7 +163,7 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
 
     struct perf_data* pd = malloc(sizeof(*pd));
     if (!pd) {
-        log_error("pd_open: out of memory\n");
+        log_error("pd_open: out of memory");
         goto fail;
     }
 
@@ -175,7 +175,7 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
 fail:
     ret = INLINE_SYSCALL(close, 1, fd);
     if (ret < 0)
-        log_error("pd_open: close failed: %d\n", ret);
+        log_error("pd_open: close failed: %d", ret);
     return NULL;
 };
 
@@ -284,7 +284,7 @@ ssize_t pd_close(struct perf_data* pd) {
 out:
     close_ret = INLINE_SYSCALL(close, 1, pd->fd);
     if (close_ret < 0)
-        log_error("pd_close: close failed: %d\n", close_ret);
+        log_error("pd_close: close failed: %d", close_ret);
 
     free(pd);
     return ret;

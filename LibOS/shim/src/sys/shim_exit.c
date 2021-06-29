@@ -55,7 +55,7 @@ static noreturn void libos_clean_and_exit(int exit_code) {
 
     terminate_ipc_worker();
 
-    log_debug("process %u exited with status %d\n", g_self_vmid, exit_code);
+    log_debug("process %u exited with status %d", g_self_vmid, exit_code);
 
     /* TODO: We exit whole libos, but there are some objects that might need cleanup, e.g. we should
      * release this (last) thread pid. We should do a proper cleanup of everything. */
@@ -82,7 +82,7 @@ noreturn void thread_exit(int error_code, int term_signal) {
 
         if (ret < 0) {
             log_error("failed to set up async cleanup_thread (exiting without clear child tid),"
-                      " return code: %ld\n", ret);
+                      " return code: %ld", ret);
             /* `cleanup_thread` did not get this reference, clean it. We have to be careful, as
              * this is most likely the last reference and will free this `cur_thread`. */
             put_thread(cur_thread);
@@ -97,7 +97,7 @@ noreturn void thread_exit(int error_code, int term_signal) {
     /* This is the last thread of the process. Let parent know we exited. */
     int ret = ipc_cld_exit_send(error_code, term_signal);
     if (ret < 0) {
-        log_error("Sending IPC process-exit notification failed: %d\n", ret);
+        log_error("Sending IPC process-exit notification failed: %d", ret);
     }
 
     /* At this point other threads might be still in the middle of an exit routine, but we don't
@@ -165,7 +165,7 @@ long shim_do_exit_group(int error_code) {
 
     error_code &= 0xFF;
 
-    log_debug("---- shim_exit_group (returning %d)\n", error_code);
+    log_debug("---- shim_exit_group (returning %d)", error_code);
 
     process_exit(error_code, 0);
 }
@@ -175,7 +175,7 @@ long shim_do_exit(int error_code) {
 
     error_code &= 0xFF;
 
-    log_debug("---- shim_exit (returning %d)\n", error_code);
+    log_debug("---- shim_exit (returning %d)", error_code);
 
     thread_exit(error_code, 0);
 }

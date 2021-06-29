@@ -160,7 +160,7 @@ static int __do_statfs(struct shim_mount* mount, struct statfs* buf) {
     buf->f_bfree  = 10000000;
     buf->f_bavail = 10000000;
 
-    log_debug("statfs: %ld %ld %ld\n", buf->f_blocks, buf->f_bfree, buf->f_bavail);
+    log_debug("statfs: %ld %ld %ld", buf->f_blocks, buf->f_bfree, buf->f_bavail);
 
     return 0;
 }

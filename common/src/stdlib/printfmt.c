@@ -282,7 +282,7 @@ int __vsnprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, cons
                     va_list ap) {
     __UNUSED(flag);
     if (buf_size > real_size) {
-        log_always("vsnprintf() check failed\n");
+        log_always("vsnprintf() check failed");
         abort();
     }
     return vsnprintf(buf, buf_size, fmt, ap);
@@ -302,7 +302,7 @@ int snprintf(char* buf, size_t buf_size, const char* fmt, ...) {
 int __snprintf_chk(char* buf, size_t buf_size, int flag, size_t real_size, const char* fmt, ...) {
     __UNUSED(flag);
     if (buf_size > real_size) {
-        log_always("vsnprintf() check failed\n");
+        log_always("vsnprintf() check failed");
         abort();
     }
 

@@ -202,7 +202,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     enclave_image = INLINE_SYSCALL(open, 3, enclave->libpal_uri + URI_PREFIX_FILE_LEN, O_RDONLY, 0);
     if (enclave_image < 0) {
-        log_error("Cannot find enclave image: %s\n", enclave->libpal_uri);
+        log_error("Cannot find enclave image: %s", enclave->libpal_uri);
         ret = enclave_image;
         goto out;
     }
@@ -222,7 +222,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     ret = read_enclave_token(enclave->token, &enclave_token);
     if (ret < 0) {
-        log_error("Reading enclave token failed: %d\n", ret);
+        log_error("Reading enclave token failed: %d", ret);
         goto out;
     }
     enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
@@ -230,7 +230,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 #ifdef DEBUG
     if (enclave->profile_enable) {
         if (!(enclave->pal_sec.enclave_attributes.flags & SGX_FLAGS_DEBUG)) {
-            log_error("Cannot use 'sgx.profile' with a production enclave\n");
+            log_error("Cannot use 'sgx.profile' with a production enclave");
             ret = -EINVAL;
             goto out;
         }
@@ -243,7 +243,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     ret = read_enclave_sigstruct(enclave->sigfile, &enclave_sigstruct);
     if (ret < 0) {
-        log_error("Reading enclave sigstruct failed: %d\n", ret);
+        log_error("Reading enclave sigstruct failed: %d", ret);
         goto out;
     }
 
@@ -252,7 +252,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     enclave_secs.size = enclave->size;
     ret = create_enclave(&enclave_secs, &enclave_token);
     if (ret < 0) {
-        log_error("Creating enclave failed: %d\n", ret);
+        log_error("Creating enclave failed: %d", ret);
         goto out;
     }
 
@@ -371,7 +371,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     ret = scan_enclave_binary(enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
     if (ret < 0) {
-        log_error("Scanning Pal binary (%s) failed: %d\n", enclave->libpal_uri, ret);
+        log_error("Scanning Pal binary (%s) failed: %d", enclave->libpal_uri, ret);
         goto out;
     }
 
@@ -400,7 +400,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         if (areas[i].data_src == ELF_FD) {
             ret = load_enclave_binary(&enclave_secs, areas[i].fd, areas[i].addr, areas[i].prot);
             if (ret < 0) {
-                log_error("Loading enclave binary failed: %d\n", ret);
+                log_error("Loading enclave binary failed: %d", ret);
                 goto out;
             }
             continue;
@@ -412,7 +412,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                                          MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
             if (IS_ERR_P(data) || data == NULL) {
                 /* Note that Graphene currently doesn't handle 0x0 addresses */
-                log_error("Allocating memory failed\n");
+                log_error("Allocating memory failed");
                 ret = -ENOMEM;
                 goto out;
             }
@@ -466,14 +466,14 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
 
         if (ret < 0) {
-            log_error("Adding pages (%s) to enclave failed: %d\n", areas[i].desc, ret);
+            log_error("Adding pages (%s) to enclave failed: %d", areas[i].desc, ret);
             goto out;
         }
     }
 
     ret = init_enclave(&enclave_secs, &enclave_sigstruct, &enclave_token);
     if (ret < 0) {
-        log_error("Initializing enclave failed: %d\n", ret);
+        log_error("Initializing enclave failed: %d", ret);
         goto out;
     }
 
@@ -483,7 +483,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         mmap, 6, DBGINFO_ADDR, sizeof(struct enclave_dbginfo), PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     if (IS_ERR_P(dbg)) {
-        log_warning("Cannot allocate debug information (GDB will not work)\n");
+        log_warning("Cannot allocate debug information (GDB will not work)");
     } else {
         dbg->pid            = INLINE_SYSCALL(getpid, 0);
         dbg->base           = enclave->baseaddr;
@@ -500,7 +500,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         /* set TCS.FLAGS.DBGOPTIN in all enclave threads to enable perf counters, Intel PT, etc */
         ret = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDWR | O_LARGEFILE, 0);
         if (ret < 0) {
-            log_error("Setting TCS.FLAGS.DBGOPTIN failed: %d\n", ret);
+            log_error("Setting TCS.FLAGS.DBGOPTIN failed: %d", ret);
             goto out;
         }
         enclave_mem = ret;
@@ -512,7 +512,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             ret = INLINE_SYSCALL(pread, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
                                  (off_t)tcs_flags_ptr);
             if (ret < 0) {
-                log_error("Reading TCS.FLAGS.DBGOPTIN failed: %d\n", ret);
+                log_error("Reading TCS.FLAGS.DBGOPTIN failed: %d", ret);
                 goto out;
             }
 
@@ -521,7 +521,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             ret = INLINE_SYSCALL(pwrite, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
                                  (off_t)tcs_flags_ptr);
             if (ret < 0) {
-                log_error("Writing TCS.FLAGS.DBGOPTIN failed: %d\n", ret);
+                log_error("Writing TCS.FLAGS.DBGOPTIN failed: %d", ret);
                 goto out;
             }
         }
@@ -572,7 +572,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         log_error(
             "PAL failed at parsing the manifest: %s\n"
             "  Graphene switched to the TOML format recently, please update the manifest\n"
-            "  (in particular, string values must be put in double quotes)\n", errbuf);
+            "  (in particular, string values must be put in double quotes)", errbuf);
         ret = -EINVAL;
         goto out;
     }
@@ -580,13 +580,13 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_sizestring_in(manifest_root, "sgx.enclave_size", /*defaultval=*/0,
                              &enclave_info->size);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.enclave_size' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse 'sgx.enclave_size' (the value must be put in double quotes!)");
         ret = -EINVAL;
         goto out;
     }
 
     if (!enclave_info->size || !IS_POWER_OF_2(enclave_info->size)) {
-        log_error("Enclave size not a power of two (an SGX-imposed requirement)\n");
+        log_error("Enclave size not a power of two (an SGX-imposed requirement)");
         ret = -EINVAL;
         goto out;
     }
@@ -594,13 +594,13 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     int64_t thread_num_int64;
     ret = toml_int_in(manifest_root, "sgx.thread_num", /*defaultval=*/0, &thread_num_int64);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.thread_num'\n");
+        log_error("Cannot parse 'sgx.thread_num'");
         ret = -EINVAL;
         goto out;
     }
 
     if (thread_num_int64 < 0) {
-        log_error("Negative 'sgx.thread_num' is impossible\n");
+        log_error("Negative 'sgx.thread_num' is impossible");
         ret = -EINVAL;
         goto out;
     }
@@ -609,12 +609,12 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
 
     if (!enclave_info->thread_num) {
         log_warning("Number of enclave threads ('sgx.thread_num') is not specified; assumed "
-                    "to be 1\n");
+                    "to be 1");
         enclave_info->thread_num = 1;
     }
 
     if (enclave_info->thread_num > MAX_DBG_THREADS) {
-        log_error("Too large 'sgx.thread_num', maximum allowed is %d\n", MAX_DBG_THREADS);
+        log_error("Too large 'sgx.thread_num', maximum allowed is %d", MAX_DBG_THREADS);
         ret = -EINVAL;
         goto out;
     }
@@ -622,13 +622,13 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     int64_t rpc_thread_num_int64;
     ret = toml_int_in(manifest_root, "sgx.rpc_thread_num", /*defaultval=*/0, &rpc_thread_num_int64);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.rpc_thread_num'\n");
+        log_error("Cannot parse 'sgx.rpc_thread_num'");
         ret = -EINVAL;
         goto out;
     }
 
     if (rpc_thread_num_int64 < 0) {
-        log_error("Negative 'sgx.rpc_thread_num' is impossible\n");
+        log_error("Negative 'sgx.rpc_thread_num' is impossible");
         ret = -EINVAL;
         goto out;
     }
@@ -636,13 +636,13 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     enclave_info->rpc_thread_num = rpc_thread_num_int64;
 
     if (enclave_info->rpc_thread_num > MAX_RPC_THREADS) {
-        log_error("Too large 'sgx.rpc_thread_num', maximum allowed is %d\n", MAX_RPC_THREADS);
+        log_error("Too large 'sgx.rpc_thread_num', maximum allowed is %d", MAX_RPC_THREADS);
         ret = -EINVAL;
         goto out;
     }
 
     if (enclave_info->rpc_thread_num && enclave_info->thread_num > RPC_QUEUE_SIZE) {
-        log_error("Too many threads for exitless feature (more than capacity of RPC queue)\n");
+        log_error("Too many threads for exitless feature (more than capacity of RPC queue)");
         ret = -EINVAL;
         goto out;
     }
@@ -650,7 +650,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     bool nonpie_binary;
     ret = toml_bool_in(manifest_root, "sgx.nonpie_binary", /*defaultval=*/false, &nonpie_binary);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.nonpie_binary' (the value must be `true` or `false`)\n");
+        log_error("Cannot parse 'sgx.nonpie_binary' (the value must be `true` or `false`)");
         ret = -EINVAL;
         goto out;
     }
@@ -659,7 +659,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_bool_in(manifest_root, "sgx.enable_stats", /*defaultval=*/false,
                        &g_sgx_enable_stats);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.enable_stats' (the value must be `true` or `false`)\n");
+        log_error("Cannot parse 'sgx.enable_stats' (the value must be `true` or `false`)");
         ret = -EINVAL;
         goto out;
     }
@@ -668,7 +668,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_string_in(manifest_root, "sgx.sigfile", &dummy_sigfile_str);
     if (ret < 0 || dummy_sigfile_str) {
         log_error("sgx.sigfile is not supported anymore. Please update your manifest according to "
-                  "the current documentation.\n");
+                  "the current documentation.");
         ret = -EINVAL;
         goto out;
     }
@@ -678,7 +678,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_bool_in(manifest_root, "sgx.remote_attestation", /*defaultval=*/false,
                        &sgx_remote_attestation_enabled);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.remote_attestation' (the value must be `true` or `false`)\n");
+        log_error("Cannot parse 'sgx.remote_attestation' (the value must be `true` or `false`)");
         ret = -EINVAL;
         goto out;
     }
@@ -686,7 +686,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
 
     ret = toml_string_in(manifest_root, "sgx.ra_client_spid", &sgx_ra_client_spid_str);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.ra_client_spid' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse 'sgx.ra_client_spid' (the value must be put in double quotes!)");
         ret = -EINVAL;
         goto out;
     }
@@ -699,7 +699,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         log_error(
             "Detected EPID remote attestation parameters 'ra_client_spid' and/or "
             "'ra_client_linkable' in the manifest but no 'remote_attestation' parameter. "
-            "Please add 'sgx.remote_attestation = true' to the manifest.\n");
+            "Please add 'sgx.remote_attestation = true' to the manifest.");
         ret = -EINVAL;
         goto out;
     }
@@ -711,7 +711,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);
     if (ret < 0) {
         log_error("Cannot parse 'sgx.profile.enable' "
-                  "(the value must be \"none\", \"main\" or \"all\")\n");
+                  "(the value must be \"none\", \"main\" or \"all\")");
         ret = -EINVAL;
         goto out;
     }
@@ -734,7 +734,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
                  SGX_PROFILE_FILENAME_WITH_PID, (int)INLINE_SYSCALL(getpid, 0));
     } else {
         log_error("Invalid 'sgx.profile.enable' "
-                  "(the value must be \"none\", \"main\" or \"all\")\n");
+                  "(the value must be \"none\", \"main\" or \"all\")");
         ret = -EINVAL;
         goto out;
     }
@@ -743,7 +743,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_string_in(manifest_root, "sgx.profile.mode", &profile_mode_str);
     if (ret < 0) {
         log_error("Cannot parse 'sgx.profile.mode' "
-                  "(the value must be \"aex\", \"ocall_inner\" or \"ocall_outer\")\n");
+                  "(the value must be \"aex\", \"ocall_inner\" or \"ocall_outer\")");
         ret = -EINVAL;
         goto out;
     }
@@ -757,7 +757,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         enclave_info->profile_mode = SGX_PROFILE_MODE_OCALL_OUTER;
     } else {
         log_error("Invalid 'sgx.profile.mode' "
-                  "(the value must be \"aex\", \"ocall_inner\" or \"ocall_outer\")\n");
+                  "(the value must be \"aex\", \"ocall_inner\" or \"ocall_outer\")");
         ret = -EINVAL;
         goto out;
     }
@@ -766,7 +766,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_bool_in(manifest_root, "sgx.profile.with_stack", /*defaultval=*/false,
                        &profile_with_stack);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.profile.with_stack' (the value must be `true` or `false`)\n");
+        log_error("Cannot parse 'sgx.profile.with_stack' (the value must be `true` or `false`)");
         ret = -EINVAL;
         goto out;
     }
@@ -776,7 +776,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         enclave_info->profile_mode == SGX_PROFILE_MODE_OCALL_OUTER) {
 
         log_error("Invalid 'sgx.profile.mode' and 'sgx.profile.with_stack' combination "
-                  "(\"ocall_outer\" mode cannot be used with stack)\n");
+                  "(\"ocall_outer\" mode cannot be used with stack)");
         ret = -EINVAL;
         goto out;
     }
@@ -785,8 +785,8 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_int_in(manifest_root, "sgx.profile.frequency", SGX_PROFILE_DEFAULT_FREQUENCY,
                       &profile_frequency);
     if (ret < 0 || !(0 < profile_frequency && profile_frequency <= SGX_PROFILE_MAX_FREQUENCY)) {
-        log_error("Cannot parse 'sgx.profile.frequency' "
-                  "(the value must be between 1 and %d)\n", SGX_PROFILE_MAX_FREQUENCY);
+        log_error("Cannot parse 'sgx.profile.frequency' (the value must be between 1 and %d)",
+                  SGX_PROFILE_MAX_FREQUENCY);
         ret = -EINVAL;
         goto out;
     }
@@ -794,7 +794,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
 #else
     if (profile_str && strcmp(profile_str, "none")) {
         log_error("Invalid 'sgx.profile.enable' "
-                  "(SGX profiling works only when Graphene is compiled with DEBUG=1)\n");
+                  "(SGX profiling works only when Graphene is compiled with DEBUG=1)");
         ret = -EINVAL;
         goto out;
     }
@@ -804,7 +804,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     char* log_level_str = NULL;
     ret = toml_string_in(manifest_root, "loader.log_level", &log_level_str);
     if (ret < 0) {
-        log_error("Cannot parse 'loader.log_level'\n");
+        log_error("Cannot parse 'loader.log_level'");
         ret = -EINVAL;
         goto out;
     }
@@ -822,7 +822,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         } else if (!strcmp(log_level_str, "all")) {
             log_level = LOG_LEVEL_ALL;
         } else {
-            log_error("Unknown 'loader.log_level'\n");
+            log_error("Unknown 'loader.log_level'");
             ret = -EINVAL;
             goto out;
         }
@@ -832,7 +832,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     char* log_file = NULL;
     ret = toml_string_in(manifest_root, "loader.log_file", &log_file);
     if (ret < 0) {
-        log_error("Cannot parse 'loader.log_file'\n");
+        log_error("Cannot parse 'loader.log_file'");
         ret = -EINVAL;
         goto out;
     }
@@ -840,7 +840,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
         ret = urts_log_init(log_file);
 
         if (ret < 0) {
-            log_error("Cannot open log file: %d\n", ret);
+            log_error("Cannot open log file: %d", ret);
             goto out;
         }
     }
@@ -870,7 +870,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
 
     ret = parse_loader_config(enclave->raw_manifest_data, enclave);
     if (ret < 0) {
-        log_error("Parsing manifest failed\n");
+        log_error("Parsing manifest failed");
         return -EINVAL;
     }
 
@@ -902,7 +902,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     /* TODO: correctly support offline cores */
     if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
          log_warning("some CPUs seem to be offline; Graphene doesn't take this into account "
-                     "which may lead to subpar performance\n");
+                     "which may lead to subpar performance");
     }
 
     int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
@@ -927,7 +927,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
         if (cpu_socket[idx] < 0) {
-            log_error("Cannot read %s\n", filename);
+            log_error("Cannot read %s", filename);
             ret = cpu_socket[idx];
             free(cpu_socket);
             return ret;
@@ -943,7 +943,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     size_t env_i = 0;
     while (env_i < env_size) {
         if (!strcmp(&env[env_i], "IN_GDB=1")) {
-            log_warning("[ Running under GDB ]\n");
+            log_warning("[ Running under GDB ]");
             pal_sec->in_gdb = true;
         }
 
@@ -953,12 +953,12 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
 
     enclave->libpal_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, g_libpal_path, -1);
     if (!enclave->libpal_uri) {
-        log_error("Out of memory for enclave->libpal_uri\n");
+        log_error("Out of memory for enclave->libpal_uri");
         return -ENOMEM;
     }
 
     if (enclave->libpal_uri[URI_PREFIX_FILE_LEN] != '/') {
-        log_error("Path to in-enclave PAL (%s) must be absolute\n", enclave->libpal_uri);
+        log_error("Path to in-enclave PAL (%s) must be absolute", enclave->libpal_uri);
         return -EINVAL;
     }
 
@@ -969,7 +969,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
 
     enclave->sigfile = INLINE_SYSCALL(open, 3, sig_path, O_RDONLY | O_CLOEXEC, 0);
     if (enclave->sigfile < 0) {
-        log_error("Cannot open sigstruct file %s\n", sig_path);
+        log_error("Cannot open sigstruct file %s", sig_path);
         return -EINVAL;
     }
     free(sig_path);
@@ -983,11 +983,11 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     if (enclave->token < 0) {
         log_error(
             "Cannot open token %s. Use graphene-sgx-get-token on the runtime host or run "
-            "`make SGX=1 sgx-tokens` in the Graphene source to create the token file.\n",
+            "`make SGX=1 sgx-tokens` in the Graphene source to create the token file.",
             token_path);
         return -EINVAL;
     }
-    log_debug("Token file: %s\n", token_path);
+    log_debug("Token file: %s", token_path);
     free(token_path);
 
     ret = initialize_enclave(enclave, enclave->raw_manifest_data);
@@ -1004,7 +1004,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     if (enclave->remote_attestation_enabled) {
         /* initialize communication with Quoting Enclave only if app requests attestation */
         bool is_epid = enclave->use_epid_attestation;
-        log_debug("Using SGX %s attestation\n", is_epid ? "EPID" : "DCAP/ECDSA");
+        log_debug("Using SGX %s attestation", is_epid ? "EPID" : "DCAP/ECDSA");
         ret = init_quoting_enclave_targetinfo(is_epid, &pal_sec->qe_targetinfo);
         if (ret < 0)
             return ret;
@@ -1031,7 +1031,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
         /* This shows the time for Graphene + the Intel SGX driver to initialize the untrusted
          * PAL, config and create the SGX enclave, add enclave pages, measure and init it.
          */
-        log_always("----- SGX enclave loading time = %10lu microseconds -----\n",
+        log_always("----- SGX enclave loading time = %10lu microseconds -----",
                    end_time - start_time);
     }
 
@@ -1056,10 +1056,10 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
     log_always("USAGE:\n"
                "\tFirst process: %s <path to libpal.so> init <application> args...\n"
-               "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
+               "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...",
                self, self);
     log_always("This is an internal interface. Use pal_loader to launch applications in "
-               "Graphene.\n");
+               "Graphene.");
     INLINE_SYSCALL(exit_group, 1, 1);
     die_or_inf_loop();
 }
@@ -1105,10 +1105,10 @@ int main(int argc, char* argv[], char* envp[]) {
             return -ENOMEM;
         }
 
-        log_debug("Manifest file: %s\n", manifest_path);
+        log_debug("Manifest file: %s", manifest_path);
         ret = read_text_file_to_cstr(manifest_path, &manifest);
         if (ret < 0) {
-            log_error("Reading manifest failed\n");
+            log_error("Reading manifest failed");
             return ret;
         }
         free(manifest_path);
@@ -1150,7 +1150,7 @@ int main(int argc, char* argv[], char* envp[]) {
 
     ret = load_enclave(&g_pal_enclave, args, args_size, env, env_size, need_gsgx);
     if (ret < 0) {
-        log_error("load_enclave() failed with error %d\n", ret);
+        log_error("load_enclave() failed with error %d", ret);
     }
     return 0;
 }

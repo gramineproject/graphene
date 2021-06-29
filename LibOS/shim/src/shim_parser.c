@@ -1543,9 +1543,9 @@ static void print_syscall_name(struct print_buf* buf, const char* name, unsigned
 
 void warn_unsupported_syscall(unsigned long sysno) {
     if (sysno < ARRAY_SIZE(syscall_parser_table) && syscall_parser_table[sysno].name)
-        log_warning("Unsupported system call %s\n", syscall_parser_table[sysno].name);
+        log_warning("Unsupported system call %s", syscall_parser_table[sysno].name);
     else
-        log_warning("Unsupported system call %lu\n", sysno);
+        log_warning("Unsupported system call %lu", sysno);
 }
 
 static int buf_write_all(const char* str, size_t size, void* arg) {
@@ -1554,7 +1554,7 @@ static int buf_write_all(const char* str, size_t size, void* arg) {
     /* Pass the buffer contents to log_trace(). Usually, that will be the whole message. However, if
      * the message is longer than the buffer, we will be called multiple times and the message will
      * be split across multiple log lines. */
-    log_trace("%.*s\n", (int)size, str);
+    log_trace("%.*s", (int)size, str);
     return 0;
 }
 

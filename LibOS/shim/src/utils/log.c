@@ -93,6 +93,7 @@ void shim_log(int level, const char* fmt, ...) {
         va_start(ap, fmt);
         buf_vprintf(&buf, fmt, ap);
         va_end(ap);
+        buf_printf(&buf, "\n");
 
         buf_flush(&buf);
     }

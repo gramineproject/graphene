@@ -90,7 +90,7 @@ long shim_do_fchdir(int fd) {
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
         char* path = NULL;
         dentry_abs_path(dent, &path, /*size=*/NULL);
-        log_debug("%s is not a directory\n", path);
+        log_debug("%s is not a directory", path);
         free(path);
         put_handle(hdl);
         return -ENOTDIR;

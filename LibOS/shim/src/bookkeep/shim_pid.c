@@ -72,14 +72,14 @@ IDTYPE get_new_id(bool remove_from_owned) {
     if (!g_last_range) {
         g_last_range = malloc(sizeof(*g_last_range));
         if (!g_last_range) {
-            log_debug("OOM in %s:%d\n", __FILE__, __LINE__);
+            log_debug("OOM in %s:%d", __FILE__, __LINE__);
             goto out;
         }
         IDTYPE start;
         IDTYPE end;
         int ret = ipc_alloc_id_range(&start, &end);
         if (ret < 0) {
-            log_debug("Failed to allocate new id range: %d\n", ret);
+            log_debug("Failed to allocate new id range: %d", ret);
             free(g_last_range);
             g_last_range = NULL;
             goto out;
@@ -115,7 +115,7 @@ IDTYPE get_new_id(bool remove_from_owned) {
         } else {
             struct id_range* range = malloc(sizeof(*range));
             if (!range) {
-                log_debug("OOM in %s:%d\n", __FILE__, __LINE__);
+                log_debug("OOM in %s:%d", __FILE__, __LINE__);
                 g_last_used_id--;
                 ret_id = 0;
                 goto out;
@@ -152,12 +152,12 @@ void release_id(IDTYPE id) {
         };
         struct avl_tree_node* node = avl_tree_lower_bound(&g_used_ranges_tree, &dummy.node);
         if (!node) {
-            log_error("Trying to release unknown ID!\n");
+            log_error("Trying to release unknown ID!");
             BUG();
         }
         struct id_range* range = container_of(node, struct id_range, node);
         if (id < range->start || range->end < id) {
-            log_error("Trying to release unknown ID!\n");
+            log_error("Trying to release unknown ID!");
             BUG();
         }
         assert(range->taken_count > 0);
@@ -168,7 +168,7 @@ void release_id(IDTYPE id) {
 
             int ret = ipc_release_id_range(range->start, range->end);
             if (ret < 0) {
-                log_error("IPC pid release failed\n");
+                log_error("IPC pid release failed");
                 die_or_inf_loop();
             }
             free(range);

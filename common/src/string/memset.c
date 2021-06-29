@@ -29,7 +29,7 @@ void* memset(void* dest, int ch, size_t count) {
 
 void* __memset_chk(void* dest, int ch, size_t count, size_t dest_count) {
     if (count > dest_count) {
-        log_always("memset() check failed\n");
+        log_always("memset() check failed");
         abort();
     }
     return memset(dest, ch, count);

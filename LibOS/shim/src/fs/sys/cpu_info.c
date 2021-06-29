@@ -21,7 +21,7 @@ int sys_cpu_general_load(struct shim_dentry* dent, char** out_data, size_t* out_
     } else if (strcmp(name, "possible") == 0) {
         str = g_pal_control->topo_info.possible_logical_cores;
     } else {
-        log_debug("unrecognized file: %s\n", name);
+        log_debug("unrecognized file: %s", name);
         return -ENOENT;
     }
 
@@ -54,7 +54,7 @@ int sys_cpu_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     } else if (strcmp(name, "thread_siblings") == 0) {
         str = core_topology->thread_siblings;
     } else {
-        log_debug("unrecognized file: %s\n", name);
+        log_debug("unrecognized file: %s", name);
         return -ENOENT;
     }
 

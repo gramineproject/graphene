@@ -44,7 +44,7 @@ void* __system_malloc(size_t size) {
 
     ret = DkVirtualMemoryAlloc(&addr, alloc_size, 0, PAL_PROT_WRITE | PAL_PROT_READ);
     if (ret < 0) {
-        log_error("failed to allocate memory (%ld)\n", pal_to_unix_errno(ret));
+        log_error("failed to allocate memory (%ld)", pal_to_unix_errno(ret));
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr, alloc_size, /*is_internal=*/true, &tmp_vma) < 0) {
             BUG();
@@ -87,7 +87,7 @@ void* malloc(size_t size) {
          * If malloc() failed internally, we cannot handle the
          * condition and must terminate the current process.
          */
-        log_error("Out-of-memory in library OS\n");
+        log_error("Out-of-memory in library OS");
         DkProcessExit(1);
     }
 

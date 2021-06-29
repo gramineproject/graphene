@@ -748,12 +748,11 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
             return -ENOSYS;
         }
         /* Graphene has only one clock for now. */
-        log_warning("Ignoring FUTEX_CLOCK_REALTIME flag\n");
+        log_warning("Ignoring FUTEX_CLOCK_REALTIME flag");
     }
 
     if (!(op & FUTEX_PRIVATE_FLAG)) {
-        log_warning("Non-private futexes are not supported, assuming implicit "
-                    "FUTEX_PRIVATE_FLAG\n");
+        log_warning("Non-private futexes are not supported, assuming implicit FUTEX_PRIVATE_FLAG");
     }
 
     int ret = 0;
@@ -798,10 +797,10 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
         case FUTEX_UNLOCK_PI:
         case FUTEX_CMP_REQUEUE_PI:
         case FUTEX_WAIT_REQUEUE_PI:
-            log_warning("PI futexes are not yet supported!\n");
+            log_warning("PI futexes are not yet supported!");
             return -ENOSYS;
         default:
-            log_warning("Invalid futex op: %d\n", cmd);
+            log_warning("Invalid futex op: %d", cmd);
             return -ENOSYS;
     }
 }

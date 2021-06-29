@@ -47,7 +47,7 @@ static void get_sync_handle(struct sync_handle* handle) {
 
 static void put_sync_handle(struct sync_handle* handle) {
     if (!REF_DEC(handle->ref_count)) {
-        log_trace("sync client: destroying handle: 0x%lx\n", handle->id);
+        log_trace("sync client: destroying handle: 0x%lx", handle->id);
         free(handle->data);
         destroy_lock(&handle->use_lock);
         destroy_lock(&handle->prop_lock);
@@ -131,11 +131,11 @@ int init_sync_client(void) {
     int ret = toml_bool_in(g_manifest_root, "libos.sync.enable", /*defaultval=*/false,
                            &sync_enable);
     if (ret < 0) {
-        log_error("Cannot parse 'libos.sync.enable' (the value must be `true` or `false`)\n");
+        log_error("Cannot parse 'libos.sync.enable' (the value must be `true` or `false`)");
         return -EINVAL;
     }
     if (sync_enable) {
-        log_debug("Enabling sync client\n");
+        log_debug("Enabling sync client");
         g_sync_enabled = true;
     }
     return 0;
@@ -327,7 +327,7 @@ int shutdown_sync_client(void) {
 
     /* Send REQUEST_CLOSE for all open handles. At this point, no threads using the sync engine
      * should be running (except for the IPC helper), so no handles will be created or upgraded. */
-    log_debug("sync client shutdown: closing handles\n");
+    log_debug("sync client shutdown: closing handles");
     struct sync_handle* handle;
     struct sync_handle* tmp;
     HASH_ITER(hh, g_client_handles, handle, tmp) {
@@ -342,7 +342,7 @@ int shutdown_sync_client(void) {
     }
 
     /* Wait for server to confirm the handles are closed. */
-    log_debug("sync client shutdown: waiting for confirmation\n");
+    log_debug("sync client shutdown: waiting for confirmation");
     HASH_ITER(hh, g_client_handles, handle, tmp) {
         unlock_client();
         lock(&handle->prop_lock);
@@ -355,7 +355,7 @@ int shutdown_sync_client(void) {
     }
     unlock_client();
 
-    log_debug("sync client shutdown: finished\n");
+    log_debug("sync client shutdown: finished");
 
     return 0;
 }

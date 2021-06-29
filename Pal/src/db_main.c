@@ -295,7 +295,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                        /*defaultval=*/false, &disable_aslr);
     if (ret < 0) {
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.insecure__disable_aslr' "
-                                             "(the value must be `true` or `false`)\n");
+                                             "(the value must be `true` or `false`)");
     }
 
     /* Load argv */
@@ -326,14 +326,14 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                        /*defaultval=*/false, &use_cmdline_argv);
     if (ret < 0) {
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.insecure__use_cmdline_argv' "
-                                             "(the value must be `true` or `false`)\n");
+                                             "(the value must be `true` or `false`)");
     }
 
     if (use_cmdline_argv) {
         /* Warn only in the first process. */
         if (!parent_process) {
             log_error("Using insecure argv source. Graphene will continue application execution, "
-                      "but this configuration must not be used in production!\n");
+                      "but this configuration must not be used in production!");
         }
     } else {
         char* argv_src_file = NULL;
@@ -347,7 +347,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
              * be achieved using protected or trusted files). */
             if (arguments[0] && arguments[1])
                 log_error("Discarding cmdline arguments (%s %s [...]) because loader.argv_src_file "
-                          "was specified in the manifest.\n", arguments[0], arguments[1]);
+                          "was specified in the manifest.", arguments[0], arguments[1]);
 
             ret = load_cstring_array(argv_src_file, &arguments);
             if (ret < 0)
@@ -365,7 +365,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                        /*defaultval=*/false, &use_host_env);
     if (ret < 0) {
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.insecure__use_host_env' "
-                                             "(the value must be `true` or `false`)\n");
+                                             "(the value must be `true` or `false`)");
     }
 
     if (use_host_env) {
@@ -373,7 +373,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         if (!parent_process) {
             log_error("Forwarding host environment variables to the app is enabled. Graphene will "
                       "continue application execution, but this configuration must not be used in "
-                      "production!\n");
+                      "production!");
         }
     } else {
         environments = malloc(sizeof(*environments));
@@ -417,7 +417,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'");
     if (entrypoint) {
         if (!strstartswith(entrypoint, URI_PREFIX_FILE))
-            INIT_FAIL(PAL_ERROR_INVAL, "'pal.entrypoint' is missing 'file:' prefix\n");
+            INIT_FAIL(PAL_ERROR_INVAL, "'pal.entrypoint' is missing 'file:' prefix");
     }
 
     g_pal_control.host_type       = XSTRINGIFY(HOST_TYPE);

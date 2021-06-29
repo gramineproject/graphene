@@ -296,7 +296,7 @@ struct shim_cp_map_entry* get_cp_map_entry(void* map, void* addr, bool create);
 
 #if DEBUG_RESUME == 1
 #define DEBUG_RS(fmt, ...) \
-    log_debug("GET %s(0x%08lx): " fmt "\n", CP_FUNC_NAME, entry->cp_val, ##__VA_ARGS__)
+    log_debug("GET %s(0x%08lx): " fmt, CP_FUNC_NAME, entry->cp_val, ##__VA_ARGS__)
 #else
 #define DEBUG_RS(...) do {} while (0)
 #endif
@@ -313,7 +313,7 @@ struct shim_cp_map_entry* get_cp_map_entry(void* map, void* addr, bool create);
             if (ret < 0)                                                   \
                 goto out;                                                  \
                                                                            \
-            log_debug("complete checkpointing data\n");                    \
+            log_debug("complete checkpointing data");                      \
         out:                                                               \
             destroy_cp_map((store)->cp_map);                               \
         } while (0);                                                       \
