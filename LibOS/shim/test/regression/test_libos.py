@@ -400,7 +400,11 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('getdents64 2: file4', stdout)
         self.assertIn('getdents64 2: file5', stdout)
 
-    def test_022_host_root_fs(self):
+    def test_023_readdir(self):
+        stdout, _ = self.run_binary(['readdir'])
+        self.assertIn('test completed successfully', stdout)
+
+    def test_024_host_root_fs(self):
         stdout, _ = self.run_binary(['host_root_fs'])
         self.assertIn('Test was successful', stdout)
 
@@ -412,13 +416,18 @@ class TC_30_Syscall(RegressionTestCase):
         # fopen corner cases
         self.assertIn('Successfully read from file: Hello World', stdout)
 
-    def test_031_readdir(self):
-        stdout, _ = self.run_binary(['readdir'])
-        self.assertIn('test completed successfully', stdout)
-
-    def test_032_file_size(self):
+    def test_031_file_size(self):
         stdout, _ = self.run_binary(['file_size'])
         self.assertIn('test completed successfully', stdout)
+
+    def test_032_large_file(self):
+        try:
+            stdout, _ = self.run_binary(['large_file'])
+        finally:
+            # This test generates a 4 GB file, don't leave it in FS.
+            os.remove('tmp/large_file')
+
+        self.assertIn('TEST OK', stdout)
 
     def test_040_futex_bitset(self):
         stdout, _ = self.run_binary(['futex_bitset'])

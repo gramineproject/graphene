@@ -49,8 +49,9 @@ c_executables = \
 	host_root_fs \
 	init_fail \
 	kill_all \
-	large_mmap \
 	large_dir_read \
+	large_file \
+	large_mmap \
 	madvise \
 	mkfifo \
 	mmap_file \
