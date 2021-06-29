@@ -12,30 +12,30 @@ This example is tested with openjdk11.
 For generating the manifest and running the HelloWorld Java example, run the
 following command to install the required packages (Ubuntu-specific):
 
-    `sudo apt-get install openjdk-11-jdk`
-    `sudo apt-get install google-perftools`
-
-## Building for Linux
-
-    Run `make` (non-debug) or `make DEBUG=1` (debug) in the directory.
-
-## Building for SGX
-
-    Run `make SGX=1` (non-debug) or `make SGX=1 DEBUG=1` (debug) in the directory.
+    sudo apt-get install openjdk-11-jdk
+    sudo apt-get install google-perftools
 
 ## Building hello.jar
 
-    Run `javac hello.java`
-    Run `jar cvfm hello.jar hello.mf hello.class`
+Run `javac hello.java`
+Run `jar cvfm hello.jar hello.mf hello.class`
+
+## Building for graphene-direct
+
+Run `make` (non-debug) or `make DEBUG=1` (debug) in the directory.
+
+## Building for graphene-sgx
+
+Run `make SGX=1` (non-debug) or `make SGX=1 DEBUG=1` (debug) in the directory.
 
 ## Run HelloWorld Java example with Graphene
 
 Without SGX:
 
-    `graphene-direct java -jar hello.jar`
+    graphene-direct java -jar hello.jar
 
 With SGX:
 
-    `graphene-sgx java -Xmx4G -jar hello.jar`
+    graphene-sgx java -Xmx4G -jar hello.jar
 
 Note: If using 64G or greater enclave sizes, the JVM flag `-Xmx4G` can be omitted in graphene-sgx.
