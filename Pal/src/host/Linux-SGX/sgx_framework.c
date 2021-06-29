@@ -11,10 +11,12 @@
 #include "sgx_log.h"
 
 static int g_gsgx_device = -1;
-static int g_isgx_device = -1;
+int g_isgx_device = -1;
 
 static void* g_zero_pages       = NULL;
 static size_t g_zero_pages_size = 0;
+
+extern struct pal_enclave g_pal_enclave;
 
 int open_sgx_driver(bool need_gsgx) {
     if (need_gsgx) {
@@ -140,13 +142,21 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     }
 #endif
 
-    uint64_t addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
-                                   PROT_NONE, /* newer DCAP driver requires such initial mmap */
+    uint64_t addr;
+    if (g_pal_enclave.pal_sec.edmm_enable_heap) {
+        /* currently edmm support is available with legacy intel driver */
+        addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
+                              PROT_READ | PROT_WRITE | PROT_EXEC,
+                              MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
+    } else {
+        addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
+                              PROT_NONE, /* newer DCAP driver requires such initial mmap */
 #ifdef SGX_DCAP
-                                   MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                              MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #else
-                                   MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
+                              MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
 #endif
+    }
 
     if (IS_ERR_P(addr)) {
         if (ERRNO_P(addr) == EPERM) {
@@ -190,6 +200,15 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     return 0;
 }
 
+void prot_flags_to_permissions_str(char* p, int prot) {
+    if (prot & PROT_READ)
+        p[0] = 'R';
+    if (prot & PROT_WRITE)
+        p[1] = 'W';
+    if (prot & PROT_EXEC)
+        p[2] = 'X';
+}
+
 int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, unsigned long size,
                          enum sgx_page_type type, int prot, bool skip_eextend,
                          const char* comment) {
@@ -227,17 +246,13 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
             break;
     }
 
-    char p[4] = "---";
+
     const char* t = (type == SGX_PAGE_TCS) ? "TCS" : "REG";
     const char* m = skip_eextend ? "" : " measured";
 
+    char p[4] = "---";
     if (type == SGX_PAGE_REG) {
-        if (prot & PROT_READ)
-            p[0] = 'R';
-        if (prot & PROT_WRITE)
-            p[1] = 'W';
-        if (prot & PROT_EXEC)
-            p[2] = 'X';
+        prot_flags_to_permissions_str(p, prot);
     }
 
     if (size == g_page_size)
@@ -412,6 +427,33 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
     if (ret < 0) {
         log_error("Cannot unmap zero pages %d\n", ret);
         return ret;
+    }
+
+    /* create shared memory region to pass EPC range info */
+    if (g_pal_enclave.pal_sec.edmm_enable_heap && g_pal_enclave.pal_sec.edmm_batch_alloc) {
+        unsigned int num_threads = g_pal_enclave.thread_num;
+        unsigned long eaug_base = (unsigned long) INLINE_SYSCALL(mmap, 6, NULL,
+                                  sizeof(struct sgx_eaug_range_param) * num_threads,
+                                  PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+
+        if (IS_ERR_P(eaug_base)) {
+            log_error("Cannot mmap eaug_base %ld\n", ERRNO_P(eaug_base));
+            return -ENOMEM;
+        }
+
+        memset((void*)eaug_base, 0, sizeof(struct sgx_eaug_range_param) * num_threads);
+        g_pal_enclave.pal_sec.eaug_base = eaug_base;
+
+        struct sgx_eaug_base_init init_param = {
+            .encl_addr      = enclave_valid_addr,
+            .eaug_info_base = eaug_base,
+            .num_threads    = num_threads,
+        };
+        int ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_EAUG_INFO_BASE, &init_param);
+        if (ret < 0) {
+            log_error("IOCTL to initialize shared eaug_base failed! (errno = %d)\n", ret);
+            return ret;
+        }
     }
 
     return 0;

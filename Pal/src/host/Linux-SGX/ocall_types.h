@@ -63,6 +63,8 @@ enum {
     OCALL_DEBUG_MAP_REMOVE,
     OCALL_EVENTFD,
     OCALL_GET_QUOTE,
+    OCALL_TRIM_EPC_PAGES,
+    OCALL_NOTIFY_ACCEPT,
     OCALL_NR,
 };
 
@@ -304,5 +306,10 @@ typedef struct {
     char*             ms_quote;
     size_t            ms_quote_len;
 } ms_ocall_get_quote_t;
+
+typedef struct {
+    void* start_addr;
+    size_t nr_pages;
+} ms_ocall_sgx_range_t;
 
 #pragma pack(pop)

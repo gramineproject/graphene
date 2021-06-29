@@ -458,9 +458,40 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             assert(areas[i].data_src == ZERO);
         }
 
-        ret = add_pages_to_enclave(&enclave_secs, (void*)areas[i].addr, data, areas[i].size,
-                                   areas[i].type, areas[i].prot, areas[i].skip_eextend,
-                                   areas[i].desc);
+        /* Hybrid approach: To reduce the enclave exits, pre-allocate minimal heap from top
+         * as required by application and allocate the remaining dynamically using EDMM. */
+        if (enclave->pal_sec.edmm_enable_heap && !strcmp(areas[i].desc, "free")) {
+            char p[4] = "---";
+            prot_flags_to_permissions_str(p, areas[i].prot);
+            size_t preheat_enclave_sz = enclave->pal_sec.preheat_enclave_sz;
+
+            if (preheat_enclave_sz == 0 ) {
+                log_debug("SKIP adding pages to enclave: %p-%p [%s:%s] (%s)%s\n",
+                          (void *)areas[i].addr, (void *)areas[i].addr + areas[i].size,
+                          (areas[i].type == SGX_PAGE_TCS) ? "TCS" : "REG",
+                          p, areas[i].desc,  areas[i].skip_eextend ? "" : " measured");
+            } else if (preheat_enclave_sz <= areas[i].size) {
+                /* Add preheat_enclave_sz of heap to the enclave */
+                ret = add_pages_to_enclave(&enclave_secs,
+                                           (void*)(areas[i].addr + areas[i].size - preheat_enclave_sz),
+                                           data, preheat_enclave_sz, areas[i].type, areas[i].prot,
+                                           areas[i].skip_eextend, areas[i].desc);
+                log_debug("SKIP adding pages to enclave: %p-%p [%s:%s] (%s)%s\n",
+                          (void *)areas[i].addr,
+                          (void*)(areas[i].addr + areas[i].size - preheat_enclave_sz),
+                          (areas[i].type == SGX_PAGE_TCS) ? "TCS" : "REG",
+                          p, areas[i].desc,  areas[i].skip_eextend ? "" : " measured");
+            } else {
+                log_error("Adding pages (%s) to enclave failed! preheat_enclave_sz should be less"
+                          " than total heap size %ld\n", areas[i].desc, areas[i].size);
+                ret = -EINVAL;
+                goto out;
+            }
+        } else {
+            ret = add_pages_to_enclave(&enclave_secs, (void*)areas[i].addr, data, areas[i].size,
+                                       areas[i].type, areas[i].prot, areas[i].skip_eextend,
+                                       areas[i].desc);
+        }
 
         if (data)
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
@@ -706,6 +737,60 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
 
     /* EPID is used if SPID is a non-empty string in manifest, otherwise DCAP/ECDSA */
     enclave_info->use_epid_attestation = sgx_ra_client_spid_str && strlen(sgx_ra_client_spid_str);
+
+    bool edmm_enable_heap;
+    ret = toml_bool_in(manifest_root, "sgx.edmm_enable_heap", /*defaultval=*/false,
+                       &edmm_enable_heap);
+    if (ret < 0 ) {
+        log_error("Cannot parse 'sgx.edmm_enable_heap' (the value must be true or false)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->pal_sec.edmm_enable_heap = edmm_enable_heap;
+
+    uint64_t preheat_enclave_sz = 0;
+    ret = toml_sizestring_in(manifest_root, "sgx.preheat_enclave_sz", /*defaultval=*/0,
+                             &preheat_enclave_sz);
+    if (ret < 0) {
+        log_error("Cannot parse 'sgx.preheat_enclave_sz' (value must be put in double quotes!)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* Only when EDMM is enabled, preheat_enclave_sz is taken into consideration else it is used as
+     * an on/off switch for preheating the enclave heap. */
+    if (!edmm_enable_heap && preheat_enclave_sz > 1) {
+        log_error("Cannot parse 'sgx.preheat_enclave_sz'"
+                  " (value must be either 0 or 1 when sgx.edmm_enable_heap is disabled !)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if (edmm_enable_heap && !IS_ALIGNED(preheat_enclave_sz, g_page_size)) {
+        log_error("preheat_enclave_sz should be page aligned: %ld\n", g_page_size);
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->pal_sec.preheat_enclave_sz = preheat_enclave_sz;
+
+    bool edmm_batch_alloc;
+    ret = toml_bool_in(manifest_root, "sgx.edmm_batch_allocation", /*defaultval=*/false,
+                       &edmm_batch_alloc);
+    if (ret < 0 ) {
+        log_error("Cannot parse 'sgx.edmm_batch_alloc' (the value must be true or false)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->pal_sec.edmm_batch_alloc = edmm_batch_alloc;
+
+    int64_t edmm_lazyfree_th = 0;
+    ret = toml_int_in(manifest_root, "sgx.edmm_lazyfree_th", /*defaultval=*/0, &edmm_lazyfree_th);
+    if (ret < 0 || (edmm_lazyfree_th < 0)) {
+        log_error("Cannot parse 'sgx.edmm_lazyfree_th' (the value must be 0 or greater)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->pal_sec.edmm_lazyfree_th = edmm_lazyfree_th;
 
     char* profile_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);

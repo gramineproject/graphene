@@ -386,10 +386,10 @@ workloads. The manifest options include:
 - ``libos.check_invalid_pointers = false`` -- disable checks of invalid pointers
   on system call invocations. Most real-world applications never provide invalid
   arguments to system calls, so there is no need in additional checks.
-- ``sgx.preheat_enclave = true`` -- pre-fault all enclave pages during enclave
-  initialization. This shifts the overhead of page faults on non-present enclave
-  pages from runtime to enclave startup time. Using this option makes sense only
-  if the whole enclave memory fits into :term:`EPC`.
+- ``sgx.preheat_enclave_sz = "1"`` -- pre-fault all enclave pages during enclave
+  initialization when ``sgx.edmm_enable_heap = false``. This shifts the overhead
+  of page faults on non-present enclave pages from runtime to enclave startup time.
+  Using this option makes sense only if the whole enclave memory fits into :term:`EPC`.
 
 If your application periodically fails and complains about seemingly irrelevant
 things, it may be due to insufficient enclave memory. Please try to increase

@@ -19,6 +19,7 @@
 /devfs
 /device
 /double_fork
+/edmm_heap_mmap
 /env_from_file
 /env_from_host
 /epoll_epollet

@@ -11,7 +11,7 @@ loader.env.LD_LIBRARY_PATH = "/lib:/usrlib"
 # the manifest options below are added only for testing, they have no significance for OpenMP
 libos.check_invalid_pointers = false
 sys.enable_sigterm_injection = true
-sgx.preheat_enclave = true
+sgx.preheat_enclave_sz = "1"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"

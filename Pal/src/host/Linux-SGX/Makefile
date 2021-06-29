@@ -50,6 +50,7 @@ enclave-objs = \
 	db_sockets.o \
 	db_streams.o \
 	db_threading.o \
+	edmm_pages.o \
 	enclave_ecalls.o \
 	enclave_framework.o \
 	enclave_ocalls.o \

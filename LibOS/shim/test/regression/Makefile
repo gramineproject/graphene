@@ -17,6 +17,7 @@ c_executables = \
 	devfs \
 	device \
 	double_fork \
+	edmm_heap_mmap \
 	epoll_epollet \
 	epoll_wait_timeout \
 	eventfd \
@@ -152,6 +153,9 @@ LDLIBS-attestation += ../../../../common/src/crypto/mbedtls/install/lib/libmbedc
 
 CFLAGS-fp_multithread += -pthread -fno-builtin  # see comment in the test's source
 LDLIBS-fp_multithread += -lm
+
+CFLAGS-edmm_heap_mmap += -pthread
+LDLIBS-edmm_heap_mmap += -lm
 
 proc_common: proc_common.o dump.o
 	$(call cmd,cmulti)

@@ -420,6 +420,59 @@ more CPU cores and burning more CPU cycles. For example, a single-threaded
 Redis instance on Linux becomes 5-threaded on Graphene with Exitless. Thus,
 Exitless may negatively impact throughput but may improve latency.
 
+EDMM dynamic heap (Experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.edmm_enable_heap = [true|false]
+    (Default: false)
+
+This syntax enables EDMM dynamic heap feature available as part of Intel
+":term:`SGX2`" capable hardware. When enabled, EPC pages are not added when
+creating the enclave but allocated dynamically using EACCEPT when Graphene
+requests more heap memory. This triggers a page fault (#PF) which is handled by
+the Intel SGX driver (legacy driver) by EAUGing the page and returning the
+control back to the enclave. The enclave now continues from the same EACCEPT
+instruction (but this time the instruction succeeds).
+
+One of the key advantages of EDMM is that the enclave ends up using only the
+EPC pages that it requires and the user does not need to tailor the enclave
+size precisely for each workload. EDMM does help to reduce the loading time of
+a large enclave application but can impact the runtime as there is a penalty
+for additional asynchronous enclave exits (AEXs) caused by #PFs.
+
+EDMM Batch Allocation (Experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.edmm_batch_allocation = [true|false]
+    (Default: false)
+
+SGX driver allocates EPC pages dynamically by faulting in pages one at a time.
+This incurs a huge overhead due to enclave exit for each page. This syntax enables
+use of a new IOCTL has been introduced in the SGX driver which can take the
+requested range and EAUG all the pages in one shot. Enclave then EACCEPTs all
+the pages requested.
+
+.. note ::
+   New SGX driver IOCTL is experimental and is not yet available as part of official
+   Intel SGX OOT driver release. This option is not yet ready for public usage.
+
+EDMM Lazy Free optimization (Experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.edmm_lazyfree_th = [NUM]
+    (Default: 0)
+
+This syntax specifies the **percentage** of total heap that can be freed in a lazy manner.
+Until this threshold is met, graphene doesn't release any dynamically allocated memory.
+This optimization helps reduce the expensive enclave entries/exits associated with dynamic
+freeing of EPC pages.
+
 Optional CPU features (AVX, AVX512, MPX, PKRU)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -555,11 +608,15 @@ Pre-heating enclave
 
 ::
 
-    sgx.preheat_enclave = [true|false]
-    (Default: false)
+    sgx.preheat_enclave_sz = ["0"|"1"|"SIZE"]
+    (Default: "0")
 
-When enabled, this option instructs Graphene to pre-fault all heap pages during
-initialization. This has a negative impact on the total run time, but shifts the
+When set to "1", this option instructs Graphene to pre-fault all heap pages during
+initialization and setting it to "0" disables the feature. When ``sgx.edmm_enable_heap``
+is enabled, user can precisely set the amount of heap to preheat by setting the ``SIZE``.
+For example, when size is "64M" Graphene will pre-fault top 64M of heap pages.
+
+This has a negative impact on the total run time, but shifts the
 :term:`EPC` page faults cost to the initialization phase, which can be useful in
 a scenario where a server starts and receives connections / work packages only
 after some time. It also makes the later run time and latency much more

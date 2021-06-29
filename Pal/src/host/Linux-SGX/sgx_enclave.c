@@ -28,6 +28,8 @@
 #include "sgx_tls.h"
 #include "sigset.h"
 
+#include "gsgx.h"
+
 #define ODEBUG(code, ms) \
     do {                 \
     } while (0)
@@ -690,6 +692,30 @@ static long sgx_ocall_get_quote(void* pms) {
                           &ms->ms_nonce, &ms->ms_quote, &ms->ms_quote_len);
 }
 
+static long sgx_ocall_trim_epc_pages(void* pms) {
+    extern int g_isgx_device;
+    ms_ocall_sgx_range_t* ms = (ms_ocall_sgx_range_t*)pms;
+    ODEBUG(OCALL_TRIM_EPC_PAGES, ms);
+    struct sgx_range trim_range;
+
+    trim_range.start_addr = (unsigned long)ms->start_addr;
+    trim_range.nr_pages = (unsigned int)ms->nr_pages;
+
+    return INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_TRIM, &trim_range);
+}
+
+static long sgx_ocall_notify_accept(void* pms) {
+    extern int g_isgx_device;
+    ms_ocall_sgx_range_t* ms = (ms_ocall_sgx_range_t*)pms;
+    ODEBUG(OCALL_NOTIFY_ACCEPT, ms);
+    struct sgx_range accept_range;
+
+    accept_range.start_addr = (unsigned long)ms->start_addr;
+    accept_range.nr_pages = (unsigned int)ms->nr_pages;
+
+    return INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_NOTIFY_ACCEPT, &accept_range);
+}
+
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_EXIT]             = sgx_ocall_exit,
     [OCALL_MMAP_UNTRUSTED]   = sgx_ocall_mmap_untrusted,
@@ -732,6 +758,8 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_DEBUG_MAP_REMOVE] = sgx_ocall_debug_map_remove,
     [OCALL_EVENTFD]          = sgx_ocall_eventfd,
     [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
+    [OCALL_TRIM_EPC_PAGES]   = sgx_ocall_trim_epc_pages,
+    [OCALL_NOTIFY_ACCEPT]    = sgx_ocall_notify_accept,
 };
 
 #define EDEBUG(code, ms) \

@@ -1705,3 +1705,47 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     sgx_reset_ustack(old_ustack);
     return retval;
 }
+
+int ocall_trim_epc_pages(void* addr, size_t nr_pages) {
+    int retval = 0;
+    ms_ocall_sgx_range_t* ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        retval = -ENOMEM;
+        goto out;
+    }
+    ms->start_addr = addr;
+    ms->nr_pages = nr_pages;
+
+    do {
+        retval = sgx_exitless_ocall(OCALL_TRIM_EPC_PAGES, ms);
+    } while (retval == -EINTR);
+
+out:
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}
+
+int ocall_notify_accept(void* addr, size_t nr_pages) {
+    int retval = 0;
+    ms_ocall_sgx_range_t* ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        retval = -ENOMEM;
+        goto out;
+    }
+    ms->start_addr = addr;
+    ms->nr_pages = nr_pages;
+
+    do {
+        retval = sgx_exitless_ocall(OCALL_NOTIFY_ACCEPT, ms);
+    } while (retval == -EINTR);
+
+out:
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}

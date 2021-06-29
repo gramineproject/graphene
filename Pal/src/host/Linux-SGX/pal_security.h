@@ -25,6 +25,11 @@ struct pal_sec {
 
     /* remaining heap usable by application */
     PAL_PTR heap_min, heap_max;
+    bool edmm_enable_heap;
+    PAL_NUM preheat_enclave_sz;
+    bool edmm_batch_alloc;
+    PAL_NUM eaug_base;
+    PAL_NUM edmm_lazyfree_th;
 
     /* child's stream FD created and sent over by parent */
     PAL_IDX stream_fd;
