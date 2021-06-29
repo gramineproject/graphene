@@ -177,7 +177,7 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, unsig
         void* ret_addr = addr;
         ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, prot, flags, offset);
         if (ret_addr != addr) {
-            log_error("Requested address (%p) differs from allocated (%p)!\n", addr, ret_addr);
+            log_error("Requested address (%p) differs from allocated (%p)!", addr, ret_addr);
             BUG();
         }
     }
@@ -185,9 +185,8 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, unsig
     if (ret < 0) {
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr, length, /*is_internal=*/false, &tmp_vma) < 0) {
-            log_error(
-                "[mmap] Failed to remove bookkeeped memory that was not allocated at %p-%p!\n",
-                addr, (char*)addr + length);
+            log_error("[mmap] Failed to remove bookkeeped memory that was not allocated at %p-%p!",
+                      addr, (char*)addr + length);
             BUG();
         }
         bkeep_remove_tmp_vma(tmp_vma);
@@ -254,7 +253,7 @@ long shim_do_mprotect(void* addr, size_t length, int prot) {
             }
         } else {
             log_warning("Memory that was about to be mprotected was unmapped, your program is "
-                        "buggy!\n");
+                        "buggy!");
             return -ENOTRECOVERABLE;
         }
     }
@@ -320,7 +319,7 @@ long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (!warned) {
         warned = true;
         log_warning(
-            "mincore emulation always tells pages are _NOT_ in RAM. This may cause issues.\n");
+            "mincore emulation always tells pages are _NOT_ in RAM. This may cause issues.");
     }
 
     /* There is no good way to know if the page is in RAM.
@@ -441,7 +440,7 @@ long shim_do_msync(unsigned long start, size_t len_orig, int flags) {
     }
 
     if (flags != MS_ASYNC) {
-        log_warning("Graphene does not support flags to msync other than MS_ASYNC\n");
+        log_warning("Graphene does not support flags to msync other than MS_ASYNC");
         return -ENOSYS;
     }
 

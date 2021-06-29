@@ -52,10 +52,10 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     memcpy(&msg->data, &msgin, sizeof(msgin));
 
     if (type == KILL_ALL && !g_process_ipc_ids.leader_vmid) {
-        log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, dest_pid, sig);
+        log_debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)", sender, type, dest_pid, sig);
         ret = ipc_broadcast(msg, /*exclude_id=*/0);
     } else {
-        log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
+        log_debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)", dest, sender, type,
                   dest_pid, sig);
 
         void* resp = NULL;
@@ -69,7 +69,7 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
             int wait_iter = 3;
             while (wait_iter--) {
                 if (is_zombie_process(dest_pid)) {
-                    log_debug("IPC send to terminated child process %u is dropped\n", dest_pid);
+                    log_debug("IPC send to terminated child process %u is dropped", dest_pid);
                     ret = 0;
                     break;
                 } else {
@@ -108,7 +108,7 @@ int ipc_kill_all(IDTYPE sender, int sig) {
 int ipc_pid_kill_callback(IDTYPE src, void* data, uint64_t seq) {
     struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)data;
 
-    log_debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", src, msgin->sender,
+    log_debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)", src, msgin->sender,
               msgin->type, msgin->id, msgin->signum);
 
     int ret = 0;

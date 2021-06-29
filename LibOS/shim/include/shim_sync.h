@@ -147,7 +147,7 @@
 
 #define uthash_fatal(msg)                      \
     do {                                       \
-        log_error("uthash error: %s\n", msg);  \
+        log_error("uthash error: %s", msg);    \
         DkProcessExit(PAL_ERROR_NOMEM);        \
     } while (0)
 #include "uthash.h"

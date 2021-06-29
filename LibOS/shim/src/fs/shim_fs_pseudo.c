@@ -24,7 +24,7 @@ static struct pseudo_node* pseudo_find_root(const char* name) {
         }
     }
 
-    log_debug("Cannot find pseudofs node: %s\n", name);
+    log_debug("Cannot find pseudofs node: %s", name);
     return NULL;
 }
 
@@ -420,7 +420,7 @@ static int pseudo_close(struct shim_handle* hdl) {
             if (hdl->flags & (O_WRONLY | O_RDWR)) {
                 int ret = str_flush(hdl);
                 if (ret < 0) {
-                    log_debug("str_flush() failed, proceeding with close\n");
+                    log_debug("str_flush() failed, proceeding with close");
                 }
             }
 

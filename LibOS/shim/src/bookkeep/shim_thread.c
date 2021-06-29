@@ -32,7 +32,7 @@ struct shim_lock g_thread_list_lock;
 //#define DEBUG_REF
 
 #ifdef DEBUG_REF
-#define DEBUG_PRINT_REF_COUNT(rc) log_debug("%s %p ref_count = %d\n", __func__, dispositions, rc)
+#define DEBUG_PRINT_REF_COUNT(rc) log_debug("%s %p ref_count = %d", __func__, dispositions, rc)
 #else
 #define DEBUG_PRINT_REF_COUNT(rc) __UNUSED(rc)
 #endif
@@ -109,7 +109,7 @@ unmap:;
     void* tmp_vma = NULL;
     if (bkeep_munmap(addr, SHIM_THREAD_LIBOS_STACK_SIZE, /*is_internal=*/true, &tmp_vma) < 0) {
         log_error("[alloc_thread_libos_stack]"
-                  " Failed to remove bookkeeped memory that was not allocated at %p-%p!\n",
+                  " Failed to remove bookkeeped memory that was not allocated at %p-%p!",
                   addr, (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE);
         BUG();
     }
@@ -143,7 +143,7 @@ static int init_main_thread(void) {
 
     cur_thread->tid = get_new_id(/*remove_from_owned=*/false);
     if (!cur_thread->tid) {
-        log_error("Cannot allocate pid for the initial thread!\n");
+        log_error("Cannot allocate pid for the initial thread!");
         put_thread(cur_thread);
         return -ESRCH;
     }
@@ -307,7 +307,7 @@ void put_thread(struct shim_thread* thread) {
             void* tmp_vma = NULL;
             char* addr = (char*)thread->libos_stack_bottom - SHIM_THREAD_LIBOS_STACK_SIZE;
             if (bkeep_munmap(addr, SHIM_THREAD_LIBOS_STACK_SIZE, /*is_internal=*/true, &tmp_vma) < 0) {
-                log_error("[put_thread] Failed to remove bookkeeped memory at %p-%p!\n",
+                log_error("[put_thread] Failed to remove bookkeeped memory at %p-%p!",
                           addr, (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE);
                 BUG();
             }

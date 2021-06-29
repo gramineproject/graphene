@@ -59,7 +59,7 @@ void thread_sigaction_reset_on_execve(void) {
 }
 
 static noreturn void sighandler_kill(int sig) {
-    log_debug("killed by signal %d\n", sig & ~__WCOREDUMP_BIT);
+    log_debug("killed by signal %d", sig & ~__WCOREDUMP_BIT);
     process_exit(0, sig);
 }
 
@@ -310,10 +310,10 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
     PAL_NUM ip = pal_context_get_ip(context);
 
     if (context_is_libos(context))
-        log_error("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr, addr,
+        log_error("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)", errstr, addr,
                   (void*)ip - (void*)&__load_address, g_self_vmid, tid);
     else
-        log_error("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr, addr,
+        log_error("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)", errstr, addr,
                   context ? ip : 0, g_self_vmid, tid);
 
     DEBUG_BREAK_ON_FAILURE();
@@ -328,7 +328,7 @@ static void arithmetic_error_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* c
     if (is_internal(get_cur_thread()) || context_is_libos(context)) {
         internal_fault("Internal arithmetic fault", addr, context);
     } else {
-        log_debug("arithmetic fault at 0x%08lx\n", pal_context_get_ip(context));
+        log_debug("arithmetic fault at 0x%08lx", pal_context_get_ip(context));
         siginfo_t info = {
             .si_signo = SIGFPE,
             .si_code = FPE_INTDIV,
@@ -348,7 +348,7 @@ static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) 
         internal_fault("Internal memory fault", addr, context);
     }
 
-    log_debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", addr, pal_context_get_ip(context));
+    log_debug("memory fault at 0x%08lx (IP = 0x%08lx)", addr, pal_context_get_ip(context));
 
     siginfo_t info = {
         .si_addr = (void*)addr,
@@ -470,7 +470,7 @@ static void illegal_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) {
     /* Emulate syscall instruction, which is prohibited in Linux-SGX PAL and raises a SIGILL. */
     if (!maybe_emulate_syscall(context)) {
         void* rip = (void*)pal_context_get_ip(context);
-        log_debug("Illegal instruction during app execution at %p; delivering to app\n", rip);
+        log_debug("Illegal instruction during app execution at %p; delivering to app", rip);
         siginfo_t info = {
             .si_signo = SIGILL,
             .si_code = ILL_ILLOPC,
@@ -521,7 +521,7 @@ int init_signal_handling(void) {
                            &g_inject_host_signal_enabled);
     if (ret < 0) {
         log_error("Cannot parse 'sys.enable_sigterm_injection' (the value must be `true` or "
-                  "`false`)\n");
+                  "`false`)");
         return -EINVAL;
     }
 
@@ -529,7 +529,7 @@ int init_signal_handling(void) {
                        &g_check_invalid_ptrs);
     if (ret < 0) {
         log_error("Cannot parse 'libos.check_invalid_pointers' (the value must be `true` or "
-                  "`false`)\n");
+                  "`false`)");
         return -EINVAL;
     }
 
@@ -797,10 +797,10 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
     }
 
     if (thread) {
-        log_debug("Signal %d queue of thread %u is full, dropping incoming signal\n",
+        log_debug("Signal %d queue of thread %u is full, dropping incoming signal",
                   info->si_signo, thread->tid);
     } else {
-        log_debug("Signal %d queue of process is full, dropping incoming signal\n", info->si_signo);
+        log_debug("Signal %d queue of process is full, dropping incoming signal", info->si_signo);
     }
     /* This is counter-intuitive, but we report success here: after all signal was successfully
      * delivered, just the queue was full. */

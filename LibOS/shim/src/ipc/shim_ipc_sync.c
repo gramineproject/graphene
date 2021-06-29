@@ -28,7 +28,7 @@ static const char* sync_message_names[IPC_MSG_CODE_BOUND] = {
 };
 
 static inline void sync_log(const char* prefix, int code, uint64_t id, int state) {
-    log_trace("%s: %s(0x%lx, %s)\n", prefix, sync_message_names[code], id, sync_state_names[state]);
+    log_trace("%s: %s(0x%lx, %s)", prefix, sync_message_names[code], id, sync_state_names[state]);
 }
 
 static int sync_msg_send(IDTYPE dest, int code, uint64_t id, int state, size_t data_size,

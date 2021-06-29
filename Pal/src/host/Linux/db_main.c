@@ -140,10 +140,9 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
     log_always("USAGE:\n"
                "\tFirst process: %s <path to libpal.so> init <application> args...\n"
-               "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
+               "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...",
                self, self);
-    log_always("This is an internal interface. Use pal_loader to launch applications in "
-               "Graphene.\n");
+    log_always("This is an internal interface. Use pal_loader to launch applications in Graphene.");
     _DkProcessExit(1);
 }
 
@@ -247,7 +246,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
         }
     } else {
-        log_warning("vdso address range not preloaded, is your system missing vdso?!\n");
+        log_warning("vdso address range not preloaded, is your system missing vdso?!");
     }
     if (vvar_start || vvar_end) {
         ret = add_preloaded_range(vvar_start, vvar_end, "vvar");
@@ -255,7 +254,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
         }
     } else {
-        log_warning("vvar address range not preloaded, is your system missing vvar?!\n");
+        log_warning("vvar address range not preloaded, is your system missing vvar?!");
     }
 
     if (!g_pal_sec.process_id)

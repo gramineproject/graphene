@@ -47,7 +47,7 @@ void update_and_print_stats(bool process_wide) {
                "  # of EEXITs:         %lu\n"
                "  # of AEXs:           %lu\n"
                "  # of sync signals:   %lu\n"
-               "  # of async signals:  %lu\n",
+               "  # of async signals:  %lu",
                tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt,
                tcb->sync_signal_cnt, tcb->async_signal_cnt);
 
@@ -65,7 +65,7 @@ void update_and_print_stats(bool process_wide) {
                    "  # of EEXITs:         %lu\n"
                    "  # of AEXs:           %lu\n"
                    "  # of sync signals:   %lu\n"
-                   "  # of async signals:  %lu\n",
+                   "  # of async signals:  %lu",
                    pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt,
                    g_sync_signal_cnt, g_async_signal_cnt);
     }
@@ -177,7 +177,7 @@ int pal_thread_init(void* tcbptr) {
         log_error(
             "There are no available TCS pages left for a new thread!\n"
             "Please try to increase sgx.thread_num in the manifest.\n"
-            "The current value is %d\n",
+            "The current value is %d",
             g_enclave_thread_num);
         ret = -ENOMEM;
         goto out;

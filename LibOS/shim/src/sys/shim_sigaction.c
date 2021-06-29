@@ -43,7 +43,7 @@ long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
     if (act && !(act->sa_flags & SA_RESTORER)) {
         /* XXX: This might not be true for all architectures (but is for x86_64)...
          * Check `shim_signal.c` if you update this! */
-        log_warning("rt_sigaction: SA_RESTORER flag is required!\n");
+        log_warning("rt_sigaction: SA_RESTORER flag is required!");
         return -EINVAL;
     }
 

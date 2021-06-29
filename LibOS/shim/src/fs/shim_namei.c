@@ -667,7 +667,7 @@ static int populate_directory(struct shim_dentry* dent) {
     LISTP_TYPE(temp_dirent) ents = LISTP_INIT;
     int ret = dent->fs->d_ops->readdir(dent, &add_name, &ents);
     if (ret < 0)
-        log_error("readdir error: %d\n", ret);
+        log_error("readdir error: %d", ret);
 
     struct temp_dirent* ent;
     struct temp_dirent* tmp;

@@ -102,12 +102,12 @@ static int init_exec_handle(void) {
     assert(g_manifest_root);
     ret = toml_string_in(g_manifest_root, "libos.entrypoint", &entrypoint);
     if (ret < 0) {
-        log_error("Cannot parse 'libos.entrypoint'\n");
+        log_error("Cannot parse 'libos.entrypoint'");
         ret = -EINVAL;
         goto out;
     }
     if (!entrypoint) {
-        log_error("'libos.entrypoint' must be specified in the manifest\n");
+        log_error("'libos.entrypoint' must be specified in the manifest");
         ret = -EINVAL;
         goto out;
     }
@@ -117,7 +117,7 @@ static int init_exec_handle(void) {
     if (strstartswith(exec_path, URI_PREFIX_FILE)) {
         /* TODO: change to error after some deprecation period */
         log_error("'libos.entrypoint' is now a Graphene path, not URI. "
-                  "Ignoring the 'file:' prefix.\n");
+                  "Ignoring the 'file:' prefix.");
         exec_path += strlen(URI_PREFIX_FILE);
     }
 
@@ -129,7 +129,7 @@ static int init_exec_handle(void) {
 
     ret = open_executable(hdl, exec_path);
     if (ret < 0) {
-        log_error("init_exec_handle: error opening executable: %d\n", ret);
+        log_error("init_exec_handle: error opening executable: %d", ret);
         goto out;
     }
 
@@ -442,7 +442,7 @@ void get_handle(struct shim_handle* hdl) {
 #ifdef DEBUG_REF
     int ref_count = REF_INC(hdl->ref_count);
 
-    log_debug("get handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
+    log_debug("get handle %p(%s) (ref_count = %d)", hdl, __handle_name(hdl), ref_count);
 #else
     REF_INC(hdl->ref_count);
 #endif
@@ -458,7 +458,7 @@ void put_handle(struct shim_handle* hdl) {
     int ref_count = REF_DEC(hdl->ref_count);
 
 #ifdef DEBUG_REF
-    log_debug("put handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
+    log_debug("put handle %p(%s) (ref_count = %d)", hdl, __handle_name(hdl), ref_count);
 #endif
 
     if (!ref_count) {
@@ -483,7 +483,7 @@ void put_handle(struct shim_handle* hdl) {
 
         if (hdl->pal_handle) {
 #ifdef DEBUG_REF
-            log_debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
+            log_debug("handle %p closes PAL handle %p", hdl, hdl->pal_handle);
 #endif
             DkObjectClose(hdl->pal_handle); // TODO: handle errors
             hdl->pal_handle = NULL;

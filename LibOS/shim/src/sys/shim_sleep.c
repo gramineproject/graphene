@@ -89,7 +89,7 @@ long shim_do_clock_nanosleep(clockid_t clock_id, int flags, struct __kernel_time
         ret = DkSystemTimeQuery(&current_time);
         if (ret < 0) {
             ret = pal_to_unix_errno(ret);
-            log_error("clock_nanosleep: DkSystemTimeQuery failed with: %d\n", ret);
+            log_error("clock_nanosleep: DkSystemTimeQuery failed with: %d", ret);
             die_or_inf_loop();
         }
         if (timeout_us <= current_time) {

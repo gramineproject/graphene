@@ -20,7 +20,7 @@ extern struct atomic_int g_allocated_pages;
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     if (addr < DATA_END && addr + size > TEXT_START) {
-        log_error("Address %p-%p is not mappable\n", addr, addr + size);
+        log_error("Address %p-%p is not mappable", addr, addr + size);
         return true;
     }
 
@@ -76,7 +76,7 @@ int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
     int64_t t = 0;
     if (__atomic_compare_exchange_n(&at_cnt.counter, &t, 1, /*weak=*/false, __ATOMIC_SEQ_CST,
                                     __ATOMIC_RELAXED))
-        log_warning("DkVirtualMemoryProtect is unimplemented in Linux-SGX PAL\n");
+        log_warning("DkVirtualMemoryProtect is unimplemented in Linux-SGX PAL");
     return 0;
 }
 

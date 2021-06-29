@@ -131,22 +131,22 @@ static int read_loadcmd(const ElfW(Phdr)* ph, struct loadcmd* c) {
 
     if (ph->p_align > 1) {
         if (!IS_POWER_OF_2(ph->p_align)) {
-            log_debug("%s: ELF load command alignment value is not a power of 2\n", __func__);
+            log_debug("%s: ELF load command alignment value is not a power of 2", __func__);
             return -EINVAL;
         }
         if (!IS_ALIGNED_POW2(ph->p_vaddr - ph->p_offset, ph->p_align)) {
-            log_debug("%s: ELF load command address/offset not properly aligned\n", __func__);
+            log_debug("%s: ELF load command address/offset not properly aligned", __func__);
             return -EINVAL;
         }
     }
 
     if (!IS_ALLOC_ALIGNED(ph->p_vaddr - ph->p_offset)) {
-        log_debug("%s: ELF load command address/offset not page-aligned\n", __func__);
+        log_debug("%s: ELF load command address/offset not page-aligned", __func__);
         return -EINVAL;
     }
 
     if (ph->p_filesz > ph->p_memsz) {
-        log_debug("%s: file size larger than memory size\n", __func__);
+        log_debug("%s: file size larger than memory size", __func__);
         return -EINVAL;
     }
 
@@ -183,7 +183,7 @@ static int read_all_loadcmds(const ElfW(Phdr)* phdr, size_t phnum, size_t* n_loa
     }
 
     if ((*loadcmds = malloc(n * sizeof(**loadcmds))) == NULL) {
-        log_debug("%s: failed to allocate memory\n", __func__);
+        log_debug("%s: failed to allocate memory", __func__);
         return -ENOMEM;
     }
 
@@ -192,7 +192,7 @@ static int read_all_loadcmds(const ElfW(Phdr)* phdr, size_t phnum, size_t* n_loa
     for (ph = phdr; ph < &phdr[phnum]; ph++) {
         if (ph->p_type == PT_LOAD) {
             if (ph_prev && !(ph_prev->p_vaddr < ph->p_vaddr)) {
-                log_debug("%s: PT_LOAD segments are not in ascending order\n", __func__);
+                log_debug("%s: PT_LOAD segments are not in ascending order", __func__);
                 ret = -EINVAL;
                 goto err;
             }
@@ -225,7 +225,7 @@ static int reserve_dyn(size_t total_size, void** addr) {
 
     if ((ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(total_size), PROT_NONE, VMA_UNMAPPED,
                                    /*file=*/NULL, /*offset=*/0, /*comment=*/NULL, addr) < 0)) {
-        log_debug("reserve_dyn: failed to find an address for shared object\n");
+        log_debug("reserve_dyn: failed to find an address for shared object");
         return ret;
     }
 
@@ -252,13 +252,13 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
 
         if ((ret = bkeep_mmap_fixed(map_start, map_size, c->prot, map_flags, file, c->map_off,
                                     /*comment=*/NULL)) < 0) {
-            log_debug("%s: failed to bookkeep address of segment\n", __func__);
+            log_debug("%s: failed to bookkeep address of segment", __func__);
             return ret;
         }
 
         if ((ret = file->fs->fs_ops->mmap(file, &map_start, map_size, c->prot, map_flags,
                                           c->map_off) < 0)) {
-            log_debug("%s: failed to map segment\n", __func__);
+            log_debug("%s: failed to map segment", __func__);
             return ret;
         }
     }
@@ -273,7 +273,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
         if ((c->prot & PROT_WRITE) == 0) {
             if ((ret = DkVirtualMemoryProtect(last_page_start, ALLOC_ALIGNMENT,
                                               pal_prot | PAL_PROT_WRITE) < 0)) {
-                log_debug("%s: cannot change memory protections\n", __func__);
+                log_debug("%s: cannot change memory protections", __func__);
                 return pal_to_unix_errno(ret);
             }
         }
@@ -282,7 +282,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
 
         if ((c->prot & PROT_WRITE) == 0) {
             if ((ret = DkVirtualMemoryProtect(last_page_start, ALLOC_ALIGNMENT, pal_prot) < 0)) {
-                log_debug("%s: cannot change memory protections\n", __func__);
+                log_debug("%s: cannot change memory protections", __func__);
                 return pal_to_unix_errno(ret);
             }
         }
@@ -297,13 +297,13 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
 
         if ((ret = bkeep_mmap_fixed(zero_page_start, zero_page_size, c->prot, zero_map_flags,
                                     /*file=*/NULL, /*offset=*/0, /*comment=*/NULL)) < 0) {
-            log_debug("%s: cannot bookkeep address of zero-fill pages\n", __func__);
+            log_debug("%s: cannot bookkeep address of zero-fill pages", __func__);
             return ret;
         }
 
         if ((ret = DkVirtualMemoryAlloc(&zero_page_start, zero_page_size, /*alloc_type=*/0,
                                         zero_pal_prot)) < 0) {
-            log_debug("%s: cannot map zero-fill pages\n", __func__);
+            log_debug("%s: cannot map zero-fill pages", __func__);
             return pal_to_unix_errno(ret);
         }
     }
@@ -467,7 +467,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* e
     return l;
 
 err:
-    log_debug("loading %s: %s (%d)\n", l->l_name, errstring, ret);
+    log_debug("loading %s: %s (%d)", l->l_name, errstring, ret);
     free(phdr);
     free(loadcmds);
     free(l);
@@ -569,7 +569,7 @@ static int __check_elf_header(ElfW(Ehdr)* ehdr) {
 
     /* check if the type of ELF header is either DYN or EXEC */
     if (ehdr->e_type != ET_DYN && ehdr->e_type != ET_EXEC) {
-        errstring = "only ET_DYN and ET_EXEC can be loaded\n";
+        errstring = "only ET_DYN and ET_EXEC can be loaded";
         goto verify_failed;
     }
 
@@ -582,7 +582,7 @@ static int __check_elf_header(ElfW(Ehdr)* ehdr) {
     return 0;
 
 verify_failed:
-    log_debug("load runtime object: %s\n", errstring);
+    log_debug("load runtime object: %s", errstring);
     return -EINVAL;
 }
 
@@ -639,7 +639,7 @@ int load_elf_object(struct shim_handle* file) {
     if (!file)
         return -EINVAL;
 
-    log_debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
+    log_debug("loading \"%s\"", file ? qstrgetstr(&file->uri) : "(unknown)");
 
     return __load_elf_object(file);
 }
@@ -731,7 +731,7 @@ static int __load_interp_object(struct link_map* exec_map) {
         interp_path[plen] = '/';
         memcpy(interp_path + plen + 1, filename, len + 1);
 
-        log_debug("searching for interpreter: %s\n", interp_path);
+        log_debug("searching for interpreter: %s", interp_path);
 
         struct shim_dentry* dent = NULL;
         int ret = 0;
@@ -869,7 +869,7 @@ int init_loader(void) {
                 dentry_abs_path(exec->dentry, &path, /*size=*/NULL);
             log_error("Failed to load %s. This may be caused by the binary being non-PIE, in which "
                       "case Graphene requires a specially-crafted memory layout. You can enable it "
-                      "by adding 'sgx.nonpie_binary = true' to the manifest.\n",
+                      "by adding 'sgx.nonpie_binary = true' to the manifest.",
                       path ? path : "(unknown)");
             free(path);
             goto out;
@@ -901,7 +901,7 @@ int init_brk_from_executable(struct shim_handle* exec) {
 }
 
 int register_library(const char* name, unsigned long load_address) {
-    log_debug("glibc register library %s loaded at 0x%08lx\n", name, load_address);
+    log_debug("glibc register library %s loaded at 0x%08lx", name, load_address);
 
     struct shim_handle* hdl = get_new_handle();
 
@@ -922,7 +922,7 @@ int register_library(const char* name, unsigned long load_address) {
 noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
-        log_error("Could not initialize vDSO (error code = %d)\n", ret);
+        log_error("Could not initialize vDSO (error code = %d)", ret);
         process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
     }
 
@@ -978,7 +978,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
     ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
-        log_error("execute_elf_object: DkRandomBitsRead failed: %d\n", ret);
+        log_error("execute_elf_object: DkRandomBitsRead failed: %d", ret);
         DkProcessExit(1);
         /* UNREACHABLE */
     }

@@ -115,13 +115,13 @@ static void emulate_rdtsc_and_print_warning(sgx_cpu_context_t* uc) {
         extern uint64_t g_tsc_hz;
         g_tsc_hz = 0;
         log_warning("all RDTSC/RDTSCP instructions are emulated (imprecisely) via gettime() "
-                    "syscall.\n");
+                    "syscall.");
     }
 
     uint64_t usec;
     int res = _DkSystemTimeQuery(&usec);
     if (res < 0) {
-        log_error("_DkSystemTimeQuery() failed in unrecoverable context, exiting.\n");
+        log_error("_DkSystemTimeQuery() failed in unrecoverable context, exiting.");
         _DkProcessExit(1);
     }
     /* FIXME: Ideally, we would like to scale microseconds back to RDTSC clock cycles */
@@ -160,13 +160,13 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
         /* A disabled {RD,WR}{FS,GS}BASE instruction generated a #UD */
         log_error(
             "{RD,WR}{FS,GS}BASE instructions are not permitted on this platform. Please check the "
-            "instructions under \"Building with SGX support\" from Graphene documentation.\n");
+            "instructions under \"Building with SGX support\" from Graphene documentation.");
         return false;
     } else if (instr[0] == 0x0f && instr[1] == 0x05) {
         /* syscall: LibOS may know how to handle this */
         return false;
     }
-    log_error("Unknown or illegal instruction at RIP 0x%016lx\n", uc->rip);
+    log_error("Unknown or illegal instruction at RIP 0x%016lx", uc->rip);
     return false;
 }
 
@@ -185,13 +185,13 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
     if (!ei.info.valid) {
         event_num = exit_info;
         if (event_num <= 0 || event_num >= PAL_EVENT_NUM_BOUND) {
-            log_error("Illegal exception reported by untrusted PAL: %d\n", event_num);
+            log_error("Illegal exception reported by untrusted PAL: %d", event_num);
             _DkProcessExit(1);
         }
     } else {
         switch (ei.info.vector) {
             case SGX_EXCEPTION_VECTOR_BR:
-                log_error("Handling #BR exceptions is currently unsupported by Graphene\n");
+                log_error("Handling #BR exceptions is currently unsupported by Graphene");
                 _DkProcessExit(1);
                 break;
             case SGX_EXCEPTION_VECTOR_UD:
@@ -221,22 +221,22 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
         /* event isn't asynchronous (i.e., synchronous exception) */
         event_num != PAL_EVENT_QUIT &&
         event_num != PAL_EVENT_INTERRUPTED) {
-        log_error("*** Unexpected exception occurred inside PAL at RIP = +0x%08lx! ***\n",
+        log_error("*** Unexpected exception occurred inside PAL at RIP = +0x%08lx! ***",
                   uc->rip - (uintptr_t)TEXT_START);
 
         if (ei.info.valid) {
             /* EXITINFO field: vector = exception number, exit_type = 0x3 for HW / 0x6 for SW */
-            log_error("(SGX HW reported AEX vector 0x%x with exit_type = 0x%x)\n", ei.info.vector,
+            log_error("(SGX HW reported AEX vector 0x%x with exit_type = 0x%x)", ei.info.vector,
                       ei.info.exit_type);
         } else {
-            log_error("(untrusted PAL sent PAL event 0x%x)\n", ei.intval);
+            log_error("(untrusted PAL sent PAL event 0x%x)", ei.intval);
         }
 
         log_error("rax: 0x%08lx rcx: 0x%08lx rdx: 0x%08lx rbx: 0x%08lx\n"
                   "rsp: 0x%08lx rbp: 0x%08lx rsi: 0x%08lx rdi: 0x%08lx\n"
                   "r8 : 0x%08lx r9 : 0x%08lx r10: 0x%08lx r11: 0x%08lx\n"
                   "r12: 0x%08lx r13: 0x%08lx r14: 0x%08lx r15: 0x%08lx\n"
-                  "rflags: 0x%08lx rip: 0x%08lx\n",
+                  "rflags: 0x%08lx rip: 0x%08lx",
                   uc->rax, uc->rcx, uc->rdx, uc->rbx,
                   uc->rsp, uc->rbp, uc->rsi, uc->rdi,
                   uc->r8, uc->r9, uc->r10, uc->r11,
@@ -283,7 +283,7 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     if (event != PAL_EVENT_QUIT && event != PAL_EVENT_INTERRUPTED) {
-        log_error("Illegal exception reported by untrusted PAL: %lu\n", event);
+        log_error("Illegal exception reported by untrusted PAL: %lu", event);
         _DkProcessExit(1);
     }
 

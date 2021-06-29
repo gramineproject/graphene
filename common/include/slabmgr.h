@@ -354,7 +354,7 @@ static inline size_t slab_get_buf_size(const void* ptr) {
     }
 
     if (level >= SLAB_LEVEL) {
-        log_always("Heap corruption detected: invalid heap level %u\n", level);
+        log_always("Heap corruption detected: invalid heap level %u", level);
         abort();
     }
 
@@ -393,7 +393,7 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
      * more likely to be detected by adding a non-zero offset to the level,
      * so a level of 0 in the header would no longer be a valid level. */
     if (level >= SLAB_LEVEL) {
-        log_always("Heap corruption detected: invalid heap level %d\n", level);
+        log_always("Heap corruption detected: invalid heap level %d", level);
         abort();
     }
 

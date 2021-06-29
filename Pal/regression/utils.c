@@ -9,16 +9,18 @@ static int buf_write_all(const char* str, size_t size, void* arg) {
     return 0;
 }
 
-static void log_vprintf(const char* fmt, va_list ap) {
+static void log_vprintf(const char* fmt, va_list ap, bool append_newline) {
     struct print_buf buf = INIT_PRINT_BUF(buf_write_all);
     buf_vprintf(&buf, fmt, ap);
+    if (append_newline)
+        buf_printf(&buf, "\n");
     buf_flush(&buf);
 }
 
 void pal_printf(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    log_vprintf(fmt, ap);
+    log_vprintf(fmt, ap, /*append_newline=*/false);
     va_end(ap);
 }
 
@@ -29,7 +31,7 @@ void _log(int level, const char* fmt, ...) {
     (void)level; /* PAL regression always prints log messages */
     va_list ap;
     va_start(ap, fmt);
-    log_vprintf(fmt, ap);
+    log_vprintf(fmt, ap, /*append_newline=*/true);
     va_end(ap);
 }
 

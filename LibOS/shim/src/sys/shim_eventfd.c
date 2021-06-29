@@ -28,7 +28,7 @@ static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
                        &allow_eventfd);
     if (ret < 0) {
         log_error("Cannot parse \'sys.insecure__allow_eventfd\' (the value must be `true` or "
-                  "`false`)\n");
+                  "`false`)");
         return -ENOSYS;
     }
 
@@ -48,7 +48,7 @@ static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
      * argument. Using create arg as a work-around (note: initval is uint32 but create is int32). */
     ret = DkStreamOpen(URI_PREFIX_EVENTFD, 0, 0, count, pal_flags, &hdl);
     if (ret < 0) {
-        log_error("eventfd open failure\n");
+        log_error("eventfd open failure");
         return pal_to_unix_errno(ret);
     }
 

@@ -31,7 +31,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     int ret;
 
     if (!create_lock(&brk_lock)) {
-        log_error("Creating brk_lock failed!\n");
+        log_error("Creating brk_lock failed!");
         return -ENOMEM;
     }
 
@@ -48,16 +48,16 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     ret = toml_sizestring_in(g_manifest_root, "sys.brk.max_size", DEFAULT_BRK_MAX_SIZE,
                              &brk_max_size);
     if (ret < 0) {
-        log_error("Cannot parse \'sys.brk.max_size\' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sys.brk.max_size\' (the value must be put in double quotes!)");
         return -EINVAL;
     }
 
     if (brk_start && !IS_ALLOC_ALIGNED_PTR(brk_start)) {
-        log_error("Starting brk address is not aligned!\n");
+        log_error("Starting brk address is not aligned!");
         return -EINVAL;
     }
     if (!IS_ALLOC_ALIGNED(brk_max_size)) {
-        log_error("Max brk size is not aligned!\n");
+        log_error("Max brk size is not aligned!");
         return -EINVAL;
     }
 

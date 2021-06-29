@@ -73,7 +73,7 @@ static inline void* __malloc(size_t size) {
     int ret = _DkVirtualMemoryAlloc(&addr, ALLOC_ALIGN_UP(size), PAL_ALLOC_INTERNAL,
               PAL_PROT_READ | PAL_PROT_WRITE);
     if (ret < 0) {
-        log_error("*** Out-of-memory in PAL (try increasing `loader.pal_internal_mem_size`) ***\n");
+        log_error("*** Out-of-memory in PAL (try increasing `loader.pal_internal_mem_size`) ***");
         _DkProcessExit(ENOMEM);
     }
     return addr;
@@ -130,7 +130,7 @@ void* malloc(size_t size) {
          * If malloc() failed internally, we cannot handle the
          * condition and must terminate the current process.
          */
-        log_error("******** Out-of-memory in PAL ********\n");
+        log_error("******** Out-of-memory in PAL ********");
         _DkProcessExit(ENOMEM);
     }
     return ptr;

@@ -19,9 +19,9 @@ void ipc_child_disconnect_callback(IDTYPE vmid) {
      * is not distinguishable from a genuine signal).
      */
     if (mark_child_exited_by_vmid(vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR)) {
-        log_error("Child process (vmid: 0x%x) got disconnected\n", vmid);
+        log_error("Child process (vmid: 0x%x) got disconnected", vmid);
     } else {
-        log_debug("Unknown process (vmid: 0x%x) disconnected\n", vmid);
+        log_debug("Unknown process (vmid: 0x%x) disconnected", vmid);
     }
 }
 
@@ -57,13 +57,13 @@ int ipc_cld_exit_callback(IDTYPE src, void* data, uint64_t seq) {
     __UNUSED(seq);
     struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)data;
 
-    log_debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", src,
-          msgin->ppid, msgin->pid, msgin->exitcode, msgin->term_signal);
+    log_debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)", src, msgin->ppid,
+              msgin->pid, msgin->exitcode, msgin->term_signal);
 
     if (mark_child_exited_by_pid(msgin->pid, msgin->uid, msgin->exitcode, msgin->term_signal)) {
-        log_debug("Child process (pid: %u) died\n", msgin->pid);
+        log_debug("Child process (pid: %u) died", msgin->pid);
     } else {
-        log_error("Unknown process sent a child-death notification: pid: %d, vmid: %u\n",
+        log_error("Unknown process sent a child-death notification: pid: %d, vmid: %u",
                   msgin->pid, src);
         return -EINVAL;
     }

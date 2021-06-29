@@ -90,7 +90,7 @@ static void remove_qnode_from_wait_queue(struct shim_thread_queue* qnode) {
             int ret = thread_wait(/*timeout_us=*/NULL, /*ignore_pending_signals=*/true);
             if (ret < 0 && ret != -EINTR) {
                 /* We cannot handle any errors here. */
-                log_error("remove_qnode_from_wait_queue: thread_wait failed with: %d\n", ret);
+                log_error("remove_qnode_from_wait_queue: thread_wait failed with: %d", ret);
             }
         }
     } else {
@@ -104,17 +104,17 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
     }
 
     if (options & WSTOPPED) {
-        log_warning("Ignoring unsupported WSTOPPED flag to wait4\n");
+        log_warning("Ignoring unsupported WSTOPPED flag to wait4");
         options &= ~WSTOPPED;
     }
     if (options & WCONTINUED) {
-        log_warning("Ignoring unsupported WCONTINUED flag to wait4\n");
+        log_warning("Ignoring unsupported WCONTINUED flag to wait4");
         options &= ~WCONTINUED;
     }
     assert(options & WEXITED);
 
     if (options & __WNOTHREAD) {
-        log_warning("Ignoring unsupported __WNOTHREAD flag to wait4\n");
+        log_warning("Ignoring unsupported __WNOTHREAD flag to wait4");
         options &= ~__WNOTHREAD;
     }
 
@@ -195,7 +195,7 @@ static long do_waitid(int which, pid_t id, siginfo_t* infop, int options) {
         }
         ret = thread_wait(/*timeout_us=*/NULL, /*ignore_pending_signals=*/false);
         if (ret < 0 && ret != -EINTR) {
-            log_warning("thread_wait failed in waitid\n");
+            log_warning("thread_wait failed in waitid");
             remove_qnode_from_wait_queue(&qnode);
             /* `ret` is already set. */
             goto out;

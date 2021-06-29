@@ -34,11 +34,11 @@ static void elf_machine_rela(struct link_map* l, Elf64_Rela* reloc, Elf64_Sym* s
 #define debug_reloc(r_type)                                                                 \
     do {                                                                                    \
         if (strtab && sym && sym->st_name)                                                  \
-            log_debug("%p " #r_type ": %s %p\n", reloc_addr, strtab + sym->st_name, value); \
+            log_debug("%p " #r_type ": %s %p", reloc_addr, strtab + sym->st_name, value);   \
         else if (value)                                                                     \
-            log_debug("%p " #r_type ": %p\n", reloc_addr, value);                           \
+            log_debug("%p " #r_type ": %p", reloc_addr, value);                             \
         else                                                                                \
-            log_debug("%p " #r_type "\n", reloc_addr, value);                               \
+            log_debug("%p " #r_type, reloc_addr, value);                                    \
     } while (0)
 #else
 #define debug_reloc(...) \

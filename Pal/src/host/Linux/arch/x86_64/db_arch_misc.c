@@ -128,7 +128,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     /* TODO: correctly support offline cores */
     if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
          log_warning("some CPUs seem to be offline; Graphene doesn't take this into account which "
-                     "may lead to subpar performance\n");
+                     "may lead to subpar performance");
     }
 
     int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
@@ -159,7 +159,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
         if (cpu_socket[idx] < 0) {
-            log_warning("Cannot read %s\n", filename);
+            log_warning("Cannot read %s", filename);
             rv = unix_to_pal_error(cpu_socket[idx]);
             goto out_phy_id;
         }
@@ -212,7 +212,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     ci->cpu_bogomips = get_bogomips();
     if (ci->cpu_bogomips == 0.0) {
-        log_warning("bogomips could not be retrieved, passing 0.0 to the application\n");
+        log_warning("bogomips could not be retrieved, passing 0.0 to the application");
     }
 
     return rv;

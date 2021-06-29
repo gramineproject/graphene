@@ -88,7 +88,7 @@ long shim_do_socket(int family, int type, int protocol) {
             break;
 
         default:
-            log_warning("shim_socket: unknown socket domain %d\n", sock->domain);
+            log_warning("shim_socket: unknown socket domain %d", sock->domain);
             goto err;
     }
 
@@ -100,7 +100,7 @@ long shim_do_socket(int family, int type, int protocol) {
             break;
 
         default:
-            log_warning("shim_socket: unknown socket type %d\n", sock->sock_type);
+            log_warning("shim_socket: unknown socket type %d", sock->sock_type);
             goto err;
     }
 
@@ -291,7 +291,7 @@ static int unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* dent) {
         return ret;
 
     if (size > ARRAY_SIZE(un->sun_path)) {
-        log_warning("unix_copy_addr(): path too long, truncating: %s\n", path);
+        log_warning("unix_copy_addr(): path too long, truncating: %s", path);
         memcpy(un->sun_path, path, ARRAY_SIZE(un->sun_path) - 1);
         un->sun_path[ARRAY_SIZE(un->sun_path) - 1] = 0;
     } else {
@@ -460,7 +460,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     enum shim_sock_state state = sock->sock_state;
 
     if (state != SOCK_CREATED) {
-        log_debug("shim_bind: bind on a bound socket\n");
+        log_debug("shim_bind: bind on a bound socket");
         goto out;
     }
 
@@ -510,7 +510,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
 
     if (ret < 0) {
         ret = (ret == -PAL_ERROR_STREAMEXIST) ? -EADDRINUSE : pal_to_unix_errno(ret);
-        log_error("bind: invalid handle returned\n");
+        log_error("bind: invalid handle returned");
         goto out;
     }
 
@@ -648,7 +648,7 @@ long shim_do_listen(int sockfd, int backlog) {
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (sock->sock_type != SOCK_STREAM) {
-        log_warning("shim_listen: not a stream socket\n");
+        log_warning("shim_listen: not a stream socket");
         put_handle(hdl);
         return -EINVAL;
     }
@@ -659,7 +659,7 @@ long shim_do_listen(int sockfd, int backlog) {
     int ret = -EINVAL;
 
     if (state != SOCK_BOUND && state != SOCK_LISTENED) {
-        log_warning("shim_listen: listen on unbound socket\n");
+        log_warning("shim_listen: listen on unbound socket");
         goto out;
     }
 
@@ -717,18 +717,18 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
                 hdl->pal_handle = NULL;
                 pal_handle_updated = true;
             }
-            log_debug("shim_connect: reconnect on a stream socket\n");
+            log_debug("shim_connect: reconnect on a stream socket");
             ret = 0;
             goto out;
         }
 
-        log_debug("shim_connect: reconnect on a stream socket\n");
+        log_debug("shim_connect: reconnect on a stream socket");
         ret = -EISCONN;
         goto out;
     }
 
     if (state != SOCK_BOUND && state != SOCK_CREATED) {
-        log_warning("shim_connect: connect on invalid socket\n");
+        log_warning("shim_connect: connect on invalid socket");
         goto out;
     }
 
@@ -857,7 +857,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
     PAL_HANDLE accepted = NULL;
 
     if (sock->sock_type != SOCK_STREAM) {
-        log_warning("shim_accept: not a stream socket\n");
+        log_warning("shim_accept: not a stream socket");
         return -EOPNOTSUPP;
     }
 
@@ -876,7 +876,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     PAL_HANDLE handle = hdl->pal_handle;
     if (sock->sock_state != SOCK_LISTENED) {
-        log_warning("shim_accept: invalid socket\n");
+        log_warning("shim_accept: invalid socket");
         ret = -EINVAL;
         goto out;
     }
@@ -895,7 +895,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     assert(hdl->pal_handle == handle);
     if (sock->sock_state != SOCK_LISTENED) {
-        log_debug("shim_accept: socket changed while waiting for a client connection\n");
+        log_debug("shim_accept: socket changed while waiting for a client connection");
         ret = -ECONNABORTED;
         goto out;
     }
@@ -1031,7 +1031,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
 
     if (flags & ~(MSG_NOSIGNAL | MSG_DONTWAIT)) {
         log_warning("sendmsg()/sendmmsg()/sendto(): unknown flag (only MSG_NOSIGNAL and "
-                    "MSG_DONTWAIT are supported).\n");
+                    "MSG_DONTWAIT are supported).");
         ret = -EOPNOTSUPP;
         goto out;
     }
@@ -1050,7 +1050,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
             log_warning("MSG_DONTWAIT on blocking socket is ignored, may lead to a write that "
-                        "unexpectedly blocks.\n");
+                        "unexpectedly blocks.");
         }
         flags &= ~MSG_DONTWAIT;
     }
@@ -1116,7 +1116,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
             goto out_locked;
         }
 
-        log_debug("next packet send to %s\n", uri);
+        log_debug("next packet send to %s", uri);
     }
 
     int bytes = 0;
@@ -1135,7 +1135,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
                     .si_code = SI_USER,
                 };
                 if (kill_current_proc(&info) < 0) {
-                    log_error("do_sendmsg: failed to deliver a signal\n");
+                    log_error("do_sendmsg: failed to deliver a signal");
                 }
             }
             break;
@@ -1287,7 +1287,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
 
     if (flags & ~(MSG_PEEK | MSG_DONTWAIT | MSG_WAITALL)) {
         log_warning("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK, MSG_DONTWAIT and"
-                    " MSG_WAITALL are supported).\n");
+                    " MSG_WAITALL are supported).");
         ret = -EOPNOTSUPP;
         goto out;
     }
@@ -1296,14 +1296,14 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
 
     if (flags & MSG_WAITALL) {
         log_warning("recvmsg()/recvmmsg()/recvfrom(): MSG_WAITALL is ignored, may lead to a read"
-                    " that returns less data.\n");
+                    " that returns less data.");
         flags &= ~MSG_WAITALL;
     }
 
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
             log_warning("MSG_DONTWAIT on blocking socket is ignored, may lead to a read that "
-                        "unexpectedly blocks.\n");
+                        "unexpectedly blocks.");
         }
         flags &= ~MSG_DONTWAIT;
     }
@@ -1434,7 +1434,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
                         goto out_locked;
                     }
 
-                    log_debug("last packet received from %s\n", uri);
+                    log_debug("last packet received from %s", uri);
 
                     inet_rebase_port(true, sock->domain, &conn, false);
                     *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &conn);
@@ -1562,7 +1562,7 @@ long shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int fl
     // Issue # 753 - https://github.com/oscarlab/graphene/issues/753
     /* TODO(donporter): timeout properly. For now, explicitly return an error. */
     if (timeout) {
-        log_warning("recvmmsg(): timeout parameter unsupported.\n");
+        log_warning("recvmmsg(): timeout parameter unsupported.");
         return -EOPNOTSUPP;
     }
 

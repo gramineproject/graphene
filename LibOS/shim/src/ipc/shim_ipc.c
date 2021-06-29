@@ -114,7 +114,7 @@ static int ipc_connect(IDTYPE dest, struct shim_ipc_connection** conn_ptr) {
 
         char uri[PIPE_URI_SIZE];
         if (vmid_to_uri(dest, uri, sizeof(uri)) < 0) {
-            log_error("buffer for IPC pipe URI too small\n");
+            log_error("buffer for IPC pipe URI too small");
             BUG();
         }
         ret = DkStreamOpen(uri, 0, 0, 0, 0, &conn->handle);
@@ -191,7 +191,7 @@ void remove_outgoing_ipc_connection(IDTYPE dest) {
         if (waiter->dest == dest) {
             waiter->response_data = NULL;
             DkEventSet(waiter->event);
-            log_debug("Woke up a thread waiting for a message from a disconnected process\n");
+            log_debug("Woke up a thread waiting for a message from a disconnected process");
         }
         node = avl_tree_next(node);
     }
@@ -210,13 +210,13 @@ void init_ipc_response(struct shim_ipc_msg* msg, uint64_t seq, size_t size) {
 }
 
 static int ipc_send_message_to_conn(struct shim_ipc_connection* conn, struct shim_ipc_msg* msg) {
-    log_debug("Sending ipc message to %u\n", conn->vmid);
+    log_debug("Sending ipc message to %u", conn->vmid);
 
     lock(&conn->lock);
 
     int ret = write_exact(conn->handle, msg,  GET_UNALIGNED(msg->header.size));
     if (ret < 0) {
-        log_error("Failed to send IPC msg to %u: %d\n", conn->vmid, ret);
+        log_error("Failed to send IPC msg to %u: %d", conn->vmid, ret);
         unlock(&conn->lock);
         remove_ipc_connection(conn);
         return ret;
@@ -239,14 +239,14 @@ int ipc_send_message(IDTYPE dest, struct shim_ipc_msg* msg) {
 }
 
 static int wait_for_response(struct ipc_msg_waiter* waiter) {
-    log_debug("Waiting for a response to %lu\n", waiter->seq);
+    log_debug("Waiting for a response to %lu", waiter->seq);
 
     int ret = 0;
     do {
         ret = pal_to_unix_errno(DkEventWait(waiter->event, /*timeout=*/NULL));
     } while (ret == -EINTR);
 
-    log_debug("Waiting finished: %d\n", ret);
+    log_debug("Waiting finished: %d", ret);
     return ret;
 }
 
@@ -280,7 +280,7 @@ int ipc_send_msg_and_get_response(IDTYPE dest, struct shim_ipc_msg* msg, void** 
     }
 
     if (!waiter.response_data) {
-        log_warning("IPC recipient %u died while we were waiting for a message response\n", dest);
+        log_warning("IPC recipient %u died while we were waiting for a message response", dest);
         ret = -ESRCH;
     } else {
         if (resp) {
@@ -302,7 +302,7 @@ out:
 int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
     int ret = 0;
     if (!seq) {
-        log_error("Got an IPC response without a sequence number\n");
+        log_error("Got an IPC response without a sequence number");
         ret = -EINVAL;
         goto out;
     }
@@ -313,7 +313,7 @@ int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
     };
     struct avl_tree_node* node = avl_tree_find(&g_msg_waiters_tree, &dummy.node);
     if (!node) {
-        log_error("No thread is waiting for a response with seq: %lu\n", seq);
+        log_error("No thread is waiting for a response with seq: %lu", seq);
         ret = -EINVAL;
         goto out_unlock;
     }
@@ -322,7 +322,7 @@ int ipc_response_callback(IDTYPE src, void* data, uint64_t seq) {
     waiter->response_data = data;
     DkEventSet(waiter->event);
     ret = 0;
-    log_debug("Got an IPC response from %u, seq: %lu\n", src, seq);
+    log_debug("Got an IPC response from %u, seq: %lu", src, seq);
 
 out_unlock:
     unlock(&g_msg_waiters_tree_lock);

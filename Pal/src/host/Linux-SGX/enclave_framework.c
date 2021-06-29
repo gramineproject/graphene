@@ -120,23 +120,23 @@ bool sgx_copy_to_enclave(void* ptr, size_t maxsize, const void* uptr, size_t usi
 }
 
 static void print_report(sgx_report_t* r) {
-    log_debug("  cpu_svn:     %s\n",     ALLOCA_BYTES2HEXSTR(r->body.cpu_svn.svn));
-    log_debug("  mr_enclave:  %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_enclave.m));
-    log_debug("  mr_signer:   %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_signer.m));
-    log_debug("  attr.flags:  %016lx\n", r->body.attributes.flags);
-    log_debug("  attr.xfrm:   %016lx\n", r->body.attributes.xfrm);
-    log_debug("  isv_prod_id: %02x\n",   r->body.isv_prod_id);
-    log_debug("  isv_svn:     %02x\n",   r->body.isv_svn);
-    log_debug("  report_data: %s\n",     ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
-    log_debug("  key_id:      %s\n",     ALLOCA_BYTES2HEXSTR(r->key_id.id));
-    log_debug("  mac:         %s\n",     ALLOCA_BYTES2HEXSTR(r->mac));
+    log_debug("  cpu_svn:     %s",     ALLOCA_BYTES2HEXSTR(r->body.cpu_svn.svn));
+    log_debug("  mr_enclave:  %s",     ALLOCA_BYTES2HEXSTR(r->body.mr_enclave.m));
+    log_debug("  mr_signer:   %s",     ALLOCA_BYTES2HEXSTR(r->body.mr_signer.m));
+    log_debug("  attr.flags:  %016lx", r->body.attributes.flags);
+    log_debug("  attr.xfrm:   %016lx", r->body.attributes.xfrm);
+    log_debug("  isv_prod_id: %02x",   r->body.isv_prod_id);
+    log_debug("  isv_svn:     %02x",   r->body.isv_svn);
+    log_debug("  report_data: %s",     ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
+    log_debug("  key_id:      %s",     ALLOCA_BYTES2HEXSTR(r->key_id.id));
+    log_debug("  mac:         %s",     ALLOCA_BYTES2HEXSTR(r->mac));
 }
 
 int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t* data,
                    sgx_report_t* report) {
     int ret = sgx_report(target_info, data, report);
     if (ret) {
-        log_error("sgx_report failed: ret = %d\n", ret);
+        log_error("sgx_report failed: ret = %d", ret);
         return -PAL_ERROR_DENIED;
     }
     return 0;
@@ -153,11 +153,11 @@ int sgx_verify_report(sgx_report_t* report) {
 
     int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
-        log_error("Can't get report key\n");
+        log_error("Can't get report key");
         return -PAL_ERROR_DENIED;
     }
 
-    log_debug("Get report key for verification: %s\n", ALLOCA_BYTES2HEXSTR(report_key));
+    log_debug("Get report key for verification: %s", ALLOCA_BYTES2HEXSTR(report_key));
 
     sgx_mac_t check_mac;
     memset(&check_mac, 0, sizeof(check_mac));
@@ -172,12 +172,12 @@ int sgx_verify_report(sgx_report_t* report) {
     // Clear the report key for security
     memset(&report_key, 0, sizeof(report_key));
 
-    log_debug("Verify report:\n");
+    log_debug("Verify report:");
     print_report(report);
-    log_debug("  verify:     %s\n", ALLOCA_BYTES2HEXSTR(check_mac));
+    log_debug("  verify:     %s", ALLOCA_BYTES2HEXSTR(check_mac));
 
     if (memcmp(&check_mac, &report->mac, sizeof(check_mac))) {
-        log_error("Report verification failed\n");
+        log_error("Report verification failed");
         return -PAL_ERROR_DENIED;
     }
 
@@ -264,7 +264,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
 
     /* Normalize the uri */
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
-        log_error("Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
+        log_error("Invalid URI [%s]: Trusted files must start with 'file:'", uri);
         ret = -PAL_ERROR_INVAL;
         goto out_free;
     }
@@ -273,7 +273,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
     size_t len = normpath_size - URI_PREFIX_FILE_LEN;
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
-        log_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
+        log_error("Path (%s) normalization failed: %s", uri + URI_PREFIX_FILE_LEN,
                   pal_strerror(ret));
         goto out_free;
     }
@@ -305,8 +305,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
     }
 
     if (!tf) {
-        log_always("Allowing access to an unknown file due to file_check_policy settings: %s\n",
-                   uri);
+        log_always("Allowing access to an unknown file due to file_check_policy settings: %s", uri);
 
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(normpath, &attr);
@@ -321,7 +320,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
     assert(tf);
 
     if (create && !tf->allowed) {
-        log_error("Trying to create/write/append an already-created trusted file '%s'\n", uri);
+        log_error("Trying to create/write/append an already-created trusted file '%s'", uri);
         ret = -PAL_ERROR_DENIED;
         goto out_free;
     }
@@ -539,7 +538,7 @@ int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* ume
             goto failed;
 
         if (memcmp(chunk_hashes_item, &chunk_hash[0], sizeof(*chunk_hashes_item))) {
-            log_error("Accessing file '%s' is denied: incorrect hash of file chunk at %lu-%lu.\n",
+            log_error("Accessing file '%s' is denied: incorrect hash of file chunk at %lu-%lu.",
                       path, chunk_offset, chunk_end);
             ret = -PAL_ERROR_DENIED;
             goto failed;
@@ -560,7 +559,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 
     size_t uri_len = strlen(uri);
     if (uri_len >= URI_MAX) {
-        log_error("Size of file exceeds maximum %dB: %s\n", URI_MAX, uri);
+        log_error("Size of file exceeds maximum %dB: %s", URI_MAX, uri);
         return -PAL_ERROR_INVAL;
     }
 
@@ -594,7 +593,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(uri, &attr);
         if (ret < 0) {
-            log_error("Could not find size of file: %s\n", uri);
+            log_error("Could not find size of file: %s", uri);
             free(new);
             return ret;
         }
@@ -606,7 +605,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
             int8_t byte2 = hex2dec(checksum_str[i * 2 + 1]);
 
             if (byte1 < 0 || byte2 < 0) {
-                log_error("Could not parse checksum of file: %s\n", uri);
+                log_error("Could not parse checksum of file: %s", uri);
                 free(new);
                 return -PAL_ERROR_INVAL;
             }
@@ -653,12 +652,12 @@ static int init_trusted_file(const char* key, const char* uri) {
     char* trusted_checksum_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, fullkey, &trusted_checksum_str);
     if (ret < 0) {
-        log_error("Cannot parse '%s'\n", fullkey);
+        log_error("Cannot parse '%s'", fullkey);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
     if (!trusted_checksum_str) {
-        log_error("Missing '%s' entry\n", fullkey);
+        log_error("Missing '%s' entry", fullkey);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
@@ -673,14 +672,14 @@ static int init_trusted_file(const char* key, const char* uri) {
     (void)strcpy_static(normpath, URI_PREFIX_FILE, normpath_size);
 
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
-        log_error("Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
+        log_error("Invalid URI [%s]: Trusted files must start with 'file:'", uri);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
     size_t len = normpath_size - strlen(normpath);
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
-        log_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
+        log_error("Path (%s) normalization failed: %s", uri + URI_PREFIX_FILE_LEN,
                   pal_strerror(ret));
         goto out;
     }
@@ -701,7 +700,7 @@ int init_trusted_files(void) {
     ret = toml_string_in(g_pal_state.manifest_root, "loader.preload", &preload_str);
     if (ret < 0) {
         log_error("Cannot parse \'loader.preload\' "
-                  "(the value must be put in double quotes!)\n");
+                  "(the value must be put in double quotes!)");
         return -PAL_ERROR_INVAL;
     }
 
@@ -754,7 +753,7 @@ int init_trusted_files(void) {
         char* toml_trusted_file_str = NULL;
         ret = toml_rtos(toml_trusted_file_raw, &toml_trusted_file_str);
         if (ret < 0) {
-            log_error("Invalid trusted file in manifest: \'%s\'\n", toml_trusted_file_key);
+            log_error("Invalid trusted file in manifest: \'%s\'", toml_trusted_file_key);
             continue;
         }
 
@@ -799,12 +798,12 @@ no_trusted:
         char* toml_allowed_file_str = NULL;
         ret = toml_rtos(toml_allowed_file_raw, &toml_allowed_file_str);
         if (ret < 0) {
-            log_error("Invalid allowed file in manifest: \'%s\'\n", toml_allowed_file_key);
+            log_error("Invalid allowed file in manifest: \'%s\'", toml_allowed_file_key);
             continue;
         }
 
         if (!strstartswith(toml_allowed_file_str, URI_PREFIX_FILE)) {
-            log_error("Invalid URI [%s]: Allowed files must start with 'file:'\n",
+            log_error("Invalid URI [%s]: Allowed files must start with 'file:'",
                       toml_allowed_file_str);
             free(toml_allowed_file_str);
             ret = -PAL_ERROR_INVAL;
@@ -819,7 +818,7 @@ no_trusted:
                             norm_path + URI_PREFIX_FILE_LEN, &norm_path_len);
 
         if (ret < 0) {
-            log_error("Path (%s) normalization failed: %s\n",
+            log_error("Path (%s) normalization failed: %s",
                       toml_allowed_file_str + URI_PREFIX_FILE_LEN, pal_strerror(ret));
             free(toml_allowed_file_str);
             goto no_allowed;
@@ -844,7 +843,7 @@ int init_file_check_policy(void) {
                          &file_check_policy_str);
     if (ret < 0) {
         log_error("Cannot parse \'sgx.file_check_policy\' "
-                  "(the value must be put in double quotes!)\n");
+                  "(the value must be put in double quotes!)");
         return -PAL_ERROR_INVAL;
     }
 
@@ -857,12 +856,12 @@ int init_file_check_policy(void) {
         set_file_check_policy(FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG);
     } else {
         log_error("Unknown value for \'sgx.file_check_policy\' "
-                  "(allowed: `strict`, `allow_all_but_log`)'\n");
+                  "(allowed: `strict`, `allow_all_but_log`)'");
         free(file_check_policy_str);
         return -PAL_ERROR_INVAL;
     }
 
-    log_debug("File check policy: %s\n", file_check_policy_str);
+    log_debug("File check policy: %s", file_check_policy_str);
     free(file_check_policy_str);
     return 0;
 }
@@ -879,7 +878,7 @@ int init_enclave(void) {
 
     int ret = sgx_report(&targetinfo, &reportdata, &report);
     if (ret) {
-        log_error("failed to get self report: %d\n", ret);
+        log_error("failed to get self report: %d", ret);
         return -PAL_ERROR_INVAL;
     }
 
@@ -902,14 +901,14 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
 
     ret = lib_DhInit(&context);
     if (ret < 0) {
-        log_error("Key Exchange: DH Init failed: %ld\n", ret);
+        log_error("Key Exchange: DH Init failed: %ld", ret);
         goto out_no_final;
     }
 
     pubsz = sizeof(pub);
     ret = lib_DhCreatePublic(&context, pub, &pubsz);
     if (ret < 0) {
-        log_error("Key Exchange: DH CreatePublic failed: %ld\n", ret);
+        log_error("Key Exchange: DH CreatePublic failed: %ld", ret);
         goto out;
     }
 
@@ -930,7 +929,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
                 ret = 0;
                 continue;
             }
-            log_error("Failed to exchange the secret key via RPC: %ld\n", ret);
+            log_error("Failed to exchange the secret key via RPC: %ld", ret);
             goto out;
         }
     }
@@ -942,7 +941,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
                 ret = 0;
                 continue;
             }
-            log_error("Failed to exchange the secret key via RPC: %ld\n", ret);
+            log_error("Failed to exchange the secret key via RPC: %ld", ret);
             goto out;
         }
     }
@@ -950,7 +949,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     agreesz = sizeof(agree);
     ret = lib_DhCalcSecret(&context, pub, DH_SIZE, agree, &agreesz);
     if (ret < 0) {
-        log_error("Key Exchange: DH CalcSecret failed: %ld\n", ret);
+        log_error("Key Exchange: DH CalcSecret failed: %ld", ret);
         goto out;
     }
 
@@ -959,11 +958,11 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     ret = lib_HKDF_SHA256(agree, agreesz, /*salt=*/NULL, /*salt_size=*/0, /*info=*/NULL,
                           /*info_size=*/0, (uint8_t*)key, sizeof(*key));
     if (ret < 0) {
-        log_error("Failed to derive the session key: %ld\n", ret);
+        log_error("Failed to derive the session key: %ld", ret);
         goto out;
     }
 
-    log_debug("Key exchange succeeded: %s\n", ALLOCA_BYTES2HEXSTR(*key));
+    log_debug("Key exchange succeeded: %s", ALLOCA_BYTES2HEXSTR(*key));
     ret = 0;
 out:
     lib_DhFinal(&context);
@@ -999,7 +998,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
                 ret = 0;
                 continue;
             }
-            log_error("Failed to send target info via RPC: %ld\n", ret);
+            log_error("Failed to send target info via RPC: %ld", ret);
             goto out;
         }
     }
@@ -1012,30 +1011,30 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
                 ret = 0;
                 continue;
             }
-            log_error("Failed to receive local report via RPC: %ld\n", ret);
+            log_error("Failed to receive local report via RPC: %ld", ret);
             goto out;
         }
     }
 
-    log_debug("Received local report (mr_enclave = %s)\n",
+    log_debug("Received local report (mr_enclave = %s)",
               ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[B -> A] */
     ret = sgx_verify_report(&report);
     if (ret < 0) {
-        log_error("Failed to verify local report: %ld\n", ret);
+        log_error("Failed to verify local report: %ld", ret);
         goto out;
     }
 
     if (!is_remote_enclave_ok(&stream->process.session_key, &report.body.mr_enclave,
                               &report.body.report_data)) {
-        log_error("Not an allowed enclave (mr_enclave = %s)\n",
+        log_error("Not an allowed enclave (mr_enclave = %s)",
                   ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    log_debug("Local attestation succeeded!\n");
+    log_debug("Local attestation succeeded!");
 
     /* A -> B: report[A -> B] */
     memcpy(&target_info.mr_enclave, &report.body.mr_enclave, sizeof(sgx_measurement_t));
@@ -1043,7 +1042,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
 
     ret = sgx_get_report(&target_info, sgx_report_data, &report);
     if (ret < 0) {
-        log_error("Failed to get local report from CPU: %ld\n", ret);
+        log_error("Failed to get local report from CPU: %ld", ret);
         goto out;
     }
 
@@ -1054,7 +1053,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
                 ret = 0;
                 continue;
             }
-            log_error("Failed to send local report via RPC: %ld\n", ret);
+            log_error("Failed to send local report via RPC: %ld", ret);
             goto out;
         }
     }
@@ -1092,7 +1091,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
                 ret = 0;
                 continue;
             }
-            log_error("Failed to receive target info via RPC: %ld\n", ret);
+            log_error("Failed to receive target info via RPC: %ld", ret);
             goto out;
         }
     }
@@ -1100,7 +1099,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
     /* B -> A: report[B -> A] */
     ret = sgx_get_report(&target_info, sgx_report_data, &report);
     if (ret < 0) {
-        log_error("Failed to get local report from CPU: %ld\n", ret);
+        log_error("Failed to get local report from CPU: %ld", ret);
         goto out;
     }
 
@@ -1111,7 +1110,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
                 ret = 0;
                 continue;
             }
-            log_error("Failed to send local report via PRC: %ld\n", ret);
+            log_error("Failed to send local report via PRC: %ld", ret);
             goto out;
         }
     }
@@ -1124,30 +1123,30 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
                 ret = 0;
                 continue;
             }
-            log_error("Failed to receive local report via RPC: %ld\n", ret);
+            log_error("Failed to receive local report via RPC: %ld", ret);
             goto out;
         }
     }
 
-    log_debug("Received local report (mr_enclave = %s)\n",
-            ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
+    log_debug("Received local report (mr_enclave = %s)",
+              ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[A -> B] */
     ret = sgx_verify_report(&report);
     if (ret < 0) {
-        log_error("Failed to verify local report: %ld\n", ret);
+        log_error("Failed to verify local report: %ld", ret);
         goto out;
     }
 
     if (!is_remote_enclave_ok(&stream->process.session_key, &report.body.mr_enclave,
                               &report.body.report_data)) {
-        log_error("Not an allowed enclave (mr_enclave = %s)\n",
+        log_error("Not an allowed enclave (mr_enclave = %s)",
                   ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    log_debug("Local attestation succeeded!\n");
+    log_debug("Local attestation succeeded!");
     return 0;
 
 out:

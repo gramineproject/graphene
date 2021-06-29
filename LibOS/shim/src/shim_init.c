@@ -104,7 +104,7 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
     size = ALLOC_ALIGN_UP(size);
     protect_size = ALLOC_ALIGN_UP(protect_size);
 
-    log_debug("Allocating stack at %p (size = %ld)\n", stack, size);
+    log_debug("Allocating stack at %p (size = %ld)", stack, size);
 
     if (!user) {
         stack = system_malloc(size + protect_size);
@@ -292,7 +292,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     ret = toml_sizestring_in(g_manifest_root, "sys.stack.size", get_rlimit_cur(RLIMIT_STACK),
                              &stack_size);
     if (ret < 0) {
-        log_error("Cannot parse \'sys.stack.size\' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sys.stack.size\' (the value must be put in double quotes!)");
         return -EINVAL;
     }
 
@@ -366,7 +366,7 @@ static int read_environs(const char** envp) {
     do {                                                                     \
         int _err = CALL_INIT(func, ##__VA_ARGS__);                           \
         if (_err < 0) {                                                      \
-            log_error("Error during shim_init() in " #func " (%d)\n", _err); \
+            log_error("Error during shim_init() in " #func " (%d)", _err);   \
             DkProcessExit(-_err);                                            \
         }                                                                    \
     } while (0)
@@ -383,10 +383,10 @@ noreturn void* shim_init(int argc, void* args) {
 
     log_setprefix(shim_get_tcb());
 
-    log_debug("Host: %s\n", g_pal_control->host_type);
+    log_debug("Host: %s", g_pal_control->host_type);
 
     if (!IS_POWER_OF_2(ALLOC_ALIGNMENT)) {
-        log_error("Error during shim_init(): PAL allocation alignment not a power of 2\n");
+        log_error("Error during shim_init(): PAL allocation alignment not a power of 2");
         DkProcessExit(EINVAL);
     }
 
@@ -395,7 +395,7 @@ noreturn void* shim_init(int argc, void* args) {
     shim_xstate_init();
 
     if (!create_lock(&__master_lock)) {
-        log_error("Error during shim_init(): failed to allocate __master_lock\n");
+        log_error("Error during shim_init(): failed to allocate __master_lock");
         DkProcessExit(ENOMEM);
     }
 
@@ -411,14 +411,14 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_dcache);
     RUN_INIT(init_handle);
 
-    log_debug("Shim loaded at %p, ready to initialize\n", &__load_address);
+    log_debug("Shim loaded at %p, ready to initialize", &__load_address);
 
     if (g_pal_control->parent_process) {
         struct checkpoint_hdr hdr;
 
         int ret = read_exact(g_pal_control->parent_process, &hdr, sizeof(hdr));
         if (ret < 0) {
-            log_error("shim_init: failed to read the whole checkpoint header: %d\n", ret);
+            log_error("shim_init: failed to read the whole checkpoint header: %d", ret);
             DkProcessExit(1);
         }
 
@@ -449,7 +449,7 @@ noreturn void* shim_init(int argc, void* args) {
     if (g_pal_control->parent_process) {
         int ret = connect_to_process(g_process_ipc_ids.parent_vmid);
         if (ret < 0) {
-            log_error("shim_init: failed to establish IPC connection to parent: %d\n", ret);
+            log_error("shim_init: failed to establish IPC connection to parent: %d", ret);
             DkProcessExit(1);
         }
 
@@ -457,7 +457,7 @@ noreturn void* shim_init(int argc, void* args) {
          * this process, so that it's included in all broadcast messages. */
         ret = ipc_change_id_owner(g_process.pid, g_self_vmid);
         if (ret < 0) {
-            log_debug("shim_init: failed to change child process PID ownership: %d\n", ret);
+            log_debug("shim_init: failed to change child process PID ownership: %d", ret);
             DkProcessExit(1);
         }
 
@@ -465,7 +465,7 @@ noreturn void* shim_init(int argc, void* args) {
         IDTYPE child_vmid = g_self_vmid;
         ret = write_exact(g_pal_control->parent_process, &child_vmid, sizeof(child_vmid));
         if (ret < 0) {
-            log_error("shim_init: failed to write child_vmid: %d\n", ret);
+            log_error("shim_init: failed to write child_vmid: %d", ret);
             DkProcessExit(1);
         }
 
@@ -473,7 +473,7 @@ noreturn void* shim_init(int argc, void* args) {
         char dummy_c = 0;
         ret = read_exact(g_pal_control->parent_process, &dummy_c, sizeof(dummy_c));
         if (ret < 0) {
-            log_error("shim_init: failed to read parent's confirmation: %d\n", ret);
+            log_error("shim_init: failed to read parent's confirmation: %d", ret);
             DkProcessExit(1);
         }
     } else { /* !g_pal_control->parent_process */
@@ -484,7 +484,7 @@ noreturn void* shim_init(int argc, void* args) {
      * communicates with server over a "loopback" IPC connection. */
     RUN_INIT(init_sync_client);
 
-    log_debug("Shim process initialized\n");
+    log_debug("Shim process initialized");
 
     shim_tcb_t* cur_tcb = shim_get_tcb();
 
@@ -551,7 +551,7 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
                 return ret;
         }
 
-        log_debug("Creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
+        log_debug("Creating pipe: " URI_PREFIX_PIPE_SRV "%s", pipename);
         len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
         if (len >= size)
             return -ERANGE;

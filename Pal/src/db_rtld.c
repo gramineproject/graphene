@@ -24,7 +24,7 @@ struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym)** ref);
 
 /* err - positive or negative value of error code */
 static inline void print_error(const char* msg, int err) {
-    log_error("%s (%s)\n", msg, pal_strerror(err));
+    log_error("%s (%s)", msg, pal_strerror(err));
 }
 
 /* This macro is used as a callback from the ELF_DYNAMIC_RELOCATE code.  */
@@ -539,7 +539,7 @@ verify_failed:
     if (phdr && phdr_malloced)
         free(phdr);
 
-    log_error("%s\n", errstring);
+    log_error("%s", errstring);
     return ret;
 }
 

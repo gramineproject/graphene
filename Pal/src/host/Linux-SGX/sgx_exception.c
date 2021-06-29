@@ -142,16 +142,16 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     unsigned long rip = ucontext_get_ip(uc);
     switch (signum) {
         case SIGSEGV:
-            log_error("Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
+            log_error("Segmentation Fault in Untrusted Code (RIP = %08lx)", rip);
             break;
         case SIGILL:
-            log_error("Illegal Instruction in Untrusted Code (RIP = %08lx)\n", rip);
+            log_error("Illegal Instruction in Untrusted Code (RIP = %08lx)", rip);
             break;
         case SIGFPE:
-            log_error("Arithmetic Exception in Untrusted Code (RIP = %08lx)\n", rip);
+            log_error("Arithmetic Exception in Untrusted Code (RIP = %08lx)", rip);
             break;
         case SIGBUS:
-            log_error("Memory Mapping Exception in Untrusted Code (RIP = %08lx)\n", rip);
+            log_error("Memory Mapping Exception in Untrusted Code (RIP = %08lx)", rip);
             break;
     }
     INLINE_SYSCALL(exit_group, 1, 1);

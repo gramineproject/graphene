@@ -94,13 +94,13 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     cur_thread->robust_list = NULL;
 
-    log_debug("execve: start execution\n");
+    log_debug("execve: start execution");
     /* Passing ownership of `exec` to `execute_elf_object`. */
     execute_elf_object(exec, arg.new_argp, arg.new_auxv);
     /* NOTREACHED */
 
 error:
-    log_error("execve failed with errno=%d\n", ret);
+    log_error("execve failed with errno=%d", ret);
     process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
 }
 
@@ -183,7 +183,7 @@ long shim_do_execve(const char* file, const char** argv, const char** envp) {
 
     /* TODO: consider handling shebangs, if necessary */
     if ((ret = check_elf_object(exec)) < 0) {
-        log_warning("file not recognized as ELF\n");
+        log_warning("file not recognized as ELF");
         put_handle(exec);
         return ret;
     }

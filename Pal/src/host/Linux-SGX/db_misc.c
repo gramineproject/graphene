@@ -273,7 +273,7 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
                 if (extension_enabled(xfrm, subleaf)) {
                     if (values[EAX] != extension_sizes_bytes[subleaf] ||
                             values[EBX] != extension_offset_bytes[subleaf]) {
-                        log_error("Unexpected value in host CPUID. Exiting...\n");
+                        log_error("Unexpected value in host CPUID. Exiting...");
                         _DkProcessExit(1);
                     }
                 } else {
@@ -385,7 +385,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     return 0;
 fail:
-    log_error("Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...\n", leaf,
+    log_error("Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...", leaf,
               subleaf);
     _DkProcessExit(1);
 }
@@ -461,8 +461,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     char* ra_client_spid_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.ra_client_spid", &ra_client_spid_str);
     if (ret < 0) {
-        log_error("Cannot parse \'sgx.ra_client_spid\' "
-                  "(the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sgx.ra_client_spid\' (the value must be put in double quotes!)");
         return -PAL_ERROR_INVAL;
     }
 
@@ -476,7 +475,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         is_epid = true;
 
         if (strlen(ra_client_spid_str) != sizeof(sgx_spid_t) * 2) {
-            log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
+            log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s",
                       ra_client_spid_str);
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
@@ -485,7 +484,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         for (size_t i = 0; i < strlen(ra_client_spid_str); i++) {
             int8_t val = hex2dec(ra_client_spid_str[i]);
             if (val < 0) {
-                log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
+                log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s",
                           ra_client_spid_str);
                 free(ra_client_spid_str);
                 return -PAL_ERROR_INVAL;
@@ -498,7 +497,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
                            /*defaultval=*/false, &linkable);
         if (ret < 0) {
             log_error("Cannot parse \'sgx.ra_client_linkable\' (the value must be `true` or "
-                      "`false`)\n");
+                      "`false`)");
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
         }
@@ -743,7 +742,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     ci->cpu_bogomips = get_bogomips();
     if (ci->cpu_bogomips == 0.0) {
-        log_warning("bogomips could not be retrieved, passing 0.0 to the application\n");
+        log_warning("bogomips could not be retrieved, passing 0.0 to the application");
     }
 
     return rv;

@@ -25,7 +25,7 @@ static void signal_io(IDTYPE caller, void* arg) {
         .si_fd = 0,
     };
     if (kill_current_proc(&info) < 0) {
-        log_warning("signal_io: failed to deliver a signal\n");
+        log_warning("signal_io: failed to deliver a signal");
     }
 }
 

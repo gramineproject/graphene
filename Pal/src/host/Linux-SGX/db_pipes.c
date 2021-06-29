@@ -53,7 +53,7 @@ static int thread_handshake_func(void* param) {
     int ret = _DkStreamSecureInit(handle, handle->pipe.is_server, &handle->pipe.session_key,
                                   (LIB_SSL_CONTEXT**)&handle->pipe.ssl_ctx, NULL, 0);
     if (ret < 0) {
-        log_error("Failed to initialize secure pipe %s: %d\n", handle->pipe.name.str, ret);
+        log_error("Failed to initialize secure pipe %s: %d", handle->pipe.name.str, ret);
         _DkProcessExit(1);
     }
 

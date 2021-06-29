@@ -17,7 +17,7 @@ int sys_node_general_load(struct shim_dentry* dent, char** out_data, size_t* out
     if (strcmp(name, "online") == 0) {
         str = g_pal_control->topo_info.online_nodes;
     } else {
-        log_debug("unrecognized file: %s\n", name);
+        log_debug("unrecognized file: %s", name);
         return -ENOENT;
     }
 
@@ -47,7 +47,7 @@ int sys_node_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
         }
     }
     if (!str) {
-        log_debug("unrecognized file: %s\n", name);
+        log_debug("unrecognized file: %s", name);
         return -ENOENT;
     }
 
