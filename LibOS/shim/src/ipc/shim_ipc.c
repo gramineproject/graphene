@@ -26,10 +26,11 @@
 struct shim_ipc_connection {
     struct avl_tree_node node;
     IDTYPE vmid;
+    int seen_error;
     REFTYPE ref_count;
     PAL_HANDLE handle;
-    /* This lock guards concurrent accesses to `handle`. If you need both this lock and
-     * `g_ipc_connections_lock`, take the latter first. */
+    /* This lock guards concurrent accesses to `handle` and `seen_error`. If you need both this lock
+     * and `g_ipc_connections_lock`, take the latter first. */
     struct shim_lock lock;
 };
 
@@ -152,14 +153,9 @@ out:
 }
 
 static void _remove_ipc_connection(struct shim_ipc_connection* conn) {
+    assert(locked(&g_ipc_connections_lock));
     avl_tree_delete(&g_ipc_connections, &conn->node);
     put_ipc_connection(conn);
-}
-
-static void remove_ipc_connection(struct shim_ipc_connection* conn) {
-    lock(&g_ipc_connections_lock);
-    _remove_ipc_connection(conn);
-    unlock(&g_ipc_connections_lock);
 }
 
 int connect_to_process(IDTYPE dest) {
@@ -212,18 +208,24 @@ void init_ipc_response(struct shim_ipc_msg* msg, uint64_t seq, size_t size) {
 static int ipc_send_message_to_conn(struct shim_ipc_connection* conn, struct shim_ipc_msg* msg) {
     log_debug("Sending ipc message to %u", conn->vmid);
 
+    int ret = 0;
     lock(&conn->lock);
-
-    int ret = write_exact(conn->handle, msg,  GET_UNALIGNED(msg->header.size));
-    if (ret < 0) {
-        log_error("Failed to send IPC msg to %u: %d", conn->vmid, ret);
-        unlock(&conn->lock);
-        remove_ipc_connection(conn);
-        return ret;
+    if (conn->seen_error) {
+        ret = conn->seen_error;
+        log_debug("%s: returning previously seen error: %d", __func__, ret);
+        goto out;
     }
 
+    ret = write_exact(conn->handle, msg,  GET_UNALIGNED(msg->header.size));
+    if (ret < 0) {
+        log_error("Failed to send IPC msg to %u: %d", conn->vmid, ret);
+        conn->seen_error = ret;
+        goto out;
+    }
+
+out:
     unlock(&conn->lock);
-    return 0;
+    return ret;
 }
 
 int ipc_send_message(IDTYPE dest, struct shim_ipc_msg* msg) {
