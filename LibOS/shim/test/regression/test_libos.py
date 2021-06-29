@@ -374,6 +374,11 @@ class TC_30_Syscall(RegressionTestCase):
 
         self.assertIn('Success!', stdout)
 
+    def test_021_getdents_large_file(self):
+        stdout, _ = self.run_binary(['large_file'])
+
+        self.assertIn('TEST OK', stdout)
+
     def test_022_getdents_lseek(self):
         if os.path.exists("root"):
             shutil.rmtree("root")

@@ -218,7 +218,7 @@ long shim_do_lseek(int fd, off_t offset, int origin) {
     if (!hdl)
         return -EBADF;
 
-    int ret = 0;
+    off_t ret = 0;
     if (hdl->is_dir) {
         ret = do_lseek_dir(hdl, offset, origin);
         goto out;

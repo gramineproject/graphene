@@ -58,6 +58,7 @@
 /init_fail2
 /kill_all
 /large_dir_read
+/large_file
 /large_mmap
 /madvise
 /mkfifo
