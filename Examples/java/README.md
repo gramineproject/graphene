@@ -13,6 +13,7 @@ For generating the manifest and running the HelloWorld Java example, run the
 following command to install the required packages (Ubuntu-specific):
 
     `sudo apt-get install openjdk-11-jdk`
+    `sudo apt-get install google-perftools`
 
 ## Building for Linux
 
@@ -35,7 +36,6 @@ Without SGX:
 
 With SGX:
 
-    `graphene-sgx java -jar hello.jar`
+    `graphene-sgx java -Xmx4G -jar hello.jar`
 
-Note: By default this example uses 64G enclave size. This example also works with 8G enclave
- size also but in that case Max Heap size should be restricted to 4G using jvm flag `-Xmx4G`.
+Note: If using 64G or greater enclave sizes, the JVM flag `-Xmx4G` can be omitted in graphene-sgx.

@@ -45,7 +45,7 @@ java.token: java.sig
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest
+	$(RM) *.token *.sig *.manifest.sgx *.manifest *.class *.jar
 
 .PHONY: distclean
 distclean: clean
