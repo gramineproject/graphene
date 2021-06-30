@@ -117,7 +117,7 @@ int posix_lock_set_from_ipc(const char* path, struct posix_lock* pl, bool wait, 
  * \brief Check for conflicting locks on a file (IPC handler)
  *
  * \param path absolute path for a file
- * \param pl parameters of new lock (type cannot be `F_UNLCK`
+ * \param pl parameters of new lock (type cannot be `F_UNLCK`)
  * \param[out] out_pl on success, set to `F_UNLCK` or details of a conflicting lock
  *
  * This is a version of `posix_lock_get` called from an IPC callback. The caller is responsible to
