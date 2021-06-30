@@ -23,19 +23,22 @@ static_assert(sizeof(off_t) == 8, "this test is for 64-bit off_t");
 static off_t test_lengths[] = {
     // around 2 GB (limit of 32-bit signed int)
     0x7FFFFFFF,
+    0x80000000,
     0x80000001,
     // around 4 GB (limit of 32-bit unsigned int)
     0xFFFFFFFF,
+    0x100000000,
     0x100000001,
     0,
 };
 
 static void try_seek(int fd, off_t offset, int whence, off_t expected) {
     off_t result = lseek(fd, offset, whence);
-    if (result < 0)
-        err(1, "lseek %ld %d: %ld", offset, whence, result);
+    if (result == -1)
+        err(1, "lseek(fd, %ld, %d) returned -1", offset, whence);
     if (result != expected)
-        errx(1, "got %lx, expected %lx", offset, expected);
+        errx(1, "lseek(fd, %ld, %d) returned %ld (0x%lx), expected %ld (0x%lx)", offset, whence,
+             result, result, expected, expected);
 }
 
 int main(void) {
@@ -68,11 +71,14 @@ int main(void) {
 
         /* Read a single byte, check position */
         char c;
+        ssize_t n;
         do {
-            ret = read(fd, &c, 1);
-        } while (ret < 0 && errno == -EINTR);
-        if (ret != 1)
-            errx(1, "read %d bytes, expected %d", ret, 1);
+            n = read(fd, &c, 1);
+        } while (n == -1 && errno == -EINTR);
+        if (n == -1)
+            err(1, "read");
+        if (n != 1)
+            errx(1, "read %ld bytes, expected %d", n, 1);
         if (c != 0)
             errx(1, "read byte %d, expected %d", (int)c, 0);
         try_seek(fd, 0, SEEK_CUR, length);
