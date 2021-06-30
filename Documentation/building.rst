@@ -164,7 +164,7 @@ and EINITTOKENs (``.token`` files).
 
 Then install Graphene (recall that "direct" means non-SGX version)::
 
-   meson build -Ddirect=enabled -Dsgx=enabled
+   meson build --buildtype=release -Ddirect=enabled -Dsgx=enabled
    ninja -C build
    sudo ninja -C build install
 
@@ -175,12 +175,12 @@ built both).
 Additional build options
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-- To create a debug build, run :command:`make DEBUG=1`. This adds debug symbols
-  in all Graphene components, builds them without optimizations, and enables
-  detailed debug logs in Graphene.
+- To create a debug build, run :command:`make DEBUG=1` and :command:`meson
+  --buildtype=debug`. This adds debug symbols in all Graphene components, builds
+  them without optimizations, and enables detailed debug logs in Graphene.
 
 - To create a debug build that does not disable optimizations, run
-  :command:`make DEBUGOPT=1`.
+  :command:`make DEBUGOPT=1` and :command:`meson --buildtype=debugoptimized`.
 
   *Note:* this is generally *not* recommended, because optimized builds lose
   some debugging information, and may cause GDB to display confusing tracebacks
