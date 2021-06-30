@@ -5,14 +5,13 @@
 
 /* This test checks large file sizes and offsets that overflow 32-bit integers. */
 
-#define _GNU_SOURCE
+#define _GNU_SOURCE /* ftruncate */
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -42,11 +41,10 @@ static void try_seek(int fd, off_t offset, int whence, off_t expected) {
 int main(void) {
     setbuf(stdout, NULL);
 
-    FILE *fp = fopen(TEST_FILE, "a+");
-    if (!fp)
-        err(1, "fopen");
+    int fd = open(TEST_FILE, O_CREAT | O_TRUNC | O_RDWR, 0600);
+    if (fd < 0)
+        err(1, "open");
 
-    int fd = fileno(fp);
     int ret;
 
     for (unsigned int i = 0; test_lengths[i] != 0; i++) {
@@ -84,11 +82,8 @@ int main(void) {
         try_seek(fd, length, SEEK_SET, length);
     }
 
-    if (fclose(fp) == EOF)
-        err(1, "fclose");
-
-    if (unlink(TEST_FILE) < 0)
-        err(1, "unlink");
+    if (close(fd) < 0)
+        err(1, "close");
 
     printf("TEST OK\n");
     return 0;
