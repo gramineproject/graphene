@@ -9,7 +9,7 @@
  *
  * The tests usually start another process, and coordinate with it using pipes.
  */
-#define _POSIX_C_SOURCE 1 /* fileno() */
+
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -330,11 +330,9 @@ static void test_parent_wait() {
 int main(void) {
     setbuf(stdout, NULL);
 
-    FILE* fp = fopen(TEST_FILE, "w+");
-    if (!fp)
-        err(1, "fopen");
-
-    g_fd = fileno(fp);
+    g_fd = open(TEST_FILE, O_RDWR | O_CREAT | O_TRUNC, 0600);
+    if (g_fd < 0)
+        err(1, "open");
 
     test_ranges();
     test_child_exit();
@@ -342,8 +340,8 @@ int main(void) {
     test_child_wait();
     test_parent_wait();
 
-    if (fclose(fp) == EOF)
-        err(1, "fclose");
+    if (close(g_fd) < 0)
+        err(1, "close");
 
     if (unlink(TEST_FILE) < 0)
         err(1, "unlink");
