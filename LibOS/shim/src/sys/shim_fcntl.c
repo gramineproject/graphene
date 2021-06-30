@@ -248,7 +248,12 @@ long shim_do_fcntl(int fd, int cmd, unsigned long arg) {
             if (pl2.type != F_UNLCK) {
                 fl->l_whence = SEEK_SET;
                 fl->l_start = pl2.start;
-                fl->l_len = pl2.end - pl2.start + 1;
+                if (pl2.end == FS_LOCK_EOF) {
+                    /* range until EOF is encoded as len == 0 */
+                    fl->l_len = 0;
+                } else {
+                    fl->l_len = pl2.end - pl2.start + 1;
+                }
                 fl->l_pid = pl2.pid;
             }
             ret = 0;

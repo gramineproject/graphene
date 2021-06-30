@@ -60,42 +60,75 @@ static const char* str_err(int err) {
     }
 }
 
-/* Run fcntl command and log it, along with the result. Returns true if it suceeds (F_SETLK returns
- * success, F_GETLK returns no conflicting lock). */
-static bool try_lock(int cmd, int type, int whence, long int start, long int len) {
+/* Run fcntl command and log it, along with the result. Exit on unexpected errors. */
+static int try_fcntl(int cmd, struct flock* fl) {
+    /* Save the initial values before `fl` is modified, so that we can log them after the call */
+    int type = fl->l_type;
+    int whence = fl->l_whence;
+    off_t start = fl->l_start;
+    off_t len = fl->l_len;
+
     assert(cmd == F_SETLK || cmd == F_SETLKW || cmd == F_GETLK);
     assert(type == F_RDLCK || type == F_WRLCK || type == F_UNLCK);
     assert(whence == SEEK_SET || whence == SEEK_CUR || whence == SEEK_END);
 
+    int ret = fcntl(g_fd, cmd, fl);
+    fprintf(stderr, "%d: fcntl(fd, %s, {%s, %s, %4ld, %4ld}) = %s", getpid(), str_cmd(cmd),
+            str_type(type), str_whence(whence), start, len, ret == 0 ? "0" : str_err(errno));
+    if (ret == 0 && cmd == F_GETLK) {
+        if (fl->l_type == F_UNLCK) {
+            fprintf(stderr, "; {%s}\n", str_type(fl->l_type));
+        } else {
+            fprintf(stderr, "; {%s, %s, %4ld, %4ld, %d}\n", str_type(fl->l_type),
+                    str_whence(fl->l_whence), fl->l_start, fl->l_len, fl->l_pid);
+        }
+    } else {
+        fprintf(stderr, "\n");
+    }
+    fflush(stderr);
+
+    if (ret == -1 && errno != EACCES && errno != EAGAIN)
+        err(1, "fcntl");
+    return ret;
+}
+
+/* Wrapper for `try_fcntl`. Returns true if it succeeds (F_SETLK returns success, F_GETLK returns no
+ * conflicting lock). */
+static bool try_lock(int cmd, int type, int whence, long int start, long int len) {
     struct flock fl = {
         .l_type = type,
         .l_whence = whence,
         .l_start = start,
         .l_len = len,
     };
-    int ret = fcntl(g_fd, cmd, &fl);
-    if (ret == -1 && errno != EACCES && errno != EAGAIN)
-        err(1, "fcntl");
-
-    fprintf(stderr, "%d: fcntl(fd, %s, {%s, %s, %4ld, %4ld}) = %s", getpid(), str_cmd(cmd),
-            str_type(type), str_whence(whence), start, len, ret == 0 ? "0" : str_err(errno));
-    if (ret == 0 && cmd == F_GETLK) {
-        if (fl.l_type == F_UNLCK) {
-            fprintf(stderr, "; {%s}\n", str_type(fl.l_type));
-        } else {
-            fprintf(stderr, "; {%s, %s, %4ld, %4ld, %d}\n", str_type(fl.l_type),
-                    str_whence(fl.l_whence), fl.l_start, fl.l_len, fl.l_pid);
-        }
-    } else {
-        fprintf(stderr, "\n");
-    }
-
-    fflush(stderr);
+    int ret = try_fcntl(cmd, &fl);
 
     if (cmd == F_GETLK) {
         return fl.l_type == F_UNLCK;
     } else {
         return ret == 0;
+    }
+}
+
+/* Check whether F_GETLK returns the right conflicting lock. */
+static void lock_check(int type, long int start, long int len, int conflict_type,
+                       long int conflict_start, long int conflict_len) {
+    assert(conflict_type != F_UNLCK);
+
+    struct flock fl = {
+        .l_type = type,
+        .l_whence = SEEK_SET,
+        .l_start = start,
+        .l_len = len,
+    };
+    int ret = try_fcntl(F_GETLK, &fl);
+    if (ret == -1)
+        err(1, "fcntl");
+    if (fl.l_type != conflict_type || fl.l_whence != SEEK_SET || fl.l_start != conflict_start
+            || fl.l_len != conflict_len) {
+        /* `try_fcntl()` already printed the actual result */
+        errx(1, "F_GETLK returned wrong lock; expected {%s, SEEK_SET, %ld, %ld)",
+             str_type(conflict_type), conflict_start, conflict_len);
     }
 }
 
@@ -327,6 +360,36 @@ static void test_parent_wait() {
     close_pipes(pipes);
 }
 
+/* Test: check that a range until EOF (len == 0) is handled correctly. */
+static void test_range_with_eof() {
+    printf("test range with EOF...\n");
+    unlock(0, 0);
+
+    int pipes[2][2];
+    open_pipes(pipes);
+
+    pid_t pid = fork();
+    if (pid < 0)
+        err(1, "fork");
+
+    if (pid == 0) {
+        /* lock [100 .. EOF] */
+        lock_ok(F_WRLCK, 100, 0);
+        write_pipe(pipes[0]);
+        read_pipe(pipes[1]);
+        exit(0);
+    }
+
+    read_pipe(pipes[0]);
+    /* lock [50 .. 149], we should see a conflicting lock for [100 .. EOF] */
+    lock_check(F_WRLCK, 50, 100, F_WRLCK, 100, 0);
+    write_pipe(pipes[1]);
+
+    wait_for_child();
+    close_pipes(pipes);
+}
+
+
 int main(void) {
     setbuf(stdout, NULL);
 
@@ -339,6 +402,7 @@ int main(void) {
     test_file_close();
     test_child_wait();
     test_parent_wait();
+    test_range_with_eof();
 
     if (close(g_fd) < 0)
         err(1, "close");
