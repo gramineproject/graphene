@@ -73,8 +73,10 @@ static int try_fcntl(int cmd, struct flock* fl) {
     assert(whence == SEEK_SET || whence == SEEK_CUR || whence == SEEK_END);
 
     int ret = fcntl(g_fd, cmd, fl);
-    fprintf(stderr, "%d: fcntl(fd, %s, {%s, %s, %4ld, %4ld}) = %s", getpid(), str_cmd(cmd),
-            str_type(type), str_whence(whence), start, len, ret == 0 ? "0" : str_err(errno));
+    fprintf(stderr, "%d: fcntl(fd, %s, {%s, %s, %4ld, %4ld}) = %d", getpid(), str_cmd(cmd),
+            str_type(type), str_whence(whence), start, len, ret);
+    if (ret == -1)
+        fprintf(stderr, " (%s)", str_err(errno));
     if (ret == 0 && cmd == F_GETLK) {
         if (fl->l_type == F_UNLCK) {
             fprintf(stderr, "; {%s}\n", str_type(fl->l_type));
@@ -87,6 +89,8 @@ static int try_fcntl(int cmd, struct flock* fl) {
     }
     fflush(stderr);
 
+    if (ret != -1 && ret != 0)
+        errx(1, "fcntl returned unexpected value");
     if (ret == -1 && errno != EACCES && errno != EAGAIN)
         err(1, "fcntl");
     return ret;
@@ -381,7 +385,7 @@ static void test_range_with_eof() {
     }
 
     read_pipe(pipes[0]);
-    /* lock [50 .. 149], we should see a conflicting lock for [100 .. EOF] */
+    /* check [50 .. 149], we should see a conflicting lock for [100 .. EOF] */
     lock_check(F_WRLCK, 50, 100, F_WRLCK, 100, 0);
     write_pipe(pipes[1]);
 
