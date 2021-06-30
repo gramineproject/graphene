@@ -42,6 +42,7 @@ static int ipc_pid_kill_send(enum kill_type type, IDTYPE sender, IDTYPE dest_pid
     struct shim_ipc_pid_kill msgin = {
         .sender = sender,
         .type = type,
+        .pid = dest_pid,
         .id = target,
         .signum = sig,
     };
@@ -116,9 +117,14 @@ int ipc_pid_kill_callback(IDTYPE src, void* data, uint64_t seq) {
 
     switch (msgin->type) {
         case KILL_THREAD:
-            ret = do_kill_thread(msgin->sender, g_process.pid, msgin->id, msgin->signum);
+            if (msgin->pid != g_process.pid) {
+                ret = -ESRCH;
+            } else {
+                ret = do_kill_thread(msgin->sender, g_process.pid, msgin->id, msgin->signum);
+            }
             break;
         case KILL_PROCESS:
+            assert(g_process.pid == msgin->pid);
             assert(g_process.pid == msgin->id);
             ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum);
             break;
@@ -131,7 +137,7 @@ int ipc_pid_kill_callback(IDTYPE src, void* data, uint64_t seq) {
                 struct shim_ipc_msg* msg = __alloca(total_msg_size);
                 init_ipc_msg(msg, IPC_MSG_PID_KILL, total_msg_size);
                 memcpy(&msg->data, msgin, sizeof(*msgin));
-                ret = ipc_broadcast(msg, src);
+                ret = ipc_broadcast(msg, /*exclude_id=*/src);
                 if (ret < 0) {
                     break;
                 }

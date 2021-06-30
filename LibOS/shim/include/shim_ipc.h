@@ -205,13 +205,13 @@ int ipc_change_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
 int ipc_get_id_owner(IDTYPE id, IDTYPE* out_owner);
 int ipc_get_id_owner_callback(IDTYPE src, void* data, uint64_t seq);
 
-/* PID_KILL: send signal to certain pid */
 struct shim_ipc_pid_kill {
     IDTYPE sender;
-    enum kill_type type;
+    IDTYPE pid;
     IDTYPE id;
     int signum;
-} __attribute__((packed));
+    enum kill_type type;
+};
 
 int ipc_kill_process(IDTYPE sender, IDTYPE target, int sig);
 int ipc_kill_thread(IDTYPE sender, IDTYPE dest_pid, IDTYPE target, int sig);
