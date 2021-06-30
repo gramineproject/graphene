@@ -316,9 +316,9 @@ struct shim_handle* detach_fd_handle(FDTYPE fd, int* flags, struct shim_handle_m
     unlock(&handle_map->lock);
 
     if (handle && handle->dentry) {
-        /* Clear POSIX locks for a file. We are required to do that every time a FD is closed
-         * closed, even if the process holds other handles for that file, or duplicated FDs for the
-         * same handle. */
+        /* Clear POSIX locks for a file. We are required to do that every time a FD is closed, even
+         * if the process holds other handles for that file, or duplicated FDs for the same
+         * handle. */
         struct posix_lock pl = {
             .type = F_UNLCK,
             .start = 0,

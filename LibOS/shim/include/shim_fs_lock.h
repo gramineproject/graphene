@@ -67,7 +67,7 @@ struct posix_lock {
  * This is the equivalent of `fnctl(F_SETLK/F_SETLKW)`.
  *
  * If `pl->type` is `F_UNLCK`, the function will remove any locks held by the given PID for the
- * given range. Removing a locks never waits.
+ * given range. Removing a lock never waits.
  *
  * If `pl->type` is `F_RDLCK` or `F_WRLCK`, the function will create a new lock for the given PID
  * and range, replacing the existing locks held by the given PID for that range. If there are
@@ -94,11 +94,35 @@ int posix_lock_get(struct shim_dentry* dent, struct posix_lock* pl, struct posix
 /* Removes all locks for a given PID. Should be called before process exit. */
 int posix_lock_clear_pid(IDTYPE pid);
 
-/* Version of `posix_lock_set` called from IPC callback. */
+/*!
+ * \brief Set or remove a lock on a file (IPC handler)
+ *
+ * \param path absolute path for a file
+ * \param pl parameters of new lock
+ * \param wait if true, will postpone the response until a lock can be taken
+ * \param vmid target process for IPC response
+ * \param seq sequence number for IPC response
+ *
+ * This is a version of `posix_lock_set` called from an IPC callback. This function is responsible
+ * for either sending an IPC response immediately, or scheduling one for later (if `wait` is true
+ * and the lock cannot be taken immediately).
+ *
+ * This function will only return a negative error code when failing to send a response. A failure
+ * to add a lock (-EAGAIN, -ENOMEM etc.) will be sent in the response instead.
+ */
 int posix_lock_set_from_ipc(const char* path, struct posix_lock* pl, bool wait, IDTYPE vmid,
-                            unsigned long seq, bool* postponed);
+                            unsigned long seq);
 
-/* Version of `posix_lock_get` called from IPC callback. */
+/*!
+ * \brief Check for conflicting locks on a file (IPC handler)
+ *
+ * \param path absolute path for a file
+ * \param pl parameters of new lock (type cannot be `F_UNLCK`
+ * \param[out] out_pl on success, set to `F_UNLCK` or details of a conflicting lock
+ *
+ * This is a version of `posix_lock_get` called from an IPC callback. The caller is responsible to
+ * send the returned value and `out_pl` in an IPC response.
+ */
 int posix_lock_get_from_ipc(const char* path, struct posix_lock* pl, struct posix_lock* out_pl);
 
 #endif /* SHIM_FS_LOCK_H */

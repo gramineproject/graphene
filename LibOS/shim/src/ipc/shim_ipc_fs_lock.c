@@ -108,13 +108,7 @@ int ipc_posix_lock_set_callback(IDTYPE src, void* data, unsigned long seq) {
         .pid = msgin->pid,
     };
 
-    bool postponed;
-    int ret = posix_lock_set_from_ipc(msgin->path, &pl, msgin->wait, src, seq, &postponed);
-    if (ret == 0 && postponed) {
-        /* The response will be sent later. */
-        return 0;
-    }
-    return ipc_posix_lock_set_send_response(src, seq, ret);
+    return posix_lock_set_from_ipc(msgin->path, &pl, msgin->wait, src, seq);
 }
 
 int ipc_posix_lock_get_callback(IDTYPE src, void* data, unsigned long seq) {

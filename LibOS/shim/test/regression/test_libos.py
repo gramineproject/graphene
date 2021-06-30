@@ -583,7 +583,10 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('TEST OK', stdout)
 
     def test_110_fcntl_lock(self):
-        stdout, _ = self.run_binary(['fcntl_lock'])
+        try:
+            stdout, _ = self.run_binary(['fcntl_lock'])
+        finally:
+            os.remove('tmp/lock_file')
         self.assertIn('TEST OK', stdout)
 
 class TC_31_Syscall(RegressionTestCase):

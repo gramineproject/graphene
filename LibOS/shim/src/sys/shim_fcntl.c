@@ -1,8 +1,17 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2021 Intel Corporation
+ *                    Paweł Marczewski <pawel@invisiblethingslab.com>
+ */
 
 /*
- * Implementation of system call "fcntl".
+ * Implementation of system call "fcntl":
+ *
+ * - F_DUPFD, F_DUPFD_CLOEXEC (duplicate a file descriptor)
+ * - F_GETFD, F_SETFD (file descriptor flags)
+ * - F_GETFL, F_SETFL (file status flags)
+ * - F_SETLK, F_SETLKW, F_GETLK (POSIX advisory locks)
+ * - F_SETOWN (file descriptor owner): dummy implementation
  */
 
 #include <errno.h>
@@ -14,8 +23,8 @@
 #include "shim_fs_lock.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
-#include "shim_process.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
@@ -42,7 +51,7 @@ int set_handle_nonblocking(struct shim_handle* hdl, bool on) {
 
 /*
  * Convert user-mode `struct flock` into our `struct posix_lock`. This mostly means converting the
- * position parameters (l_whence, l_start, l_len) to an absolute inclusve range [start .. end]. See
+ * position parameters (l_whence, l_start, l_len) to an absolute inclusive range [start .. end]. See
  * `man fcntl` for details.
  *
  * We need to return -EINVAL for underflow (positions before start of file), and -EOVERFLOW for
@@ -94,18 +103,18 @@ static int flock_to_posix_lock(struct flock* fl, struct shim_handle* hdl, struct
 
     uint64_t start, end;
     if (fl->l_len > 0) {
-        /* l_len < 0: the range is [origin .. origin + len - 1] */
+        /* len > 0: the range is [origin .. origin + len - 1] */
         start = origin;
         if (__builtin_add_overflow(origin, fl->l_len - 1, &end))
             return -EOVERFLOW;
     } else if (fl->l_len < 0) {
-        /* l_len < 0: the range is [origin + len .. origin - 1] */
+        /* len < 0: the range is [origin + len .. origin - 1] */
         if (__builtin_add_overflow(origin, fl->l_len, &start))
             return -EINVAL;
         if (__builtin_add_overflow(origin, -1, &end))
             return -EINVAL;
     } else {
-        /* l_len == 0: the range is [origin .. EOF] */
+        /* len == 0: the range is [origin .. EOF] */
         start = origin;
         end = FS_LOCK_EOF;
     }
@@ -243,11 +252,15 @@ long shim_do_fcntl(int fd, int cmd, unsigned long arg) {
                 break;
             }
 
-            if (fl->l_type == F_RDLCK && !(hdl->acc_mode & MAY_READ))
-                return -EINVAL;
+            if (fl->l_type == F_RDLCK && !(hdl->acc_mode & MAY_READ)) {
+                ret = -EINVAL;
+                break;
+            }
 
-            if (fl->l_type == F_WRLCK && !(hdl->acc_mode & MAY_WRITE))
-                return -EINVAL;
+            if (fl->l_type == F_WRLCK && !(hdl->acc_mode & MAY_WRITE)) {
+                ret = -EINVAL;
+                break;
+            }
 
             struct posix_lock pl;
             ret = flock_to_posix_lock(fl, hdl, &pl);
@@ -276,16 +289,20 @@ long shim_do_fcntl(int fd, int cmd, unsigned long arg) {
                 break;
             }
 
-            if (!hdl->dentry)
-                return -EINVAL;
+            if (!hdl->dentry) {
+                ret = -EINVAL;
+                break;
+            }
 
             struct posix_lock pl;
             ret = flock_to_posix_lock(fl, hdl, &pl);
             if (ret < 0)
                 break;
 
-            if (pl.type == F_UNLCK)
-                return -EINVAL;
+            if (pl.type == F_UNLCK) {
+                ret = -EINVAL;
+                break;
+            }
 
             struct posix_lock pl2;
             ret = posix_lock_get(hdl->dentry, &pl, &pl2);

@@ -95,8 +95,8 @@ noreturn void thread_exit(int error_code, int term_signal) {
         /* UNREACHABLE */
     }
 
-    /* Clear POSIX locks before we notify parent: after a successful `wait`, our locks should be
-     * gone. */
+    /* Clear POSIX locks before we notify parent: after a successful `wait()` by parent, our locks
+     * should already be gone. */
     int ret = posix_lock_clear_pid(g_process.pid);
     if (ret < 0)
         log_warning("error clearing POSIX locks: %d", ret);

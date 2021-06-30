@@ -101,7 +101,7 @@ static bool try_lock(int cmd, int type, int whence, long int start, long int len
 
 static void unlock(long int start, long int len) {
     if (!try_lock(F_SETLK, F_UNLCK, SEEK_SET, start, len))
-        errx(1, "untry_lock failed");
+        errx(1, "unlock failed");
 }
 
 static void lock_ok(int type, long int start, long int len) {
@@ -191,7 +191,7 @@ static void read_pipe(int pipe[2]) {
         ret = read(pipe[0], &c, sizeof(c));
     } while (ret == -1 && errno == EINTR);
     if (ret == -1)
-        err(1, "write");
+        err(1, "read");
     if (ret == 0)
         errx(1, "pipe closed");
 }
@@ -342,9 +342,6 @@ int main(void) {
 
     if (close(g_fd) < 0)
         err(1, "close");
-
-    if (unlink(TEST_FILE) < 0)
-        err(1, "unlink");
 
     printf("TEST OK\n");
     return 0;
