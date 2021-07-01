@@ -7,9 +7,9 @@
 #include <unistd.h>
 
 int main(int argc, char* arvg[]) {
-    int devfd = open("/dev/kmsg", O_RDONLY);
+    int devfd = open("/dev/host-zero", O_RDONLY);
     if (devfd < 0)
-        err(1, "/dev/kmsg open");
+        err(1, "/dev/host-zero open");
 
     off_t offset;
 #if 0
@@ -17,34 +17,34 @@ int main(int argc, char* arvg[]) {
      *        lseek() is not aware of device-specific semantics */
     offset = lseek(devfd, 0, SEEK_CUR);
     if (offset != -1 || errno != EINVAL) {
-        errx(1, "/dev/kmsg lseek(0, SEEK_CUR) didn't return -EINVAL (returned: %ld, errno=%d)",
+        errx(1, "/dev/host-zero lseek(0, SEEK_CUR) didn't return -EINVAL (returned: %ld, errno=%d)",
              offset, errno);
     }
 
     offset = lseek(devfd, 1, SEEK_CUR);
     if (offset != -1 || errno != ESPIPE) {
-        errx(1, "/dev/kmsg lseek(1, SEEK_CUR) didn't return -ESPIPE (returned: %ld, errno=%d)",
+        errx(1, "/dev/host-zero lseek(1, SEEK_CUR) didn't return -ESPIPE (returned: %ld, errno=%d)",
              offset, errno);
     }
 #endif
 
     offset = lseek(devfd, /*offset=*/0, SEEK_SET);
     if (offset < 0)
-        err(1, "/dev/kmsg lseek(0, SEEK_SET)");
+        err(1, "/dev/host-zero lseek(0, SEEK_SET)");
     if (offset > 0)
-        errx(1, "/dev/kmsg lseek(0, SEEK_SET) didn't return 0 (returned: %ld)", offset);
+        errx(1, "/dev/host-zero lseek(0, SEEK_SET) didn't return 0 (returned: %ld)", offset);
 
-    char buf[1024];
-    ssize_t bytes = read(devfd, buf, sizeof(buf) - 1);
+    char buf = 'A';
+    ssize_t bytes = read(devfd, &buf, sizeof(buf));
     if (bytes < 0)
-        err(1, "/dev/kmsg read");
+        err(1, "/dev/host-zero read");
 
-    buf[bytes] = '\0';
-    printf("First line of /dev/kmsg: %s", buf);
+    if (buf != '\0')
+        errx(1, "read from /dev/host-zero didn't return NUL byte");
 
     int ret = close(devfd);
     if (ret < 0)
-        err(1, "/dev/kmsg close");
+        err(1, "/dev/host-zero close");
 
     puts("TEST OK");
     return 0;

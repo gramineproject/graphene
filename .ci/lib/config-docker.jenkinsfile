@@ -2,7 +2,6 @@ env.PREFIX = env.WORKSPACE + '/usr'
 
 // don't mess with PATH before reading this: https://issues.jenkins.io/browse/JENKINS-49076
 env.DOCKER_ARGS_COMMON = """
-    --device=/dev/kmsg:/dev/kmsg
     --env=PATH=${env.PREFIX}/bin:${env.PATH}
 """
 env.DOCKER_ARGS_SGX = '''

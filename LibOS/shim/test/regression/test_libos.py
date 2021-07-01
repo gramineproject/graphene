@@ -661,8 +661,8 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('Four bytes from /dev/urandom', stdout)
         self.assertIn('TEST OK', stdout)
 
-    def test_002_device(self):
-        stdout, _ = self.run_binary(['device'])
+    def test_002_device_passthrough(self):
+        stdout, _ = self.run_binary(['device_passthrough'])
         self.assertIn('TEST OK', stdout)
 
     def test_010_path(self):

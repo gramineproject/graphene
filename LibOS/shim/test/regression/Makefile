@@ -15,7 +15,7 @@ c_executables = \
 	bootstrap_static \
 	debug \
 	devfs \
-	device \
+	device_passthrough \
 	double_fork \
 	epoll_epollet \
 	epoll_wait_timeout \
@@ -100,6 +100,7 @@ repo_manifests = \
 	argv_from_file.manifest \
 	debug_log_file.manifest \
 	debug_log_inline.manifest \
+	device_passthrough.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	file_check_policy_allow_all_but_log.manifest \

@@ -17,7 +17,7 @@
 /debug_log_inline
 /debug_regs-x86_64
 /devfs
-/device
+/device_passthrough
 /double_fork
 /env_from_file
 /env_from_host
