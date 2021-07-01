@@ -442,18 +442,16 @@ static int pseudo_close(struct shim_handle* hdl) {
     }
 }
 
-/* TODO: add support for polling TYPE_STR handles; currently `shim_do_poll` doesn't call this for
- * anything else than TYPE_STR and TYPE_DEV */
 static off_t pseudo_poll(struct shim_handle* hdl, int poll_type) {
-    if (poll_type == FS_POLL_SZ)
-        return 0;
-
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_DEV: {
+            if (poll_type == FS_POLL_SZ)
+                return 0;
+
             off_t ret = 0;
             if ((poll_type & FS_POLL_RD) && node->dev.dev_ops.read)
                 ret |= FS_POLL_RD;
@@ -461,6 +459,9 @@ static off_t pseudo_poll(struct shim_handle* hdl, int poll_type) {
                 ret |= FS_POLL_WR;
             return ret;
         }
+        case PSEUDO_STR:
+            return str_poll(hdl, poll_type);
+
         default:
             return -ENOSYS;
     }

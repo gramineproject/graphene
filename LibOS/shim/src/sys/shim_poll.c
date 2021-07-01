@@ -102,9 +102,12 @@ static long _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
             continue;
         }
 
-        if (hdl->type == TYPE_FILE || hdl->type == TYPE_DEV) {
-            /* Files and devs are special cases: their poll is emulated at LibOS level; do not
-             * include them in handles-to-poll array but instead use handle-specific callback. */
+        if (hdl->type == TYPE_FILE || hdl->type == TYPE_DEV || hdl->type == TYPE_STR) {
+            /* Files, devs and strings are special cases: their poll is emulated at LibOS level; do
+             * not include them in handles-to-poll array but instead use handle-specific
+             * callback.
+             *
+             * TODO: we probably should use the poll() callback in all cases. */
             int shim_events = 0;
             if ((fds[i].events & (POLLIN | POLLRDNORM)) && (hdl->acc_mode & MAY_READ))
                 shim_events |= FS_POLL_RD;
@@ -119,6 +122,13 @@ static long _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
             if (shim_revents & FS_POLL_WR)
                 fds[i].revents |= fds[i].events & (POLLOUT | POLLWRNORM);
 
+            if (fds[i].revents)
+                nrevents++;
+            continue;
+        }
+
+        if (!hdl->pal_handle) {
+            fds[i].revents = POLLNVAL;
             nrevents++;
             continue;
         }
