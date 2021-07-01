@@ -14,23 +14,27 @@
  * Describes a pending request for a POSIX lock. After processing the request, the object is
  * removed, and a possible waiter is notified (see below).
  *
- * If the request is initiated by another process over IPC, `vmid` and `seq` should be set to
- * parameters of IPC message. After processing the request, IPC response will be sent.
+ * If the request is initiated by another process over IPC, `notify.vmid` and `notify.seq` should be
+ * set to parameters of IPC message. After processing the request, IPC response will be sent.
  *
- * If the request is initiated by process leader, `vmid` should be set to 0, and `event` should be
- * set to an event handle. After processing the request, the event will be triggered, and `*result`
- * will be set to the result.
+ * If the request is initiated by process leader, `notify.vmid` should be set to 0, and
+ * `notify.event` should be set to an event handle. After processing the request, the event will be
+ * triggered, and `*notify.result` will be set to the result.
  */
 DEFINE_LISTP(posix_lock_request);
 DEFINE_LIST(posix_lock_request);
 struct posix_lock_request {
     struct posix_lock pl;
 
-    IDTYPE vmid;
-    unsigned int seq;
+    struct {
+        IDTYPE vmid;
+        unsigned int seq;
 
-    PAL_HANDLE event;
-    int* result;
+        /* Note that `event` and `result` are owned by the side making the request, and outlive this
+         * object (we delete it as soon as the request is processed). */
+        PAL_HANDLE event;
+        int* result;
+    } notify;
 
     LIST_TYPE(posix_lock_request) list;
 };
@@ -41,8 +45,8 @@ DEFINE_LIST(fs_lock);
 struct fs_lock {
     struct shim_dentry* dent;
 
-    /* POSIX locks, sorted by PID and then by start position. The ranges do not overlap within a
-     * given PID. */
+    /* POSIX locks, sorted by PID and then by start position (so that we are able to merge and split
+     * locks). The ranges do not overlap within a given PID. */
     LISTP_TYPE(posix_lock) posix_locks;
 
     /* Pending requests. */
@@ -156,8 +160,8 @@ static struct posix_lock* posix_lock_find_conflict(struct fs_lock* fs_lock, stru
 }
 
 /*
- * Add a new lock request. Before releasing `g_fs_lock_lock`, the caller has to add notification
- * info to the request (see `struct posix_lock_request` above).
+ * Add a new lock request. Before releasing `g_fs_lock_lock`, the caller has to initialize the
+ * `notify` part of the request (see `struct posix_lock_request` above).
  */
 static int posix_lock_add_request(struct fs_lock* fs_lock, struct posix_lock* pl,
                                   struct posix_lock_request** out_req) {
@@ -201,7 +205,8 @@ static int _posix_lock_set(struct fs_lock* fs_lock, struct posix_lock* pl) {
     }
 
     /* Target range: we will be changing it when merging existing locks. */
-    uint64_t start = pl->start, end = pl->end;
+    uint64_t start = pl->start;
+    uint64_t end   = pl->end;
 
     /* `prev` will be set to the last lock before target range, so that we add the new lock just
      * after `prev`. */
@@ -218,7 +223,7 @@ static int _posix_lock_set(struct fs_lock* fs_lock, struct posix_lock* pl) {
             break;
         }
 
-        if (pl->type == cur->type) {
+        if (cur->type == pl->type) {
             /* Same lock type: we can possibly merge the locks. */
 
             if (start > 0 && cur->end < start - 1) {
@@ -301,7 +306,7 @@ static int _posix_lock_set(struct fs_lock* fs_lock, struct posix_lock* pl) {
                  * cur:      ==
                  */
                 assert(start <= cur->start && end < cur->end);
-                assert (end < FS_LOCK_EOF);
+                assert(end < FS_LOCK_EOF);
                 cur->start = end + 1;
                 break;
             }
@@ -362,16 +367,17 @@ static void posix_lock_process_requests(struct fs_lock* fs_lock) {
 
                 /* Notify the waiter that we processed their request. Note that the result might
                  * still be a failure (-ENOMEM). */
-                if (req->vmid == 0) {
-                    assert(req->event);
-                    assert(req->result);
-                    *req->result = result;
-                    DkEventSet(req->event);
+                if (req->notify.vmid == 0) {
+                    assert(req->notify.event);
+                    assert(req->notify.result);
+                    *req->notify.result = result;
+                    DkEventSet(req->notify.event);
                 } else {
-                    assert(!req->event);
-                    assert(!req->result);
+                    assert(!req->notify.event);
+                    assert(!req->notify.result);
 
-                    int ret = ipc_posix_lock_set_send_response(req->vmid, req->seq, result);
+                    int ret = ipc_posix_lock_set_send_response(req->notify.vmid, req->notify.seq,
+                                                               result);
                     if (ret < 0) {
                         log_warning("posix lock: error sending result over IPC: %d", ret);
                     }
@@ -383,6 +389,8 @@ static void posix_lock_process_requests(struct fs_lock* fs_lock) {
     } while (changed);
 }
 
+/* Add/remove a lock if possible. On conflict, returns -EAGAIN (if `wait` is false) or adds a new
+ * request (if `wait` is true). */
 static int posix_lock_set_or_add_request(struct shim_dentry* dent, struct posix_lock* pl, bool wait,
                                          struct posix_lock_request** out_req) {
     assert(locked(&g_fs_lock_lock));
@@ -429,8 +437,8 @@ out:
 int posix_lock_set(struct shim_dentry* dent, struct posix_lock* pl, bool wait) {
     int ret;
     if (g_process_ipc_ids.leader_vmid) {
-        /* In the IPC version, we use `dent->maybe_has_fs_locks` to short-circuit unlocking files that
-         * we never locked. This is to prevent unnecessary IPC calls on a handle. */
+        /* In the IPC version, we use `dent->maybe_has_fs_locks` to short-circuit unlocking files
+         * that we never locked. This is to prevent unnecessary IPC calls on a handle. */
         lock(&g_fs_lock_lock);
         if (pl->type == F_RDLCK || pl->type == F_WRLCK) {
             dent->maybe_has_fs_locks = true;
@@ -465,10 +473,10 @@ int posix_lock_set(struct shim_dentry* dent, struct posix_lock* pl, bool wait) {
         ret = DkEventCreate(&event, /*init_signaled=*/false, /*auto_clear=*/false);
         if (ret < 0)
             goto out;
-        req->vmid = 0;
-        req->seq = 0;
-        req->event = event;
-        req->result = &result;
+        req->notify.vmid = 0;
+        req->notify.seq = 0;
+        req->notify.event = event;
+        req->notify.result = &result;
 
         unlock(&g_fs_lock_lock);
         ret = object_wait_with_retry(event);
@@ -508,10 +516,10 @@ int posix_lock_set_from_ipc(const char* path, struct posix_lock* pl, bool wait, 
 
     if (req) {
         assert(wait);
-        req->vmid = vmid;
-        req->seq = seq;
-        req->event = NULL;
-        req->result = NULL;
+        req->notify.vmid = vmid;
+        req->notify.seq = seq;
+        req->notify.event = NULL;
+        req->notify.result = NULL;
     }
     ret = 0;
 out:
@@ -610,7 +618,7 @@ int posix_lock_clear_pid(IDTYPE pid) {
         struct posix_lock_request* req_tmp;
         LISTP_FOR_EACH_ENTRY_SAFE(req, req_tmp, &fs_lock->posix_lock_requests, list) {
             if (req->pl.pid == pid) {
-                assert(!req->event);
+                assert(!req->notify.event);
                 LISTP_DEL(req, &fs_lock->posix_lock_requests, list);
                 free(req);
             }
