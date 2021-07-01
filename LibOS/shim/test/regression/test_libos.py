@@ -586,7 +586,8 @@ class TC_30_Syscall(RegressionTestCase):
         try:
             stdout, _ = self.run_binary(['fcntl_lock'])
         finally:
-            os.remove('tmp/lock_file')
+            if os.path.exists('tmp/lock_file'):
+                os.remove('tmp/lock_file')
         self.assertIn('TEST OK', stdout)
 
 class TC_31_Syscall(RegressionTestCase):

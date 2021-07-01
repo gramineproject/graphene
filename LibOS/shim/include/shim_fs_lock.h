@@ -4,7 +4,7 @@
  */
 
 /*
- * File locks. Currently POSIX locks are implemented.
+ * File locks. Currently only POSIX locks are implemented.
  */
 
 #ifndef SHIM_FS_LOCK_H_
@@ -125,4 +125,4 @@ int posix_lock_set_from_ipc(const char* path, struct posix_lock* pl, bool wait, 
  */
 int posix_lock_get_from_ipc(const char* path, struct posix_lock* pl, struct posix_lock* out_pl);
 
-#endif /* SHIM_FS_LOCK_H */
+#endif /* SHIM_FS_LOCK_H_ */

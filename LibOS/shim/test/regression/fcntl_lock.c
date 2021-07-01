@@ -91,8 +91,13 @@ static int try_fcntl(int cmd, struct flock* fl) {
 
     if (ret != -1 && ret != 0)
         errx(1, "fcntl returned unexpected value");
-    if (ret == -1 && errno != EACCES && errno != EAGAIN)
-        err(1, "fcntl");
+    if (ret == -1) {
+        /* We permit -1 only for F_SETLK, and only with EACCES or EAGAIN errors (which means the
+         * lock could not be placed immediately). */
+        if (!(cmd == F_SETLK && (errno == EACCES || errno == EAGAIN))) {
+            err(1, "fcntl");
+        }
+    }
     return ret;
 }
 
@@ -108,6 +113,8 @@ static bool try_lock(int cmd, int type, int whence, long int start, long int len
     int ret = try_fcntl(cmd, &fl);
 
     if (cmd == F_GETLK) {
+        assert(ret == 0);
+
         return fl.l_type == F_UNLCK;
     } else {
         return ret == 0;
@@ -141,7 +148,7 @@ static void unlock(long int start, long int len) {
         errx(1, "unlock failed");
 }
 
-static void lock_ok(int type, long int start, long int len) {
+static void lock(int type, long int start, long int len) {
     assert(type == F_RDLCK || type == F_WRLCK);
 
     if (!try_lock(F_GETLK, type, SEEK_SET, start, len)
@@ -166,14 +173,14 @@ static void lock_fail(int type, long int start, long int len) {
  * at Graphene debug output).
  */
 static void test_ranges() {
-    printf("test ranges...\n");
+    printf("testing ranges...\n");
     unlock(0, 0);
 
     /* Lock some ranges, check joining adjacent ranges */
-    lock_ok(F_RDLCK, 10, 10);
-    lock_ok(F_RDLCK, 30, 10);
-    lock_ok(F_RDLCK, 20, 10);
-    lock_ok(F_RDLCK, 1000, 0);
+    lock(F_RDLCK, 10, 10);
+    lock(F_RDLCK, 30, 10);
+    lock(F_RDLCK, 20, 10);
+    lock(F_RDLCK, 1000, 0);
 
     /* Unlock some ranges, check subtracting and splitting ranges */
     unlock(5, 10);
@@ -182,8 +189,8 @@ static void test_ranges() {
     unlock(950, 100);
 
     /* Overwrite with write lock */
-    lock_ok(F_WRLCK, 0, 30);
-    lock_ok(F_WRLCK, 30, 30);
+    lock(F_WRLCK, 0, 30);
+    lock(F_WRLCK, 30, 30);
 }
 
 static void wait_for_child(void) {
@@ -235,7 +242,7 @@ static void read_pipe(int pipe[2]) {
 
 /* Test: child takes a lock and then exits. The lock should be released. */
 static void test_child_exit() {
-    printf("test child exit...\n");
+    printf("testing child exit...\n");
     unlock(0, 0);
 
     int pipes[2][2];
@@ -246,7 +253,7 @@ static void test_child_exit() {
         err(1, "fork");
 
     if (pid == 0) {
-        lock_ok(F_WRLCK, 0, 100);
+        lock(F_WRLCK, 0, 100);
         write_pipe(pipes[0]);
         read_pipe(pipes[1]);
         exit(0);
@@ -263,7 +270,7 @@ static void test_child_exit() {
 
 /* Test: child takes a lock, and then closes a duplicated FD. The lock should be released. */
 static void test_file_close() {
-    printf("test file close...\n");
+    printf("testing file close...\n");
     unlock(0, 0);
 
     int pipes[2][2];
@@ -274,7 +281,7 @@ static void test_file_close() {
         err(1, "fork");
 
     if (pid == 0) {
-        lock_ok(F_WRLCK, 0, 100);
+        lock(F_WRLCK, 0, 100);
         write_pipe(pipes[0]);
         read_pipe(pipes[1]);
 
@@ -301,20 +308,20 @@ static void test_file_close() {
 
 /* Test: child waits for parent to release a lock. */
 static void test_child_wait() {
-    printf("test child wait...\n");
+    printf("testing child wait...\n");
     unlock(0, 0);
 
     int pipes[2][2];
     open_pipes(pipes);
 
-    lock_ok(F_RDLCK, 0, 100);
+    lock(F_RDLCK, 0, 100);
 
     pid_t pid = fork();
     if (pid < 0)
         err(1, "fork");
 
     if (pid == 0) {
-        lock_ok(F_RDLCK, 0, 100);
+        lock(F_RDLCK, 0, 100);
         lock_fail(F_WRLCK, 0, 100);
         write_pipe(pipes[0]);
         lock_wait_ok(F_WRLCK, 0, 100);
@@ -330,7 +337,7 @@ static void test_child_wait() {
 
 /* Test: parent waits for child to release a lock. */
 static void test_parent_wait() {
-    printf("test parent wait...\n");
+    printf("testing parent wait...\n");
     unlock(0, 0);
 
     int pipes[2][2];
@@ -341,7 +348,7 @@ static void test_parent_wait() {
         err(1, "fork");
 
     if (pid == 0) {
-        lock_ok(F_RDLCK, 0, 100);
+        lock(F_RDLCK, 0, 100);
         write_pipe(pipes[0]);
         read_pipe(pipes[1]);
         unlock(0, 100);
@@ -354,7 +361,7 @@ static void test_parent_wait() {
     read_pipe(pipes[0]);
 
     /* read lock should succeed */
-    lock_ok(F_RDLCK, 0, 100);
+    lock(F_RDLCK, 0, 100);
     lock_fail(F_WRLCK, 0, 100);
     write_pipe(pipes[1]);
     lock_wait_ok(F_WRLCK, 0, 100);
@@ -366,7 +373,7 @@ static void test_parent_wait() {
 
 /* Test: check that a range until EOF (len == 0) is handled correctly. */
 static void test_range_with_eof() {
-    printf("test range with EOF...\n");
+    printf("testing range with EOF...\n");
     unlock(0, 0);
 
     int pipes[2][2];
@@ -378,7 +385,7 @@ static void test_range_with_eof() {
 
     if (pid == 0) {
         /* lock [100 .. EOF] */
-        lock_ok(F_WRLCK, 100, 0);
+        lock(F_WRLCK, 100, 0);
         write_pipe(pipes[0]);
         read_pipe(pipes[1]);
         exit(0);
@@ -410,6 +417,9 @@ int main(void) {
 
     if (close(g_fd) < 0)
         err(1, "close");
+
+    if (unlink(TEST_FILE) < 0)
+        err(1, "unlink");
 
     printf("TEST OK\n");
     return 0;

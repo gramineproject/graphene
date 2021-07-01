@@ -56,7 +56,7 @@ struct fs_lock {
 static LISTP_TYPE(fs_lock) g_fs_lock_list = LISTP_INIT;
 
 /* Global lock for all operations on filesystem locks, including access to dentry `fs_lock` and
- * `maybe_has_locks` fields. */
+ * `maybe_has_fs_locks` fields. */
 static struct shim_lock g_fs_lock_lock;
 
 int init_fs_lock(void) {
@@ -429,12 +429,12 @@ out:
 int posix_lock_set(struct shim_dentry* dent, struct posix_lock* pl, bool wait) {
     int ret;
     if (g_process_ipc_ids.leader_vmid) {
-        /* In the IPC version, we use `dent->maybe_has_locks` to short-circuit unlocking files that
+        /* In the IPC version, we use `dent->maybe_has_fs_locks` to short-circuit unlocking files that
          * we never locked. This is to prevent unnecessary IPC calls on a handle. */
         lock(&g_fs_lock_lock);
         if (pl->type == F_RDLCK || pl->type == F_WRLCK) {
-            dent->maybe_has_locks = true;
-        } else if (!dent->maybe_has_locks) {
+            dent->maybe_has_fs_locks = true;
+        } else if (!dent->maybe_has_fs_locks) {
             /* We know we're not holding any locks for the file */
             unlock(&g_fs_lock_lock);
             return 0;
