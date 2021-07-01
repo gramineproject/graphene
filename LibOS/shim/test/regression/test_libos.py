@@ -824,9 +824,12 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('TEST OK', stdout)
 
     def test_020_poll(self):
-        stdout, _ = self.run_binary(['poll'])
-        self.assertIn('poll(POLLOUT) returned 1 file descriptors', stdout)
-        self.assertIn('poll(POLLIN) returned 1 file descriptors', stdout)
+        try:
+            stdout, _ = self.run_binary(['poll'])
+        finally:
+            if os.path.exists("tmp/host_file"):
+                os.remove("tmp/host_file")
+        self.assertIn('TEST OK', stdout)
 
     def test_021_poll_many_types(self):
         stdout, _ = self.run_binary(['poll_many_types'])

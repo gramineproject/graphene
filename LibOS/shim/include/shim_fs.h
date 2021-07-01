@@ -706,5 +706,6 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
 int str_truncate(struct shim_handle* hdl, off_t len);
+off_t str_poll(struct shim_handle* hdl, int poll_type);
 
 #endif /* _SHIM_FS_H_ */
