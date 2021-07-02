@@ -66,6 +66,9 @@ static int flock_to_posix_lock(struct flock* fl, struct shim_handle* hdl, struct
     struct shim_fs* fs = hdl->fs;
     assert(fs && fs->fs_ops);
 
+    /* Compute the origin based on `l_start` and `l_whence`. Note that we cannot directly call
+     * `seek(hdl, l_start, l_whence)`, because that would modify the handle position. Only
+     * retrieving the current position (by calling `seek(hdl, 0, SEEK_CUR)`) is safe. */
     uint64_t origin;
     switch (fl->l_whence) {
         case SEEK_SET:

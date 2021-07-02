@@ -263,6 +263,7 @@ int ipc_sync_confirm_close_callback(IDTYPE src, void* data, unsigned long seq);
  */
 
 struct shim_ipc_posix_lock {
+    /* see `struct posix_lock` in `shim_fs_lock.h` */
     int type;
     uint64_t start;
     uint64_t end;
@@ -275,6 +276,7 @@ struct shim_ipc_posix_lock {
 struct shim_ipc_posix_lock_resp {
     int result;
 
+    /* see `struct posix_lock` in `shim_fs_lock.h` */
     int type;
     uint64_t start;
     uint64_t end;
