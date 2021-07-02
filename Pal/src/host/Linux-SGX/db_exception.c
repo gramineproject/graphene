@@ -221,7 +221,8 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
         /* event isn't asynchronous (i.e., synchronous exception) */
         event_num != PAL_EVENT_QUIT &&
         event_num != PAL_EVENT_INTERRUPTED) {
-        log_error("*** Unexpected exception occurred inside PAL! ***");
+        log_error("*** Unexpected exception occurred inside PAL at RIP = +0x%08lx! ***",
+                  uc->rip - (uintptr_t)TEXT_START);
 
         if (ei.info.valid) {
             /* EXITINFO field: vector = exception number, exit_type = 0x3 for HW / 0x6 for SW */
