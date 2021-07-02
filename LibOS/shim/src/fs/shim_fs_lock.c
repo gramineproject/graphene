@@ -471,7 +471,7 @@ int posix_lock_set(struct shim_dentry* dent, struct posix_lock* pl, bool wait) {
     if (ret < 0)
         goto out;
     if (req) {
-        /* `posix_lock_add_request` is allowed to add a request only if `wait` is true */
+        /* `posix_lock_set_or_add_request` is allowed to add a request only if `wait` is true */
         assert(wait);
 
         int result;
@@ -520,7 +520,7 @@ int posix_lock_set_from_ipc(const char* path, struct posix_lock* pl, bool wait, 
         goto out;
 
     if (req) {
-        /* `posix_lock_add_request` is allowed to add a request only if `wait` is true */
+        /* `posix_lock_set_or_add_request` is allowed to add a request only if `wait` is true */
         assert(wait);
 
         req->notify.vmid = vmid;
