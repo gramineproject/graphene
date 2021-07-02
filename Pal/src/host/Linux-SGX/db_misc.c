@@ -338,7 +338,8 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     /* basic CPUID leaf functions end here */
 
     /* invalid CPUID leaf functions (no existing or future CPU will return any meaningful
-     * information in these leaves) occupy 40000000 - 4FFFFFFFH */
+     * information in these leaves) occupy 40000000 - 4FFFFFFFH -- they are treated the same as
+     * unrecognized leaves, see code below */
 
     /* extended CPUID leaf functions start here */
     {.leaf = 0x80000000, .zero_subleaf = true, .cache = true}, /* Get Highest Extended Function */
@@ -354,25 +355,6 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
 };
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    /* leaves 0x40000000 to 0x4FFFFFFF are used by virtualization software (KVM, Hyper-V, etc.),
-     * they return all zeros on bare metal; runtimes like JVM query these leaves to learn about
-     * the underlying virtualization software */
-    if (leaf >= 0x40000000 && leaf <= 0x4FFFFFFF) {
-        /* Let Graphene report that there is no virtualization software.
-         *
-         * NOTE: The Intel SDM says: "No existing or future CPU will return processor identification
-         *       or feature information if the initial EAX value is in the range 40000000H to
-         *       4FFFFFFFH." However, actual CPUs return the feature info from the highest basic
-         *       information leaf (as if these CPUID leaves are considered unrecognized), which
-         *       seems to contradict the passage in the Intel SDM. It is unclear why this
-         *       discrepancy exists. */
-        values[0] = 0;
-        values[1] = 0;
-        values[2] = 0;
-        values[3] = 0;
-        return 0;
-    }
-
     /* A few basic leaves are considered reserved and always return zeros; see corresponding EAX
      * cases in the "Operation" section of CPUID description in Intel SDM, Vol. 2A, Chapter 3.2.
      *
