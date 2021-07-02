@@ -42,14 +42,14 @@ static pf_status_t cb_read(pf_handle_t handle, void* buffer, uint64_t offset, si
             continue;
 
         if (read < 0) {
-            log_error("cb_read(%d, %p, %lu, %lu): read failed: %ld", fd, buffer, offset,
-                      size, read);
+            log_warning("cb_read(%d, %p, %lu, %lu): read failed: %ld", fd, buffer, offset,
+                        size, read);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         /* EOF is an error condition, we want to read exactly `size` bytes */
         if (read == 0) {
-            log_error("cb_read(%d, %p, %lu, %lu): EOF", fd, buffer, offset, size);
+            log_warning("cb_read(%d, %p, %lu, %lu): EOF", fd, buffer, offset, size);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -70,14 +70,14 @@ static pf_status_t cb_write(pf_handle_t handle, const void* buffer, uint64_t off
             continue;
 
         if (written < 0) {
-            log_error("cb_write(%d, %p, %lu, %lu): write failed: %ld", fd, buffer, offset,
-                      size, written);
+            log_warning("cb_write(%d, %p, %lu, %lu): write failed: %ld", fd, buffer, offset,
+                        size, written);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         /* EOF is an error condition, we want to write exactly `size` bytes */
         if (written == 0) {
-            log_error("cb_write(%d, %p, %lu, %lu): EOF", fd, buffer, offset, size);
+            log_warning("cb_write(%d, %p, %lu, %lu): EOF", fd, buffer, offset, size);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -91,7 +91,7 @@ static pf_status_t cb_truncate(pf_handle_t handle, uint64_t size) {
     int fd = *(int*)handle;
     int ret = ocall_ftruncate(fd, size);
     if (ret < 0) {
-        log_error("cb_truncate(%d, %lu): ocall failed: %d", fd, size, ret);
+        log_warning("cb_truncate(%d, %lu): ocall failed: %d", fd, size, ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -108,7 +108,7 @@ static pf_status_t cb_aes_cmac(const pf_key_t* key, const void* input, size_t in
     int ret = lib_AESCMAC((const uint8_t*)key, sizeof(*key), input, input_size, (uint8_t*)mac,
                           sizeof(*mac));
     if (ret != 0) {
-        log_error("lib_AESCMAC failed: %d", ret);
+        log_warning("lib_AESCMAC failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -120,7 +120,7 @@ static pf_status_t cb_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv, co
     int ret = lib_AESGCMEncrypt((const uint8_t*)key, sizeof(*key), (const uint8_t*)iv, input,
                                 input_size, aad, aad_size, output, (uint8_t*)mac, sizeof(*mac));
     if (ret != 0) {
-        log_error("lib_AESGCMEncrypt failed: %d", ret);
+        log_warning("lib_AESGCMEncrypt failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -133,7 +133,7 @@ static pf_status_t cb_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv, co
                                 input_size, aad, aad_size, output, (const uint8_t*)mac,
                                 sizeof(*mac));
     if (ret != 0) {
-        log_error("lib_AESGCMDecrypt failed: %d", ret);
+        log_warning("lib_AESGCMDecrypt failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -142,7 +142,7 @@ static pf_status_t cb_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv, co
 static pf_status_t cb_random(uint8_t* buffer, size_t size) {
     int ret = _DkRandomBitsRead(buffer, size);
     if (ret < 0) {
-        log_error("_DkRandomBitsRead failed: %d", ret);
+        log_warning("_DkRandomBitsRead failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -261,7 +261,7 @@ static int is_directory(const char* path, bool* is_dir) {
     fd = ret;
     ret = ocall_fstat(fd, &st);
     if (ret < 0) {
-        log_error("is_directory(%s): fstat failed: %d", path, ret);
+        log_warning("is_directory(%s): fstat failed: %d", path, ret);
         goto out;
     }
 
@@ -272,7 +272,7 @@ out:
     if (fd >= 0) {
         int rv = ocall_close(fd);
         if (rv < 0) {
-            log_error("is_directory(%s): close failed: %d", path, rv);
+            log_warning("is_directory(%s): close failed: %d", path, rv);
         }
     }
 
@@ -291,7 +291,7 @@ static int register_protected_dir(const char* path) {
 
     ret = ocall_open(path, O_RDONLY | O_DIRECTORY, 0);
     if (ret < 0) {
-        log_error("register_protected_dir: opening %s failed: %d", path, ret);
+        log_warning("register_protected_dir: opening %s failed: %d", path, ret);
         ret = unix_to_pal_error(ret);
         goto out;
     }
@@ -303,7 +303,7 @@ static int register_protected_dir(const char* path) {
         returned = ocall_getdents(fd, buf, bufsize);
         if (returned < 0) {
             ret = unix_to_pal_error(returned);
-            log_error("register_protected_dir: reading %s failed: %d", path, ret);
+            log_warning("register_protected_dir: reading %s failed: %d", path, ret);
             goto out;
         }
 
@@ -355,7 +355,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     size_t len = URI_MAX;
     ret = get_norm_path(path, normpath, &len);
     if (ret < 0) {
-        log_error("Couldn't normalize path (%s): %s", path, pal_strerror(ret));
+        log_warning("Couldn't normalize path (%s): %s", path, pal_strerror(ret));
         goto out;
     }
 
@@ -533,7 +533,7 @@ static int open_protected_file(const char* path, struct protected_file* pf, pf_h
     pf_status_t pfs;
     pfs = pf_open(handle, path, size, mode, create, &g_pf_wrap_key, &pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("pf_open(%d, %s) failed: %s", *(int*)handle, path, pf_strerror(pfs));
+        log_warning("pf_open(%d, %s) failed: %s", *(int*)handle, path, pf_strerror(pfs));
         return -PAL_ERROR_DENIED;
     }
     return 0;
@@ -621,7 +621,7 @@ int unload_protected_file(struct protected_file* pf) {
         return ret;
     pf_status_t pfs = pf_close(pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("unload_protected_file(%p) failed: %s", pf, pf_strerror(pfs));
+        log_warning("unload_protected_file(%p) failed: %s", pf, pf_strerror(pfs));
     }
 
     pf->context = NULL;

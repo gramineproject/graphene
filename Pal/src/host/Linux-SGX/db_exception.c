@@ -166,7 +166,7 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
         /* syscall: LibOS may know how to handle this */
         return false;
     }
-    log_error("Unknown or illegal instruction at RIP 0x%016lx", uc->rip);
+    log_error("Unknown or illegal instruction executed");
     return false;
 }
 
@@ -221,18 +221,17 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
         /* event isn't asynchronous (i.e., synchronous exception) */
         event_num != PAL_EVENT_QUIT &&
         event_num != PAL_EVENT_INTERRUPTED) {
-        log_error("*** Unexpected exception occurred inside PAL at RIP = +0x%08lx! ***",
-                  uc->rip - (uintptr_t)TEXT_START);
+        log_error("*** Unexpected exception occurred inside PAL! ***");
 
         if (ei.info.valid) {
             /* EXITINFO field: vector = exception number, exit_type = 0x3 for HW / 0x6 for SW */
-            log_error("(SGX HW reported AEX vector 0x%x with exit_type = 0x%x)", ei.info.vector,
+            log_debug("(SGX HW reported AEX vector 0x%x with exit_type = 0x%x)", ei.info.vector,
                       ei.info.exit_type);
         } else {
-            log_error("(untrusted PAL sent PAL event 0x%x)", ei.intval);
+            log_debug("(untrusted PAL sent PAL event 0x%x)", ei.intval);
         }
 
-        log_error("rax: 0x%08lx rcx: 0x%08lx rdx: 0x%08lx rbx: 0x%08lx\n"
+        log_debug("rax: 0x%08lx rcx: 0x%08lx rdx: 0x%08lx rbx: 0x%08lx\n"
                   "rsp: 0x%08lx rbp: 0x%08lx rsi: 0x%08lx rdi: 0x%08lx\n"
                   "r8 : 0x%08lx r9 : 0x%08lx r10: 0x%08lx r11: 0x%08lx\n"
                   "r12: 0x%08lx r13: 0x%08lx r14: 0x%08lx r15: 0x%08lx\n"
