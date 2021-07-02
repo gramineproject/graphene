@@ -21,6 +21,8 @@
 #include "shim_utils.h"
 #include "stat.h"
 
+#define BUF_SIZE 2048 /* read/write in 2KB chunks for sendfile(); buf is allocated on stack! */
+
 /* The kernel would look up the parent directory, and remove the child from the inode. But we are
  * working with the PAL, so we open the file, truncate and close it. */
 long shim_do_unlink(const char* file) {
@@ -254,251 +256,6 @@ long shim_do_fchown(int fd, uid_t uid, gid_t gid) {
     return 0;
 }
 
-#define MAP_SIZE (ALLOC_ALIGNMENT * 256)  /* mmap/memcpy in 1MB chunks for sendfile() */
-#define BUF_SIZE 2048                     /* read/write in 2KB chunks for sendfile() */
-
-/* TODO: The below implementation needs to be refactored: (1) remove offseto, it is always zero;
- *       (2) simplify handling of non-blocking handles, (3) instead of relying on PAL to mmap
- *       into a new address and free on every iteration of the copy loop, pre-allocate VMA and
- *       use it, (4) do not use stack-allocated buffer for read/write logic, (5) use a switch
- *       statement to distinguish between "map input", "map output", "map both", "map none" */
-static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim_handle* hdlo,
-                           off_t* offseto, ssize_t count) {
-    struct shim_fs* fsi = hdli->fs;
-    struct shim_fs* fso = hdlo->fs;
-
-    if (!count)
-        return 0;
-
-    if (!fsi || !fsi->fs_ops || !fso || !fso->fs_ops)
-        return -EACCES;
-
-    bool do_mapi  = fsi->fs_ops->mmap != NULL;
-    bool do_mapo  = fso->fs_ops->mmap != NULL;
-    bool do_marki = false;
-    bool do_marko = false;
-    int offi = 0, offo = 0;
-
-    if (offseti) {
-        if (!fsi->fs_ops->seek)
-            return -EACCES;
-        offi = *offseti;
-        fsi->fs_ops->seek(hdli, offi, SEEK_SET);
-    } else {
-        if (!fsi->fs_ops->seek || (offi = fsi->fs_ops->seek(hdli, 0, SEEK_CUR)) < 0)
-            do_mapi = false;
-    }
-
-    if (offseto) {
-        if (!fso->fs_ops->seek)
-            return -EACCES;
-        offo = *offseto;
-        fso->fs_ops->seek(hdlo, offo, SEEK_SET);
-    } else {
-        if (!fso->fs_ops->seek || (offo = fso->fs_ops->seek(hdlo, 0, SEEK_CUR)) < 0)
-            do_mapo = false;
-    }
-
-    if (do_mapi) {
-        int size;
-        if (fsi->fs_ops->poll && (size = fsi->fs_ops->poll(hdli, FS_POLL_SZ)) >= 0) {
-            if (count == -1 || count > size - offi)
-                count = size - offi;
-
-            if (!count)
-                return 0;
-        } else {
-            do_mapi = false;
-        }
-    }
-
-    if (do_mapo && count > 0)
-        do {
-            int size;
-            if (!fso->fs_ops->poll || (size = fso->fs_ops->poll(hdlo, FS_POLL_SZ)) < 0) {
-                do_mapo = false;
-                break;
-            }
-
-            if (offo + count < size)
-                break;
-
-            if (!fso->fs_ops->truncate || fso->fs_ops->truncate(hdlo, offo + count) < 0) {
-                do_mapo = false;
-                break;
-            }
-        } while (0);
-
-    void* bufi = NULL;
-    void* bufo = NULL;
-    int bytes    = 0;
-    int bufsize  = MAP_SIZE;
-    int copysize = 0;
-
-    if (!do_mapi && (hdli->flags & O_NONBLOCK) && fsi->fs_ops->setflags) {
-        int ret = fsi->fs_ops->setflags(hdli, 0);
-        if (!ret) {
-            log_debug("mark handle %s as blocking", qstrgetstr(&hdli->uri));
-            do_marki = true;
-        }
-    }
-
-    if (!do_mapo && (hdlo->flags & O_NONBLOCK) && fso->fs_ops->setflags) {
-        int ret = fso->fs_ops->setflags(hdlo, 0);
-        if (!ret) {
-            log_debug("mark handle %s as blocking", qstrgetstr(&hdlo->uri));
-            do_marko = true;
-        }
-    }
-
-    assert(count);
-    do {
-        int boffi = 0, boffo = 0;
-        int expectsize = bufsize;
-
-        if (count > 0 && bufsize > count - bytes)
-            expectsize = bufsize = count - bytes;
-
-        if (do_mapi && !bufi) {
-            boffi = offi - ALLOC_ALIGN_DOWN(offi);
-
-            /* TODO: mmap below invokes DkStreamMap() with NULL address; this is wrong -- we need
-             *       VMA bookkeeping; see also comment in DkStreamMap() implementation */
-            if (fsi->fs_ops->mmap(hdli, &bufi, ALLOC_ALIGN_UP(bufsize + boffi), PROT_READ, MAP_FILE,
-                                  offi - boffi) < 0) {
-                do_mapi = false;
-                boffi = 0;
-                if ((hdli->flags & O_NONBLOCK) && fsi->fs_ops->setflags) {
-                    int ret = fsi->fs_ops->setflags(hdli, 0);
-                    if (!ret) {
-                        log_debug("mark handle %s as blocking", qstrgetstr(&hdli->uri));
-                        do_marki = true;
-                    }
-                }
-                if (fsi->fs_ops->seek)
-                    offi = fsi->fs_ops->seek(hdli, offi, SEEK_SET);
-            }
-        }
-
-        if (do_mapo && !bufo) {
-            boffo = offo - ALLOC_ALIGN_DOWN(offo);
-
-            /* TODO: mmap below invokes DkStreamMap() with NULL address; this is wrong -- we need
-             *       VMA bookkeeping; see also comment in DkStreamMap() implementation */
-            if (fso->fs_ops->mmap(hdlo, &bufo, ALLOC_ALIGN_UP(bufsize + boffo), PROT_WRITE,
-                                  MAP_FILE, offo - boffo) < 0) {
-                do_mapo = false;
-                boffo = 0;
-                if ((hdlo->flags & O_NONBLOCK) && fso->fs_ops->setflags) {
-                    int ret = fso->fs_ops->setflags(hdlo, 0);
-                    if (!ret) {
-                        log_debug("mark handle %s as blocking", qstrgetstr(&hdlo->uri));
-                        do_marko = true;
-                    }
-                }
-                if (fso->fs_ops->seek)
-                    offo = fso->fs_ops->seek(hdlo, offo, SEEK_SET);
-            }
-        }
-
-        if (do_mapi && do_mapo) {
-            copysize = count - bytes > bufsize ? bufsize : count - bytes;
-            memcpy(bufo + boffo, bufi + boffi, copysize);
-            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
-            DkVirtualMemoryFree(bufi, ALLOC_ALIGN_UP(bufsize + boffi));
-            bufi = NULL;
-            if (fso->fs_ops->flush) {
-                /* SGX Protected Files propagate mmapped changes only on flush/close, so perform
-                 * explicit flush before freeing PF's mmapped region `bufo` */
-                fso->fs_ops->flush(hdlo);
-            }
-            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
-            DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
-            bufo = NULL;
-        } else if (do_mapo) {
-            copysize = fsi->fs_ops->read(hdli, bufo + boffo, bufsize);
-            if (fso->fs_ops->flush) {
-                /* SGX Protected Files propagate mmapped changes only on flush/close, so perform
-                 * explicit flush before freeing PF's mmapped region `bufo` */
-                fso->fs_ops->flush(hdlo);
-            }
-            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
-            DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
-            bufo = NULL;
-            if (copysize < 0)
-                break;
-        } else if (do_mapi) {
-            copysize = fso->fs_ops->write(hdlo, bufi + boffi, bufsize);
-            /* XXX: ??? Where is vma bookkeeping? Hans, get ze flammenwerfer... */
-            DkVirtualMemoryFree(bufi, ALLOC_ALIGN_UP(bufsize + boffi));
-            bufi = NULL;
-            if (copysize < 0)
-                break;
-        } else {
-            if (!bufi)
-                bufi = __alloca((bufsize = (bufsize > BUF_SIZE) ? BUF_SIZE : bufsize));
-
-            copysize = fsi->fs_ops->read(hdli, bufi, bufsize);
-
-            if (copysize <= 0)
-                break;
-
-            expectsize = copysize;
-            copysize = fso->fs_ops->write(hdlo, bufi, expectsize);
-            if (copysize < 0)
-                break;
-        }
-
-        log_debug("copy %d bytes", copysize);
-        bytes += copysize;
-        offi += copysize;
-        offo += copysize;
-        if (copysize < expectsize)
-            break;
-    } while (bytes < count);
-
-    if (copysize < 0 || (count > 0 && bytes < count)) {
-        int ret = copysize < 0 ? copysize : -EAGAIN;
-
-        if (bytes) {
-            if (fsi->fs_ops->seek)
-                fsi->fs_ops->seek(hdli, offi - bytes, SEEK_SET);
-            if (fso->fs_ops->seek)
-                fso->fs_ops->seek(hdlo, offo - bytes, SEEK_SET);
-        }
-
-        return ret;
-    }
-
-    if (do_marki && (hdli->flags & O_NONBLOCK)) {
-        log_debug("mark handle %s as nonblocking", qstrgetstr(&hdli->uri));
-        fsi->fs_ops->setflags(hdli, O_NONBLOCK);
-    }
-
-    if (do_marko && (hdlo->flags & O_NONBLOCK)) {
-        log_debug("mark handle %s as nonblocking", qstrgetstr(&hdlo->uri));
-        fso->fs_ops->setflags(hdlo, O_NONBLOCK);
-    }
-
-    if (do_mapi) {
-        if (fsi->fs_ops->seek)
-            fsi->fs_ops->seek(hdli, offi, SEEK_SET);
-    }
-
-    if (offseti)
-        *offseti = offi;
-
-    if (do_mapo) {
-        if (fso->fs_ops->seek)
-            fso->fs_ops->seek(hdlo, offo, SEEK_SET);
-    }
-
-    if (offseto)
-        *offseto = offo;
-
-    return bytes;
-}
-
 static int do_rename(struct shim_dentry* old_dent, struct shim_dentry* new_dent) {
     if ((old_dent->type != S_IFREG) ||
             (!(new_dent->state & DENTRY_NEGATIVE) && (new_dent->type != S_IFREG))) {
@@ -602,6 +359,11 @@ out:
 }
 
 long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
+    int ret;
+
+    if (offset && !is_user_memory_writable(offset, sizeof(*offset)))
+        return -EFAULT;
+
     struct shim_handle* hdli = get_fd_handle(ifd, NULL, NULL);
     if (!hdli)
         return -EBADF;
@@ -612,35 +374,113 @@ long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
         return -EBADF;
     }
 
-    int ret = -EINVAL;
+    if (!hdli->fs || !hdli->fs->fs_ops || !hdlo->fs || !hdlo->fs->fs_ops) {
+        ret = -EINVAL;
+        goto out;
+    }
+
     if (hdlo->flags & O_APPEND) {
         /* Linux errors out if output fd has the O_APPEND flag set; comply with this behavior */
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* FIXME: This sendfile() emulation is very simple and not particularly efficient: it reads from
+     *        input FD in BUF_SIZE chunks (allocated on stack so must be small-sized) and writes
+     *        into output FD. Mmap-based emulation may be more efficient but adds complexity (not
+     *        all handle types provide mmap callback). */
+    char buf[BUF_SIZE];
+    size_t copied = 0;
+
+    if (!count) {
+        ret = 0;
         goto out;
     }
 
     off_t old_offset = 0;
-    ret = -EACCES;
+    off_t tmp_offset = 0;
 
     if (offset) {
-        if (!hdli->fs || !hdli->fs->fs_ops || !hdli->fs->fs_ops->seek)
+        if (!hdli->fs->fs_ops->seek) {
+            ret = -ESPIPE;
             goto out;
+        }
 
         old_offset = hdli->fs->fs_ops->seek(hdli, 0, SEEK_CUR);
         if (old_offset < 0) {
             ret = old_offset;
             goto out;
         }
+
+        tmp_offset = hdli->fs->fs_ops->seek(hdli, *offset, SEEK_SET);
+        if (tmp_offset < 0) {
+            ret = tmp_offset;
+            goto out;
+        }
     }
 
-    ret = handle_copy(hdli, offset, hdlo, NULL, count);
+    while (copied < count) {
+        size_t to_copy = count - copied > BUF_SIZE ? BUF_SIZE : count - copied;
 
-    if (ret >= 0 && offset)
-        hdli->fs->fs_ops->seek(hdli, old_offset, SEEK_SET);
+        ssize_t x;
+        while (true) {
+            x = hdli->fs->fs_ops->read(hdli, buf, to_copy);
+            if (x < 0) {
+                if (x == -EINTR) {
+                    continue;
+                }
+                ret = x;
+                goto out;
+            }
+            break;
+        }
+        assert(x <= (ssize_t)to_copy);
 
+        if (x == 0) {
+            /* no more data in input FD, let's return however many bytes copied up until now */
+            break;
+        }
+
+        ssize_t y;
+        while (true) {
+            y = hdlo->fs->fs_ops->write(hdlo, buf, x);
+            if (y < 0) {
+                if (y == -EINTR) {
+                    continue;
+                }
+                ret = y;
+                goto out;
+            }
+            break;
+        }
+        assert(y <= x);
+
+        copied += y;
+
+        if (y < x) {
+            /* written less bytes to output fd than read from input fd -> out of sync now; don't try
+             * to be smart and simply return however many bytes we copied up until now */
+            break;
+        }
+    }
+
+    if (offset) {
+        /* manpage: "if offset != NULL, then sendfile() does not modify file offset of ifd..." */
+        tmp_offset = hdli->fs->fs_ops->seek(hdli, old_offset, SEEK_SET);
+        if (tmp_offset < 0) {
+            ret = tmp_offset;
+            goto out;
+        }
+
+        /* "...and the file offset will be updated by the call" */
+        *offset = *offset + copied;
+    }
+
+    ret = 0;
 out:
     put_handle(hdli);
     put_handle(hdlo);
-    return ret;
+    return ret < 0 ? ret : (long)copied;
 }
 
 long shim_do_chroot(const char* filename) {
