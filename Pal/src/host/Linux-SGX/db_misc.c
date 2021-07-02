@@ -320,9 +320,9 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     /* NOTE: 0x0E leaf is reserved, see code below */
     {.leaf = 0x0F, .zero_subleaf = false, .cache = true},  /* Intel RDT Monitoring */
     {.leaf = 0x10, .zero_subleaf = false, .cache = true},  /* RDT/L2/L3 Cache Allocation Tech */
-    /* NOTE: 0x11 leaf is not recognized, see code below */
+    /* NOTE: 0x11 leaf is reserved, see code below */
     {.leaf = 0x12, .zero_subleaf = false, .cache = true},  /* Intel SGX Capability */
-    /* NOTE: 0x13 leaf is not recognized, see code below */
+    /* NOTE: 0x13 leaf is reserved, see code below */
     {.leaf = 0x14, .zero_subleaf = false, .cache = true},  /* Intel Processor Trace Enumeration */
     {.leaf = 0x15, .zero_subleaf = true,  .cache = true},  /* Time Stamp Counter/Core Clock */
     {.leaf = 0x16, .zero_subleaf = true,  .cache = true},  /* Processor Frequency Information */
@@ -358,7 +358,14 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
      * they return all zeros on bare metal; runtimes like JVM query these leaves to learn about
      * the underlying virtualization software */
     if (leaf >= 0x40000000 && leaf <= 0x4FFFFFFF) {
-        /* let Graphene report that there is no virtualization software */
+        /* Let Graphene report that there is no virtualization software.
+         *
+         * NOTE: The Intel SDM says: "No existing or future CPU will return processor identification
+         *       or feature information if the initial EAX value is in the range 40000000H to
+         *       4FFFFFFFH." However, actual CPUs return the feature info from the highest basic
+         *       information leaf (as if these CPUID leaves are considered unrecognized), which
+         *       seems to contradict the passage in the Intel SDM. It is unclear why this
+         *       discrepancy exists. */
         values[0] = 0;
         values[1] = 0;
         values[2] = 0;
@@ -366,9 +373,13 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
         return 0;
     }
 
-    /* a few basic leaves are considered reserved and always return zeros; see corresponding EAX
-     * cases in the "Operation" section of CPUID description in Intel SDM, Vol. 2A, Chapter 3.2 */
-    if (leaf == 0x08 || leaf == 0x0C || leaf == 0x0E) {
+    /* A few basic leaves are considered reserved and always return zeros; see corresponding EAX
+     * cases in the "Operation" section of CPUID description in Intel SDM, Vol. 2A, Chapter 3.2.
+     *
+     * NOTE: Leaves 0x11 and 0x13 are not marked as reserved in Intel SDM but the actual CPUs return
+     *       all-zeros on them (as if these leaves are reserved). It is unclear why this discrepancy
+     *       exists, but we decided to emulate how actual CPUs behave. */
+    if (leaf == 0x08 || leaf == 0x0C || leaf == 0x0E || leaf == 0x11 || leaf == 0x13) {
         values[0] = 0;
         values[1] = 0;
         values[2] = 0;
@@ -390,7 +401,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
          * the DEFAULT case in the "Operation" section of CPUID description in Intel SDM, Vol. 2A,
          * Chapter 3.2 */
         leaf = 0x1F;
-        for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
+        for (size_t i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
             if (leaf == cpuid_known_leaves[i].leaf) {
                 known_leaf = &cpuid_known_leaves[i];
                 break;

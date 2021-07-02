@@ -106,14 +106,19 @@ static void test_cpuid_leaf_not_recognized(void) {
     struct regs r;
     set_dummy_regs(&r);
 
-    cpuid(0x13, 0x0, &r);
+    cpuid(0x1b, 0x0, &r);
     /* return values may be anything (including all-zeros), so just check that it's not dummy */
     if (are_dummy_regs(&r))
         abort();
 }
 
 static void test_cpuid_leaf_invalid(void) {
-    /* Graphene returns all zeros for CPUID leaves 0x40000000 - 0x4FFFFFFF ("no virtualization") */
+    /* Graphene returns all zeros for CPUID leaves 0x40000000 - 0x4FFFFFFF ("no virtualization").
+     * NOTE: The Intel SDM says: "No existing or future CPU will return processor identification or
+     *       feature information if the initial EAX value is in the range 40000000H to 4FFFFFFFH."
+     *       However, actual CPUs return the feature info from the highest basic information leaf
+     *       (as if these CPUID leaves are considered unrecognized), which seems to contradict the
+     *       passage in the Intel SDM. It is unclear why this discrepancy exists. */
     struct regs r;
     set_dummy_regs(&r);
 
