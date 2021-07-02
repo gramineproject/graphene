@@ -1,4 +1,4 @@
-# Bash example
+# SQLite example
 
 This directory contains an example for running SQLite in Graphene, including the
 Makefile and a template for generating the manifest. The application is tested
@@ -22,7 +22,7 @@ Run `make SGX=1` (non-debug) or `make SGX=1 DEBUG=1` (debug) in the directory.
 
 # Running SQLite with Graphene
 
-Here's an example of running Bash scripts under Graphene:
+Here's an example of running SQLite under Graphene:
 
 Without SGX:
 ```
