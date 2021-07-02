@@ -91,14 +91,9 @@ struct shim_fs_ops {
 
 #define DENTRY_VALID       0x0001 /* this dentry is verified to be valid */
 #define DENTRY_NEGATIVE    0x0002 /* recently deleted or inaccessible */
-#define DENTRY_PERSIST     0x0008 /* added as a persistent dentry */
 #define DENTRY_ISLINK      0x0080 /* this dentry is a link */
 #define DENTRY_ISDIRECTORY 0x0100 /* this dentry is a directory */
-#define DENTRY_LOCKED      0x0200 /* locked by mountpoints at children */
 /* These flags are not used */
-//#define DENTRY_REACHABLE    0x0400  /* permission checked to be reachable */
-//#define DENTRY_UNREACHABLE  0x0800  /* permission checked to be unreachable */
-#define DENTRY_LISTED      0x1000 /* children in directory listed */
 #define DENTRY_SYNTHETIC   0x4000 /* Auto-generated dentry to connect a mount point in the        \
                                    * manifest to the root, when one or more intermediate          \
                                    * directories do not exist on the underlying FS. The semantics \
@@ -121,7 +116,7 @@ struct shim_dentry {
     int state; /* flags for managing state */
 
     /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. Does
-     * not change. */
+     * not change. The name is unique for all valid dentries in a given siblings list. */
     struct shim_qstr name;
 
     /* Mounted filesystem this dentry belongs to. Does not change. */
@@ -628,7 +623,7 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
                                    const char* name, size_t name_len);
 
 /*!
- * \brief Search for a child of a dentry with a given name
+ * \brief Search for a valid child of a dentry with a given name
  *
  * \param parent the dentry to search under
  * \param name name of searched dentry
@@ -637,6 +632,10 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
  * \return the dentry, or NULL if not found
  *
  * The caller should hold `g_dcache_lock`.
+ *
+ * This function retrieves a valid (DENTRY_VALID bit set) dentry with a given name. Invalid dentries
+ * are ignored: even if an invalid dentry exists, you should create a fresh one (the old one will
+ * likely be deleted soon, see `dentry_gc`).
  *
  * If found, the reference count on the returned dentry is incremented.
  */

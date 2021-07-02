@@ -100,6 +100,12 @@ void get_dentry(struct shim_dentry* dent) {
 }
 
 static void free_dentry(struct shim_dentry* dent) {
+    if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->dput) {
+        int ret = dent->fs->d_ops->dput(dent);
+        if (ret < 0)
+            log_warning("dput() failed on %s: %d", qstrgetstr(&dent->name), ret);
+    }
+
     if (dent->mount) {
         put_mount(dent->mount);
     }
@@ -117,9 +123,6 @@ static void free_dentry(struct shim_dentry* dent) {
     if (dent->attached_mount) {
         put_mount(dent->attached_mount);
     }
-
-    /* XXX: We are leaking `data` field here. This field seems to have different meaning for
-     * different dentries and how to free it is a mystery to me. */
 
     destroy_lock(&dent->lock);
 
@@ -214,7 +217,7 @@ struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, 
     struct shim_dentry* tmp;
     struct shim_dentry* dent;
     LISTP_FOR_EACH_ENTRY_SAFE(dent, tmp, &parent->children, siblings) {
-        if (qstrcmpstr(&dent->name, name, name_len) == 0) {
+        if ((dent->state & DENTRY_VALID) && qstrcmpstr(&dent->name, name, name_len) == 0) {
             get_dentry(dent);
             return dent;
         }
@@ -378,7 +381,6 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
     buf_printf(&buf, "[%6.6s ", dent->mount ? dent->mount->fs->name : "");
 
     DUMP_FLAG(DENTRY_VALID, "V", ".");
-    DUMP_FLAG(DENTRY_LISTED, "L", ".");
     DUMP_FLAG(DENTRY_SYNTHETIC, "S", ".");
     buf_printf(&buf, "%3d] ", (int)REF_GET(dent->ref_count));
 
@@ -444,9 +446,6 @@ BEGIN_CP_FUNC(dentry) {
         INIT_LIST_HEAD(new_dent, siblings);
         clear_lock(&new_dent->lock);
         REF_SET(new_dent->ref_count, 0);
-
-        /* we don't checkpoint children dentries, so need to list directory again */
-        new_dent->state &= ~DENTRY_LISTED;
 
         if (new_dent->type != S_IFIFO) {
             /* not FIFO, no need to keep data (FIFOs stash internal FDs into data field) */

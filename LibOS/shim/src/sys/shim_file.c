@@ -65,14 +65,10 @@ long shim_do_unlinkat(int dfd, const char* pathname, int flag) {
         if ((ret = dent->fs->d_ops->unlink(dent->parent, dent)) < 0) {
             goto out;
         }
-    } else {
-        dent->state |= DENTRY_PERSIST;
     }
 
-    if (flag & AT_REMOVEDIR)
-        dent->state &= ~DENTRY_ISDIRECTORY;
-
-    dent->state |= DENTRY_NEGATIVE;
+    dent->state &= ~DENTRY_VALID;
+    ret = 0;
 out:
     if (dir)
         put_dentry(dir);
@@ -127,12 +123,10 @@ long shim_do_rmdir(const char* pathname) {
     if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->unlink) {
         if ((ret = dent->fs->d_ops->unlink(dent->parent, dent)) < 0)
             goto out;
-    } else {
-        dent->state |= DENTRY_PERSIST;
     }
 
-    dent->state &= ~DENTRY_ISDIRECTORY;
-    dent->state |= DENTRY_NEGATIVE;
+    dent->state &= ~DENTRY_VALID;
+    ret = 0;
 out:
     put_dentry(dent);
     return ret;
@@ -170,8 +164,6 @@ long shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
     if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->chmod) {
         if ((ret = dent->fs->d_ops->chmod(dent, mode)) < 0)
             goto out_dent;
-    } else {
-        dent->state |= DENTRY_PERSIST;
     }
 
     dent->perm = mode;
@@ -202,8 +194,6 @@ long shim_do_fchmod(int fd, mode_t mode) {
     if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->chmod) {
         if ((ret = dent->fs->d_ops->chmod(dent, mode)) < 0)
             goto out;
-    } else {
-        dent->state |= DENTRY_PERSIST;
     }
 
     dent->perm = mode;
@@ -539,12 +529,13 @@ static int do_rename(struct shim_dentry* old_dent, struct shim_dentry* new_dent)
     /* TODO: Add appropriate checks for hardlinks once they get implemented. */
 
     int ret = old_dent->fs->d_ops->rename(old_dent, new_dent);
-    if (!ret) {
-        old_dent->state |= DENTRY_NEGATIVE;
-        new_dent->state &= ~DENTRY_NEGATIVE;
-    }
+    if (ret < 0)
+        return ret;
 
-    return ret;
+    old_dent->state &= ~DENTRY_VALID;
+    new_dent->state &= ~DENTRY_NEGATIVE;
+
+    return 0;
 }
 
 long shim_do_rename(const char* oldpath, const char* newpath) {

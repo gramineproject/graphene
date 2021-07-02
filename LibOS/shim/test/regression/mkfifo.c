@@ -93,6 +93,21 @@ int main(int argc, char** argv) {
             perror("[parent] unlink error");
             return 1;
         }
+
+        /* Check if we can create a normal file with the same name. */
+        fd = open(FIFO_PATH, O_CREAT | O_TRUNC, 0600);
+        if (fd < 0) {
+            perror("[parent] open error");
+            return 1;
+        }
+        if (close(fd) < 0) {
+            perror("[parent] close error");
+            return 1;
+        }
+        if (unlink(FIFO_PATH) < 0) {
+            perror("[parent] unlink error");
+            return 1;
+        }
     }
 
     return 0;
