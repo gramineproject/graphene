@@ -622,6 +622,9 @@ long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
     ret = -EACCES;
 
     if (offset) {
+        if (*offset < 0)
+            return -EINVAL;
+
         if (!hdli->fs || !hdli->fs->fs_ops || !hdli->fs->fs_ops->seek)
             goto out;
 
