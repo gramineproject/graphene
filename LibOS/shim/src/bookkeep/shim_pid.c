@@ -168,8 +168,11 @@ void release_id(IDTYPE id) {
 
             int ret = ipc_release_id_range(range->start, range->end);
             if (ret < 0) {
-                log_error("IPC pid release failed");
-                die_or_inf_loop();
+                /* TODO: this is a fatal error, unfortunately it can happen if the IPC leader exits
+                 * without fully waiting for this process to end. For more information check
+                 * "LibOS/shim/src/sys/shim_exit.c". Change to `log_error` + `die` after fixing. */
+                log_warning("IPC pid release failed");
+                DkProcessExit(1);
             }
             free(range);
             return;
