@@ -21,7 +21,7 @@
 #include "shim_utils.h"
 #include "stat.h"
 
-#define BUF_SIZE 2048 /* read/write in 2KB chunks for sendfile(); buf is allocated on stack! */
+#define BUF_SIZE 4096 /* read/write in 4KB chunks for sendfile() */
 
 /* The kernel would look up the parent directory, and remove the child from the inode. But we are
  * working with the PAL, so we open the file, truncate and close it. */
@@ -358,39 +358,43 @@ out:
     return ret;
 }
 
-long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
-    int ret;
+long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
+    long ret;
+    char* buf = NULL;
+    size_t copied = 0;
 
     if (offset && !is_user_memory_writable(offset, sizeof(*offset)))
         return -EFAULT;
 
-    struct shim_handle* hdli = get_fd_handle(ifd, NULL, NULL);
-    if (!hdli)
+    struct shim_handle* in_hdl = get_fd_handle(in_fd, NULL, NULL);
+    if (!in_hdl)
         return -EBADF;
 
-    struct shim_handle* hdlo = get_fd_handle(ofd, NULL, NULL);
-    if (!hdlo) {
-        put_handle(hdli);
+    struct shim_handle* out_hdl = get_fd_handle(out_fd, NULL, NULL);
+    if (!out_hdl) {
+        put_handle(in_hdl);
         return -EBADF;
     }
 
-    if (!hdli->fs || !hdli->fs->fs_ops || !hdlo->fs || !hdlo->fs->fs_ops) {
+    if (!in_hdl->fs || !in_hdl->fs->fs_ops || !out_hdl->fs || !out_hdl->fs->fs_ops) {
         ret = -EINVAL;
         goto out;
     }
 
-    if (hdlo->flags & O_APPEND) {
+    if (out_hdl->flags & O_APPEND) {
         /* Linux errors out if output fd has the O_APPEND flag set; comply with this behavior */
         ret = -EINVAL;
         goto out;
     }
 
     /* FIXME: This sendfile() emulation is very simple and not particularly efficient: it reads from
-     *        input FD in BUF_SIZE chunks (allocated on stack so must be small-sized) and writes
-     *        into output FD. Mmap-based emulation may be more efficient but adds complexity (not
-     *        all handle types provide mmap callback). */
-    char buf[BUF_SIZE];
-    size_t copied = 0;
+     *        input FD in BUF_SIZE chunks and writes into output FD. Mmap-based emulation may be
+     *        more efficient but adds complexity (not all handle types provide mmap callback). */
+    buf = malloc(BUF_SIZE);
+    if (!buf) {
+        ret = -ENOMEM;
+        goto out;
+    }
 
     if (!count) {
         ret = 0;
@@ -398,23 +402,21 @@ long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
     }
 
     off_t old_offset = 0;
-    off_t tmp_offset = 0;
 
     if (offset) {
-        if (!hdli->fs->fs_ops->seek) {
+        if (!in_hdl->fs->fs_ops->seek) {
             ret = -ESPIPE;
             goto out;
         }
 
-        old_offset = hdli->fs->fs_ops->seek(hdli, 0, SEEK_CUR);
+        old_offset = in_hdl->fs->fs_ops->seek(in_hdl, 0, SEEK_CUR);
         if (old_offset < 0) {
             ret = old_offset;
             goto out;
         }
 
-        tmp_offset = hdli->fs->fs_ops->seek(hdli, *offset, SEEK_SET);
-        if (tmp_offset < 0) {
-            ret = tmp_offset;
+        ret = in_hdl->fs->fs_ops->seek(in_hdl, *offset, SEEK_SET);
+        if (ret < 0) {
             goto out;
         }
     }
@@ -422,17 +424,10 @@ long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
     while (copied < count) {
         size_t to_copy = count - copied > BUF_SIZE ? BUF_SIZE : count - copied;
 
-        ssize_t x;
-        while (true) {
-            x = hdli->fs->fs_ops->read(hdli, buf, to_copy);
-            if (x < 0) {
-                if (x == -EINTR) {
-                    continue;
-                }
-                ret = x;
-                goto out;
-            }
-            break;
+        ssize_t x = in_hdl->fs->fs_ops->read(in_hdl, buf, to_copy);
+        if (x < 0) {
+            ret = x;
+            goto out;
         }
         assert(x <= (ssize_t)to_copy);
 
@@ -441,17 +436,10 @@ long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
             break;
         }
 
-        ssize_t y;
-        while (true) {
-            y = hdlo->fs->fs_ops->write(hdlo, buf, x);
-            if (y < 0) {
-                if (y == -EINTR) {
-                    continue;
-                }
-                ret = y;
-                goto out;
-            }
-            break;
+        ssize_t y = out_hdl->fs->fs_ops->write(out_hdl, buf, x);
+        if (y < 0) {
+            ret = y;
+            goto out;
         }
         assert(y <= x);
 
@@ -465,10 +453,9 @@ long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
     }
 
     if (offset) {
-        /* manpage: "if offset != NULL, then sendfile() does not modify file offset of ifd..." */
-        tmp_offset = hdli->fs->fs_ops->seek(hdli, old_offset, SEEK_SET);
-        if (tmp_offset < 0) {
-            ret = tmp_offset;
+        /* manpage: "if offset != NULL, then sendfile() does not modify file offset of in_fd..." */
+        ret = in_hdl->fs->fs_ops->seek(in_hdl, old_offset, SEEK_SET);
+        if (ret < 0) {
             goto out;
         }
 
@@ -478,9 +465,10 @@ long shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
 
     ret = 0;
 out:
-    put_handle(hdli);
-    put_handle(hdlo);
-    return ret < 0 ? ret : (long)copied;
+    free(buf);
+    put_handle(in_hdl);
+    put_handle(out_hdl);
+    return copied ? (long)copied : ret;
 }
 
 long shim_do_chroot(const char* filename) {
