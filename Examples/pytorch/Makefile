@@ -49,10 +49,6 @@ sgx_outputs: pytorch.manifest
 %.token: %.sig
 	graphene-sgx-get-token --output $@ --sig $<
 
-.PHONY: download_model
-download_model:
-	$(PYTHONEXEC) download-pretrained-model.py
-
 .PHONY: clean
 clean:
 	$(RM) *.token *.sig *.manifest.sgx *.manifest

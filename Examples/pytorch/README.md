@@ -25,7 +25,7 @@ installation.
 - `pip3 install --user torchvision pillow` to install the torchvision and pillow Python packages and
   their dependencies (usually in $HOME/.local). WARNING: This downloads several hundred megabytes of
   data!
-- `make download_model` to download and save the pre-trained model.
+- `python3 download-pretrained-model.py` to download and save the pre-trained model.
   WARNING: this downloads about 200MB of data!
 
 # Build
