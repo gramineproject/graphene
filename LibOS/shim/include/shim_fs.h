@@ -169,7 +169,10 @@ struct shim_d_ops {
     /* this is to check file type and access, returning the stat.st_mode */
     int (*mode)(struct shim_dentry* dent, mode_t* mode);
 
-    /* detach internal data from dentry */
+    /*
+     * Detach internal data from dentry. Called before the dentry is destroyed.
+     * TODO: some filesystems (`str`, `tmpfs`) abuse this callback for reference counting.
+     */
     int (*dput)(struct shim_dentry* dent);
 
     /* create a dentry inside a directory */

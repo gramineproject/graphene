@@ -172,7 +172,7 @@ static int tmpfs_dput(struct shim_dentry* dent) {
     lock(&dent->lock);
     struct shim_tmpfs_data* tmpfs_data = dent->data;
 
-    if (!tmpfs_data || REF_DEC(tmpfs_data->str_data.ref_count) > 1) {
+    if (!tmpfs_data || REF_DEC(tmpfs_data->str_data.ref_count) > 0) {
         unlock(&dent->lock);
         return 0;
     }

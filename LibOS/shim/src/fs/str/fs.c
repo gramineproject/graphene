@@ -44,7 +44,7 @@ int str_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
 int str_dput(struct shim_dentry* dent) {
     struct shim_str_data* data = dent->data;
 
-    if (!data || REF_DEC(data->ref_count) > 1)
+    if (!data || REF_DEC(data->ref_count) > 0)
         return 0;
 
     if (data->str) {
