@@ -361,7 +361,9 @@ out:
 long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
     long ret;
     char* buf = NULL;
-    size_t copied = 0;
+
+    size_t read_from_in  = 0;
+    size_t copied_to_out = 0;
 
     if (offset && !is_user_memory_writable(offset, sizeof(*offset)))
         return -EFAULT;
@@ -389,7 +391,11 @@ long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
 
     /* FIXME: This sendfile() emulation is very simple and not particularly efficient: it reads from
      *        input FD in BUF_SIZE chunks and writes into output FD. Mmap-based emulation may be
-     *        more efficient but adds complexity (not all handle types provide mmap callback). */
+     *        more efficient but adds complexity (not all handle types provide mmap callback).
+     *
+     *        Also, since this emulation relies on the `read()` callback, performing sendfile from
+     *        one thread and reads from another thread will lead to discrepancies in copied data.
+     *        For proper emulation, a `read()` callback with explicit offsets is needed. */
     buf = malloc(BUF_SIZE);
     if (!buf) {
         ret = -ENOMEM;
@@ -421,8 +427,8 @@ long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
         }
     }
 
-    while (copied < count) {
-        size_t to_copy = count - copied > BUF_SIZE ? BUF_SIZE : count - copied;
+    while (copied_to_out < count) {
+        size_t to_copy = count - copied_to_out > BUF_SIZE ? BUF_SIZE : count - copied_to_out;
 
         ssize_t x = in_hdl->fs->fs_ops->read(in_hdl, buf, to_copy);
         if (x < 0) {
@@ -431,8 +437,10 @@ long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
         }
         assert(x <= (ssize_t)to_copy);
 
+        read_from_in += x;
+
         if (x == 0) {
-            /* no more data in input FD, let's return however many bytes copied up until now */
+            /* no more data in input FD, let's return however many bytes copied_to_out up until now */
             break;
         }
 
@@ -443,11 +451,13 @@ long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
         }
         assert(y <= x);
 
-        copied += y;
+        copied_to_out += y;
 
         if (y < x) {
             /* written less bytes to output fd than read from input fd -> out of sync now; don't try
-             * to be smart and simply return however many bytes we copied up until now */
+             * to be smart and simply return however many bytes we copied_to_out up until now */
+            /* TODO: need to revert in_fd's file position to (read_from_in - x + y) from original
+             *       offset and maybe continue this loop */
             break;
         }
     }
@@ -460,7 +470,7 @@ long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
         }
 
         /* "...and the file offset will be updated by the call" */
-        *offset = *offset + copied;
+        *offset = *offset + read_from_in;
     }
 
     ret = 0;
@@ -468,7 +478,7 @@ out:
     free(buf);
     put_handle(in_hdl);
     put_handle(out_hdl);
-    return copied ? (long)copied : ret;
+    return copied_to_out ? (long)copied_to_out : ret;
 }
 
 long shim_do_chroot(const char* filename) {
