@@ -58,6 +58,24 @@ static struct shim_dentry* lookup_dcache_or_create(struct shim_dentry* parent, c
     return dent;
 }
 
+/*
+ * HACK: Reset dentry state, in case this is a dentry for which we changed `fs` earlier.
+ *
+ * This is a workaround for a situation in which we create a special node (named pipe or socket) and
+ * then delete or rename it. Currently that marks the old dentry as `DENTRY_NEGATIVE` and allows it
+ * to be reused later, despite changed `fs` field.
+ *
+ * Ideally, we should always start with a fresh dentry, which would ensure all fields are in a valid
+ * state. However, that requires fixing the memory leak of `dent->data` first (see `free_dentry()`
+ * in `shim_dcache.c`).
+ */
+static void reset_dentry(struct shim_dentry* dent) {
+    if (dent->fs != dent->mount->fs) {
+        dent->fs = dent->mount->fs;
+        dent->data = NULL;
+    }
+}
+
 /*!
  * \brief Validate a dentry, if necessary
  *
@@ -81,6 +99,8 @@ static int validate_dentry(struct shim_dentry* dent) {
 
     if (dent->state & DENTRY_VALID)
         return 0;
+
+    reset_dentry(dent);
 
     /* This is an invalid dentry: either we just created it, or it got left over from a previous
      * failed lookup. Perform the lookup. */
@@ -558,6 +578,8 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
         ret = check_permissions(dir, MAY_WRITE | MAY_EXEC);
         if (ret < 0)
             goto err;
+
+        reset_dentry(dent);
 
         /* Create directory or file, depending on O_DIRECTORY. Return -EINVAL if the operation is
          * not supported for this filesystem. */

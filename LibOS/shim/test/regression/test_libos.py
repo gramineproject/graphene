@@ -874,8 +874,13 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('TEST OK', stdout)
 
     def test_095_mkfifo(self):
-        stdout, _ = self.run_binary(['mkfifo'], timeout=60)
+        try:
+            stdout, _ = self.run_binary(['mkfifo'], timeout=60)
+        finally:
+            if os.path.exists('tmp/fifo'):
+                os.remove('tmp/fifo')
         self.assertIn('read on FIFO: Hello from write end of FIFO!', stdout)
+        self.assertIn('[parent] TEST OK', stdout)
 
     def test_100_socket_unix(self):
         stdout, _ = self.run_binary(['unix'])
