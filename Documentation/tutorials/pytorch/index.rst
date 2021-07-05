@@ -412,7 +412,7 @@ library and required mbedTLS libraries) that encrypts/decrypts the files::
 Let's also make sure that ``alexnet-pretrained.pt`` network-model file exists
 under our new directory::
 
-   make download_model
+   python3 download-pretrained-model.py 
 
 Now let's encrypt the original plaintext files. We first move these files under
 the ``plaintext/`` directory and then encrypt them using the wrap key::
