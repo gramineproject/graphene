@@ -131,7 +131,7 @@ writes the top-5 classification results to a file ``result.txt``.
 
 We first download and save the pre-trained AlexNet model::
 
-   make download_model
+   python3 download-pretrained-model.py
 
 This command uses the ``download-pretrained-model.py`` script to download a
 pretrained model and save it as a serialized file ``alexnet-pretrained.pt``.
