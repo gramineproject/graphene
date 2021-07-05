@@ -865,6 +865,7 @@ class TC_80_Socket(RegressionTestCase):
     def test_095_mkfifo(self):
         stdout, _ = self.run_binary(['mkfifo'], timeout=60)
         self.assertIn('read on FIFO: Hello from write end of FIFO!', stdout)
+        self.assertIn('[parent] TEST OK', stdout)
 
     def test_100_socket_unix(self):
         stdout, _ = self.run_binary(['unix'])

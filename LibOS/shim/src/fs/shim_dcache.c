@@ -100,12 +100,6 @@ void get_dentry(struct shim_dentry* dent) {
 }
 
 static void free_dentry(struct shim_dentry* dent) {
-    if (dent->fs && dent->fs->d_ops && dent->fs->d_ops->dput) {
-        int ret = dent->fs->d_ops->dput(dent);
-        if (ret < 0)
-            log_warning("dput() failed on %s: %d", qstrgetstr(&dent->name), ret);
-    }
-
     if (dent->mount) {
         put_mount(dent->mount);
     }
@@ -123,6 +117,9 @@ static void free_dentry(struct shim_dentry* dent) {
     if (dent->attached_mount) {
         put_mount(dent->attached_mount);
     }
+
+    /* XXX: We are leaking `data` field here. This field seems to have different meaning for
+     * different dentries and how to free it is a mystery to me. */
 
     destroy_lock(&dent->lock);
 

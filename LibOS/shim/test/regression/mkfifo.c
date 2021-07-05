@@ -108,6 +108,8 @@ int main(int argc, char** argv) {
             perror("[parent] unlink error");
             return 1;
         }
+
+        printf("[parent] TEST OK\n");
     }
 
     return 0;

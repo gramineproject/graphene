@@ -36,7 +36,7 @@ long shim_do_unlinkat(int dfd, const char* pathname, int flag) {
 
     struct shim_dentry* dir = NULL;
     struct shim_dentry* dent = NULL;
-    int ret = 0;
+    int ret;
 
     if (*pathname != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
