@@ -3,6 +3,15 @@ Quick start
 
 .. highlight:: sh
 
+.. note::
+
+   When installing from sources, Graphene executables are placed under
+   ``/usr/local/bin``. Some Linux distributions (notably CentOS) do not search
+   for executables under this path. If your system reports that Graphene
+   programs can not be found, you might need to edit your configuration files so
+   that ``/usr/local/bin`` is in your path (in the ``PATH`` environment
+   variable).
+
 Quick start without SGX support
 -------------------------------
 
