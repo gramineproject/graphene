@@ -19,6 +19,9 @@ loader.insecure__use_host_env = true
 # Overwrite some environment variables
 loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
+# Set Graphene internal metadata size
+loader.pal_internal_mem_size = "128M"
+
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
