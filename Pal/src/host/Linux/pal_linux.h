@@ -31,8 +31,6 @@ struct timespec;
 struct timeval;
 
 extern struct pal_linux_state {
-    PAL_NUM         process_id;
-
 #ifdef DEBUG
     bool            in_gdb;
 #endif

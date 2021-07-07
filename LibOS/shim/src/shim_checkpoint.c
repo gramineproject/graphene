@@ -499,8 +499,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     }
 
     struct shim_ipc_ids process_ipc_ids = {
-        .parent_vmid = g_self_vmid,
-        .leader_vmid = g_process_ipc_ids.leader_vmid ?: g_self_vmid,
+        .self_vmid = child_process->vmid,
+        .parent_vmid = g_process_ipc_ids.self_vmid,
+        .leader_vmid = g_process_ipc_ids.leader_vmid ?: g_process_ipc_ids.self_vmid,
     };
     va_list ap;
     va_start(ap, thread_description);
@@ -559,9 +560,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     }
     bkeep_remove_tmp_vma(tmp_vma);
 
-    /* wait for final ack from child process (contains VMID of child) */
-    IDTYPE child_vmid = 0;
-    ret = read_exact(pal_process, &child_vmid, sizeof(child_vmid));
+    /* wait for final ack from child process */
+    char dummy_c = 0;
+    ret = read_exact(pal_process, &dummy_c, sizeof(dummy_c));
     if (ret < 0) {
         goto out;
     }
@@ -569,10 +570,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     /* Child creation was successful, now we add it to the children list. Child process should have
      * already connected to us, but is waiting for an acknowledgement, so it will not send any IPC
      * messages yet. */
-    child_process->vmid = child_vmid;
     add_child_process(child_process);
 
-    char dummy_c = 0;
+    dummy_c = 0;
     ret = write_exact(pal_process, &dummy_c, sizeof(dummy_c));
     if (ret < 0) {
         /*
@@ -582,7 +582,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
          * after we return from this function.
          */
         log_error("failed to send process creation ack to the child: %d", ret);
-        (void)mark_child_exited_by_vmid(child_vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
+        (void)mark_child_exited_by_vmid(child_process->vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
     }
 
     ret = 0;

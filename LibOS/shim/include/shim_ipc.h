@@ -19,6 +19,7 @@
 
 enum {
     IPC_MSG_RESP = 0,
+    IPC_MSG_GET_NEW_VMID,       /*!< Request new VMID. */
     IPC_MSG_CHILDEXIT,          /*!< Child exit/death information. */
     IPC_MSG_ALLOC_ID_RANGE,     /*!< Request new IDs range. */
     IPC_MSG_RELEASE_ID_RANGE,   /*!< Release IDs range. */
@@ -42,12 +43,14 @@ enum kill_type { KILL_THREAD, KILL_PROCESS, KILL_PGROUP, KILL_ALL };
 
 enum pid_meta_code { PID_META_CRED, PID_META_EXEC, PID_META_CWD, PID_META_ROOT };
 
+#define STARTING_VMID 1
+
 struct shim_ipc_ids {
+    IDTYPE self_vmid;
     IDTYPE parent_vmid;
     IDTYPE leader_vmid;
 };
 
-extern IDTYPE g_self_vmid;
 extern struct shim_ipc_ids g_process_ipc_ids;
 
 int init_ipc(void);
@@ -141,6 +144,14 @@ int ipc_broadcast(struct shim_ipc_msg* msg, IDTYPE exclude_vmid);
  * free it!
  */
 int ipc_response_callback(IDTYPE src, void* data, uint64_t seq);
+
+/*!
+ * \brief Get a new VMID
+ *
+ * \param[out] vmid contains the new VMID
+ */
+int ipc_get_new_vmid(IDTYPE* vmid);
+int ipc_get_new_vmid_callback(IDTYPE src, void* data, uint64_t seq);
 
 struct shim_ipc_cld_exit {
     IDTYPE ppid, pid;

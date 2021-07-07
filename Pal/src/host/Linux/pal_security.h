@@ -11,7 +11,6 @@
 
 extern struct pal_sec {
     /* system variables */
-    unsigned int process_id;
     int random_device;
 } g_pal_sec;
 
