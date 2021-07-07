@@ -61,7 +61,6 @@ static bool ipc_msg_waiter_cmp(struct avl_tree_node* _a, struct avl_tree_node* _
 static struct avl_tree g_msg_waiters_tree = { .cmp = ipc_msg_waiter_cmp };
 static struct shim_lock g_msg_waiters_tree_lock;
 
-IDTYPE g_self_vmid;
 struct shim_ipc_ids g_process_ipc_ids;
 
 int init_ipc(void) {
@@ -123,7 +122,8 @@ static int ipc_connect(IDTYPE dest, struct shim_ipc_connection** conn_ptr) {
             ret = pal_to_unix_errno(ret);
             goto out;
         }
-        ret = write_exact(conn->handle, &g_self_vmid, sizeof(g_self_vmid));
+        ret = write_exact(conn->handle, &g_process_ipc_ids.self_vmid,
+                          sizeof(g_process_ipc_ids.self_vmid));
         if (ret < 0) {
             goto out;
         }

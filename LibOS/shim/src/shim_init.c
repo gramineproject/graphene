@@ -377,7 +377,6 @@ noreturn void* shim_init(int argc, void* args) {
     assert(g_pal_control);
 
     g_log_level = g_pal_control->log_level;
-    g_self_vmid = (IDTYPE)g_pal_control->process_id;
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
@@ -426,6 +425,8 @@ noreturn void* shim_init(int argc, void* args) {
 
         assert(hdr.size);
         RUN_INIT(receive_checkpoint_and_restore, &hdr);
+    } else {
+        g_process_ipc_ids.self_vmid = STARTING_VMID;
     }
 
     RUN_INIT(init_mount_root);
@@ -457,14 +458,14 @@ noreturn void* shim_init(int argc, void* args) {
 
         /* This has also a (very much desired) side effect of the IPC leader making a connection to
          * this process, so that it's included in all broadcast messages. */
-        ret = ipc_change_id_owner(g_process.pid, g_self_vmid);
+        ret = ipc_change_id_owner(g_process.pid, g_process_ipc_ids.self_vmid);
         if (ret < 0) {
             log_debug("shim_init: failed to change child process PID ownership: %d", ret);
             DkProcessExit(1);
         }
 
         /* Notify the parent process */
-        IDTYPE child_vmid = g_self_vmid;
+        IDTYPE child_vmid = g_process_ipc_ids.self_vmid;
         ret = write_exact(g_pal_control->parent_process, &child_vmid, sizeof(child_vmid));
         if (ret < 0) {
             log_error("shim_init: failed to write child_vmid: %d", ret);
@@ -544,7 +545,7 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
 
     while (true) {
         if (use_vmid_for_name) {
-            len = snprintf(pipename, sizeof(pipename), "%u", g_self_vmid);
+            len = snprintf(pipename, sizeof(pipename), "%u", g_process_ipc_ids.self_vmid);
             if (len >= sizeof(pipename))
                 return -ERANGE;
         } else {

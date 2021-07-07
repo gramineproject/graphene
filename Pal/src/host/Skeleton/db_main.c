@@ -19,10 +19,6 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     /* needs to be implemented */
 }
 
-PAL_NUM _DkGetProcessId(void) {
-    return 0;
-}
-
 int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     /* needs to be implemented */
     return 0;

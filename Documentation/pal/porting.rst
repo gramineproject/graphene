@@ -59,8 +59,6 @@ directory:
    + ``_DkGetAvailableUserAddressRange`` (required): PAL must provide a |~| user
      address range that applications can use. None of these addresses should be
      used by PAL internally.
-   + ``_DkGetProcessId`` (required): Return a unique process ID for each
-     process.
    + ``_DkGetCPUInfo`` (optional): Retrieve CPU information, such as vendor ID,
      model name.
 

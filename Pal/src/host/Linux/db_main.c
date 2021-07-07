@@ -126,10 +126,6 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     *start = (PAL_PTR)start_addr;
 }
 
-PAL_NUM _DkGetProcessId(void) {
-    return g_linux_state.process_id;
-}
-
 #include "dynamic_link.h"
 
 static struct link_map g_pal_map;
@@ -257,13 +253,10 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         log_warning("vvar address range not preloaded, is your system missing vvar?!");
     }
 
-    if (!g_pal_sec.process_id)
-        g_pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
-    g_linux_state.pid = g_pal_sec.process_id;
+    g_linux_state.pid = INLINE_SYSCALL(getpid, 0);
 
     g_linux_state.uid = g_uid;
     g_linux_state.gid = g_gid;
-    g_linux_state.process_id = g_linux_state.pid;
 
     PAL_HANDLE parent = NULL;
     char* manifest = NULL;

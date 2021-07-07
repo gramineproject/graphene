@@ -46,6 +46,7 @@ static PAL_HANDLE g_self_ipc_handle = NULL;
 typedef int (*ipc_callback)(IDTYPE src, void* data, uint64_t seq);
 static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_RESP]              = ipc_response_callback,
+    [IPC_MSG_GET_VMID]          = ipc_get_new_vmid_callback,
     [IPC_MSG_CHILDEXIT]         = ipc_cld_exit_callback,
     [IPC_MSG_ALLOC_ID_RANGE]    = ipc_alloc_id_range_callback,
     [IPC_MSG_RELEASE_ID_RANGE]  = ipc_release_id_range_callback,

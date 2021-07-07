@@ -12,9 +12,6 @@ int main(int argc, char** argv, char** envp) {
         pal_printf("argv[%d] = %s\n", i, argv[i]);
     }
 
-    /* unique process ID */
-    pal_printf("Process ID: %016lx\n", pal_control.process_id);
-
     /* parent process */
     pal_printf("Parent Process: %p\n", pal_control.parent_process);
 

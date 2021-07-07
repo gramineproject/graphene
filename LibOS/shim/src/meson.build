@@ -48,6 +48,7 @@ libos_sources = files(
     'ipc/shim_ipc_process_info.c',
     'ipc/shim_ipc_signal.c',
     'ipc/shim_ipc_sync.c',
+    'ipc/shim_ipc_vmid.c',
     'ipc/shim_ipc_worker.c',
     'shim_async.c',
     'shim_checkpoint.c',

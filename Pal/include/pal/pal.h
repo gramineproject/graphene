@@ -127,7 +127,6 @@ typedef struct PAL_MEM_INFO_ {
 /********** PAL APIs **********/
 typedef struct PAL_CONTROL_ {
     PAL_STR host_type;
-    PAL_NUM process_id; /*!< An identifier of current picoprocess */
 
     /*
      * Handles and executables

@@ -56,10 +56,10 @@ static noreturn void libos_clean_and_exit(int exit_code) {
 
     terminate_ipc_worker();
 
-    log_debug("process %u exited with status %d", g_self_vmid, exit_code);
+    log_debug("process %u exited with status %d", g_process_ipc_ids.self_vmid, exit_code);
 
-    /* TODO: We exit whole libos, but there are some objects that might need cleanup, e.g. we should
-     * release this (last) thread pid. We should do a proper cleanup of everything. */
+    /* TODO: We exit whole libos, but there are some objects that might need cleanup - we should do
+     * a proper cleanup of everything. */
     DkProcessExit(exit_code);
 }
 

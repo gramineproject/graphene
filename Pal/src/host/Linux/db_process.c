@@ -211,8 +211,6 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
         goto out;
     }
 
-    proc_args->pal_sec.process_id = ret;
-
     /* children unblock async signals by signal_setup() */
     ret = block_async_signals(false);
     if (ret < 0)

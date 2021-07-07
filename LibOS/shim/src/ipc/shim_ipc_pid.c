@@ -234,7 +234,7 @@ out:
 
 int ipc_alloc_id_range(IDTYPE* out_start, IDTYPE* out_end) {
     if (!g_process_ipc_ids.leader_vmid) {
-        return alloc_id_range(g_self_vmid, out_start, out_end);
+        return alloc_id_range(g_process_ipc_ids.self_vmid, out_start, out_end);
     }
 
     size_t msg_size = get_ipc_msg_size(0);

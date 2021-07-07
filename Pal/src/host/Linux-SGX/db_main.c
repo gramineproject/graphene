@@ -61,10 +61,6 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     }
 }
 
-PAL_NUM _DkGetProcessId(void) {
-    return g_linux_state.process_id;
-}
-
 #include "dynamic_link.h"
 #include "elf-x86_64.h"
 
@@ -632,8 +628,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     g_linux_state.uid = g_pal_sec.uid;
     g_linux_state.gid = g_pal_sec.gid;
-    /* TODO: guard this from malicious host. https://github.com/oscarlab/graphene/issues/2087 */
-    g_linux_state.process_id = g_pal_sec.pid;
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 

@@ -499,8 +499,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     }
 
     struct shim_ipc_ids process_ipc_ids = {
-        .parent_vmid = g_self_vmid,
-        .leader_vmid = g_process_ipc_ids.leader_vmid ?: g_self_vmid,
+        .self_vmid = child_process->vmid,
+        .parent_vmid = g_process_ipc_ids.self_vmid,
+        .leader_vmid = g_process_ipc_ids.leader_vmid ?: g_process_ipc_ids.self_vmid,
     };
     va_list ap;
     va_start(ap, thread_description);
@@ -569,7 +570,6 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     /* Child creation was successful, now we add it to the children list. Child process should have
      * already connected to us, but is waiting for an acknowledgement, so it will not send any IPC
      * messages yet. */
-    child_process->vmid = child_vmid;
     add_child_process(child_process);
 
     char dummy_c = 0;
