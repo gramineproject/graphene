@@ -4,7 +4,7 @@
 
 project(
     'graphene', 'c',
-    version: '1.0',
+    version: '1.2-rc1',
     license: 'LGPLv3+',
 
     # DISTRO            EOL         meson_version
