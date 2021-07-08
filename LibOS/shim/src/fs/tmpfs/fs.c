@@ -417,7 +417,7 @@ static int tmpfs_readdir(struct shim_dentry* dent, readdir_callback_t callback, 
         if (!tmp_data || (tmp_data->type != FILE_DIR && tmp_data->type != FILE_REGULAR))
             continue;
 
-        if ((ret = callback(qstrgetstr(&tmp_dent->name), arg)) < 0)
+        if ((ret = callback(tmp_dent->name, arg)) < 0)
             return ret;
     }
     return 0;

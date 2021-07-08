@@ -410,15 +410,19 @@ static int mount_fs_at_dentry(const char* type, const char* uri, const char* mou
     }
     memset(mount, 0, sizeof(*mount));
 
-    if (!qstrsetstr(&mount->path, mount_path, strlen(mount_path))) {
+    mount->path = strdup(mount_path);
+    if (!mount->path) {
         ret = -ENOMEM;
         goto err;
     }
     if (uri) {
-        if (!qstrsetstr(&mount->uri, uri, strlen(uri))) {
+        mount->uri = strdup(uri);
+        if (!mount->uri) {
             ret = -ENOMEM;
             goto err;
         }
+    } else {
+        mount->uri = NULL;
     }
     mount->fs = fs;
     mount->data = mount_data;
@@ -432,8 +436,7 @@ static int mount_fs_at_dentry(const char* type, const char* uri, const char* mou
 
     /* Initialize root dentry of the new filesystem */
 
-    mount->root = get_new_dentry(mount, /*parent=*/NULL, qstrgetstr(&mount_point->name),
-                                 mount_point->name.len);
+    mount->root = get_new_dentry(mount, /*parent=*/NULL, mount_point->name, mount_point->name_len);
     if (!mount->root) {
         ret = -ENOMEM;
         goto err;
@@ -550,12 +553,13 @@ struct shim_mount* find_mount_from_uri(const char* uri) {
 
     lock(&mount_list_lock);
     LISTP_FOR_EACH_ENTRY(mount, &mount_list, list) {
-        if (qstrempty(&mount->uri))
+        if (!mount->uri)
             continue;
 
-        if (!memcmp(qstrgetstr(&mount->uri), uri, mount->uri.len)) {
-            if (mount->path.len > longest_path) {
-                longest_path = mount->path.len;
+        if (strcmp(mount->uri, uri) == 0) {
+            size_t path_len = strlen(mount->path);
+            if (path_len > longest_path) {
+                longest_path = path_len;
                 found = mount;
             }
         }
@@ -657,8 +661,10 @@ BEGIN_CP_FUNC(mount) {
         INIT_LIST_HEAD(new_mount, list);
         REF_SET(new_mount->ref_count, 0);
 
-        DO_CP_IN_MEMBER(qstr, new_mount, path);
-        DO_CP_IN_MEMBER(qstr, new_mount, uri);
+        DO_CP_MEMBER(str, mount, new_mount, path);
+
+        if (mount->uri)
+            DO_CP_MEMBER(str, mount, new_mount, uri);
 
         if (mount->mount_point)
             DO_CP_MEMBER(dentry, mount, new_mount, mount_point);
@@ -684,6 +690,8 @@ BEGIN_RS_FUNC(mount) {
     CP_REBASE(mount->list);
     CP_REBASE(mount->mount_point);
     CP_REBASE(mount->root);
+    CP_REBASE(mount->path);
+    CP_REBASE(mount->uri);
 
     if (mount->mount_point) {
         get_dentry(mount->mount_point);
@@ -703,11 +711,10 @@ BEGIN_RS_FUNC(mount) {
 
     LISTP_ADD_TAIL(mount, &mount_list, list);
 
-    if (!qstrempty(&mount->path)) {
-        DEBUG_RS("type=%s,uri=%s,path=%s", mount->type, qstrgetstr(&mount->uri),
-                 qstrgetstr(&mount->path));
+    if (mount->path) {
+        DEBUG_RS("type=%s,uri=%s,path=%s", mount->type, mount->uri, mount->path);
     } else {
-        DEBUG_RS("type=%s,uri=%s", mount->type, qstrgetstr(&mount->uri));
+        DEBUG_RS("type=%s,uri=%s", mount->type, mount->uri);
     }
 }
 END_RS_FUNC(mount)

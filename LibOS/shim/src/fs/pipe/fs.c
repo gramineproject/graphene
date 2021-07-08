@@ -173,7 +173,7 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
          * one end (read or write) in our emulation, so we treat such FIFOs as read-only. This
          * covers most apps seen in the wild (in particular, LTP apps). */
         log_warning("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
-                    "Treating it as read-only.", qstrgetstr(&dent->mount->path));
+                    "Treating it as read-only.", dent->mount->path);
         flags = O_RDONLY;
     }
 

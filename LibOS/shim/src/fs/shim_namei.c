@@ -122,24 +122,24 @@ static int do_path_lookupat(struct shim_dentry* start, const char* path, int fla
 static int path_lookupat_follow(struct shim_dentry* link, int flags, struct shim_dentry** found,
                                 unsigned int link_depth) {
     int ret;
-    struct shim_qstr link_target = QSTR_INIT;
+    char* target = NULL;
 
     assert(locked(&g_dcache_lock));
 
     assert(link->fs);
     assert(link->fs->d_ops);
     assert(link->fs->d_ops->follow_link);
-    ret = link->fs->d_ops->follow_link(link, &link_target);
+    ret = link->fs->d_ops->follow_link(link, &target);
     if (ret < 0)
         goto out;
 
     struct shim_dentry* up = dentry_up(link);
     if (!up)
         up = g_dentry_root;
-    ret = do_path_lookupat(up, qstrgetstr(&link_target), flags, found, link_depth);
+    ret = do_path_lookupat(up, target, flags, found, link_depth);
 
 out:
-    qstrfree(&link_target);
+    free(target);
     return ret;
 }
 

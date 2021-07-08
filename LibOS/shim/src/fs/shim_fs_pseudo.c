@@ -57,11 +57,9 @@ static struct pseudo_node* pseudo_find(struct shim_dentry* dent) {
 
     if (!dent->parent) {
         /* This is the filesystem root */
-        node = pseudo_find_root(qstrgetstr(&dent->mount->uri));
+        node = pseudo_find_root(dent->mount->uri);
         goto out;
     }
-
-    const char* name = qstrgetstr(&dent->name);
 
     /* Recursive call: find the node for parent */
     struct pseudo_node* parent_node = pseudo_find(dent->parent);
@@ -73,10 +71,10 @@ static struct pseudo_node* pseudo_find(struct shim_dentry* dent) {
     /* Look for a child node with matching name */
     assert(parent_node->type == PSEUDO_DIR);
     LISTP_FOR_EACH_ENTRY(node, &parent_node->dir.children, siblings) {
-        if (node->name && strcmp(name, node->name) == 0) {
+        if (node->name && strcmp(dent->name, node->name) == 0) {
             goto out;
         }
-        if (node->name_exists && node->name_exists(dent->parent, name)) {
+        if (node->name_exists && node->name_exists(dent->parent, dent->name)) {
             goto out;
         }
     }
@@ -246,8 +244,10 @@ static int pseudo_hstat(struct shim_handle* handle, struct stat* buf) {
     return pseudo_stat(handle->dentry, buf);
 }
 
-static int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
+static int pseudo_follow_link(struct shim_dentry* dent, char** out_target) {
     struct pseudo_node* node = pseudo_find(dent);
+    char* target;
+
     if (!node)
         return -ENOENT;
 
@@ -255,22 +255,19 @@ static int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link) 
         return -EINVAL;
 
     if (node->link.follow_link) {
-        char* target;
         int ret = node->link.follow_link(dent, &target);
         if (ret < 0)
             return ret;
-        if (!qstrsetstr(link, target, strlen(target))) {
-            free(target);
-            return -ENOMEM;
-        }
-        free(target);
+        *out_target = target;
         return 0;
     }
 
     assert(node->link.target);
-    if (!qstrsetstr(link, node->link.target, strlen(node->link.target)))
+    target = strdup(node->link.target);
+    if (!target)
         return -ENOMEM;
 
+    *out_target = target;
     return 0;
 }
 

@@ -37,7 +37,7 @@ void log_setprefix(shim_tcb_t* tcb) {
     const char* exec_name;
     if (g_process.exec) {
         if (g_process.exec->dentry) {
-            exec_name = qstrgetstr(&g_process.exec->dentry->name);
+            exec_name = g_process.exec->dentry->name;
         } else {
             /* Unknown executable name */
             exec_name = "?";

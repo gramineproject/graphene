@@ -213,6 +213,32 @@ BEGIN_RS_FUNC(qstr) {
 }
 END_RS_FUNC(qstr)
 
+/* Checkpoints a C string (char*). */
+BEGIN_CP_FUNC(str) {
+    __UNUSED(size);
+    /* `size` is sizeof(char) because the macros take a char* value; however, we are going to copy
+     * the whole string */
+    assert(size == sizeof(char));
+
+    char* new_str;
+
+    size_t off = GET_FROM_CP_MAP(obj);
+
+    if (!off) {
+        size_t len = strlen(obj);
+        off = ADD_CP_OFFSET(len + 1);
+        ADD_TO_CP_MAP(obj, off);
+        new_str = (char*)(base + off);
+        memcpy(new_str, obj, len + 1);
+    } else {
+        new_str = (char*)(base + off);
+    }
+
+    if (objp)
+        *objp = new_str;
+}
+END_CP_FUNC_NO_RS(str)
+
 static int send_memory_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
     int ret = 0;
 

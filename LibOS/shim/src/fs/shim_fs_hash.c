@@ -45,7 +45,7 @@ HASHTYPE hash_abs_path(struct shim_dentry* dent) {
         if (!up)
             break;
 
-        digest += hash_str(qstrgetstr(&dent->name));
+        digest += hash_str(dent->name);
         digest *= 9;
         dent = up;
     }
