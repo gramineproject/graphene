@@ -448,8 +448,8 @@ int set_new_fd_handle_above_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
 static inline __attribute__((unused)) const char* __handle_name(struct shim_handle* hdl) {
     if (!qstrempty(&hdl->uri))
         return qstrgetstr(&hdl->uri);
-    if (hdl->dentry && !qstrempty(&hdl->dentry->name))
-        return qstrgetstr(&hdl->dentry->name);
+    if (hdl->dentry && hdl->dentry->name[0] != '\0')
+        return hdl->dentry->name;
     if (hdl->fs)
         return hdl->fs->name;
     return "(unknown)";

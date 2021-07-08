@@ -39,8 +39,8 @@ bool proc_ipc_thread_pid_name_exists(struct shim_dentry* parent, const char* nam
 
 int proc_ipc_thread_follow_link(struct shim_dentry* dent, char** out_target) {
     assert(dent->parent);
-    const char* parent_name = qstrgetstr(&dent->parent->name);
-    const char* name = qstrgetstr(&dent->name);
+    const char* parent_name = dent->parent->name;
+    const char* name = dent->name;
 
     unsigned long pid;
     if (pseudo_parse_ulong(parent_name, IDTYPE_MAX, &pid) < 0)

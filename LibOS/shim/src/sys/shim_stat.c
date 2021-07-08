@@ -96,6 +96,8 @@ long shim_do_fstat(int fd, struct stat* stat) {
 
 long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     int ret;
+    char* target = NULL;
+
     if (!is_user_string_readable(file))
         return -EFAULT;
 
@@ -111,8 +113,6 @@ long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     if (*file != '/' && (ret = get_dirfd_dentry(dirfd, &dir)) < 0)
         goto out;
 
-    struct shim_qstr qstr = QSTR_INIT;
-
     if ((ret = path_lookupat(dir, file, LOOKUP_NO_FOLLOW, &dent)) < 0)
         goto out;
 
@@ -125,15 +125,17 @@ long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->follow_link)
         goto out;
 
-    ret = dent->fs->d_ops->follow_link(dent, &qstr);
+    ret = dent->fs->d_ops->follow_link(dent, &target);
     if (ret < 0)
         goto out;
 
-    ret = bufsize;
-    if (qstr.len < (size_t)bufsize)
-        ret = qstr.len;
+    size_t target_len = strlen(target);
 
-    memcpy(buf, qstrgetstr(&qstr), ret);
+    ret = bufsize;
+    if (target_len < (size_t)bufsize)
+        ret = target_len;
+
+    memcpy(buf, target, ret);
 out:
     if (dent) {
         put_dentry(dent);
@@ -141,6 +143,7 @@ out:
     if (dir) {
         put_dentry(dir);
     }
+    free(target);
     return ret;
 }
 

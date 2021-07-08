@@ -13,7 +13,7 @@
 #include "shim_fs_pseudo.h"
 
 int sys_cpu_general_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
-    const char* name = qstrgetstr(&dent->name);
+    const char* name = dent->name;
     const char* str;
 
     if (strcmp(name, "online") == 0) {
@@ -35,7 +35,7 @@ int sys_cpu_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     if (ret < 0)
         return ret;
 
-    const char* name = qstrgetstr(&dent->name);
+    const char* name = dent->name;
     PAL_CORE_TOPO_INFO* core_topology = &g_pal_control->topo_info.core_topology[cpu_num];
     const char* str;
     if (strcmp(name, "online") == 0) {

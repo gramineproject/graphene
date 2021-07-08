@@ -213,6 +213,21 @@ BEGIN_RS_FUNC(qstr) {
 }
 END_RS_FUNC(qstr)
 
+/* Checkpoints an owned C string (char*). */
+BEGIN_CP_FUNC(str) {
+    __UNUSED(objp);
+    assert(size == sizeof(char*));
+
+    char** str_ptr = obj;
+    char* str = *str_ptr;
+
+    size_t len = strlen(str);
+    char* new_str = (char*)base + ADD_CP_OFFSET(len + 1);
+    memcpy(new_str, str, len + 1);
+    *str_ptr = new_str;
+}
+END_CP_FUNC_NO_RS(str)
+
 static int send_memory_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
     int ret = 0;
 

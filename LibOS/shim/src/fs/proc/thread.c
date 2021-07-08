@@ -21,7 +21,7 @@ int proc_thread_follow_link(struct shim_dentry* dent, char** out_target) {
 
     lock(&g_process.fs_lock);
 
-    const char* name = qstrgetstr(&dent->name);
+    const char* name = dent->name;
     if (strcmp(name, "root") == 0) {
         dent = g_process.root;
         get_dentry(dent);
@@ -287,7 +287,7 @@ static char* describe_handle(struct shim_handle* hdl) {
 
 int proc_thread_fd_follow_link(struct shim_dentry* dent, char** out_target) {
     unsigned long fd;
-    if (pseudo_parse_ulong(qstrgetstr(&dent->name), FDTYPE_MAX, &fd) < 0)
+    if (pseudo_parse_ulong(dent->name, FDTYPE_MAX, &fd) < 0)
         return -ENOENT;
 
     struct shim_handle_map* handle_map = get_thread_handle_map(NULL);

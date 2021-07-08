@@ -16,7 +16,7 @@
 
 static int sys_resource(struct shim_dentry* parent, const char* name, unsigned int* out_num,
                         readdir_callback_t callback, void* arg) {
-    const char* parent_name = qstrgetstr(&parent->name);
+    const char* parent_name = parent->name;
     PAL_NUM pal_total;
     unsigned int total;
     const char* prefix;
@@ -67,10 +67,8 @@ static int sys_resource(struct shim_dentry* parent, const char* name, unsigned i
 int sys_resource_find(struct shim_dentry* dent, const char* name, unsigned int* num) {
     struct shim_dentry* parent = dent->parent;
     while (parent) {
-        const char* parent_name = qstrgetstr(&parent->name);
-        if (strcmp(parent_name, name) == 0) {
-            return sys_resource(parent, qstrgetstr(&dent->name), num, /*callback=*/NULL,
-                                /*arg=*/NULL);
+        if (strcmp(parent->name, name) == 0) {
+            return sys_resource(parent, dent->name, num, /*callback=*/NULL, /*arg=*/NULL);
         }
 
         dent = parent;

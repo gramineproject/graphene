@@ -124,7 +124,7 @@ struct shim_dentry {
 
     /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. Does
      * not change. */
-    struct shim_qstr name;
+    char* name;
 
     /* Mounted filesystem this dentry belongs to. Does not change. */
     struct shim_mount* mount;
@@ -202,7 +202,7 @@ struct shim_d_ops {
     int (*stat)(struct shim_dentry* dent, struct stat* buf);
 
     /* extracts the symlink name and saves in link */
-    int (*follow_link)(struct shim_dentry* dent, struct shim_qstr* link);
+    int (*follow_link)(struct shim_dentry* dent, char** out_target);
     /* set up symlink name to a dentry */
     int (*set_link)(struct shim_dentry* dent, const char* link);
 
@@ -252,8 +252,8 @@ struct shim_mount {
 
     struct shim_dentry* mount_point;
 
-    struct shim_qstr path;
-    struct shim_qstr uri;
+    char* path;
+    char* uri;
 
     struct shim_dentry* root;
 
@@ -604,10 +604,6 @@ int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size);
  * including the root), separated by `/`. A relative path never begins with `/`.
  */
 int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size);
-
-static inline const char* dentry_get_name(struct shim_dentry* dent) {
-    return qstrgetstr(&dent->name);
-}
 
 ino_t dentry_ino(struct shim_dentry* dent);
 
