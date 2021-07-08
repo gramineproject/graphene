@@ -37,6 +37,7 @@ int main(void)
 
     if (strcmp(input_text, buf)) {
         printf ("File content mismatching.\n");
+        goto out;
     }
 
     printf("TEST OK\n");
