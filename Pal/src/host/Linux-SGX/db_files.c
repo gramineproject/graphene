@@ -120,6 +120,15 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         else
             pf_mode = PF_FILE_MODE_READ;
 
+        /* If it is a protected file and the file is opened for renaming, we will need to update
+         * the metadata in the file, so open with RDWR mode with necessary share permissions.
+         * For normal files, reset this option.
+         */
+        if (options & PAL_OPTION_RENAME)
+            pal_share = PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W;
+        else
+            pal_options &= ~PAL_OPTION_RENAME;
+
         if ((pf_mode & PF_FILE_MODE_WRITE) && pf->writable_fd >= 0) {
             log_warning("file_open(%s): disallowing concurrent writable handle",
                         hdl->file.realpath);
@@ -789,6 +798,28 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     char* tmp = strdup(uri);
     if (!tmp)
         return -PAL_ERROR_NOMEM;
+
+
+    struct protected_file* pf = find_protected_file_handle(handle);
+
+    if (pf) {
+        size_t uri_size = strlen(uri) + 1;
+        char* new_path = (char*)calloc(1, uri_size);
+
+        if (get_norm_path(uri, new_path, &uri_size) < 0) {
+            log_warning("Could not normalize path (%s)", uri);
+            return -PAL_ERROR_DENIED;
+        }
+
+        pf_status_t pf_ret = pf_rename(pf->context, new_path);
+
+        free(new_path);
+
+        if (PF_FAILURE(pf_ret)) {
+            log_error("pf_rename failed: %s", pf_strerror(pf_ret));
+            return -PAL_ERROR_DENIED;
+        }
+    }
 
     int ret = ocall_rename(handle->file.realpath, uri);
     if (ret < 0) {

@@ -830,6 +830,14 @@ class TC_40_FileSystem(RegressionTestCase):
             self.assertIn(f'{node}/hugepages/hugepages-2048kB/nr_hugepages: file', lines)
             self.assertIn(f'{node}/hugepages/hugepages-1048576kB/nr_hugepages: file', lines)
 
+    def test_080_pf_rename(self):
+        if os.path.exists("pftmp/"):
+            os.remove("pftmp/*")
+        else:
+            os.mkdir("pftmp")
+
+        stdout, _ = self.run_binary(['pf_rename'])
+        self.assertIn('TEST OK', stdout)
 
 class TC_50_GDB(RegressionTestCase):
     def setUp(self):
