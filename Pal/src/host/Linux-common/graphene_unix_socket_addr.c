@@ -13,7 +13,8 @@ int get_graphene_unix_socket_addr(uint64_t id, const char* name, struct sockaddr
     addr->sun_family = /*AF_UNIX*/1;
 
     /* We use abstract UNIX sockets, which start with a nullbyte and actually look at the whole path
-     * (even after the nullbyte). */
+     * buffer (i.e. do *not* consider the rest of the buffer as null-terminated C string, but rather
+     * a fixed length byte array). */
     memset(addr->sun_path, 0, sizeof(addr->sun_path));
     int ret = snprintf(addr->sun_path + 1, sizeof(addr->sun_path) - 1, "/graphene/%lu/%s", id,
                        name);
