@@ -1,48 +1,43 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
-int main(void)
-{
+int main(void) {
     char buf[15];
     char input_text[] = "Hello, world!";
-    int fd = open("./pftmp/foo.txt", O_RDWR | O_CREAT, S_IRWXU);
-    if (fd < 0) {
-        printf("Cannot create file ./pftmp/foo.txt\n");
-        goto out;
-    }
+    int fd = open("pftmp/foo.txt", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (fd < 0)
+        err(1, "Cannot create file pftmp/foo.txt");
 
-    int num_bytes = write(fd, input_text, strlen(input_text));
+    int num_bytes = write(fd, input_text, strlen(input_text) + 1);
     if (num_bytes < 0) {
-        printf("Writing to file failed.\n");
-        goto out;
+        close(fd);
+        err(1, "Writing to file failed");
     }
 
-    rename("./pftmp/foo.txt", "./pftmp/bar.txt");
+    int ret = rename("pftmp/foo.txt", "pftmp/bar.txt");
+    if (ret < 0)
+        err(1, "Rename failed");
 
-    fd = open("./pftmp/bar.txt", O_RDONLY);
-    if (fd < 0) {
-        printf("Cannot open renamed file ./pftmp/bar.txt\n");
-        goto out;
-    }
+    fd = open("pftmp/bar.txt", O_RDONLY);
+    if (fd < 0)
+        err(1, "Cannot open renamed file pftmp/bar.txt");
 
     num_bytes = read(fd, buf, sizeof(buf));
     if (num_bytes < 0) {
-        printf("Reading from renamed file failed.\n");
-        goto out;
+        close(fd);
+        err(1, "Reading from renamed file failed");
     }
 
-    if (strcmp(input_text, buf)) {
-        printf ("File content mismatching.\n");
-        goto out;
+    if (strncmp(input_text, buf, sizeof(input_text))) {
+        close(fd);
+        err(1, "File content mismatching");
     }
 
     printf("TEST OK\n");
 
-out:
-    close(fd);
     return 0;
 }

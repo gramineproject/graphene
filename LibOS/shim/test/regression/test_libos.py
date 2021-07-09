@@ -832,7 +832,10 @@ class TC_40_FileSystem(RegressionTestCase):
 
     def test_080_pf_rename(self):
         if os.path.exists("pftmp/"):
-            os.remove("pftmp/*")
+            if os.path.exists("pftmp/foo.txt"):
+                os.remove("pftmp/foo.txt")
+            if os.path.exists("pftmp/bar.txt"):
+                os.remove("pftmp/bar.txt")
         else:
             os.mkdir("pftmp")
 
