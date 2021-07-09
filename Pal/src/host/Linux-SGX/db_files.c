@@ -57,20 +57,23 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     /* whether to re-initialize the PF */
     bool pf_create = (create & PAL_CREATE_ALWAYS) || (create & PAL_CREATE_TRY);
 
+    int flags = PAL_ACCESS_TO_LINUX_OPEN(access)  |
+                PAL_CREATE_TO_LINUX_OPEN(create)  |
+                PAL_OPTION_TO_LINUX_OPEN(options) ;
+
     /* If it is a protected file and the file is opened for renaming, we will need to update
      * the metadata in the file, so open with RDWR mode with necessary share permissions.
      * For normal files, reset this option.
      */
-    if (pf && (options & PAL_OPTION_RENAME))
+    if (pf && (options & PAL_OPTION_RENAME)) {
         share = PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W;
-    else
-        options &= ~PAL_OPTION_RENAME;
+        flags |= O_RDWR;
+    }
+
+    options &= ~PAL_OPTION_RENAME; /* we already have the flags for open, reset the RENAME flag */
 
     /* try to do the real open */
-    int fd = ocall_open(uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
-                             PAL_CREATE_TO_LINUX_OPEN(create)  |
-                             PAL_OPTION_TO_LINUX_OPEN(options),
-                        share);
+    int fd = ocall_open(uri, flags, share);
     if (fd < 0) {
         ret = unix_to_pal_error(fd);
         goto out;
@@ -739,7 +742,14 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
         char* new_path = (char*)calloc(1, uri_size);
 
         if (get_norm_path(uri, new_path, &uri_size) < 0) {
-            log_warning("Could not normalize path (%s)", uri);
+            log_error("Could not normalize path (%s)", uri);
+            free(tmp);
+            return -PAL_ERROR_DENIED;
+        }
+
+        if (!get_protected_file(new_path)) {
+            log_error("New path is disallowed for protected files (%s)", new_path);
+            free(tmp);
             return -PAL_ERROR_DENIED;
         }
 
@@ -749,6 +759,7 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
 
         if (PF_FAILURE(pf_ret)) {
             log_error("pf_rename failed: %s", pf_strerror(pf_ret));
+            free(tmp);
             return -PAL_ERROR_DENIED;
         }
     }
