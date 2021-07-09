@@ -34,6 +34,8 @@ int main(void) {
         err(1, "Reading from renamed file failed");
     }
 
+    buf[sizeof(buf) - 1] = '\0';
+
     if (strncmp(input_text, buf, sizeof(input_text))) {
         close(fd);
         err(1, "File content mismatching");
