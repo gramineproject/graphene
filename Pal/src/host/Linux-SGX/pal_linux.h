@@ -29,7 +29,6 @@
 #define IS_UNIX_ERR INTERNAL_SYSCALL_ERRNO_RANGE
 
 extern struct pal_linux_state {
-    PAL_NUM parent_process_id;
     PAL_NUM process_id;
 
     const char** host_environ;

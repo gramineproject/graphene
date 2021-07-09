@@ -1087,6 +1087,8 @@ int main(int argc, char* argv[], char* envp[]) {
         print_usage_and_exit(argv[0]);
     }
 
+    g_pal_enclave.pal_sec.stream_fd = PAL_IDX_POISON;
+
     if (first_process) {
         g_pal_enclave.is_first_process = true;
 

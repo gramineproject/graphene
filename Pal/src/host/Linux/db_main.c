@@ -265,9 +265,6 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     g_linux_state.gid = g_gid;
     g_linux_state.process_id = g_linux_state.pid;
 
-    if (!g_linux_state.parent_process_id)
-        g_linux_state.parent_process_id = g_linux_state.process_id;
-
     PAL_HANDLE parent = NULL;
     char* manifest = NULL;
     uint64_t instance_id = 0;
