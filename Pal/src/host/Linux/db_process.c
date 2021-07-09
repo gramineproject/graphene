@@ -94,7 +94,6 @@ struct proc_param {
 };
 
 struct proc_args {
-    PAL_NUM         parent_process_id;
     uint64_t        instance_id;
     struct pal_sec  pal_sec;
 
@@ -168,7 +167,6 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
     }
 
     proc_args->instance_id = g_pal_state.instance_id;
-    proc_args->parent_process_id = g_linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &g_pal_sec, sizeof(struct pal_sec));
     proc_args->memory_quota            = g_linux_state.memory_quota;
 
@@ -286,7 +284,6 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ma
     manifest[proc_args.manifest_data_size] = '\0';
     data_iter += proc_args.manifest_data_size;
 
-    g_linux_state.parent_process_id = proc_args.parent_process_id;
     g_linux_state.memory_quota = proc_args.memory_quota;
     memcpy(&g_pal_sec, &proc_args.pal_sec, sizeof(struct pal_sec));
 

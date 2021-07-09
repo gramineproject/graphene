@@ -584,15 +584,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     /* For {p,u,g}ids we can at least do some minimal checking. */
 
-    /* ppid should be positive when interpreted as signed. It's 0 if we don't
-     * have a graphene parent process. */
-    if (sec_info.ppid > INT32_MAX) {
-        log_error("Invalid sec_info.ppid: %u", sec_info.ppid);
-        ocall_exit(1, /*is_exitgroup=*/true);
-    }
-    g_pal_sec.ppid = sec_info.ppid;
-
-    /* As ppid but we always have a pid, so 0 is invalid. */
+    /* pid should be positive when interpreted as signed. */
     if (sec_info.pid > INT32_MAX || sec_info.pid == 0) {
         log_error("Invalid sec_info.pid: %u", sec_info.pid);
         ocall_exit(1, /*is_exitgroup=*/true);
@@ -670,7 +662,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* if there is a parent, create parent handle */
     PAL_HANDLE parent = NULL;
     uint64_t instance_id = 0;
-    if (g_pal_sec.ppid) {
+    if (g_pal_sec.stream_fd != PAL_IDX_POISON) {
         if ((ret = init_child_process(&parent, &instance_id)) < 0) {
             log_error("Failed to initialize child process: %d", ret);
             ocall_exit(1, /*is_exitgroup=*/true);
