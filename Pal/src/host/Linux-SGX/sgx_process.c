@@ -60,7 +60,7 @@ static int __attribute_noinline vfork_exec(int parent_stream, const char** argv)
 }
 
 int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const char* manifest) {
-    int ret, rete, child;
+    int ret, rete;
     int fds[2] = {-1, -1};
 
     int socktype = SOCK_STREAM;
@@ -81,7 +81,6 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
     /* child's signal handler may mess with parent's memory during vfork(), so block signals */
     ret = block_async_signals(true);
     if (ret < 0) {
-        ret = -ret;
         goto out;
     }
 
@@ -90,15 +89,14 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
         goto out;
 
     /* parent continues here */
-    child = ret;
 
     /* children unblock async signals by sgx_signal_setup() */
     ret = block_async_signals(false);
     if (ret < 0) {
-        ret = -ret;
         goto out;
     }
 
+    /* TODO: add error checking. */
     INLINE_SYSCALL(close, 1, fds[0]); /* child stream */
 
     struct pal_sec* pal_sec = &g_pal_enclave.pal_sec;
@@ -133,12 +131,13 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
         goto out;
     }
 
+    /* TODO: add error checking. */
     INLINE_SYSCALL(fcntl, 3, fds[1], F_SETFD, FD_CLOEXEC);
 
     if (stream_fd)
         *stream_fd = fds[1];
 
-    ret = child;
+    ret = 0;
 out:
     if (ret < 0) {
         if (fds[0] >= 0)

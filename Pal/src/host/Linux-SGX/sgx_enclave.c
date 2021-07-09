@@ -273,18 +273,11 @@ static long sgx_ocall_clone_thread(void* pms) {
 }
 
 static long sgx_ocall_create_process(void* pms) {
-    long ret;
-
     ms_ocall_create_process_t* ms = (ms_ocall_create_process_t*)pms;
     ODEBUG(OCALL_CREATE_PROCESS, ms);
 
-    ret = sgx_create_process(ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd,
-                             g_pal_enclave.raw_manifest_data);
-    if (ret < 0) {
-        return ret;
-    }
-    ms->ms_pid = ret;
-    return 0;
+    return sgx_create_process(ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd,
+                              g_pal_enclave.raw_manifest_data);
 }
 
 static long sgx_ocall_futex(void* pms) {

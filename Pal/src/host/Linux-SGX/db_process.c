@@ -125,7 +125,6 @@ bool is_remote_enclave_ok(const PAL_SESSION_KEY* session_key, sgx_measurement_t*
 }
 
 int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
-    unsigned int child_pid;
     int stream_fd;
     int nargs = 0, ret;
 
@@ -133,7 +132,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
         for (const char** a = args; *a; a++)
             nargs++;
 
-    ret = ocall_create_process(nargs, args, &stream_fd, &child_pid);
+    ret = ocall_create_process(nargs, args, &stream_fd);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -144,7 +143,6 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
     SET_HANDLE_TYPE(child, process);
     HANDLE_HDR(child)->flags |= RFD(0) | WFD(0);
     child->process.stream      = stream_fd;
-    child->process.pid         = child_pid;
     child->process.nonblocking = PAL_FALSE;
     child->process.is_server   = true;
     child->process.ssl_ctx     = NULL;
@@ -219,7 +217,6 @@ int init_child_process(PAL_HANDLE* parent_handle, uint64_t* instance_id_ptr) {
     HANDLE_HDR(parent)->flags |= RFD(0) | WFD(0);
 
     parent->process.stream      = g_pal_sec.stream_fd;
-    parent->process.pid         = g_pal_sec.ppid;
     parent->process.nonblocking = PAL_FALSE;
     parent->process.is_server   = false;
     parent->process.ssl_ctx     = NULL;

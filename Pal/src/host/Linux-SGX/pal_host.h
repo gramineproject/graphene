@@ -113,7 +113,6 @@ typedef struct pal_handle {
 
         struct {
             PAL_IDX stream;
-            PAL_IDX pid;
             PAL_BOL nonblocking;
             PAL_BOL is_server;
             PAL_SESSION_KEY session_key;
