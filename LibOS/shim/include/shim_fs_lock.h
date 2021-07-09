@@ -34,7 +34,6 @@ int init_fs_lock(void);
  * - The main process has to be able to look up the same file, so locking will not work for files in
  *   local-process-only filesystems (tmpfs).
  * - There is no deadlock detection (EDEADLK).
- * - The lock requests cannot be interrupted (EINTR).
  * - The locks work only on files that have a dentry (no pipes, sockets etc.)
  */
 
