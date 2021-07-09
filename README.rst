@@ -68,6 +68,8 @@ runtimes.
 
 This version of Graphene is tagged 'v1.2-rc1'. We encourage you to try this out
 with your workloads and let us know if you’re facing any issues.
+`Please see the release page for release notes and installation instruction
+<https://github.com/oscarlab/graphene/releases/tag/v1.2-rc1>`__.
 
 While we have made significant progress, we are continuing to work towards
 making Graphene better and adding support for more workloads. The items that we
