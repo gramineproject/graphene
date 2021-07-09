@@ -19,6 +19,7 @@ int main(void) {
         err(1, "Writing to file failed");
     }
 
+    close(fd);
     int ret = rename("pftmp/foo.txt", "pftmp/bar.txt");
     if (ret < 0)
         err(1, "Rename failed");
