@@ -44,31 +44,44 @@ diverse group of contributors, from universities, small and large companies, as
 well as individuals. Our goal is to continue this growth in both contributions
 and community adoption.
 
-Working towards production ready Graphene by Q2’21
-==================================================
+Release candidate version of Graphene 1.2 available
+===================================================
 
-Graphene has evolved a |nbsp| lot since our last major release and at this point
-we have significantly reworked most of the research code towards building a
-|nbsp| production ready Graphene by end of Q2’21. We have a |nbsp| growing set
-of well tested applications including machine learning frameworks, databases,
-webservers, and programming language runtimes.
+Graphene has evolved a |nbsp| lot since our last major release. Over the last
+few months, we have made significant updates to provide a |nbsp| stable version
+that supports deploying key workloads with Intel SGX. We’ve rewritten major
+subsystems, done a |nbsp| significant update to the build and packaging
+scripts, extended test coverage, and improved the CI/CD process. We’ve reviewed
+and hardened specific security aspects of Graphene, and increased stability for
+long-running and heavy workloads.
 
-Graphene also supports many features for deploying secure solutions with SGX.
-These include full SGX Attestation support (EPID/DCAP), protected files support,
-and multi-process support with encrypted IPC. Graphene also supports a |nbsp|
-number of performance optimizations for SGX including support for asynchronous
-system calls.
+Graphene also includes full SGX Attestation support, protected files support,
+multi-process support with encrypted IPC, and support for the upstreamed SGX
+driver for Linux. We’ve introduced a |nbsp| number of performance optimizations
+for SGX, and provide mechanisms to more easily deploy in cloud environments
+with full support for automatic Docker container integration using Graphene
+Shielded Containers (GSC).
 
-Graphene is ready to be deployed in cloud environments with full support for
-automatic container integration, using Graphene Shielded Containers (GSC).
+We have a |nbsp| growing set of well-tested applications including machine
+learning frameworks, databases, webservers, and programming language
+runtimes.
 
-We have been actively developing, testing, and validating Graphene. The effort
-to review and harden security of Graphene is ongoing.
+This version of Graphene is tagged 'v1.2-rc1'. We encourage you to try this out
+with your workloads and let us know if you’re facing any issues. Please see
+`the release page
+<https://github.com/oscarlab/graphene/releases/tag/v1.2-rc1>`__ for release
+notes and installation instructions.
 
-The most important problems (which include major security issues) are tracked in
-`#1544 (Production blockers) <https://github.com/oscarlab/graphene/issues/1544>`__.
-Our roadmap is to address the majority of the remaining production blockers by
-Q2’21 and rest will follow in future releases.
+While we have made significant progress, we are continuing to work towards
+making Graphene better and adding support for more workloads. The items that we
+are most immediately working on are tracked in `#1544
+<https://github.com/oscarlab/graphene/issues/1544>`__.
+
+In the meantime, we are also in the process of transitioning the Graphene
+project to a |nbsp| new home within the Confidential Computing Consortium under
+the Linux Foundation. In Q3 2021 we will provide more details on this, and we
+expect the next version of Graphene to be released once this transition is
+complete.
 
 Graphene documentation
 ======================
