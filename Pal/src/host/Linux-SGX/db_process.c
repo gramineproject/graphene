@@ -191,15 +191,23 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
             goto failed;
     }
 
+    /* Send this Graphene instance ID. */
+    uint64_t instance_id = g_pal_state.instance_id;
+    ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&instance_id, sizeof(instance_id),
+                               /*is_blocking=*/!child->process.nonblocking);
+    if (ret != sizeof(instance_id)) {
+        goto failed;
+    }
+
     *handle = child;
     return 0;
 
 failed:
     free(child);
-    return ret;
+    return ret < 0 ? ret : -PAL_ERROR_DENIED;
 }
 
-int init_child_process(PAL_HANDLE* parent_handle) {
+int init_child_process(PAL_HANDLE* parent_handle, uint64_t* instance_id_ptr) {
     if (g_pal_sec.enclave_flags & PAL_ENCLAVE_INITIALIZED)
         return -PAL_ERROR_DENIED;
 
@@ -218,27 +226,27 @@ int init_child_process(PAL_HANDLE* parent_handle) {
 
     int ret = _DkStreamKeyExchange(parent, &parent->process.session_key);
     if (ret < 0)
-        return ret;
+        goto out_error;
 
     __sgx_mem_aligned sgx_report_data_t sgx_report_data;
     ret = hash_session_key(&parent->process.session_key, &sgx_report_data);
     if (ret < 0)
-        return ret;
+        goto out_error;
 
     ret = _DkStreamReportRespond(parent, &sgx_report_data);
     if (ret < 0)
-        return ret;
+        goto out_error;
 
     ret = _DkStreamSecureInit(parent, parent->process.is_server, &parent->process.session_key,
                               (LIB_SSL_CONTEXT**)&parent->process.ssl_ctx, NULL, 0);
     if (ret < 0)
-        return ret;
+        goto out_error;
 
     /* securely receive the master key from parent in the newly established SSL session */
     ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_master_key,
                               sizeof(g_master_key), /*is_blocking=*/!parent->process.nonblocking);
     if (ret != sizeof(g_master_key))
-        return ret;
+        goto out_error;
 
     /* securely receive the wrap key for protected files from parent (only if there is one) */
     char pf_wrap_key_set_char[1] = {0};
@@ -246,7 +254,7 @@ int init_child_process(PAL_HANDLE* parent_handle) {
                               sizeof(pf_wrap_key_set_char),
                               /*is_blocking=*/!parent->process.nonblocking);
     if (ret != sizeof(pf_wrap_key_set_char))
-        return ret;
+        goto out_error;
 
     if (pf_wrap_key_set_char[0] == '1') {
         ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_pf_wrap_key,
@@ -254,14 +262,26 @@ int init_child_process(PAL_HANDLE* parent_handle) {
                                   /*is_blocking=*/!parent->process.nonblocking);
         if (ret != sizeof(g_pf_wrap_key)) {
             g_pf_wrap_key_set = false;
-            return ret;
+            goto out_error;
         }
 
         g_pf_wrap_key_set = true;
     }
 
+    uint64_t instance_id;
+    ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&instance_id, sizeof(instance_id),
+                              /*is_blocking=*/!parent->process.nonblocking);
+    if (ret != sizeof(instance_id)) {
+        goto out_error;
+    }
+
     *parent_handle = parent;
+    *instance_id_ptr = instance_id;
     return 0;
+
+out_error:
+    free(parent);
+    return ret < 0 ? ret : -PAL_ERROR_DENIED;
 }
 
 noreturn void _DkProcessExit(int exitcode) {

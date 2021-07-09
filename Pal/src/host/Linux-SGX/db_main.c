@@ -575,11 +575,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
      * them directly but need to be careful when we use them.
      */
 
-    g_pal_sec.instance_id = sec_info.instance_id;
-
     g_pal_sec.stream_fd = sec_info.stream_fd;
 
-    COPY_ARRAY(g_pal_sec.pipe_prefix, sec_info.pipe_prefix);
     g_pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
 #ifdef DEBUG
     g_pal_sec.in_gdb = sec_info.in_gdb;
@@ -672,8 +669,9 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     /* if there is a parent, create parent handle */
     PAL_HANDLE parent = NULL;
+    uint64_t instance_id = 0;
     if (g_pal_sec.ppid) {
-        if ((ret = init_child_process(&parent)) < 0) {
+        if ((ret = init_child_process(&parent, &instance_id)) < 0) {
             log_error("Failed to initialize child process: %d", ret);
             ocall_exit(1, /*is_exitgroup=*/true);
         }
@@ -761,5 +759,5 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
 
     /* call main function */
-    pal_main(g_pal_sec.instance_id, parent, first_thread, arguments, environments);
+    pal_main(instance_id, parent, first_thread, arguments, environments);
 }

@@ -31,7 +31,7 @@ defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
-commons_objs_encl = bogomips.o
+commons_objs_encl = bogomips.o graphene_unix_socket_addr.o
 commons_objs_urts = debug_map.o file_utils.o main_exec_path.o timespec_utils.o topo_info.o
 
 enclave-objs = \
