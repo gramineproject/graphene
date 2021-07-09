@@ -12,6 +12,20 @@ int main(void) {
         err(1, "pipe2");
     }
 
+    /* Verify both ends of the pipe provide same flags. */
+    int flags_wr = fcntl(p[1], F_GETFL);
+    if (flags_wr == -1)
+        err(1, "fnctl to get status flags at write end failed\n");
+
+    int flags_rd = fcntl(p[0], F_GETFL);
+    if (flags_rd == -1)
+        err(1, "fnctl to get status flags at read end failed\n");
+
+    /* Ensure O_NONBLOCK flag is properly set on both ends of pipe. */
+    if (!(flags_wr & O_NONBLOCK) || !(flags_rd & O_NONBLOCK))
+        errx(1, "O_NONBLOCK flag must be set on both ends of pipe, flags_wr=0x%x, flags_rd=0x%x\n",
+             flags_wr, flags_rd);
+
     ssize_t ret = write(p[1], "a", 1);
     if (ret < 0) {
         err(1, "write");
