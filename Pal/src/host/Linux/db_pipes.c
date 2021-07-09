@@ -15,6 +15,7 @@
 #include <sys/socket.h>
 
 #include "api.h"
+#include "linux_utils.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -23,24 +24,10 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 
-static int pipe_addr(const char* name, struct sockaddr_un* addr) {
-    /* use abstract UNIX sockets for pipes, with name format "@/graphene/<pipename>" */
-    addr->sun_family = AF_UNIX;
-    memset(addr->sun_path, 0, sizeof(addr->sun_path));
-
-    /* for abstract sockets, first char is NUL */
-    char* str   = (char*)addr->sun_path + 1;
-    size_t size = sizeof(addr->sun_path) - 1;
-
-    /* FIXME: Below naming scheme is slightly different from Linux-SGX, not important though */
-    int ret = snprintf(str, size, "/graphene/%s", name);
-    return ret >= 0 && (size_t)ret < size ? 0 : -EINVAL;
-}
-
 /*!
  * \brief Create a listening abstract UNIX socket as preparation for connecting two ends of a pipe.
  *
- * An abstract UNIX socket with name "@/graphene/<pipename>" is opened for listening. A
+ * An abstract UNIX socket with name "/graphene/<instance_id>/<pipename>" is opened for listening. A
  * corresponding PAL handle with type `pipesrv` is created. This PAL handle typically serves only as
  * an intermediate step to connect two ends of the pipe (`pipecli` and `pipe`). As soon as the other
  * end of the pipe connects to this listening socket, a new accepted socket and the corresponding
@@ -55,7 +42,7 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     int ret;
 
     struct sockaddr_un addr;
-    ret = pipe_addr(name, &addr);
+    ret = get_graphene_unix_socket_addr(g_pal_state.instance_id, name, &addr);
     if (ret < 0)
         return -PAL_ERROR_DENIED;
 
@@ -140,9 +127,9 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
  * \brief Connect to the other end of the pipe and create PAL handle for our end of the pipe.
  *
  * This function connects to the other end of the pipe, represented as an abstract UNIX socket
- * "@/graphene/<pipename>" opened for listening. When the connection succeeds, a new `pipe` PAL
- * handle is created with the corresponding underlying socket and is returned in `handle`. The other
- * end of the pipe is typically of type `pipecli`.
+ * "/graphene/<instance_id>/<pipename>" opened for listening. When the connection succeeds, a new
+ * `pipe` PAL handle is created with the corresponding underlying socket and is returned in
+ * `handle`. The other end of the pipe is typically of type `pipecli`.
  *
  * \param[out] handle  PAL handle of type `pipe` with abstract UNIX socket connected to another end.
  * \param[in]  name    String uniquely identifying the pipe.
@@ -153,7 +140,7 @@ static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     int ret;
 
     struct sockaddr_un addr;
-    ret = pipe_addr(name, &addr);
+    ret = get_graphene_unix_socket_addr(g_pal_state.instance_id, name, &addr);
     if (ret < 0)
         return -PAL_ERROR_DENIED;
 
@@ -234,11 +221,11 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
  *                                               ends of an anonymous pipe).
  *
  * - `type` is URI_TYPE_PIPE_SRV: create `pipesrv` handle (intermediate listening socket) with
- *                                name in the form of "@/graphene/<uri>". Caller is expected to
- *                                call pipe_waitforclient() afterwards.
+ *                                the name created by `get_graphene_unix_socket_addr`. Caller is
+ *                                expected to call pipe_waitforclient() afterwards.
  *
- * - `type` is URI_TYPE_PIPE: create `pipe` handle (connecting socket) with name in the form of
- *                            "@/graphene/<uri>".
+ * - `type` is URI_TYPE_PIPE: create `pipe` handle (connecting socket) with the name created by
+ *                            `get_graphene_unix_socket_addr`.
  *
  * \param[out] handle  Created PAL handle of type `pipeprv`, `pipesrv`, or `pipe`.
  * \param[in]  type    Can be URI_TYPE_PIPE or URI_TYPE_PIPE_SRV.

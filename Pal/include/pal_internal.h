@@ -10,6 +10,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "api.h"
 #include "log.h"
@@ -116,7 +117,7 @@ void notify_failure(unsigned long error);
 
 /* all pal config value */
 struct pal_internal_state {
-    PAL_NUM         instance_id;
+    uint64_t        instance_id;
 
     PAL_HANDLE      parent_process;
 
@@ -151,7 +152,7 @@ int add_preloaded_range(uintptr_t start, uintptr_t end, const char* comment);
  * \param arguments         application arguments
  * \param environments      environment variables
  */
-noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
+noreturn void pal_main(uint64_t instance_id, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
                        PAL_STR* arguments, PAL_STR* environments);
 
 /* For initialization */

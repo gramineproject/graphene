@@ -270,6 +270,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     PAL_HANDLE parent = NULL;
     char* manifest = NULL;
+    uint64_t instance_id = 0;
     if (first_process) {
         const char* application_path = argv[3];
         char* manifest_path = alloc_concat(application_path, -1, ".manifest", -1);
@@ -283,7 +284,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     } else {
         // Children receive their argv and config via IPC.
         int parent_pipe_fd = atoi(argv[3]);
-        init_child_process(parent_pipe_fd, &parent, &manifest);
+        init_child_process(parent_pipe_fd, &parent, &manifest, &instance_id);
     }
     assert(manifest);
 
@@ -318,6 +319,5 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     g_pal_internal_mem_addr = internal_mem_addr;
 
     /* call to main function */
-    pal_main((PAL_NUM)g_linux_state.parent_process_id, parent, first_thread,
-             first_process ? argv + 3 : argv + 4, envp);
+    pal_main(instance_id, parent, first_thread, first_process ? argv + 3 : argv + 4, envp);
 }

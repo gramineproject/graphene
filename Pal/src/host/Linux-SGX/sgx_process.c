@@ -25,10 +25,8 @@ extern char* g_pal_loader_path;
 extern char* g_libpal_path;
 
 struct proc_args {
-    unsigned int instance_id;
     unsigned int parent_process_id;
     int          stream_fd;
-    PAL_SEC_STR  pipe_prefix;
     size_t       application_path_size; // application path will follow this struct on the pipe.
     size_t       manifest_size; // manifest will follow application path on the pipe.
 };
@@ -105,12 +103,10 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
 
     struct pal_sec* pal_sec = &g_pal_enclave.pal_sec;
     struct proc_args proc_args;
-    proc_args.instance_id       = pal_sec->instance_id;
     proc_args.parent_process_id = pal_sec->pid;
     proc_args.stream_fd         = fds[0];
     proc_args.application_path_size = strlen(g_pal_enclave.application_path);
     proc_args.manifest_size     = strlen(manifest);
-    memcpy(proc_args.pipe_prefix, pal_sec->pipe_prefix, sizeof(PAL_SEC_STR));
 
     ret = write_all(fds[1], &proc_args, sizeof(struct proc_args));
     if (ret < 0) {
@@ -196,10 +192,8 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** a
         goto out;
     }
 
-    pal_sec->instance_id = proc_args.instance_id;
     pal_sec->ppid        = proc_args.parent_process_id;
     pal_sec->stream_fd   = proc_args.stream_fd;
-    memcpy(pal_sec->pipe_prefix, proc_args.pipe_prefix, sizeof(PAL_SEC_STR));
 
     *application_path_out = application_path;
     *manifest_out = manifest;

@@ -13,7 +13,6 @@ typedef char PAL_SEC_STR[255];
 
 struct pal_sec {
     /* host credentials */
-    PAL_NUM instance_id;
     PAL_IDX ppid, pid, uid, gid;
 
     /* enclave information */
@@ -28,9 +27,6 @@ struct pal_sec {
 
     /* child's stream FD created and sent over by parent */
     PAL_IDX stream_fd;
-
-    /* additional information */
-    PAL_SEC_STR pipe_prefix;
 
     PAL_NUM online_logical_cores;
     PAL_NUM possible_logical_cores;

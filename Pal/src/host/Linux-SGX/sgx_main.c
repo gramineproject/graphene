@@ -554,12 +554,6 @@ out:
     return ret;
 }
 
-static void create_instance(struct pal_sec* pal_sec) {
-    PAL_NUM id = ((uint64_t)rdrand() << 32) | rdrand();
-    snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix), "/graphene/%016lx/", id);
-    pal_sec->instance_id = id;
-}
-
 /* Parses only the information needed by the untrusted PAL to correctly initialize the enclave. */
 static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info) {
     int ret = 0;
@@ -993,9 +987,6 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     ret = initialize_enclave(enclave, enclave->raw_manifest_data);
     if (ret < 0)
         return ret;
-
-    if (!pal_sec->instance_id)
-        create_instance(&enclave->pal_sec);
 
     ret = sgx_signal_setup();
     if (ret < 0)
