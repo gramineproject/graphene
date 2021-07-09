@@ -869,7 +869,7 @@ int ocall_clone_thread(void) {
     return retval;
 }
 
-int ocall_create_process(size_t nargs, const char** args, int* stream_fd, unsigned int* pid) {
+int ocall_create_process(size_t nargs, const char** args, int* stream_fd) {
     int retval = 0;
     ms_ocall_create_process_t* ms;
 
@@ -898,8 +898,6 @@ int ocall_create_process(size_t nargs, const char** args, int* stream_fd, unsign
     } while (retval == -EINTR);
 
     if (!retval) {
-        if (pid)
-            *pid = READ_ONCE(ms->ms_pid);
         if (stream_fd)
             *stream_fd = READ_ONCE(ms->ms_stream_fd);
     }
