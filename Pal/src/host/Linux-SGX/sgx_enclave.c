@@ -278,9 +278,8 @@ static long sgx_ocall_create_process(void* pms) {
     ms_ocall_create_process_t* ms = (ms_ocall_create_process_t*)pms;
     ODEBUG(OCALL_CREATE_PROCESS, ms);
 
-    ret = sgx_create_process(ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd,
-                             g_pal_enclave.raw_manifest_data);
-    return ret < 0 ? ret : 0;
+    return sgx_create_process(ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd,
+                              g_pal_enclave.raw_manifest_data);
 }
 
 static long sgx_ocall_futex(void* pms) {
