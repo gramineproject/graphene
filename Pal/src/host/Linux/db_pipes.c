@@ -221,11 +221,11 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
  *                                               ends of an anonymous pipe).
  *
  * - `type` is URI_TYPE_PIPE_SRV: create `pipesrv` handle (intermediate listening socket) with
- *                                name in the form of "/graphene/<instance_id>/<uri>". Caller is
+ *                                the name created by `get_graphene_unix_socket_addr`. Caller is
  *                                expected to call pipe_waitforclient() afterwards.
  *
- * - `type` is URI_TYPE_PIPE: create `pipe` handle (connecting socket) with name in the form of
- *                            "/graphene/<instance_id>/<uri>".
+ * - `type` is URI_TYPE_PIPE: create `pipe` handle (connecting socket) with the name created by
+ *                            `get_graphene_unix_socket_addr`.
  *
  * \param[out] handle  Created PAL handle of type `pipeprv`, `pipesrv`, or `pipe`.
  * \param[in]  type    Can be URI_TYPE_PIPE or URI_TYPE_PIPE_SRV.

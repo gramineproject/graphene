@@ -24,6 +24,7 @@ void time_get_now_plus_ns(struct timespec* ts, uint64_t addend_ns);
  * can be negative! */
 int64_t time_ns_diff_from_now(struct timespec* ts);
 
-int get_graphene_unix_socket_addr(uint64_t id, const char* name, struct sockaddr_un* addr);
+int get_graphene_unix_socket_addr(uint64_t instance_id, const char* name,
+                                  struct sockaddr_un* out_addr);
 
 #endif // _LINUX_UTILS_H
