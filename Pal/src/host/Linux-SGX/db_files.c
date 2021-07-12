@@ -739,8 +739,7 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
         size_t uri_size = strlen(uri) + 1;
         char* new_path = (char*)calloc(1, uri_size);
 
-        if (!new_path)
-        {
+        if (!new_path) {
             free(tmp);
             return -PAL_ERROR_NOMEM;
         }
