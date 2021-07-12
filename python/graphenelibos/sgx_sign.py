@@ -61,12 +61,13 @@ def parse_size(value):
 
 
 def exec_sig_manifest(args):
-    sigfile = args['output']
-    for ext in ['.manifest.sgx.d', '.manifest.sgx', '.manifest']:
-        if sigfile.endswith(ext):
-            sigfile = sigfile[:-len(ext)]
-            break
-    args['sigfile'] = sigfile + '.sig'
+    if (args['mode'] != 'gendata'):
+        sigfile = args['output']
+        for ext in ['.manifest.sgx.d', '.manifest.sgx', '.manifest']:
+            if sigfile.endswith(ext):
+                sigfile = sigfile[:-len(ext)]
+                break
+        args['sigfile'] = sigfile + '.sig'
 
     if args.get('libpal', None) is None:
         print('Option --libpal must be given', file=stderr)
@@ -578,6 +579,28 @@ def generate_sigstruct(attr, args, mrenclave):
 
     sign_buffer = bytearray(128 + 128)
 
+    def dump_sig_struct(buffer, fields, title):
+        print(title)
+
+        def unpack_int_tuple(data_tuple):
+            str = ''
+            for item in data_tuple:
+                if isinstance(item, int):
+                    str = str + ' ' + hex(item)
+                else:
+                    str = str + ' ' + item.decode()
+            return str
+        for key in fields:
+            field = fields[key]
+            offset = field[0]
+            if (offset >= offs.SGX_ARCH_ENCLAVE_CSS_MISC_SELECT):
+                offset = field[0] - offs.SGX_ARCH_ENCLAVE_CSS_MISC_SELECT + 128
+            field_out = struct.unpack_from(field[1], buffer, offset)
+            if (field[1][-1] != 's'):
+                field_out = unpack_int_tuple(field_out)
+            print(key + '(' + field[1] + '@offset ' +
+                  str(field[0]) + '): ' + str(field_out))
+
     for field in fields.values():
         if field[0] >= offs.SGX_ARCH_ENCLAVE_CSS_MISC_SELECT:
             struct.pack_into(field[1], sign_buffer,
@@ -586,19 +609,45 @@ def generate_sigstruct(attr, args, mrenclave):
         else:
             struct.pack_into(field[1], sign_buffer, field[0], *field[2:])
 
-    proc = subprocess.Popen(
-        ['openssl', 'rsa', '-modulus', '-in', args['key'], '-noout'],
-        stdout=subprocess.PIPE)
-    modulus_out, _ = proc.communicate()
+    if (args['mode'] == 'gendata'):
+        dump_sig_struct(sign_buffer, fields, 'gendata to dump sign_buffer')
+        return sign_buffer
+    elif (args['mode'] == 'catsig'):
+        def read_bin_file(filename):
+            fh = open(filename, 'rb')
+            content = fh.read()
+            fh.close()
+            return content
+        signature = read_bin_file(args['sig'])
+        signature = signature[::-1]
+
+        proc = subprocess.Popen(
+            ['openssl', 'dgst', '-verify', args['key'], '-sha256', '-signature', args['sig'], args['unsigned']], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        result, _ = proc.communicate()
+        if (str(result).find("Verified OK") == -1):
+            return bytearray(0)
+
+       # generate modulus from public key
+        proc = subprocess.Popen(
+            ['openssl', 'rsa', '-pubin', '-in', args['key'], '-modulus', '-noout'], stdout=subprocess.PIPE)
+        modulus_out, _ = proc.communicate()
+
+    else:  # sign
+        # send sign_buffer to open ssl sha256 to generate otuput signature
+        proc = subprocess.Popen(
+            ['openssl', 'sha256', '-binary', '-sign', args['key']],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        signature, _ = proc.communicate(sign_buffer)
+        signature = signature[::-1]
+
+        # generate modulus from private key
+        proc = subprocess.Popen(
+            ['openssl', 'rsa', '-modulus', '-in', args['key'], '-noout'],
+            stdout=subprocess.PIPE)
+        modulus_out, _ = proc.communicate()
+
     modulus = bytes.fromhex(modulus_out[8:8+offs.SE_KEY_SIZE*2].decode())
     modulus = bytes(reversed(modulus))
-
-    proc = subprocess.Popen(
-        ['openssl', 'sha256', '-binary', '-sign', args['key']],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    signature, _ = proc.communicate(sign_buffer)
-    signature = signature[::-1]
-
     modulus_int = int.from_bytes(modulus, byteorder='little')
     signature_int = int.from_bytes(signature, byteorder='little')
 
@@ -622,8 +671,9 @@ def generate_sigstruct(attr, args, mrenclave):
     buffer = bytearray(offs.SGX_ARCH_ENCLAVE_CSS_SIZE)
 
     for field in fields.values():
+        #filed[1] is format, field[0] is offset
         struct.pack_into(field[1], buffer, field[0], *field[2:])
-
+    dump_sig_struct(buffer, fields, "after generate_sigstruct " + args['mode'])
     return buffer
 
 
@@ -638,7 +688,7 @@ argparser.add_argument('--libpal', '-libpal', metavar='LIBPAL',
                        type=str,
                        help='Input libpal file (by default it gets the installed one)')
 argparser.add_argument('--key', '-key', metavar='KEY',
-                       type=str, required=True,
+                       type=str, required=False,
                        help='specify signing key(.pem) file')
 argparser.add_argument('--manifest', '-manifest', metavar='MANIFEST',
                        type=str, required=True,
@@ -647,6 +697,15 @@ argparser.add_argument('--manifest', '-manifest', metavar='MANIFEST',
 argparser.add_argument('--depend', '-depend',
                        action='store_true', required=False,
                        help='Generate dependency for Makefile')
+argparser.add_argument('--mode', '-mode',
+                       type=str, required=False, default='sign',
+                       help='mode is one of: sign, gendata, catsig')
+argparser.add_argument('--sig', '-sig',
+                       type=str, required=False,
+                       help='file for signed hash used by catsig')
+argparser.add_argument('--unsigned', '-unsigned',
+                       type=str, required=False,
+                       help='file for unsigned hash, generated by gendata, used by catsig')
 
 argparser.set_defaults(libpal=os.path.join(_CONFIG_PKGLIBDIR, 'sgx/libpal.so'))
 
@@ -657,15 +716,32 @@ def parse_args(args):
         'libpal': args.libpal,
         'key': args.key,
         'manifest': args.manifest,
+        'mode' : args.mode,
     }
     if args.depend:
         args_dict['depend'] = True
     else:
         # key is required and not found in manifest
-        if args.key is None:
-            argparser.error('a key is required to sign')
+        if args.mode == 'catsig':
+            if args.key is None:
+                argparser.error("a key is required to sign")
+                return None
+    if args.mode == 'catsig':
+        if args.sig is None:
+            argparser.error("a sig file is required to catsig mode")
             return None
-
+        else:
+            args_dict['sig'] = args.sig
+        if args.unsigned is None:
+            argparser.error("an unsigned file is required to catsig mode")
+            return None
+        else:
+            args_dict['unsigned'] = args.unsigned
+    if args.output is None:
+        argparser.error("an output file is required to sig and catsig mode")
+        return None
+    else:
+        args_dict['output'] = args.output
     return args_dict
 
 
@@ -757,11 +833,18 @@ def main_sign(manifest, args):
         enclave_base = attr['enclave_size']
         enclave_heap_min = enclave_base
 
-    output_manifest(args['output'], manifest)
+    if (args['mode'] != 'gendata'):
+        output_manifest(args['output'], manifest)
 
-    with open(args['output'], 'rb') as file:
-        manifest_data = file.read()
-    manifest_data += b'\0' # in-memory manifest needs NULL-termination
+        with open(args['output'], 'rb') as file:
+             manifest_data = file.read()
+             manifest_data += b'\0' # in-memory manifest needs NULL-termination
+    else:
+        output_manifest(args['output'], manifest)
+        manifest_data_str = toml.dumps(manifest, None) #json.dumps(manifest)
+        comment = '# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n'
+        manifest_data = bytes(comment + manifest_data_str, 'utf-8')
+        manifest_data += b'\0' # in-memory manifest needs NULL-termination
 
     memory_areas = [
         MemoryArea('manifest', content=manifest_data, size=len(manifest_data),
@@ -777,8 +860,16 @@ def main_sign(manifest, args):
     print(f'    {mrenclave.hex()}')
 
     # Generate sigstruct
-    with open(args['sigfile'], 'wb') as file:
-        file.write(generate_sigstruct(attr, args, mrenclave))
+    if (args['mode'] == 'gendata'):
+        # it is verified that dataout exists
+        fileout = args['output']
+    else:
+        fileout = args['sigfile']
+    gen_sig = generate_sigstruct(attr, args, mrenclave)
+    if len(str(gen_sig)) > 0:
+        f_sig = open(fileout, 'wb')
+        f_sig.write(gen_sig)
+        f_sig.close()
     return 0
 
 
