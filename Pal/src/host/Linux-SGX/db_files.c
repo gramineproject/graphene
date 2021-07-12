@@ -806,15 +806,23 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
         size_t uri_size = strlen(uri) + 1;
         char* new_path = (char*)calloc(1, uri_size);
 
-        if (get_norm_path(uri, new_path, &uri_size) < 0) {
-            log_error("Could not normalize path (%s)", uri);
+        if (!new_path)
+        {
             free(tmp);
+            return -PAL_ERROR_NOMEM;
+        }
+
+        if (get_norm_path(uri, new_path, &uri_size) < 0) {
+            log_warning("Could not normalize path (%s)", uri);
+            free(tmp);
+            free(new_path);
             return -PAL_ERROR_DENIED;
         }
 
         if (!get_protected_file(new_path)) {
-            log_error("New path is disallowed for protected files (%s)", new_path);
+            log_warning("New path is disallowed for protected files (%s)", new_path);
             free(tmp);
+            free(new_path);
             return -PAL_ERROR_DENIED;
         }
 
@@ -823,7 +831,7 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
         free(new_path);
 
         if (PF_FAILURE(pf_ret)) {
-            log_error("pf_rename failed: %s", pf_strerror(pf_ret));
+            log_warning("pf_rename failed: %s", pf_strerror(pf_ret));
             free(tmp);
             return -PAL_ERROR_DENIED;
         }

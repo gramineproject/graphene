@@ -20,6 +20,7 @@ int main(void) {
     }
 
     close(fd);
+
     int ret = rename("pftmp/foo.txt", "pftmp/bar.txt");
     if (ret < 0)
         err(1, "Rename failed");
@@ -29,17 +30,15 @@ int main(void) {
         err(1, "Cannot open renamed file pftmp/bar.txt");
 
     num_bytes = read(fd, buf, sizeof(buf));
-    if (num_bytes < 0) {
-        close(fd);
+    close (fd);
+
+    if (num_bytes < 0)
         err(1, "Reading from renamed file failed");
-    }
 
     buf[sizeof(buf) - 1] = '\0';
 
-    if (strncmp(input_text, buf, sizeof(input_text))) {
-        close(fd);
+    if (strncmp(input_text, buf, sizeof(input_text))
         err(1, "File content mismatching");
-    }
 
     printf("TEST OK\n");
 
