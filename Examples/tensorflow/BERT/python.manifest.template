@@ -12,11 +12,14 @@ loader.insecure__use_cmdline_argv = 1
 # Propagate environment variables from the host. Don't use this on production!
 loader.insecure__use_host_env = 1
 
-# Disable address space layour randomization. Don't use this on production!
+# Disable address space layout randomization. Don't use this on production!
 loader.insecure__disable_aslr = 1
 
 # Update Library Path - overwrites environment variable
 loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
+
+# Additional memory for Graphene's internal use
+loader.pal_internal_mem_size = "512M"
 
 # Default glibc files, mounted from graphene's Runtime directory
 fs.mount.lib.type = "chroot"
@@ -62,17 +65,15 @@ sgx.nonpie_binary = 1
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
-sgx.trusted_files.libcpp = "file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
-sgx.trusted_files.libgcc = "file:/lib/x86_64-linux-gnu/libgcc_s.so.1"
+sgx.trusted_files.python = "file:{{ entrypoint }}"
+sgx.trusted_files.pyhome = "file:{{ python.stdlib }}"
+sgx.trusted_files.pydisthome = "file:{{ python.distlib }}"
+sgx.trusted_files.pydistpath = "file:{{ pythondistpath }}"
 
+# SGX allowed files
 sgx.allowed_files.tmp = "file:/tmp/"
 sgx.allowed_files.etc = "file:/etc/"
-sgx.allow_file_creation = "1"
 sgx.allowed_files.output = "file:output/"
-sgx.allowed_files.scripts = "file:models/models/language_modeling/tensorflow/bert_large/inference/"
+sgx.allowed_files.scripts = "file:models/"
 sgx.allowed_files.dataDir = "file:data/"
-sgx.allowed_files.python = "file:{{ entrypoint }}"
-sgx.allowed_files.pyhome = "file:{{ python.stdlib }}"
-sgx.allowed_files.pydisthome = "file:{{ python.distlib }}"
-sgx.allowed_files.pydistpath = "file:{{ pythondistpath }}"
 sgx.allowed_files.keras = "file:root/.keras/keras.json"
