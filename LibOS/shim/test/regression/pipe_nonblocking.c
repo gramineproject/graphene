@@ -14,17 +14,30 @@ int main(void) {
 
     /* Verify both ends of the pipe provide same flags. */
     int flags_wr = fcntl(p[1], F_GETFL);
-    if (flags_wr == -1)
-        err(1, "fnctl to get status flags at write end failed\n");
+    if (flags_wr < 0)
+        err(1, "fcntl(<write end of pipe>, F_GETFL)");
 
     int flags_rd = fcntl(p[0], F_GETFL);
-    if (flags_rd == -1)
-        err(1, "fnctl to get status flags at read end failed\n");
+    if (flags_rd < 0)
+        err(1, "fcntl(<read end of pipe>, F_GETFL)");
 
     /* Ensure O_NONBLOCK flag is properly set on both ends of pipe. */
     if (!(flags_wr & O_NONBLOCK) || !(flags_rd & O_NONBLOCK))
-        errx(1, "O_NONBLOCK flag must be set on both ends of pipe, flags_wr=0x%x, flags_rd=0x%x\n",
-             flags_wr, flags_rd);
+        errx(1, "Expected O_NONBLOCK flag to be set on both ends of pipe but got flags_wr=0x%x, "
+            "flags_rd=0x%x\n", flags_wr, flags_rd);
+
+    flags_wr = fcntl(p[1], F_GETFD);
+    if (flags_wr < 0)
+        err(1, "fcntl(<write end of pipe>, F_GETFD)");
+
+    flags_rd = fcntl(p[0], F_GETFD);
+    if (flags_rd < 0)
+        err(1, "fcntl(<read end of pipe>, F_GETFD)");
+
+    /* Ensure O_CLOEXEC flag is properly set on both ends of pipe. */
+    if (!(flags_wr & FD_CLOEXEC) || !(flags_rd & FD_CLOEXEC))
+        errx(1, "Expected O_CLOEXEC flag to be set on both ends of pipe but got flags_wr=0x%x, "
+             "flags_rd=0x%x\n", flags_wr, flags_rd);
 
     ssize_t ret = write(p[1], "a", 1);
     if (ret < 0) {
