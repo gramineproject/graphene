@@ -26,7 +26,7 @@ int ipc_get_new_vmid(IDTYPE* vmid) {
     if (!msg) {
         return -ENOMEM;
     }
-    init_ipc_msg(msg, IPC_MSG_GET_VMID, msg_size);
+    init_ipc_msg(msg, IPC_MSG_GET_NEW_VMID, msg_size);
 
     log_debug("%s: sending a request", __func__);
 

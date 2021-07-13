@@ -464,16 +464,15 @@ noreturn void* shim_init(int argc, void* args) {
             DkProcessExit(1);
         }
 
-        /* Notify the parent process */
-        IDTYPE child_vmid = g_process_ipc_ids.self_vmid;
-        ret = write_exact(g_pal_control->parent_process, &child_vmid, sizeof(child_vmid));
+        /* Notify the parent process we are done. */
+        char dummy_c = 0;
+        ret = write_exact(g_pal_control->parent_process, &dummy_c, sizeof(dummy_c));
         if (ret < 0) {
-            log_error("shim_init: failed to write child_vmid: %d", ret);
+            log_error("shim_init: failed to write ready notification: %d", ret);
             DkProcessExit(1);
         }
 
         /* Wait for parent to settle its adult things. */
-        char dummy_c = 0;
         ret = read_exact(g_pal_control->parent_process, &dummy_c, sizeof(dummy_c));
         if (ret < 0) {
             log_error("shim_init: failed to read parent's confirmation: %d", ret);

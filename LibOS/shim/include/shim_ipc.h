@@ -19,7 +19,7 @@
 
 enum {
     IPC_MSG_RESP = 0,
-    IPC_MSG_GET_VMID,           /*!< Request new VMID. */
+    IPC_MSG_GET_NEW_VMID,       /*!< Request new VMID. */
     IPC_MSG_CHILDEXIT,          /*!< Child exit/death information. */
     IPC_MSG_ALLOC_ID_RANGE,     /*!< Request new IDs range. */
     IPC_MSG_RELEASE_ID_RANGE,   /*!< Release IDs range. */

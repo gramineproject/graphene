@@ -560,9 +560,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
     }
     bkeep_remove_tmp_vma(tmp_vma);
 
-    /* wait for final ack from child process (contains VMID of child) */
-    IDTYPE child_vmid = 0;
-    ret = read_exact(pal_process, &child_vmid, sizeof(child_vmid));
+    /* wait for final ack from child process */
+    char dummy_c = 0;
+    ret = read_exact(pal_process, &dummy_c, sizeof(dummy_c));
     if (ret < 0) {
         goto out;
     }
@@ -572,7 +572,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
      * messages yet. */
     add_child_process(child_process);
 
-    char dummy_c = 0;
+    dummy_c = 0;
     ret = write_exact(pal_process, &dummy_c, sizeof(dummy_c));
     if (ret < 0) {
         /*
@@ -582,7 +582,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func,
          * after we return from this function.
          */
         log_error("failed to send process creation ack to the child: %d", ret);
-        (void)mark_child_exited_by_vmid(child_vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
+        (void)mark_child_exited_by_vmid(child_process->vmid, /*uid=*/0, /*exit_code=*/0, SIGPWR);
     }
 
     ret = 0;
