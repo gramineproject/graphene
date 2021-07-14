@@ -169,8 +169,23 @@ enclave_entry:
 1:
 
 	movq %gs:SGX_GPR, %rbx
-
 	movq %rdi, %rsi
+
+	# note that g_enclave_base/g_enclave_top are initialized only after the first ENCLAVE_START
+	# ecall, and below check always fails before this initialization is done -- this limitation is
+	# fine because we don't expect exceptions until the enclave is actually started
+	movq SGX_GPR_URSP(%rbx), %rdi
+	movq g_enclave_base(%rip), %rax
+	cmpq %rax, %rdi
+	jb 1f
+	movq g_enclave_top(%rip), %rax
+	cmpq %rax, %rdi
+	ja 1f
+
+	# detected malicious Untrusted RSP (g_enclave_base <= ursp && ursp <= g_enclave_top)
+	FAIL_LOOP
+1:
+
 	xorq %rdi, %rdi
 	movl SGX_GPR_EXITINFO(%rbx), %edi
 	testl $0x80000000, %edi

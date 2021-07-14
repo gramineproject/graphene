@@ -50,6 +50,7 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET_T(SGX_GPR_R15, sgx_pal_gpr_t, r15);
     OFFSET_T(SGX_GPR_RFLAGS, sgx_pal_gpr_t, rflags);
     OFFSET_T(SGX_GPR_RIP, sgx_pal_gpr_t, rip);
+    OFFSET_T(SGX_GPR_URSP, sgx_pal_gpr_t, ursp);
     OFFSET_T(SGX_GPR_EXITINFO, sgx_pal_gpr_t, exitinfo);
     DEFINE(SGX_GPR_SIZE, sizeof(sgx_pal_gpr_t));
 
