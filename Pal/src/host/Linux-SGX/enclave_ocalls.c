@@ -1336,7 +1336,7 @@ int ocall_shutdown(int sockfd, int how) {
     return retval;
 }
 
-int ocall_gettime(uint64_t* microsec) {
+int ocall_gettime(uint64_t* microsec_ptr) {
     int retval = 0;
     ms_ocall_gettime_t* ms;
 
@@ -1347,11 +1347,30 @@ int ocall_gettime(uint64_t* microsec) {
         return -EPERM;
     }
 
+    /* Last seen time value. This guards against time rewinding. */
+    static uint64_t last_microsec = 0;
+    uint64_t last_microsec_before_ocall = __atomic_load_n(&last_microsec, __ATOMIC_ACQUIRE);
     do {
         retval = sgx_exitless_ocall(OCALL_GETTIME, ms);
     } while (retval == -EINTR);
-    if (!retval)
-        *microsec = READ_ONCE(ms->ms_microsec);
+
+    if (!retval) {
+        uint64_t microsec = READ_ONCE(ms->ms_microsec);
+        if (microsec < last_microsec_before_ocall) {
+            /* Probably a malicious host. */
+            log_error("OCALL_GETTIME returned time value smaller than in the previous call");
+            _DkProcessExit(1);
+        }
+        /* Update `last_microsec`. */
+        uint64_t expected_microsec = last_microsec_before_ocall;
+        while (expected_microsec < microsec) {
+            if (__atomic_compare_exchange_n(&last_microsec, &expected_microsec, microsec,
+                                            /*weak=*/true, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE)) {
+                break;
+            }
+        }
+        *microsec_ptr = microsec;
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;
