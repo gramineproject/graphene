@@ -39,6 +39,6 @@ sgx.trusted_files.libdl = "file:{{ graphene.runtimedir() }}/libdl.so.2"
 sgx.trusted_files.libm = "file:{{ graphene.runtimedir() }}/libm.so.6"
 sgx.trusted_files.libpthread = "file:{{ graphene.runtimedir() }}/libpthread.so.0"
 sgx.trusted_files.librt = "file:{{ graphene.runtimedir() }}/librt.so.1"
-sgx.trusted_files.libstdbuf = "file:/usr/{{ arch_libdir }}/coreutils/libstdbuf.so"
+sgx.trusted_files.libstdbuf = "file:{{ coreutils_libdir }}/libstdbuf.so"
 
 sgx.allowed_files.tmp = "file:/tmp"
