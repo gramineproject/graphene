@@ -1212,6 +1212,11 @@ static int check_msghdr(struct msghdr* msg, bool is_recv) {
         }
     }
 
+    if (msg->msg_controllen != 0) {
+        log_warning("\"struct msghdr\" ancillary data is not supported");
+        return -ENOSYS;
+    }
+
     return 0;
 }
 
