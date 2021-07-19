@@ -33,7 +33,7 @@ GRAPHENE_LOG_LEVEL = error
 endif
 
 .PHONY: all
-all: benchmark_app benchmark_app.manifest pal_loader $(VENV_DIR) \
+all: benchmark_app benchmark_app.manifest $(VENV_DIR) \
 	$(MODEL_DIR)/public/$(MODEL_RESNET) \
 	$(MODEL_DIR)/intel/$(MODEL_BERT) \
 	$(MODEL_DIR)/intel/$(MODEL_BERT_INT8) \
@@ -58,42 +58,42 @@ $(VENV_DIR):
 	&& pip3 install -r requirements.txt \
 	&& deactivate
 
-$(MODEL_DIR)/public/$(MODEL_RESNET):
+$(MODEL_DIR)/public/$(MODEL_RESNET): $(VENV_DIR)
 	. $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_RESNET) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_RESNET) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
-$(MODEL_DIR)/intel/$(MODEL_BERT):
+$(MODEL_DIR)/intel/$(MODEL_BERT): $(VENV_DIR)
 	. $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BERT) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BERT) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
-$(MODEL_DIR)/intel/$(MODEL_BERT_INT8):
+$(MODEL_DIR)/intel/$(MODEL_BERT_INT8): $(VENV_DIR)
 	. $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BERT_INT8) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BERT_INT8) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
-$(MODEL_DIR)/public/$(MODEL_BRATS0001):
+$(MODEL_DIR)/public/$(MODEL_BRATS0001): $(VENV_DIR)
 	. $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BRATS0001) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BRATS0001) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
-$(MODEL_DIR)/public/$(MODEL_BRATS0002):
+$(MODEL_DIR)/public/$(MODEL_BRATS0002): $(VENV_DIR)
 	. $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BRATS0002) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BRATS0002) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
-$(MODEL_DIR)/public/$(MODEL_SSD_COCO):
+$(MODEL_DIR)/public/$(MODEL_SSD_COCO): $(VENV_DIR)
 	. $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_SSD_COCO) -o $(abspath $(MODEL_DIR)) \
@@ -102,19 +102,18 @@ $(MODEL_DIR)/public/$(MODEL_SSD_COCO):
 
 benchmark_app.manifest: benchmark_app.manifest.template
 	graphene-manifest \
-		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
-		-Darch_libdir=$(ARCH_LIBDIR) \
-		-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
-		-DHOME=$(HOME) \
-		$< > $@
+	-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+	-Darch_libdir=$(ARCH_LIBDIR) \
+	-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
+	-DHOME=$(HOME) \
+	$< > $@
 
 # Generating the SGX-specific manifest (benchmark_app.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-benchmark_app.manifest.sgx: benchmark_app.manifest \
-		| benchmark_app
-		graphene-sgx-sign \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+benchmark_app.manifest.sgx: benchmark_app.manifest benchmark_app
+	graphene-sgx-sign \
+	-key $(SGX_SIGNER_KEY) \
+	-manifest $< -output $@
 
 benchmark_app.sig: benchmark_app.manifest.sgx
 
@@ -125,12 +124,9 @@ benchmark_app:
 	cd $(OPENVINO_DIR)/deployment_tools/inference_engine/samples/cpp && ./build_samples.sh
 	ln -s $(HOME)/inference_engine_cpp_samples_build/intel64/Release/benchmark_app $@
 
-pal_loader:
-	ln -s $(GRAPHENE_DIR)/Runtime/pal_loader $@
-
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig benchmark_app pal_loader
+	$(RM) *.manifest *.manifest.sgx *.token *.sig benchmark_app
 
 .PHONY: distclean
 distclean: clean
