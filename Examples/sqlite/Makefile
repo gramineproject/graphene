@@ -32,8 +32,6 @@ sqlite3.manifest: manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< >$@
 
-# Generating the SGX-specific manifest (*.manifest.sgx), the enclave signature,
-# and the token for enclave initialization.
 sqlite3.manifest.sgx: sqlite3.manifest
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \

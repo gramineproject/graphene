@@ -48,3 +48,7 @@ That means it is safe to access the same database file from multiple processes,
 but only within a **single Graphene instance**. In other words, a multi-process
 Graphene application is OK, but multiple Graphene instances should not access
 the same database file concurrently.
+
+Note that in a production setup, the database should be either mounted as a
+protected file, or from tmpfs, which would make it impossible to access from
+multiple Graphene instances anyway.
