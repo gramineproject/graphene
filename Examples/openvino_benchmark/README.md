@@ -66,7 +66,7 @@ performance.
 
 ```console
 $ export OPTIMAL_VALUE=number of physical cores * 2
-$ sudo KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
+$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 graphene-sgx benchmark_app -i <image files> -m <model path XML file> \
 -d CPU -b 1 -t 20 \
 -nstreams OPTIMAL_VALUE -nthreads OPTIMAL_VALUE -nireq OPTIMAL_VALUE
@@ -74,7 +74,7 @@ graphene-sgx benchmark_app -i <image files> -m <model path XML file> \
 For example, in a system with 36 physical cores, the following commands will execute the OpenVINO\
 benchmark for obtaining throughput measurements for the corresponding model.
 ```console
-$ sudo KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
+$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 graphene-sgx benchmark_app \
 -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
 -d CPU -b 1 -t 20 \
@@ -115,7 +115,7 @@ enough memory available please expand memory nodes usage with numactl --membind 
 #### Graphene-SGX
 
 ```console
-$ sudo KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
+$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 graphene-sgx benchmark_app -i <image files> -m <model path XML file> \
 -d CPU -t 20 -b 1 -api sync
 ```
@@ -123,7 +123,7 @@ graphene-sgx benchmark_app -i <image files> -m <model path XML file> \
 For example, in a system with 36 physical cores, the following commands will execute the OpenVINO\
 benchmark for obtaining latency measurements for the corresponding model.
 ```console
-$ sudo KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
+$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 graphene-sgx benchmark_app \
 -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
 -d CPU -b 1 -t 20 -api sync
