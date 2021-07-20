@@ -411,6 +411,7 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_fs_lock);
     RUN_INIT(init_dcache);
     RUN_INIT(init_handle);
+    RUN_INIT(init_r_debug);
 
     log_debug("Shim loaded at %p, ready to initialize", &__load_address);
 

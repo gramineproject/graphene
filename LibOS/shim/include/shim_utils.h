@@ -148,6 +148,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, elf_auxv_
 int remove_loaded_libraries(void);
 
 /* gdb debugging support */
+int init_r_debug(void);
 void remove_r_debug(void* addr);
 void append_r_debug(const char* uri, void* addr);
 void clean_link_map_list(void);
