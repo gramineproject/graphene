@@ -4,9 +4,13 @@
 #ifndef SGX_API_H
 #define SGX_API_H
 
+#include <stdnoreturn.h>
+
 #include "sgx_arch.h"
 
 long sgx_ocall(uint64_t code, void* ms);
+void sgx_ocall_div(void);
+noreturn void enclave_thread_finished(void);
 
 bool sgx_is_completely_within_enclave(const void* addr, uint64_t size);
 bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size);
@@ -29,7 +33,7 @@ bool sgx_copy_to_enclave(void* ptr, size_t maxsize, const void* uptr, size_t usi
 static inline int sgx_report(const sgx_target_info_t* targetinfo, const void* reportdata,
                              sgx_report_t* report) {
     __asm__ volatile(
-        ENCLU "\n"
+        "enclu\n"
         :: "a"(EREPORT), "b"(targetinfo), "c"(reportdata), "d"(report)
         : "memory");
     return 0;
@@ -43,7 +47,7 @@ static inline int sgx_report(const sgx_target_info_t* targetinfo, const void* re
 static inline int64_t sgx_getkey(sgx_key_request_t* keyrequest, sgx_key_128bit_t* key) {
     int64_t rax = EGETKEY;
     __asm__ volatile(
-        ENCLU "\n"
+        "enclu\n"
         : "+a"(rax)
         : "b"(keyrequest), "c"(key)
         : "memory");

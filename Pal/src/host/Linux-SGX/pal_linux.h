@@ -85,13 +85,8 @@ extern uint32_t g_xsave_size;
 extern const uint32_t g_xsave_reset_state[];
 
 void init_xsave_size(uint64_t xfrm);
-void save_xregs(PAL_XREGS_STATE* xsave_area);
-void restore_xregs(const PAL_XREGS_STATE* xsave_area);
-noreturn void _restore_sgx_context(sgx_cpu_context_t* uc, PAL_XREGS_STATE* xsave_area);
 
-void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
-                         PAL_XREGS_STATE* xregs_state);
-void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
+void _DkExceptionHandler(unsigned int exit_info, sgx_pal_gpr_t* uc, PAL_XREGS_STATE* xregs_state);
 
 void init_cpuid(void);
 

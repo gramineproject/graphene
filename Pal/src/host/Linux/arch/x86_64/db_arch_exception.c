@@ -13,7 +13,6 @@
 /* in x86_64 kernels, sigaction is required to have a user-defined restorer */
 __asm__(
 ".align 16\n"
-".LSTART_restore_rt:\n"
 ".type __restore_rt,@function\n"
 "__restore_rt:\n"
 "movq $" XSTRINGIFY(__NR_rt_sigreturn) ", %rax\n"

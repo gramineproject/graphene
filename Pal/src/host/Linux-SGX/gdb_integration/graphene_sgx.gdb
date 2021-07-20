@@ -51,4 +51,16 @@ commands
     continue
 end
 
+catch signal SIGFPE
+commands
+    silent
+    push-language c
+
+    if $rip == &sgx_ocall_div
+        pop-language
+        continue
+    end
+    pop-language
+end
+
 pop-language

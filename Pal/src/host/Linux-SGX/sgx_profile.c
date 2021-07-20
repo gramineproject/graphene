@@ -74,22 +74,31 @@ static int debug_read_all(void* dest, void* addr, size_t size) {
     return 0;
 }
 
-static int get_sgx_gpr(sgx_pal_gpr_t* gpr, void* tcs) {
-    int ret;
+int get_sgx_gpr_addr(void* tcs, sgx_pal_gpr_t** gpr_addr_out) {
     uint64_t ossa;
     uint32_t cssa;
-    ret = debug_read_all(&ossa, tcs + 16, sizeof(ossa));
+    int ret = debug_read_all(&ossa, tcs + 16, sizeof(ossa));
     if (ret < 0)
         return ret;
     ret = debug_read_all(&cssa, tcs + 24, sizeof(cssa));
     if (ret < 0)
         return ret;
 
-    void* gpr_addr = (void*)(
+    sgx_pal_gpr_t* gpr_addr = (void*)(
         g_pal_enclave.baseaddr
         + ossa + cssa * g_pal_enclave.ssa_frame_size
-        - sizeof(*gpr));
+        - sizeof(*gpr_addr));
 
+    *gpr_addr_out = gpr_addr;
+    return 0;
+}
+
+static int get_sgx_gpr(sgx_pal_gpr_t* gpr, void* tcs) {
+    sgx_pal_gpr_t* gpr_addr = NULL;
+    int ret = get_sgx_gpr_addr(tcs, &gpr_addr);
+    if (ret < 0) {
+        return ret;
+    }
     ret = debug_read_all(gpr, gpr_addr, sizeof(*gpr));
     if (ret < 0)
         return ret;
@@ -97,22 +106,25 @@ static int get_sgx_gpr(sgx_pal_gpr_t* gpr, void* tcs) {
     return 0;
 }
 
+int sgx_debug_mem_fd_init(void) {
+    int ret = DO_SYSCALL(open, "/proc/self/mem", O_RDONLY | O_LARGEFILE, 0);
+    if (ret < 0) {
+        log_error("sgx_debug_mem_fd_init: opening /proc/self/mem failed: %d", ret);
+        return ret;
+    }
+    g_mem_fd = ret;
+    return 0;
+}
+
 int sgx_profile_init(void) {
     int ret;
 
     assert(!g_profile_enabled);
-    assert(g_mem_fd == -1);
+    assert(g_mem_fd >= 0);
     assert(!g_perf_data);
 
     g_profile_period = NSEC_IN_SEC / g_pal_enclave.profile_frequency;
     g_profile_mode = g_pal_enclave.profile_mode;
-
-    ret = DO_SYSCALL(open, "/proc/self/mem", O_RDONLY | O_LARGEFILE, 0);
-    if (ret < 0) {
-        log_error("sgx_profile_init: opening /proc/self/mem failed: %d", ret);
-        goto out;
-    }
-    g_mem_fd = ret;
 
     struct perf_data* pd = pd_open(g_pal_enclave.profile_filename, g_pal_enclave.profile_with_stack);
     if (!pd) {

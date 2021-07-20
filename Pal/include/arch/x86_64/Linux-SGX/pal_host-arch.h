@@ -7,4 +7,6 @@
 #ifndef __LINUX_SGX_X86_64_PAL_HOST_ARCH_H__
 #define __LINUX_SGX_X86_64_PAL_HOST_ARCH_H__
 
+extern uint64_t g_default_rflags;
+
 #endif /* __LINUX_SGX_X86_64_PAL_HOST_ARCH_H__ */

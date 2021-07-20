@@ -1,181 +1,149 @@
-#include "pal_linux_defs.h"
+#include "asm-offsets.h"
 #include "sgx_arch.h"
 
-#include "asm-offsets.h"
+.intel_syntax noprefix
 
-	.extern tcs_base
-	.extern g_in_aex_profiling
-
-	.global sgx_ecall
-	.type sgx_ecall, @function
-
+.global sgx_ecall
+.type sgx_ecall, @function
+.global sgx_ecall_pre_cssa_dec
+.type sgx_ecall_pre_cssa_dec, @function
+.align 0x10
 sgx_ecall:
-	.cfi_startproc
+    .cfi_startproc
 
-	# put entry address in RDX
-	leaq .Lsgx_entry(%rip), %rdx
+    push r15
+    .cfi_adjust_cfa_offset 8
+    push r14
+    .cfi_adjust_cfa_offset 8
+    push r13
+    .cfi_adjust_cfa_offset 8
+    push r12
+    .cfi_adjust_cfa_offset 8
+    push rbx
+    .cfi_adjust_cfa_offset 8
+    push rbp
+    .cfi_adjust_cfa_offset 8
 
-	# other arguments: RDI - code, RSI - ms
+    mov rbx, gs:[PAL_TCB_URTS_TCS]
+    lea rcx, [rip + async_exit_pointer]
+    mov rax, EENTER
 
-.Ldo_ecall_callee_save:
-	pushq %rbx
-	.cfi_adjust_cfa_offset 8
-	pushq %rbp
-	.cfi_adjust_cfa_offset 8
-	pushq %r12
-	.cfi_adjust_cfa_offset 8
-	pushq %r13
-	.cfi_adjust_cfa_offset 8
-	pushq %r14
-	.cfi_adjust_cfa_offset 8
-	pushq %r15
-	.cfi_adjust_cfa_offset 8
+    inc QWORD PTR gs:[PAL_TCB_URTS_EENTER_CNT]
+    inc BYTE PTR gs:[PAL_TCB_URTS_CSSA]
+    enclu
+sgx_ecall_pre_cssa_dec:
+    dec BYTE PTR gs:[PAL_TCB_URTS_CSSA]
 
-.Ldo_ecall:
-	# increment per-thread EENTER counter for stats
-	lock incq %gs:PAL_TCB_URTS_EENTER_CNT
+    pop rbp
+    .cfi_adjust_cfa_offset -8
+    pop rbx
+    .cfi_adjust_cfa_offset -8
+    pop r12
+    .cfi_adjust_cfa_offset -8
+    pop r13
+    .cfi_adjust_cfa_offset -8
+    pop r14
+    .cfi_adjust_cfa_offset -8
+    pop r15
+    .cfi_adjust_cfa_offset -8
 
-	# RBX has to be the TCS of the thread
-	movq %gs:PAL_TCB_URTS_TCS, %rbx
+    ret
+    .cfi_endproc
 
-	# RCX has to be the AEP (Asynchronous Exit Pointer)
-	leaq async_exit_pointer(%rip), %rcx
-
-	movq $EENTER, %rax
-	ENCLU
-
-	# currently only ECALL_THREAD_RESET returns
-.Lafter_resume:
-	popq %r15
-	.cfi_adjust_cfa_offset -8
-	popq %r14
-	.cfi_adjust_cfa_offset -8
-	popq %r13
-	.cfi_adjust_cfa_offset -8
-	popq %r12
-	.cfi_adjust_cfa_offset -8
-	popq %rbp
-	.cfi_adjust_cfa_offset -8
-	popq %rbx
-	.cfi_adjust_cfa_offset -8
-	retq
-	.cfi_endproc
-
-	.global async_exit_pointer
-	.type async_exit_pointer, @function
-
+.global async_exit_pointer
+.type async_exit_pointer, @function
+.align 0x10
 async_exit_pointer:
-	.cfi_startproc
-	.cfi_undefined %rip
+    .cfi_startproc
+    .cfi_undefined rip
+    .cfi_undefined rbp
+    mov rbp, rsp
+    and rsp, ~0xf
 
-	# increment per-thread AEX counter for stats
-	lock incq %gs:PAL_TCB_URTS_AEX_CNT
+    mov r15, gs:[PAL_TCB_URTS_SELF]
+    add r15, PAL_TCB_URTS_OCALL_ARGS_OFF
+
+    movzx eax, BYTE PTR gs:[PAL_TCB_URTS_CSSA]
+    dec eax
+    mov edx, OCALL_ARGS_SIZE
+    mul edx
+    add r15, rax
+
+    xor eax, eax
+    # lock just to be explicit
+    lock xchg [r15 + OCALL_ARGS_IS_OCALL], al
+    test eax, eax
+    jnz .Laex_is_ocall
+
+    inc QWORD PTR gs:[PAL_TCB_URTS_AEX_CNT]
+#ifdef DEBUG
+    mov rdi, rbx
+    call sgx_profile_sample_aex
+#endif
+    jmp .Laex_eresume
+
+.Laex_is_ocall:
+#ifdef DEBUG
+    sub rsp, 0x10
+    mov rdi, rbx
+    mov rsi, rsp
+    call get_sgx_gpr_addr
+    lea rdx, [rip + Lmorestack_for_gdb_bt]
+    mov [rsp + 8], rdx
+    .cfi_def_cfa rsp, 0
+    .cfi_rel_offset rbp, 0
+    .cfi_rel_offset rip, 8
+    mov rdx, [rsp]
+#endif
+
+    mov rdi, [r15 + OCALL_ARGS_CODE]
+    mov rsi, [r15 + OCALL_ARGS_ARGS]
+    call sgx_entry
+    mov [r15 + OCALL_ARGS_CODE], rax
+
+    mov rdi, r15
+    call fixup_ocall_args_ptrs
+#ifdef DEBUG
+    add rsp, 0x10
+#endif
+
+.Laex_eresume:
+    mov DWORD PTR gs:[PAL_TCB_URTS_LAST_ASYNC_EVENT], 0
+    mov rsp, rbp
+
+    lea rcx, [rip + async_exit_pointer]
+    # rbx already set
+    mov rax, ERESUME
+    enclu
+    # Unreachable
+    .cfi_endproc
+
+.global sgx_raise
+.type sgx_raise, @function
+sgx_raise:
+    jmp sgx_ecall
+
+.global eresume_pointer
+.type eresume_pointer, @function
+eresume_pointer:
+    enclu
 
 #ifdef DEBUG
-	# Inform that we are in AEX profiling code
-	movb $1, %gs:PAL_TCB_URTS_IN_AEX_PROF
-	# Save ERESUME parameters
-	pushq %rax
-	.cfi_adjust_cfa_offset 8
-	pushq %rbx
-	.cfi_adjust_cfa_offset 8
-	pushq %rcx
-	.cfi_adjust_cfa_offset 8
-
-	# Align stack (required by System V AMD64 ABI)
-	movq %rsp, %rbp
-	.cfi_def_cfa_register %rbp
-	andq $~0xF, %rsp
-
-	# Call sgx_profile_sample_aex with %rdi = TCS
-	movq %rbx, %rdi
-	call sgx_profile_sample_aex
-
-	# Restore stack
-	movq %rbp, %rsp
-	.cfi_def_cfa_register %rsp
-
-	# Restore ERESUME parameters
-	popq %rcx
-	.cfi_adjust_cfa_offset -8
-	popq %rbx
-	.cfi_adjust_cfa_offset -8
-	popq %rax
-	.cfi_adjust_cfa_offset -8
-	movb $0, %gs:PAL_TCB_URTS_IN_AEX_PROF
+.global __morestack
+.type __morestack, @function
+__morestack:
+    .cfi_startproc
+    .cfi_def_cfa rbp, 0
+    .cfi_rel_offset rip, SGX_GPR_RIP
+    .cfi_rel_offset rbp, SGX_GPR_RBP
+    .cfi_rel_offset rsp, SGX_GPR_RSP
+    .cfi_rel_offset rbx, SGX_GPR_RBX
+    .cfi_rel_offset r12, SGX_GPR_R12
+    .cfi_rel_offset r13, SGX_GPR_R13
+    .cfi_rel_offset r14, SGX_GPR_R14
+    .cfi_rel_offset r15, SGX_GPR_R15
+    nop
+Lmorestack_for_gdb_bt:
+    nop
+    .cfi_endproc
 #endif
-
-	.cfi_endproc
-
-	# fall-through to ERESUME
-
-	.global eresume_pointer
-	.type eresume_pointer, @function
-
-eresume_pointer:
-	ENCLU   # perform ERESUME
-
-	.global async_exit_pointer_end
-	.type async_exit_pointer_end, @function
-
-async_exit_pointer_end:
-
-	.global sgx_raise
-	.type sgx_raise, @function
-
-sgx_raise:
-	leaq .Lafter_resume(%rip), %rdx
-	jmp .Ldo_ecall_callee_save
-
-.Lsgx_entry:
-	# arguments: RDI - code, RSI - ms
-	.cfi_startproc
-
-	# increment per-thread EEXIT counter for stats
-	lock incq %gs:PAL_TCB_URTS_EEXIT_CNT
-
-	leaq ocall_table(%rip), %rbx
-	movq (%rbx,%rdi,8), %rbx
-	movq %rsi, %rdi
-
-	pushq %rbp
-	.cfi_adjust_cfa_offset 8
-	movq %rsp, %rbp
-	.cfi_offset %rbp, -16
-	.cfi_def_cfa_register %rbp
-
-#if DEBUG
-    # Adjust stack and save RDI
-	subq $8, %rsp
-	andq $~0xF, %rsp  # Required by System V AMD64 ABI.
-	movq %rdi, -8(%rbp)
-
-	# Call sgx_profile_sample_ocall_outer with RBX (ocall handler)
-	movq %rbx, %rdi
-	call sgx_profile_sample_ocall_outer
-
-	# Call sgx_profile_sample_ocall_inner with RDX (pointer to in-enclave context)
-	movq %rdx, %rdi
-	call sgx_profile_sample_ocall_inner
-
-	# Restore RDI
-	movq -8(%rbp), %rdi
-#else
-	andq $~0xF, %rsp  # Required by System V AMD64 ABI.
-#endif
-
-	callq *%rbx
-
-	movq %rbp, %rsp
-	popq %rbp
-	.cfi_def_cfa %rsp, 8
-
-	movq %rax, %rdi
-	xor %esi, %esi
-	lock xchgl %esi, %gs:PAL_TCB_URTS_LAST_ASYNC_EVENT
-
-	# return to enclave, arguments:
-	# RDI - return value
-	# RSI - external event
-	jmp .Ldo_ecall
-	.cfi_endproc
