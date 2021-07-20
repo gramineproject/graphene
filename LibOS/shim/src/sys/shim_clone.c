@@ -107,6 +107,7 @@ static BEGIN_MIGRATION_DEF(fork, struct shim_process* process_description,
                            struct shim_thread* thread_description,
                            struct shim_ipc_ids* process_ipc_ids) {
     DEFINE_MIGRATE(process_ipc_ids, process_ipc_ids, sizeof(*process_ipc_ids));
+    DEFINE_MIGRATE(dentry_root, NULL, 0);
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(all_vmas, NULL, 0);
     DEFINE_MIGRATE(process_description, process_description, sizeof(*process_description));

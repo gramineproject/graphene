@@ -267,9 +267,6 @@ struct shim_mount {
     LIST_TYPE(shim_mount) list;
 };
 
-/* TODO: This actually does not get migrated after a fork. We migrate `g_process.root`, which is
- * enough for Graphene to function, but leaves `g_dentry_root` in child process pointing to an empty
- * directory. */
 extern struct shim_dentry* g_dentry_root;
 
 #define F_OK 0

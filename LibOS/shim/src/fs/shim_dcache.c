@@ -62,6 +62,11 @@ int init_dcache(void) {
 
     dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
 
+    if (g_pal_control->parent_process) {
+        /* In a child process, `g_dentry_root` will be restored from a checkpoint. */
+        return 0;
+    }
+
     g_dentry_root = alloc_dentry();
     if (!g_dentry_root) {
         return -ENOMEM;
@@ -423,6 +428,34 @@ void dump_dcache(struct shim_dentry* dent) {
     dump_dentry(dent, 0);
     unlock(&g_dcache_lock);
 }
+
+BEGIN_CP_FUNC(dentry_root) {
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
+
+    /* Checkpoint the root dentry */
+    struct shim_dentry* new_dent;
+    DO_CP(dentry, g_dentry_root, &new_dent);
+
+    /* Add an entry for it, so that RS_FUNC(dentry_root) is triggered on restore */
+    size_t off = ADD_CP_OFFSET(sizeof(struct shim_dentry*));
+    struct shim_dentry** new_dentry_root = (void*)(base + off);
+    *new_dentry_root = new_dent;
+    ADD_CP_FUNC_ENTRY(off);
+}
+END_CP_FUNC(dentry_root)
+
+BEGIN_RS_FUNC(dentry_root) {
+    __UNUSED(offset);
+
+    assert(!g_dentry_root);
+
+    struct shim_dentry** dentry_root = (void*)(base + GET_CP_FUNC_ENTRY());
+    CP_REBASE(*dentry_root);
+    g_dentry_root = *dentry_root;
+}
+END_RS_FUNC(dentry_root)
 
 BEGIN_CP_FUNC(dentry) {
     __UNUSED(size);
