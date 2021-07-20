@@ -370,16 +370,17 @@ def gen_area_content(attr, areas, enclave_base, enclave_heap_min):
         set_tcs_field(t, offs.TCS_OFS_LIMIT, '<L', 0xfff)
         set_tcs_field(t, offs.TCS_OGS_LIMIT, '<L', 0xfff)
 
+        # TODO: most of this fields can probably be removed
         set_tls_field(t, offs.SGX_COMMON_SELF, tls_area.addr + offs.PAGESIZE * t)
         set_tls_field(t, offs.SGX_COMMON_STACK_PROTECTOR_CANARY,
                       offs.STACK_PROTECTOR_CANARY_DEFAULT)
         set_tls_field(t, offs.SGX_ENCLAVE_SIZE, attr['enclave_size'])
         set_tls_field(t, offs.SGX_TCS_OFFSET, tcs_area.addr - enclave_base + offs.TCS_SIZE * t)
         set_tls_field(t, offs.SGX_INITIAL_STACK_ADDR, stacks[t].addr + stacks[t].size)
-        set_tls_field(t, offs.SGX_SIG_STACK_LOW, sig_stacks[t].addr)
-        set_tls_field(t, offs.SGX_SIG_STACK_HIGH, sig_stacks[t].addr + sig_stacks[t].size)
+        set_tls_field(t, offs.SGX_SIG_STACK_TOP, sig_stacks[t].addr + sig_stacks[t].size)
         set_tls_field(t, offs.SGX_SSA, ssa)
-        set_tls_field(t, offs.SGX_GPR, ssa + offs.SSA_FRAME_SIZE - offs.SGX_GPR_SIZE)
+        # set_tls_field(t, offs.SGX_CSSA, 1)
+        # TODO ready_for_exceptions ????
         set_tls_field(t, offs.SGX_MANIFEST_SIZE, len(manifest_area.content))
         set_tls_field(t, offs.SGX_HEAP_MIN, enclave_heap_min)
         set_tls_field(t, offs.SGX_HEAP_MAX, enclave_heap_max)

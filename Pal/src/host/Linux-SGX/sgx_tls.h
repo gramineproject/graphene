@@ -16,6 +16,15 @@ struct untrusted_area {
     bool valid;
 };
 
+struct ocall_args {
+    uint64_t code;
+    void* args;
+    uint32_t* ptr;
+    uint32_t* ptr2;
+    uint32_t scratch[2];
+    uint8_t is_ocall;
+};
+
 /*
  * Beside the classic thread local storage (like ustack, thread, etc.) the TLS
  * area is also used to pass parameters needed during enclave or thread
@@ -29,20 +38,13 @@ struct enclave_tls {
     uint64_t enclave_size;
     uint64_t tcs_offset;
     uint64_t initial_stack_addr;
-    uint64_t tmp_rip;
-    uint64_t sig_stack_low;
-    uint64_t sig_stack_high;
+    uint64_t sig_stack_top;
     void*    ecall_return_addr;
     void*    ssa;
-    sgx_pal_gpr_t* gpr;
-    void*    exit_target;
+    uint64_t cssa; // actually just 2 bits, rest is padding
+    struct ocall_args* urts_ocall_args;
     void*    fsbase;
-    void*    pre_ocall_stack;
-    void*    ustack_top;
-    void*    ustack;
     struct pal_handle_thread* thread;
-    uint64_t ocall_exit_called;
-    uint64_t thread_started;
     uint64_t ready_for_exceptions;
     uint64_t manifest_size;
     void*    heap_min;
@@ -50,10 +52,6 @@ struct enclave_tls {
     int*     clear_child_tid;
     struct untrusted_area untrusted_area_cache;
 };
-
-#ifndef DEBUG
-extern uint64_t dummy_debug_variable;
-#endif
 
 #ifdef IN_ENCLAVE
 
@@ -83,6 +81,8 @@ static inline struct enclave_tls* get_tcb_trts(void) {
                 : "memory");                                                                   \
     } while (0)
 
+#define GET_ENCLAVE_SSA_GPR(idx) \
+    ((sgx_pal_gpr_t*)((char*)GET_ENCLAVE_TLS(ssa) + SSA_FRAME_SIZE * (idx) - sizeof(sgx_pal_gpr_t)))
 
 __attribute_no_stack_protector
 static inline void pal_set_tcb_stack_canary(uint64_t canary) {
@@ -98,15 +98,17 @@ typedef struct pal_tcb_urts {
     sgx_arch_tcs_t* tcs;           /* TCS page of SGX corresponding to thread, for EENTER */
     void* stack;                   /* bottom of stack, for later freeing when thread exits */
     void* alt_stack;               /* bottom of alt stack, for child thread to init alt stack */
-    uint8_t is_in_aex_profiling;   /* non-zero if thread is currently doing AEX profiling */
-    atomic_ulong eenter_cnt;       /* # of EENTERs, corresponds to # of ECALLs */
-    atomic_ulong eexit_cnt;        /* # of EEXITs, corresponds to # of OCALLs */
-    atomic_ulong aex_cnt;          /* # of AEXs, corresponds to # of interrupts/signals */
+    uint8_t cssa;                  /* Current nesting level inside enclave - cssa */
+    uint64_t eenter_cnt;           /* # of EENTERs, corresponds to # of ECALLs and exceptions */
+    uint64_t aex_cnt;              /* # of AEXs, corresponds to # of interrupts/signals */
     atomic_ulong sync_signal_cnt;  /* # of sync signals, corresponds to # of SIGSEGV/SIGILL/.. */
     atomic_ulong async_signal_cnt; /* # of async signals, corresponds to # of SIGINT/SIGCONT/.. */
     uint64_t profile_sample_time;  /* last time sgx_profile_sample() recorded a sample */
     int32_t last_async_event;      /* last async signal, reported to the enclave on ocall return */
+    struct ocall_args ocall_args[2];
 } PAL_TCB_URTS;
+
+void fixup_ocall_args_ptrs(struct ocall_args* ocall_args);
 
 extern void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack);
 

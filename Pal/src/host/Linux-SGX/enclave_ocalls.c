@@ -141,26 +141,13 @@ static long sgx_exitless_ocall(uint64_t code, void* ms) {
 }
 
 noreturn void ocall_exit(int exitcode, int is_exitgroup) {
-    ms_ocall_exit_t* ms;
+    uint64_t packed = (uint64_t)(uint32_t)exitcode | ((uint64_t)(uint32_t)is_exitgroup << 32);
 
-    sgx_prepare_ustack();
-    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
-    if (!ms) {
-        /* We can't really recover from here. Should be unreachable without the host doing malicious
-         * things. */
-        die_or_inf_loop();
-    }
-    WRITE_ONCE(ms->ms_exitcode, exitcode);
-    WRITE_ONCE(ms->ms_is_exitgroup, is_exitgroup);
+    struct ocall_args* urts_ocall_args = get_tcb_trts()->urts_ocall_args;
+    static_assert(sizeof(void*) == 8, "ops");
+    WRITE_ONCE(urts_ocall_args->args, (void*)packed);
 
-    // There are two reasons for this loop:
-    //  1. Ocalls can be interuppted.
-    //  2. We can't trust the outside to actually exit, so we need to ensure
-    //     that we never return even when the outside tries to trick us (this
-    //     case should be already catched by enclave_entry.S).
-    while (true) {
-        sgx_ocall(OCALL_EXIT, ms);
-    }
+    enclave_thread_finished();
 }
 
 int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int fd, off_t offset) {

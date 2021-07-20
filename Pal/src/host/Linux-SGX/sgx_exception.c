@@ -35,7 +35,6 @@
 /* in x86_64 kernels, sigaction is required to have a user-defined restorer */
 __asm__(
 ".align 16\n"
-".LSTART_restore_rt:\n"
 ".type __restore_rt,@function\n"
 "__restore_rt:\n"
 "movq $" XSTRINGIFY(__NR_rt_sigreturn) ", %rax\n"
@@ -63,7 +62,7 @@ static int block_signal(int sig, bool block) {
 static int set_signal_handler(int sig, void* handler) {
     struct sigaction action = {0};
     action.sa_handler  = handler;
-    action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER;
+    action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER | SA_NODEFER;
     action.sa_restorer = __restore_rt;
 
     /* disallow nested asynchronous signals during enclave exception handling */
@@ -105,18 +104,6 @@ static int get_pal_event(int sig) {
     }
 }
 
-static bool interrupted_in_enclave(struct ucontext* uc) {
-    unsigned long rip = ucontext_get_ip(uc);
-
-    /* in case of AEX, RIP can point to any instruction in the AEP/ERESUME trampoline code, i.e.,
-     * RIP can point to anywhere in [async_exit_pointer, async_exit_pointer_end) interval */
-    return rip >= (unsigned long)async_exit_pointer && rip < (unsigned long)async_exit_pointer_end;
-}
-
-static bool interrupted_in_aex_profiling(void) {
-    return get_tcb_urts()->is_in_aex_profiling != 0;
-}
-
 static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
     int event = get_pal_event(signum);
     assert(event > 0);
@@ -128,7 +115,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             DO_SYSCALL(tkill, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    if (interrupted_in_enclave(uc)) {
+    if (ucontext_get_ip(uc) == (uint64_t)async_exit_pointer) {
         /* exception happened in app/LibOS/trusted PAL code, handle signal inside enclave */
         get_tcb_urts()->sync_signal_cnt++;
         sgx_raise(event);
@@ -155,6 +142,20 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     die_or_inf_loop();
 }
 
+static void handle_sigfpe(int signum, siginfo_t* info, struct ucontext* uc) {
+    assert(signum == SIGFPE);
+
+    if (ucontext_get_ip(uc) == (uint64_t)async_exit_pointer) {
+        uint8_t cssa = __atomic_load_n(&get_tcb_urts()->cssa, __ATOMIC_RELAXED);
+        assert(cssa > 0);
+        if (__atomic_load_n(&get_tcb_urts()->ocall_args[cssa - 1].is_ocall, __ATOMIC_RELAXED)) {
+            /* This is an ocall, simply return, it will be handled later. */
+            return;
+        }
+    }
+    handle_sync_signal(signum, info, uc);
+}
+
 static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {
     int event = get_pal_event(signum);
     assert(event > 0);
@@ -166,27 +167,28 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             DO_SYSCALL(tkill, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    if (interrupted_in_enclave(uc) || interrupted_in_aex_profiling()) {
-        /* signal arrived while in app/LibOS/trusted PAL code or when handling another AEX, handle
-         * signal inside enclave */
-        get_tcb_urts()->async_signal_cnt++;
-        sgx_raise(event);
-        return;
-    }
-
-    assert(event == PAL_EVENT_INTERRUPTED || event == PAL_EVENT_QUIT);
-    if (get_tcb_urts()->last_async_event != PAL_EVENT_QUIT) {
-        /* Do not overwrite `PAL_EVENT_QUIT`. The only other possible event here is
-         * `PAL_EVENT_INTERRUPTED`, which is basically a no-op (just makes sure that a thread
-         * notices any new signals or other state changes, which also happens for other events). */
-        get_tcb_urts()->last_async_event = event;
-    }
-
     uint64_t rip = ucontext_get_ip(uc);
     if (rip == (uint64_t)&do_syscall_intr_after_check1
             || rip == (uint64_t)&do_syscall_intr_after_check2) {
         ucontext_set_ip(uc, (uint64_t)&do_syscall_intr_eintr);
     }
+
+    uint8_t cssa = __atomic_load_n(&get_tcb_urts()->cssa, __ATOMIC_RELAXED);
+    if (cssa > 0 && (cssa != 1 || rip != (uint64_t)&sgx_ecall_pre_cssa_dec)) {
+        get_tcb_urts()->async_signal_cnt++;
+        sgx_raise(event);
+
+        assert(event == PAL_EVENT_INTERRUPTED || event == PAL_EVENT_QUIT);
+        if (get_tcb_urts()->last_async_event != PAL_EVENT_QUIT) {
+            /*
+             * Do not overwrite `PAL_EVENT_QUIT`. The only other possible event here is
+             * `PAL_EVENT_INTERRUPTED`, which is basically a no-op (just makes sure that a thread
+             * notices any new signals or other state changes, which also happens for other events).
+             */
+            get_tcb_urts()->last_async_event = event;
+        }
+    }
+    /* Otherwise we can ignore this event. */
 }
 
 static void handle_dummy_signal(int signum, siginfo_t* info, struct ucontext* uc) {
@@ -208,8 +210,9 @@ int sgx_signal_setup(void) {
     if (ret < 0)
         goto err;
 
-    /* register synchronous signals (exceptions) in host Linux */
-    ret = set_signal_handler(SIGFPE, handle_sync_signal);
+    /* Register synchronous signals. `SIGFPE` requires special treatment as it is also used for
+     * ocalls. */
+    ret = set_signal_handler(SIGFPE, handle_sigfpe);
     if (ret < 0)
         goto err;
 

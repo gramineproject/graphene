@@ -140,36 +140,6 @@ typedef struct {
 } sgx_pal_gpr_t;
 
 typedef struct {
-    uint64_t rax;
-    uint64_t rcx;
-    uint64_t rdx;
-    uint64_t rbx;
-    uint64_t rsp;
-    uint64_t rbp;
-    uint64_t rsi;
-    uint64_t rdi;
-    uint64_t r8;
-    uint64_t r9;
-    uint64_t r10;
-    uint64_t r11;
-    uint64_t r12;
-    uint64_t r13;
-    uint64_t r14;
-    uint64_t r15;
-    uint64_t rflags;
-    uint64_t rip;
-} sgx_cpu_context_t;
-
-// Required by _restore_sgx_context, see enclave_entry.S.
-static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, rflags) ==
-                  sizeof(((sgx_cpu_context_t){0}).rflags),
-              "rip must be directly after rflags in sgx_cpu_context_t");
-static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, r15) <= RED_ZONE_SIZE,
-              "r15 needs to be within red zone distance from rip");
-static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, rsp) <= RED_ZONE_SIZE,
-              "rsp needs to be within red zone distance from rip");
-
-typedef struct {
     uint32_t vector : 8;
     uint32_t exit_type : 3;
     uint32_t reserved : 20;
@@ -346,16 +316,7 @@ static_assert(sizeof(sgx_key_request_t) == 512, "incorrect struct size");
 
 typedef uint8_t sgx_key_128bit_t[16];
 
-#define ENCLU ".byte 0x0f, 0x01, 0xd7"
-
-#else /* !__ASSEMBLER__ */
-
-/* microcode to call ENCLU */
-.macro ENCLU
-    .byte 0x0f, 0x01, 0xd7
-.endm
-
-#endif
+#endif /* !__ASSEMBLER__ */
 
 #define EENTER  2
 #define ERESUME 3

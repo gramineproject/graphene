@@ -249,6 +249,11 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
 
 #ifdef DEBUG
+    ret = sgx_debug_mem_fd_init();
+    if (ret < 0) {
+        goto out;
+    }
+
     if (enclave->profile_enable) {
         if (!(enclave->pal_sec.enclave_attributes.flags & SGX_FLAGS_DEBUG)) {
             log_error("Cannot use 'sgx.profile' with a production enclave");
@@ -449,10 +454,8 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                 gs->enclave_size = enclave->size;
                 gs->tcs_offset = tcs_area->addr - enclave->baseaddr + g_page_size * t;
                 gs->initial_stack_addr = stack_areas[t].addr + ENCLAVE_STACK_SIZE;
-                gs->sig_stack_low = sig_stack_areas[t].addr;
-                gs->sig_stack_high = sig_stack_areas[t].addr + ENCLAVE_SIG_STACK_SIZE;
+                gs->sig_stack_top = sig_stack_areas[t].addr + ENCLAVE_SIG_STACK_SIZE;
                 gs->ssa = (void*)ssa_area->addr + enclave->ssa_frame_size * SSA_FRAME_NUM * t;
-                gs->gpr = gs->ssa + enclave->ssa_frame_size - sizeof(sgx_pal_gpr_t);
                 gs->manifest_size = manifest_size;
                 gs->heap_min = (void*)enclave_heap_min;
                 gs->heap_max = (void*)pal_area->addr;
@@ -1049,12 +1052,13 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     }
 
     /* start running trusted PAL */
-    ecall_enclave_start(enclave->libpal_uri, args, args_size, env, env_size);
+    ret = ecall_enclave_start(enclave->libpal_uri, args, args_size, env, env_size, tcb->ocall_args);
+    if (ret < 0) {
+        return ret;
+    }
 
-    unmap_tcs();
-    DO_SYSCALL(munmap, alt_stack, ALT_STACK_SIZE);
-    DO_SYSCALL(exit, 0);
-    die_or_inf_loop();
+    sgx_ocall_exit(tcb->ocall_args[0].args);
+    /* Unreachable. */
 }
 
 /* Grow the stack of the main thread to THREAD_STACK_SIZE by probing each stack page above current
@@ -1166,6 +1170,7 @@ int main(int argc, char* argv[], char* envp[]) {
     ret = load_enclave(&g_pal_enclave, args, args_size, env, env_size, need_gsgx);
     if (ret < 0) {
         log_error("load_enclave() failed with error %d", ret);
+        return 1;
     }
     return 0;
 }

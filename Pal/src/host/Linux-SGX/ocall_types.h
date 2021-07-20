@@ -19,10 +19,7 @@
  */
 #pragma pack(push, 1)
 
-typedef long (*sgx_ocall_fn_t)(void*);
-
 enum {
-    OCALL_EXIT = 0,
     OCALL_MMAP_UNTRUSTED,
     OCALL_MUNMAP_UNTRUSTED,
     OCALL_CPUID,
@@ -65,11 +62,6 @@ enum {
     OCALL_GET_QUOTE,
     OCALL_NR,
 };
-
-typedef struct {
-    int ms_exitcode;
-    int ms_is_exitgroup;
-} ms_ocall_exit_t;
 
 typedef struct {
     void* ms_addr;
