@@ -570,6 +570,7 @@ int DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_
  */
 
 enum PAL_EVENT {
+    /* Event value `0` is treated as invalid. */
     /*! arithmetic error (div-by-zero, floating point exception, etc.) */
     PAL_EVENT_ARITHMETIC_ERROR = 1,
     /*! segmentation fault, protection fault, bus fault */

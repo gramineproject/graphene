@@ -41,3 +41,12 @@ commands
     pop-pagination
     continue
 end
+
+catch signal SIGFPE
+commands
+    silent
+
+    if $rip == &sgx_ocall_div
+        continue
+    end
+end

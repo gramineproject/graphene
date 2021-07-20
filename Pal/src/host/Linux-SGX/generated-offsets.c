@@ -28,9 +28,6 @@ __attribute__((__used__)) static void dummy(void) {
     /* defines in pal-arch.h */
     DEFINE(STACK_PROTECTOR_CANARY_DEFAULT, STACK_PROTECTOR_CANARY_DEFAULT);
 
-    /* sgx_measurement_t */
-    DEFINE(SGX_HASH_SIZE, sizeof(sgx_measurement_t));
-
     /* sgx_pal_gpr_t */
     OFFSET_T(SGX_GPR_RAX, sgx_pal_gpr_t, rax);
     OFFSET_T(SGX_GPR_RCX, sgx_pal_gpr_t, rcx);
@@ -50,30 +47,9 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET_T(SGX_GPR_R15, sgx_pal_gpr_t, r15);
     OFFSET_T(SGX_GPR_RFLAGS, sgx_pal_gpr_t, rflags);
     OFFSET_T(SGX_GPR_RIP, sgx_pal_gpr_t, rip);
+    OFFSET_T(SGX_GPR_URSP, sgx_pal_gpr_t, ursp);
     OFFSET_T(SGX_GPR_EXITINFO, sgx_pal_gpr_t, exitinfo);
     DEFINE(SGX_GPR_SIZE, sizeof(sgx_pal_gpr_t));
-
-    /* sgx_cpu_context_t */
-    OFFSET_T(SGX_CPU_CONTEXT_RAX, sgx_cpu_context_t, rax);
-    OFFSET_T(SGX_CPU_CONTEXT_RCX, sgx_cpu_context_t, rcx);
-    OFFSET_T(SGX_CPU_CONTEXT_RDX, sgx_cpu_context_t, rdx);
-    OFFSET_T(SGX_CPU_CONTEXT_RBX, sgx_cpu_context_t, rbx);
-    OFFSET_T(SGX_CPU_CONTEXT_RSP, sgx_cpu_context_t, rsp);
-    OFFSET_T(SGX_CPU_CONTEXT_RBP, sgx_cpu_context_t, rbp);
-    OFFSET_T(SGX_CPU_CONTEXT_RSI, sgx_cpu_context_t, rsi);
-    OFFSET_T(SGX_CPU_CONTEXT_RDI, sgx_cpu_context_t, rdi);
-    OFFSET_T(SGX_CPU_CONTEXT_R8, sgx_cpu_context_t, r8);
-    OFFSET_T(SGX_CPU_CONTEXT_R9, sgx_cpu_context_t, r9);
-    OFFSET_T(SGX_CPU_CONTEXT_R10, sgx_cpu_context_t, r10);
-    OFFSET_T(SGX_CPU_CONTEXT_R11, sgx_cpu_context_t, r11);
-    OFFSET_T(SGX_CPU_CONTEXT_R12, sgx_cpu_context_t, r12);
-    OFFSET_T(SGX_CPU_CONTEXT_R13, sgx_cpu_context_t, r13);
-    OFFSET_T(SGX_CPU_CONTEXT_R14, sgx_cpu_context_t, r14);
-    OFFSET_T(SGX_CPU_CONTEXT_R15, sgx_cpu_context_t, r15);
-    OFFSET_T(SGX_CPU_CONTEXT_RFLAGS, sgx_cpu_context_t, rflags);
-    OFFSET_T(SGX_CPU_CONTEXT_RIP, sgx_cpu_context_t, rip);
-    DEFINE(SGX_CPU_CONTEXT_SIZE, sizeof(sgx_cpu_context_t));
-    DEFINE(SGX_CPU_CONTEXT_XSTATE_ALIGN_SUB, sizeof(sgx_cpu_context_t) % PAL_XSTATE_ALIGN);
 
     /* struct enclave_tls */
     OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);
@@ -81,20 +57,11 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET(SGX_ENCLAVE_SIZE, enclave_tls, enclave_size);
     OFFSET(SGX_TCS_OFFSET, enclave_tls, tcs_offset);
     OFFSET(SGX_INITIAL_STACK_ADDR, enclave_tls, initial_stack_addr);
-    OFFSET(SGX_TMP_RIP, enclave_tls, tmp_rip);
+    OFFSET(SGX_SIG_STACK_TOP, enclave_tls, sig_stack_top);
     OFFSET(SGX_ECALL_RETURN_ADDR, enclave_tls, ecall_return_addr);
-    OFFSET(SGX_SIG_STACK_LOW, enclave_tls, sig_stack_low);
-    OFFSET(SGX_SIG_STACK_HIGH, enclave_tls, sig_stack_high);
     OFFSET(SGX_SSA, enclave_tls, ssa);
-    OFFSET(SGX_GPR, enclave_tls, gpr);
-    OFFSET(SGX_EXIT_TARGET, enclave_tls, exit_target);
-    OFFSET(SGX_FSBASE, enclave_tls, fsbase);
-    OFFSET(SGX_PRE_OCALL_STACK, enclave_tls, pre_ocall_stack);
-    OFFSET(SGX_USTACK_TOP, enclave_tls, ustack_top);
-    OFFSET(SGX_USTACK, enclave_tls, ustack);
-    OFFSET(SGX_THREAD, enclave_tls, thread);
-    OFFSET(SGX_OCALL_EXIT_CALLED, enclave_tls, ocall_exit_called);
-    OFFSET(SGX_THREAD_STARTED, enclave_tls, thread_started);
+    OFFSET(SGX_CSSA, enclave_tls, cssa);
+    OFFSET(SGX_URTS_OCALL_ARGS, enclave_tls, urts_ocall_args);
     OFFSET(SGX_READY_FOR_EXCEPTIONS, enclave_tls, ready_for_exceptions);
     OFFSET(SGX_MANIFEST_SIZE, enclave_tls, manifest_size);
     OFFSET(SGX_HEAP_MIN, enclave_tls, heap_min);
@@ -103,11 +70,18 @@ __attribute__((__used__)) static void dummy(void) {
 
     /* struct pal_tcb_urts aka PAL_TCB_URTS */
     OFFSET(PAL_TCB_URTS_TCS, pal_tcb_urts, tcs);
-    OFFSET(PAL_TCB_URTS_IN_AEX_PROF, pal_tcb_urts, is_in_aex_profiling);
     OFFSET(PAL_TCB_URTS_EENTER_CNT, pal_tcb_urts, eenter_cnt);
-    OFFSET(PAL_TCB_URTS_EEXIT_CNT, pal_tcb_urts, eexit_cnt);
     OFFSET(PAL_TCB_URTS_AEX_CNT, pal_tcb_urts, aex_cnt);
     OFFSET(PAL_TCB_URTS_LAST_ASYNC_EVENT, pal_tcb_urts, last_async_event);
+    OFFSET(PAL_TCB_URTS_SELF, pal_tcb_urts, self);
+    OFFSET(PAL_TCB_URTS_CSSA, pal_tcb_urts, cssa);
+    OFFSET(PAL_TCB_URTS_OCALL_ARGS_OFF, pal_tcb_urts, ocall_args);
+
+    DEFINE(OCALL_ARGS_SIZE, sizeof(struct ocall_args));
+    OFFSET(OCALL_ARGS_CODE, ocall_args, code);
+    OFFSET(OCALL_ARGS_ARGS, ocall_args, args);
+    OFFSET(OCALL_ARGS_PTR, ocall_args, ptr);
+    OFFSET(OCALL_ARGS_IS_OCALL, ocall_args, is_ocall);
 
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_FLAGS, sgx_arch_tcs_t, flags);
@@ -120,9 +94,6 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET_T(TCS_OFS_LIMIT, sgx_arch_tcs_t, ofs_limit);
     OFFSET_T(TCS_OGS_LIMIT, sgx_arch_tcs_t, ogs_limit);
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
-
-    /* sgx_attributes_t */
-    OFFSET_T(SGX_ATTRIBUTES_XFRM, sgx_attributes_t, xfrm);
 
     /* sgx_arch_enclave_css_t */
     OFFSET_T(SGX_ARCH_ENCLAVE_CSS_HEADER, sgx_arch_enclave_css_t, header.header);
@@ -147,9 +118,6 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET_T(SGX_ARCH_ENCLAVE_CSS_Q2, sgx_arch_enclave_css_t, buffer.q2);
     DEFINE(SGX_ARCH_ENCLAVE_CSS_SIZE, sizeof(sgx_arch_enclave_css_t));
 
-    /* struct pal_sec */
-    OFFSET(PAL_SEC_ENCLAVE_ATTRIBUTES, pal_sec, enclave_attributes);
-
     /* pal_linux_def.h */
     DEFINE(SSA_FRAME_NUM, SSA_FRAME_NUM);
     DEFINE(SSA_FRAME_SIZE, SSA_FRAME_SIZE);
@@ -161,24 +129,9 @@ __attribute__((__used__)) static void dummy(void) {
     /* pal_linux.h */
     DEFINE(PAGESIZE, PRESET_PAGESIZE);
 
-    /* pal.h */
-    DEFINE(PAL_EVENT_NUM_BOUND, PAL_EVENT_NUM_BOUND);
-
-    /* errno */
-    DEFINE(EINTR, EINTR);
-
-    /* Ecall numbers */
-    DEFINE(ECALL_ENCLAVE_START, ECALL_ENCLAVE_START);
-    DEFINE(ECALL_THREAD_START, ECALL_THREAD_START);
-    DEFINE(ECALL_THREAD_RESET, ECALL_THREAD_RESET);
-
-    /* Ocall Index */
-    DEFINE(OCALL_EXIT, OCALL_EXIT);
-
     /* fp regs */
-    OFFSET_T(XSAVE_HEADER_OFFSET, PAL_XREGS_STATE, header);
-    DEFINE(PAL_XSTATE_ALIGN, PAL_XSTATE_ALIGN);
-    DEFINE(PAL_FP_XSTATE_MAGIC2_SIZE, PAL_FP_XSTATE_MAGIC2_SIZE);
+    OFFSET_T(XSAVE_FPUCWD_OFFSET, PAL_XREGS_STATE, fpstate.cwd);
+    OFFSET_T(XSAVE_MXCSR_OFFSET, PAL_XREGS_STATE, fpstate.mxcsr);
 
     /* SGX_DCAP */
 #ifdef SGX_DCAP

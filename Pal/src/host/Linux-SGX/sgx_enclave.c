@@ -32,44 +32,28 @@
     do {                 \
     } while (0)
 
-static long sgx_ocall_exit(void* pms) {
-    ms_ocall_exit_t* ms = (ms_ocall_exit_t*)pms;
-    ODEBUG(OCALL_EXIT, NULL);
+noreturn void sgx_ocall_exit(void* pms) {
+    int exitcode = (uint32_t)((uint64_t)pms & ((1ull << 32) - 1));
+    int is_exitgroup = (uint32_t)((uint64_t)pms >> 32);
 
-    if (ms->ms_exitcode != (int)((uint8_t)ms->ms_exitcode)) {
+    if (exitcode != (int)((uint8_t)exitcode)) {
         log_debug("Saturation error in exit code %d, getting rounded down to %u",
-                  ms->ms_exitcode, (uint8_t)ms->ms_exitcode);
-        ms->ms_exitcode = 255;
+                  exitcode, (uint8_t)exitcode);
+        exitcode = 255;
     }
-
-    /* exit the whole process if exit_group() */
-    if (ms->ms_is_exitgroup) {
-        update_and_print_stats(/*process_wide=*/true);
-#ifdef DEBUG
-        sgx_profile_finish();
-#endif
-        DO_SYSCALL(exit_group, (int)ms->ms_exitcode);
-        die_or_inf_loop();
-    }
-
-    /* otherwise call SGX-related thread reset and exit this thread */
-    block_async_signals(true);
-    ecall_thread_reset();
 
     unmap_tcs();
 
-    if (!current_enclave_thread_cnt()) {
-        /* no enclave threads left, kill the whole process */
+    if (is_exitgroup || !current_enclave_thread_cnt()) {
         update_and_print_stats(/*process_wide=*/true);
 #ifdef DEBUG
         sgx_profile_finish();
 #endif
-        DO_SYSCALL(exit_group, (int)ms->ms_exitcode);
+        DO_SYSCALL(exit_group, (int)exitcode);
         die_or_inf_loop();
     }
 
-    thread_exit((int)ms->ms_exitcode);
-    return 0;
+    thread_exit(exitcode);
 }
 
 static long sgx_ocall_mmap_untrusted(void* pms) {
@@ -681,8 +665,9 @@ static long sgx_ocall_get_quote(void* pms) {
                           &ms->ms_nonce, &ms->ms_quote, &ms->ms_quote_len);
 }
 
-sgx_ocall_fn_t ocall_table[OCALL_NR] = {
-    [OCALL_EXIT]             = sgx_ocall_exit,
+typedef long (*sgx_ocall_fn_t)(void*);
+
+static sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_MMAP_UNTRUSTED]   = sgx_ocall_mmap_untrusted,
     [OCALL_MUNMAP_UNTRUSTED] = sgx_ocall_munmap_untrusted,
     [OCALL_CPUID]            = sgx_ocall_cpuid,
@@ -725,9 +710,16 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
 };
 
-#define EDEBUG(code, ms) \
-    do {                 \
-    } while (0)
+long sgx_entry(uint64_t code, void* args, void* in_enclave_gpr) {
+    __UNUSED(in_enclave_gpr);
+    assert(code < ARRAY_SIZE(ocall_table));
+    sgx_ocall_fn_t f = ocall_table[code];
+#if DEBUG
+    sgx_profile_sample_ocall_outer(f);
+    sgx_profile_sample_ocall_inner(in_enclave_gpr);
+#endif
+    return f(args);
+}
 
 rpc_queue_t* g_rpc_queue = NULL; /* pointer to untrusted queue */
 
@@ -840,7 +832,7 @@ static int start_rpc(size_t num_of_threads) {
 }
 
 int ecall_enclave_start(char* libpal_uri, char* args, size_t args_size, char* env,
-                        size_t env_size) {
+                        size_t env_size, struct ocall_args* ocall_args_ptr) {
     g_rpc_queue = NULL;
 
     if (g_pal_enclave.rpc_thread_num > 0) {
@@ -861,16 +853,11 @@ int ecall_enclave_start(char* libpal_uri, char* args, size_t args_size, char* en
     ms.ms_env_size       = env_size;
     ms.ms_sec_info       = &g_pal_enclave.pal_sec;
     ms.rpc_queue         = g_rpc_queue;
-    EDEBUG(ECALL_ENCLAVE_START, &ms);
-    return sgx_ecall(ECALL_ENCLAVE_START, &ms);
+    ms.ocall_args_ptr    = ocall_args_ptr;
+    sgx_ecall(ECALL_ENCLAVE_START, &ms);
+    return 0;
 }
 
-int ecall_thread_start(void) {
-    EDEBUG(ECALL_THREAD_START, NULL);
-    return sgx_ecall(ECALL_THREAD_START, NULL);
-}
-
-int ecall_thread_reset(void) {
-    EDEBUG(ECALL_THREAD_RESET, NULL);
-    return sgx_ecall(ECALL_THREAD_RESET, NULL);
+void ecall_thread_start(struct ocall_args* ocall_args_ptr) {
+    sgx_ecall(ECALL_THREAD_START, ocall_args_ptr);
 }

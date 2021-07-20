@@ -8,6 +8,7 @@
 #ifndef SGX_INTERNAL_H
 #define SGX_INTERNAL_H
 
+#include <stdnoreturn.h>
 #include <sys/syscall.h>
 
 #include "api.h"
@@ -116,12 +117,15 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct, sgx_a
 int destroy_enclave(void* base_addr, size_t length);
 void exit_process(int status, uint64_t start_exiting);
 
-int sgx_ecall(long ecall_no, void* ms);
-int sgx_raise(int event);
+void sgx_ecall(long ecall_no, void* ms);
+void sgx_ecall_pre_cssa_dec(void);
+void sgx_raise(long event);
+noreturn void sgx_ocall_exit(void* pms);
+
+long sgx_entry(uint64_t code, void* args, void* in_enclave_gpr);
 
 void async_exit_pointer(void);
 void eresume_pointer(void);
-void async_exit_pointer_end(void);
 
 int get_tid_from_tcs(void* tcs);
 int clone_thread(void);
@@ -131,7 +135,7 @@ int pal_thread_init(void* tcbptr);
 void map_tcs(unsigned int tid);
 void unmap_tcs(void);
 int current_enclave_thread_cnt(void);
-void thread_exit(int status);
+noreturn void thread_exit(int status);
 
 uint64_t sgx_edbgrd(void* addr);
 void sgx_edbgwr(void* addr, uint64_t data);
@@ -163,6 +167,12 @@ enum {
 /* Filenames for saved data */
 #define SGX_PROFILE_FILENAME "sgx-perf.data"
 #define SGX_PROFILE_FILENAME_WITH_PID "sgx-perf-%d.data"
+
+/* Get address of `sgx_pal_gpr_t` of current ssa in enclave memory. */
+int get_sgx_gpr_addr(void* tcs, sgx_pal_gpr_t** gpr_addr_out);
+
+/* Initialize memory fd for debug in enclave memory reads. */
+int sgx_debug_mem_fd_init(void);
 
 /* Initialize based on g_pal_enclave settings */
 int sgx_profile_init(void);

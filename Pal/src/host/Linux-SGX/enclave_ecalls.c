@@ -12,6 +12,8 @@
 
 #define SGX_CAST(type, item) ((type)(item))
 
+uint64_t g_default_rflags = 0x202; // IF + reserved
+
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
@@ -51,14 +53,12 @@ static int verify_and_init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
  *  ecall_args:
  *      Pointer to arguments for requested ecall. Untrusted.
  *
- *  exit_target:
- *      Address to return to after EEXIT. Untrusted.
- *
  *  enclave_base_addr:
  *      Base address of enclave. Calculated dynamically in enclave_entry.S.
  *      Trusted.
  */
-void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* enclave_base_addr) {
+// TODO: fix this...
+void handle_ecall(long ecall_index, void* ecall_args, void* enclave_base_addr) {
     if (ecall_index < 0 || ecall_index >= ECALL_NR)
         return;
 
@@ -67,14 +67,6 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         g_enclave_top  = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
-    /* disallow malicious URSP (that points into the enclave) */
-    void* ursp = (void*)GET_ENCLAVE_TLS(gpr)->ursp;
-    if (g_enclave_base <= ursp && ursp <= g_enclave_top)
-        return;
-
-    SET_ENCLAVE_TLS(exit_target,     exit_target);
-    SET_ENCLAVE_TLS(ustack,          ursp);
-    SET_ENCLAVE_TLS(ustack_top,      ursp);
     SET_ENCLAVE_TLS(clear_child_tid, NULL);
     SET_ENCLAVE_TLS(untrusted_area_cache.in_use, 0UL);
 
@@ -93,6 +85,12 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         if (!ms || !sgx_is_completely_outside_enclave(ms, sizeof(*ms))) {
             return;
         }
+
+        struct ocall_args* ocall_args_ptr = READ_ONCE(ms->ocall_args_ptr);
+        if (!sgx_is_completely_outside_enclave(ocall_args_ptr, 2 * sizeof(*ocall_args_ptr))) {
+            return;
+        }
+        SET_ENCLAVE_TLS(urts_ocall_args, ocall_args_ptr);
 
         if (verify_and_init_rpc_queue(READ_ONCE(ms->rpc_queue)))
             return;
@@ -127,6 +125,12 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         if (!(g_pal_sec.enclave_flags & PAL_ENCLAVE_INITIALIZED)) {
             return;
         }
+
+        struct ocall_args* ocall_args_ptr = ecall_args;
+        if (!sgx_is_completely_outside_enclave(ocall_args_ptr, 2 * sizeof(*ocall_args_ptr))) {
+            return;
+        }
+        SET_ENCLAVE_TLS(urts_ocall_args, ocall_args_ptr);
 
         pal_start_thread();
     }

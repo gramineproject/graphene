@@ -30,7 +30,6 @@ bool g_sgx_enable_stats = false;
 /* this function is called only on thread/process exit (never in the middle of thread exec) */
 void update_and_print_stats(bool process_wide) {
     static atomic_ulong g_eenter_cnt       = 0;
-    static atomic_ulong g_eexit_cnt        = 0;
     static atomic_ulong g_aex_cnt          = 0;
     static atomic_ulong g_sync_signal_cnt  = 0;
     static atomic_ulong g_async_signal_cnt = 0;
@@ -44,15 +43,13 @@ void update_and_print_stats(bool process_wide) {
     assert(tid > 0);
     log_always("----- SGX stats for thread %d -----\n"
                "  # of EENTERs:        %lu\n"
-               "  # of EEXITs:         %lu\n"
                "  # of AEXs:           %lu\n"
                "  # of sync signals:   %lu\n"
                "  # of async signals:  %lu",
-               tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt,
+               tid, tcb->eenter_cnt, tcb->aex_cnt,
                tcb->sync_signal_cnt, tcb->async_signal_cnt);
 
     g_eenter_cnt       += tcb->eenter_cnt;
-    g_eexit_cnt        += tcb->eexit_cnt;
     g_aex_cnt          += tcb->aex_cnt;
     g_sync_signal_cnt  += tcb->sync_signal_cnt;
     g_async_signal_cnt += tcb->async_signal_cnt;
@@ -62,11 +59,10 @@ void update_and_print_stats(bool process_wide) {
         assert(pid > 0);
         log_always("----- Total SGX stats for process %d -----\n"
                    "  # of EENTERs:        %lu\n"
-                   "  # of EEXITs:         %lu\n"
                    "  # of AEXs:           %lu\n"
                    "  # of sync signals:   %lu\n"
                    "  # of async signals:  %lu",
-                   pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt,
+                   pid, g_eenter_cnt, g_aex_cnt,
                    g_sync_signal_cnt, g_async_signal_cnt);
     }
 }
@@ -77,8 +73,9 @@ void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
     tcb->stack = stack;
     tcb->alt_stack = alt_stack;
 
+    tcb->cssa = 0;
+
     tcb->eenter_cnt       = 0;
-    tcb->eexit_cnt        = 0;
     tcb->aex_cnt          = 0;
     tcb->sync_signal_cnt  = 0;
     tcb->async_signal_cnt = 0;
@@ -86,6 +83,21 @@ void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
     tcb->profile_sample_time = 0;
 
     tcb->last_async_event = 0;
+
+    struct ocall_args* ocall_args = tcb->ocall_args;
+    memset(ocall_args, 0, 2 * sizeof(*ocall_args));
+    ocall_args[0].ptr = &ocall_args[0].scratch[0];
+    ocall_args[0].ptr2 = &ocall_args[0].scratch[1];
+    ocall_args[1].ptr = &ocall_args[1].scratch[0];
+    ocall_args[1].ptr2 = &ocall_args[1].scratch[1];
+}
+
+void fixup_ocall_args_ptrs(struct ocall_args* ocall_args) {
+    *ocall_args->ptr = 1;
+    *ocall_args->ptr2 = 0;
+    uint32_t* tmp = ocall_args->ptr;
+    ocall_args->ptr = ocall_args->ptr2;
+    ocall_args->ptr2 = tmp;
 }
 
 static spinlock_t tcs_lock = INIT_SPINLOCK_UNLOCKED;
@@ -192,10 +204,11 @@ int pal_thread_init(void* tcbptr) {
     }
 
     /* not-first (child) thread, start it */
-    ecall_thread_start();
+    ecall_thread_start(tcb->ocall_args);
 
-    unmap_tcs();
-    ret = 0;
+    sgx_ocall_exit(tcb->ocall_args[0].args);
+    /* Unreachable. */
+
 out:
     DO_SYSCALL(munmap, tcb->stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
     return ret;
@@ -204,21 +217,11 @@ out:
 noreturn void thread_exit(int status) {
     PAL_TCB_URTS* tcb = get_tcb_urts();
 
-    /* technically, async signals were already blocked before calling this function
-     * (by sgx_ocall_exit()) but we keep it here for future proof */
-    block_async_signals(true);
-
     update_and_print_stats(/*process_wide=*/false);
 
-    if (tcb->alt_stack) {
-        stack_t ss;
-        ss.ss_sp    = NULL;
-        ss.ss_flags = SS_DISABLE;
-        ss.ss_size  = 0;
-
-        /* take precautions to unset the TCB and alternative stack first */
-        DO_SYSCALL(arch_prctl, ARCH_SET_GS, 0);
-        DO_SYSCALL(sigaltstack, &ss, NULL);
+    if (block_async_signals(true) < 0) {
+        log_error("failed to block all signals before stack unmapping");
+        die_or_inf_loop();
     }
 
     /* free the thread stack (via munmap) and exit; note that exit() needs a "status" arg
