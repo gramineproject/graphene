@@ -47,47 +47,63 @@ char* g_libpal_path = NULL;
 
 struct pal_enclave g_pal_enclave;
 
-/*
- * FIXME: the ELF-parsing functions in this file (scan_enclave_binary, load_enclave_binary) assume
- * that all the program headers will be found within first FILEBUF_SIZE bytes. This will be true for
- * most binaries, but is not guaranteed.
- *
- * (Glibc also allocates such a buffer but recovers when it's too small, see elf/dl-load.c in glibc
- * sources.)
- */
+static int read_file_fragment(int fd, void* buf, size_t size, off_t offset) {
+    ssize_t ret;
+
+    ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
+    if (ret < 0)
+        return ret;
+
+    return read_all(fd, buf, size);
+}
+
+static int load_elf_headers(int fd, ElfW(Ehdr)* out_ehdr, ElfW(Phdr)** out_phdr) {
+    ElfW(Ehdr) ehdr;
+
+    int ret = read_file_fragment(fd, &ehdr, sizeof(ehdr), /*offset=*/0);
+    if (ret < 0)
+        return ret;
+
+    if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0)
+        return -ENOEXEC;
+
+    size_t phdr_size = ehdr.e_phnum * sizeof(ElfW(Phdr));
+    ElfW(Phdr)* phdr = malloc(phdr_size);
+    if (!phdr)
+        return -ENOMEM;
+
+    ret = read_file_fragment(fd, phdr, phdr_size, ehdr.e_phoff);
+    if (ret < 0) {
+        free(phdr);
+        return ret;
+    }
+    *out_ehdr = ehdr;
+    *out_phdr = phdr;
+    return 0;
+}
 
 static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
                                unsigned long* entry) {
-    int ret = 0;
+    int ret;
+    ElfW(Ehdr) ehdr;
+    ElfW(Phdr)* phdr;
 
-    ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
+    ret = load_elf_headers(fd, &ehdr, &phdr);
     if (ret < 0)
         return ret;
-
-    char filebuf[FILEBUF_SIZE];
-    ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
-    if (ret < 0)
-        return ret;
-
-    if ((size_t)ret < sizeof(ElfW(Ehdr)))
-        return -ENOEXEC;
-
-    const ElfW(Ehdr)* header = (void*)filebuf;
-    const ElfW(Phdr)* phdr   = (void*)filebuf + header->e_phoff;
-    const ElfW(Phdr)* ph;
-
-    if (memcmp(header->e_ident, ELFMAG, SELFMAG) != 0)
-        return -ENOEXEC;
 
     struct loadcmd {
         ElfW(Addr) mapstart, mapend;
     } loadcmds[16], *c;
     int nloadcmds = 0;
 
-    for (ph = phdr; ph < &phdr[header->e_phnum]; ph++)
+    const ElfW(Phdr)* ph;
+    for (ph = phdr; ph < &phdr[ehdr.e_phnum]; ph++)
         if (ph->p_type == PT_LOAD) {
-            if (nloadcmds == 16)
-                return -EINVAL;
+            if (nloadcmds == 16) {
+                ret = -EINVAL;
+                goto out;
+            }
 
             c = &loadcmds[nloadcmds++];
             c->mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
@@ -97,26 +113,23 @@ static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
     *base = loadcmds[0].mapstart;
     *size = loadcmds[nloadcmds - 1].mapend - loadcmds[0].mapstart;
     if (entry)
-        *entry = header->e_entry;
-    return 0;
+        *entry = ehdr.e_entry;
+    ret = 0;
+
+out:
+    free(phdr);
+    return ret;
 }
 
 static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base,
                                unsigned long prot) {
-    int ret = 0;
+    int ret;
+    ElfW(Ehdr) ehdr;
+    ElfW(Phdr)* phdr;
 
-    ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
+    ret = load_elf_headers(fd, &ehdr, &phdr);
     if (ret < 0)
         return ret;
-
-    char filebuf[FILEBUF_SIZE];
-    ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
-    if (ret < 0)
-        return ret;
-
-    const ElfW(Ehdr)* header = (void*)filebuf;
-    const ElfW(Phdr)* phdr   = (void*)filebuf + header->e_phoff;
-    const ElfW(Phdr)* ph;
 
     struct loadcmd {
         ElfW(Addr) mapstart, mapend, datastart, dataend, allocend;
@@ -125,10 +138,13 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
     } loadcmds[16], *c;
     int nloadcmds = 0;
 
-    for (ph = phdr; ph < &phdr[header->e_phnum]; ph++)
+    ElfW(Phdr)* ph;
+    for (ph = phdr; ph < &phdr[ehdr.e_phnum]; ph++)
         if (ph->p_type == PT_LOAD) {
-            if (nloadcmds == 16)
-                return -EINVAL;
+            if (nloadcmds == 16) {
+                ret = -EINVAL;
+                goto out;
+            }
 
             c = &loadcmds[nloadcmds++];
             c->mapstart  = ALLOC_ALIGN_DOWN(ph->p_vaddr);
@@ -155,8 +171,10 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
                                                PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FILE, fd,
                                                c->mapoff);
 
-            if (IS_ERR_P(addr))
-                return -ERRNO_P(addr);
+            if (IS_ERR_P(addr)) {
+                ret = -ERRNO_P(addr);
+                goto out;
+            }
 
             if (c->datastart > c->mapstart)
                 memset(addr, 0, c->datastart - c->mapstart);
@@ -172,18 +190,21 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
             INLINE_SYSCALL(munmap, 2, addr, c->mapend - c->mapstart);
 
             if (ret < 0)
-                return ret;
+                goto out;
         }
 
         if (zeroend > zeropage) {
             ret = add_pages_to_enclave(secs, (void*)base + zeropage, NULL, zeroend - zeropage,
                                        SGX_PAGE_REG, c->prot, false, "bss");
             if (ret < 0)
-                return ret;
+                goto out;
         }
     }
+    ret = 0;
 
-    return 0;
+out:
+    free(phdr);
+    return ret;
 }
 
 static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_to_measure) {
