@@ -1,37 +1,21 @@
 # Node.js manifest file example
-#
-# This manifest was prepared and tested on Ubuntu 18.04. The tested version of Node.js was v13.14.0.
 
-libos.entrypoint = "{{ nodejs_dir }}/nodejs"
-
-# LibOS layer library of Graphene. There is currently only one implementation,
-# so it is always set to libsysdb.so.
 loader.preload = "file:{{ graphene.libos }}"
-
-# Graphene log level
+libos.entrypoint = "{{ nodejs_dir }}/nodejs"
 loader.log_level = "{{ log_level }}"
 
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
-# Forward environment variables from the host. Don't use this on production!
+loader.insecure__use_cmdline_argv = true
 loader.insecure__use_host_env = true
 
 # Node.js requires eventfd2() emulation otherwise fails on `(uv_loop_init(&tracing_loop_)) == (0)'
 sys.insecure__allow_eventfd = true
 
-# Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
-# applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
-# paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
-loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
-
-# Mount the nodejs binary
 fs.mount.nodejs.type = "chroot"
 fs.mount.nodejs.path = "{{ nodejs_dir }}/nodejs"
 fs.mount.nodejs.uri = "file:{{ nodejs_dir }}/nodejs"
 
-# Mount host-OS directory to required libraries (in 'uri') into in-Graphene
-# visible directory /lib (in 'path').
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
@@ -44,24 +28,13 @@ fs.mount.lib3.type = "chroot"
 fs.mount.lib3.path = "/usr/{{ arch_libdir }}"
 fs.mount.lib3.uri = "file:/usr/{{ arch_libdir }}"
 
-# Set enclave size to 2GB; Node.js expects around 1.7GB of heap on startup,
-# see e.g. https://github.com/nodejs/node/issues/13018.
-# Recall that SGX v1 requires to specify enclave size at enclave creation time.
+sgx.nonpie_binary = true
+# Node.js expects around 1.7GB of heap on startup, see https://github.com/nodejs/node/issues/13018
 sgx.enclave_size = "2G"
-
-# Set maximum number of in-enclave threads (somewhat arbitrarily) to 32. Recall
-# that SGX v1 requires to specify the maximum number of simultaneous threads at
-# enclave creation time.
 sgx.thread_num = 32
 
-# Node.js is a non-PIE binary
-sgx.nonpie_binary = true
-
-# Specify all files used by Node.js and its dependencies
 sgx.trusted_files.nodejs = "file:{{ nodejs_dir }}/nodejs"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
-
-# input file
 sgx.trusted_files.javascript = "file:helloworld.js"

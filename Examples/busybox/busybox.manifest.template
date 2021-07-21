@@ -1,118 +1,38 @@
 # Busybox manifest file example
-#
-# This manifest was prepared and tested on Ubuntu 16.04.
 
-################################## GRAPHENE ###################################
-
-# The binary to execute.
-libos.entrypoint = "busybox"
-
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
-
-# LibOS layer library of Graphene. There is currently only one implementation,
-# so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
-# to relative path to Graphene repository in the Makefile as part of the
-# build process.
 loader.preload = "file:{{ graphene.libos }}"
-
-# Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
-# that {{ log_level }} macro is expanded in the Makefile as part of the
-# building process: the default is "error" for non-debug builds, and "debug"
-# for debug builds.
+libos.entrypoint = "busybox"
 loader.log_level = "{{ log_level }}"
 
-################################# ENV VARS  ###################################
-
-# Specify paths to search for libraries. Since there might be no
-# '/etc/ld.so.cache' inside Graphene, any non-standard paths need to be added
-# - LD_LIBRARY_PATH is used and the usual syntax applies. Paths must be
-# in-Graphene visible paths, not host-OS paths (i.e. paths must be taken from
-# fs.mount.xxx.path, not fs.mount.xxx.uri).
-#
-# In case of Busybox:
-# - /lib is searched for Glibc libraries (ld, libc, libresolv) provided by
-#   graphene,
-# - {{ arch_libdir }} is searched for libcrypt, NSS libraries.
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}"
-
-# Explicitly set some environment variables used by Busybox.
 loader.env.PATH = "/:/usr/sbin:/usr/bin:/sbin:/bin"
 loader.env.USERNAME = ""
 loader.env.HOME = ""
 loader.env.PWD = ""
 loader.env.HOSTNAME = "test"
 
-################################# MOUNT FS  ###################################
+loader.insecure__use_cmdline_argv = true
 
-# General notes:
-# - There is only one supported type of mount points: 'chroot'.
-# - Directory names are (somewhat confusingly) prepended by 'file:'.
-# - Names of mount entries (lib1, lib2) are irrelevant but must be unique.
-# - In-Graphene visible path names may be arbitrary.
-
-# Mount host-OS directory containing Graphene glibc/runtime libraries
-# (specified as 'uri', GRAPHENEDIR macro is expanded in the Makefile as part
-# of the build process) into in-Graphene visible directory /lib (specified
-# as 'path').
 fs.mount.lib1.type = "chroot"
 fs.mount.lib1.path = "/lib"
 fs.mount.lib1.uri = "file:{{ graphene.runtimedir() }}"
 
-# Mount host-OS directory contanining libcrypt and NSS libraries.
 fs.mount.lib2.type = "chroot"
 fs.mount.lib2.path = "{{ arch_libdir }}"
 fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
-# Mount host-OS directory to NSS files required by Glibc + NSS libraries.
 fs.mount.etc.type = "chroot"
 fs.mount.etc.path = "/etc"
 fs.mount.etc.uri = "file:/etc"
-
-############################# SGX: TRUSTED FILES ###############################
-
-# Specify all files used by Busybox and its dependencies (including all
-# libraries which can be loaded at runtime via dlopen). The paths to files
-# are host-OS paths. These files will be searched for in in-Graphene
-# visible paths according to mount points above.
-#
-# As part of the build process, Graphene-SGX script (`graphene-sgx-sign`) finds each
-# specified library, measures its hash and outputs the hash in auto-generated
-# entry 'sgx.trusted_checksum.xxx' in auto-generated 'busybox.manifest.sgx'
-# file. Note that this happens on the developer's machine.
-#
-# At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
-# and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
-# match, this file is trusted and allowed to be loaded and used. Note that
-# this happens on the client machine.
 
 sgx.trusted_files.busybox = "file:busybox"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
-# Trusted non-library files include configuration files, read-only files, and
-# other static files. It is useful to specify such files here to make sure
-# they are not maliciously modified (modifications will be detected as hash
-# mismatch by Graphene-SGX).
-#
-# Busybox does not have any configuration files, so this section is empty.
-# sgx.trusted_files.config = "file:<important-configuration-file>"
-
-############################# SGX: ALLOWED FILES ##############################
-
-# Specify all non-static files used by app. These files may be opened by
-# Graphene-SGX but modifications to them are not detected (Graphene-SGX does
-# not measure their hashes). This may pose a security risk!
-
-# Name Service Switch (NSS) files. Glibc reads these files as part of name-
-# service information gathering. For more info, see 'man nsswitch.conf'.
 sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
 sgx.allowed_files.ethers = "file:/etc/ethers"
 sgx.allowed_files.hosts = "file:/etc/hosts"
 sgx.allowed_files.group = "file:/etc/group"
 sgx.allowed_files.passwd = "file:/etc/passwd"
-
-# Busybox uses timezone settings, which are located in /etc/localtime for
-# glibc-based host systems.
 sgx.allowed_files.localtime = "file:/etc/localtime"

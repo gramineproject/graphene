@@ -5,7 +5,7 @@
 # - make SGX=1 DEBUG=1 -- create SGX debug-log manifest
 #
 # Any of these invocations clones Redis' git repository and builds Redis in
-# default configuration and in the latest-to-date (5.0.5) version.
+# default configuration and in the latest-to-date (6.0.5) version.
 #
 # By default, Redis uses poll/epoll mechanism of Linux. To build Redis with
 # select, use `make USE_SELECT=1`. For correct re-builds, always clean up
@@ -42,7 +42,7 @@ include ../../Scripts/Makefile.configs
 
 # Redis is built as usual, without any changes to the build process (except to
 # test select syscall instead of poll/epoll). The source is downloaded from the
-# GitHub repo (5.0.5 tag) and built via `make`. The result of this build process
+# GitHub repo (6.0.5 tag) and built via `make`. The result of this build process
 # is the final executable "src/redis-server".
 
 $(SRCDIR)/Makefile:
@@ -64,9 +64,10 @@ endif
 
 ################################ REDIS MANIFEST ###############################
 
-# The template file contains almost all necessary information to run Redis
-# under Graphene / Graphene-SGX. We create redis.manifest (to be run under
-# non-SGX Graphene) by simply replacing variables in the template file via sed.
+# The template file contains almost all necessary information to run Redis under
+# Graphene / Graphene-SGX. We create redis-server.manifest (to be run under
+# non-SGX Graphene) by replacing variables in the template file using the
+# "graphene-manifest" script.
 
 redis-server.manifest: redis-server.manifest.template
 	graphene-manifest \
@@ -74,15 +75,17 @@ redis-server.manifest: redis-server.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
 
-# Manifest for Graphene-SGX requires special "graphene-sgx-sign" procedure. This procedure measures
-# all Redis trusted files, adds the measurement to the resulting manifest.sgx file (among other,
-# less important SGX options) and creates redis-server.sig (SIGSTRUCT object).
+# Manifest for Graphene-SGX requires special "graphene-sgx-sign" procedure. This
+# procedure measures all Redis trusted files, adds the measurement to the
+# resulting manifest.sgx file (among other, less important SGX options) and
+# creates redis-server.sig (SIGSTRUCT object).
 #
-# Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see SGX hardware ABI, in particular EINIT
-# instruction). The "graphene-sgx-get-token" script generates EINITTOKEN based on a SIGSTRUCT and
-# puts it in .token file. Note that filenames must be the same as the manifest name (i.e.,
-# "redis-server"). EINITTOKEN must be generated on the machine where the application will run, not
-# where it was built.
+# Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see SGX hardware ABI,
+# in particular EINIT instruction). The "graphene-sgx-get-token" script
+# generates EINITTOKEN based on a SIGSTRUCT and puts it in .token file. Note
+# that filenames must be the same as the manifest name (i.e., "redis-server").
+# EINITTOKEN must be generated on the machine where the application will run,
+# not where it was built.
 
 # Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
 # we need to hack around.

@@ -1,13 +1,3 @@
-# Use one of these commands to build the manifest for sqlite:
-#
-# - make
-# - make DEBUG=1
-# - make SGX=1
-# - make SGX=1 DEBUG=1
-#
-# Use `make clean` to remove Graphene-generated files.
-
-# Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 

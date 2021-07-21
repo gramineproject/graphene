@@ -1,28 +1,19 @@
 # This is a general manifest template for running Bash and core utility programs,
 # including ls, cat, cp, date, and rm.
-#
-# This manifest was prepared and tested on Ubuntu 16.04.
+
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ execdir }}/bash"
-
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
-
 loader.log_level = "{{ log_level }}"
 
-# Environment variables
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr{{ arch_libdir }}"
 loader.env.PATH = "{{ execdir }}"
 
-# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
-# guest. Other parts of the host FS will not be available in the guest.
+loader.insecure__use_cmdline_argv = true
 
-# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by Bash
 fs.mount.lib64.type = "chroot"
 fs.mount.lib64.path = "{{ arch_libdir }}"
 fs.mount.lib64.uri = "file:{{ arch_libdir }}"
@@ -31,27 +22,13 @@ fs.mount.usr_lib.type = "chroot"
 fs.mount.usr_lib.path = "/usr/lib"
 fs.mount.usr_lib.uri = "file:/usr/lib"
 
-# Mount /bin
 fs.mount.bin.type = "chroot"
 fs.mount.bin.path = "{{ execdir }}"
 fs.mount.bin.uri = "file:{{ execdir }}"
 
-# SGX general options
-
-# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
-# size must be specified during signing. If the program needs more virtual
-# memory than the enclave size, Graphene will not be able to allocate it.
+sgx.nonpie_binary = true
 sgx.enclave_size = "256M"
-
-# Set the maximum number of enclave threads. For SGX v1, the number of enclave
-# TCSes must be specified during signing, so the application cannot use more
-# threads than the number of TCSes. Note that Graphene also creates an internal
-# thread for handling inter-process communication (IPC), and potentially another
-# thread for asynchronous events. Therefore, the actual number of threads that
-# the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 4
-
-# SGX trusted files
 
 sgx.trusted_files.execs = "file:{{ execdir }}/"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
@@ -59,5 +36,3 @@ sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 sgx.allowed_files.scripts = "file:scripts/"
-
-sgx.nonpie_binary = true

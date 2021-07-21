@@ -1,29 +1,25 @@
+# TensorFlow Lite example
+
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "label_image"
+loader.log_level = "{{ log_level }}"
+
 loader.env.LD_LIBRARY_PATH = "/lib:."
 loader.env.PATH = "/bin:/usr/bin"
 
-# Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true
-
-loader.log_level = "{{ log_level }}"
 
 fs.mount.lib1.type = "chroot"
 fs.mount.lib1.path = "/lib"
 fs.mount.lib1.uri = "file:{{ graphene.runtimedir() }}"
 
-# Minimum amount of memory to make it work.
-sgx.enclave_size = "512M"
-
 sgx.nonpie_binary = true
-
-# We test with 4 TensorFlow threads, so over-approximate to 16 enclave threads.
+sgx.enclave_size = "512M"
 sgx.thread_num = 16
 
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.libtensorflowframework = "file:libtensorflow_framework.so"
 sgx.trusted_files.label_image = "file:label_image"
-
 sgx.trusted_files.model = "file:inception_v3.tflite"
 sgx.allowed_files.image = "file:image.bmp"
 sgx.trusted_files.labels = "file:labels.txt"

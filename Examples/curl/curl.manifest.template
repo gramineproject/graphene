@@ -1,28 +1,14 @@
 # Curl manifest file example
-#
-# This manifest was prepared and tested on Ubuntu 16.04.
 
-libos.entrypoint = "{{ curl_dir }}/curl"
-loader.argv0_override = "curl"
-
-# LibOS layer library of Graphene. There is currently only one implementation,
-# so it is always set to libsysdb.so. 
 loader.preload = "file:{{ graphene.libos }}"
-
-# Graphene log level
+libos.entrypoint = "{{ curl_dir }}/curl"
 loader.log_level = "{{ log_level }}"
 
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
-
-# Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
-# applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
-# paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 loader.env.HOME = "{{ home }}"
 
-# Mount host-OS directory to required libraries (in 'uri') into in-Graphene
-# visible directory /lib (in 'path').
+loader.insecure__use_cmdline_argv = true
+
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
@@ -43,24 +29,14 @@ fs.mount.curl.type = "chroot"
 fs.mount.curl.path = "{{ curl_dir }}"
 fs.mount.curl.uri = "file:{{ curl_dir }}"
 
-# Set enclave size (somewhat arbitrarily) to 256MB. Recall that SGX v1 requires
-# to specify enclave size at enclave creation time.
 sgx.enclave_size = "256M"
-
-# Set maximum number of in-enclave threads (somewhat arbitrarily) to 4. Recall
-# that SGX v1 requires to specify the maximum number of simultaneous threads at
-# enclave creation time.
 sgx.thread_num = 4
 
-# Specify all binaries used by curl and its dependencies (including all libs
-# which can be loaded at runtime via dlopen).
 sgx.trusted_files.curl = "file:{{ curl_dir }}/curl"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
-# Name Service Switch (NSS) files. Glibc reads these files as part of name-
-# service information gathering. For more info, see 'man nsswitch.conf'.
 sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
 sgx.allowed_files.hostconf = "file:/etc/host.conf"
 sgx.allowed_files.resolvconf = "file:/etc/resolv.conf"

@@ -1,14 +1,3 @@
-# Building the manifest for OpenVINO:
-#
-# - make                Build for Linux, OpenVINO with Release build
-# - make DEBUG=1        Build for Linux, OpenVINO with Debug build, Graphene with debug output
-# - make SGX=1          Build for SGX, OpenVINO with Release build
-# - make SGX=1 DEBUG=1  Build for SGX, OpenVINO with Debug build, Graphene with debug output
-#
-# Use `make clean` to remove Graphene-generated files.
-#
-# Use `make distclean` to further remove the OpenVINO source and installation.
-
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 MODEL_DIR ?= $(THIS_DIR)model
@@ -18,7 +7,6 @@ MODEL_NAME ?= VGG_VOC0712Plus_SSD_300x300_ft_iter_160000
 OPENVINO_DIR ?= $(THIS_DIR)openvino
 OPENVINO_COMMIT ?= 023e7c2c3f8a8ac83564db09799d2049115d9cf6  # corresponds to tag "2020.4"
 
-# Relative path to Graphene root and key for enclave signing
 GRAPHENE_DIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -71,8 +59,6 @@ object_detection_sample_ssd.manifest: object_detection_sample_ssd.manifest.templ
 		-Dopenvino_build=$(OPENVINO_BUILD) \
 		$< > $@
 
-# Generating the SGX-specific manifest (object_detection_sample_ssd.manifest.sgx), the enclave signature,
-# and the token for enclave initialization.
 object_detection_sample_ssd.manifest.sgx: object_detection_sample_ssd.manifest \
 		$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
 	graphene-sgx-sign \

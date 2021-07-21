@@ -1,93 +1,51 @@
 # Apache manifest example
-#
-# This manifest was prepared and tested on Ubuntu 16.04.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ install_dir }}/bin/httpd"
-loader.argv0_override = "httpd"
-
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
-
 loader.log_level = "{{ log_level }}"
 
-# Environment variables
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 
-# Allow for injecting SIGTERM signal from the host.
+loader.insecure__use_cmdline_argv = true
+
 sys.enable_sigterm_injection = true
 
-# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
-# guest. Other parts of the host FS will not be available in the guest.
-
-# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by Apache
 fs.mount.lib2.type = "chroot"
 fs.mount.lib2.path = "{{ arch_libdir }}"
 fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
-# Host-level directory (/usr) required by Apache (needed for libaprutil-1.so)
 fs.mount.usr.type = "chroot"
 fs.mount.usr.path = "/usr"
 fs.mount.usr.uri = "file:/usr"
 
-# Host-level directory (/etc) required by Apache (needed mostly for SSL/TLS)
 fs.mount.etc.type = "chroot"
 fs.mount.etc.path = "/etc"
 fs.mount.etc.uri = "file:/etc"
 
-# Mount the current working directory
 fs.mount.cwd.type = "chroot"
 fs.mount.cwd.path = "{{ install_dir_abspath }}"
 fs.mount.cwd.uri = "file:{{ install_dir }}"
 
-# SGX general options
-
 sgx.nonpie_binary = true
-
-# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
-# size must be specified during signing. If Apache needs more virtual memory
-# than the enclave size, Graphene will not be able to allocate it.
 sgx.enclave_size = "512M"
-
-# Set the maximum number of enclave threads. For SGX v1, the number of enclave
-# TCSes must be specified during signing, so the application cannot use more
-# threads than the number of TCSes. Note that Graphene also creates an internal
-# thread for handling inter-process communication (IPC), and potentially another
-# thread for asynchronous events. Therefore, the actual number of threads that
-# the application can create is (sgx.thread_num - 2).
-#
-# We (somewhat arbitrarily) specify 32 threads since mpm_worker_module can create
-# up to 25 threads/process.
 sgx.thread_num = 32
-
-# SGX trusted files
 
 sgx.trusted_files.httpd = "file:{{ install_dir }}/bin/httpd"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}"
-
-# Other libraries required by Apache
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
-
-# Apache data (trusted)
 sgx.trusted_files.conf = "file:{{ install_dir }}/conf"
 sgx.trusted_files.htdocs = "file:{{ install_dir }}/htdocs"
 sgx.trusted_files.modules = "file:{{ install_dir }}/modules"
 
-# Apache logs directory (untrusted and allowed, since log files are not security-critical)
-sgx.allowed_files.logs = "file:{{ install_dir }}/logs"
-
-# Name Service Switch (NSS) files, see 'man nsswitch.conf'
+sgx.allowed_files.logs      = "file:{{ install_dir }}/logs"
 sgx.allowed_files.nsswitch  = "file:/etc/nsswitch.conf"
 sgx.allowed_files.ethers    = "file:/etc/ethers"
 sgx.allowed_files.hosts     = "file:/etc/hosts"
 sgx.allowed_files.group     = "file:/etc/group"
 sgx.allowed_files.passwd    = "file:/etc/passwd"
-
-# getaddrinfo(3) configuration file, see 'man gai.conf'
 sgx.allowed_files.gaiconf   = "file:/etc/gai.conf"

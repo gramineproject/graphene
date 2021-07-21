@@ -1,9 +1,7 @@
 # Python example
 
 This directory contains an example for running Python 3 in Graphene, including
-the Makefile and a template for generating the manifest. The application is
-tested on Ubuntu 18.04 and Ubuntu 20.04, with both normal Linux and SGX
-platforms. The tested versions of Python are 3.6 and 3.8.
+the Makefile and a template for generating the manifest.
 
 # Generating the manifest
 

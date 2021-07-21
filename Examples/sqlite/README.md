@@ -1,8 +1,7 @@
 # SQLite example
 
 This directory contains an example for running SQLite in Graphene, including the
-Makefile and a template for generating the manifest. The application is tested
-on Ubuntu 20.04, with both normal Linux and SGX platforms.
+Makefile and a template for generating the manifest.
 
 # Generating the manifest
 

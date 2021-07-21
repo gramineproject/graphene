@@ -1,16 +1,6 @@
-# Use one of these commands to build the manifest for curl:
-#
-# - make
-# - make DEBUG=1
-# - make SGX=1
-# - make SGX=1 DEBUG=1
-#
-# Use `make clean` to remove Graphene-generated files.
-
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 CURL_DIR ?= /usr/bin
 
-# Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -36,7 +26,6 @@ curl.manifest: curl.manifest.template
 		-Dcurl_dir=$(CURL_DIR) \
 		$< >$@
 
-# Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 curl.manifest.sgx: curl.manifest
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \

@@ -1,10 +1,13 @@
+# This is a general manifest template for running GCC and its utility programs,
+# including as, cc1, collect2, ld.
+
 loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "/usr/bin/gcc"
+loader.log_level = "{{ log_level }}"
+
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 loader.env.PATH = "/bin:/usr/bin"
-loader.log_level = "{{ log_level }}"
-libos.entrypoint = "/usr/bin/gcc"
 
-# Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true
 
 fs.mount.lib1.type = "chroot"

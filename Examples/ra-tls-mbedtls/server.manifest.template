@@ -1,6 +1,4 @@
 # RA-TLS manifest file example
-#
-# This manifest was prepared and tested on Ubuntu 18.04.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "server"
@@ -8,18 +6,9 @@ loader.log_level = "{{ log_level }}"
 
 loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu:/libs"
 
-# Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true
 
-# Allow for injecting SIGTERM signal from the host.
 sys.enable_sigterm_injection = true
-
-# Request remote attestation functionality from Graphene
-sgx.remote_attestation = true
-
-# Specify your SPID and linkable/unlinkable attestation policy
-sgx.ra_client_spid = "{{ ra_client_spid }}"
-sgx.ra_client_linkable = {{ ra_client_linkable }}
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -33,8 +22,11 @@ fs.mount.etc.type = "chroot"
 fs.mount.etc.path = "/etc"
 fs.mount.etc.uri = "file:/etc"
 
-sgx.trusted_files.server = "file:server"
+sgx.remote_attestation = true
+sgx.ra_client_spid = "{{ ra_client_spid }}"
+sgx.ra_client_linkable = {{ ra_client_linkable }}
 
+sgx.trusted_files.server = "file:server"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"

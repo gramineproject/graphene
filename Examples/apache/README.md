@@ -1,14 +1,10 @@
 # Apache
 
 This directory contains the Makefile and the template manifest for the most
-recent version of Apache web server (as of this writing, version 2.4.41). This
-was tested on a machine with SGX v1 and Ubuntu 16.04.
-
-The Makefile and the template manifest contain extensive comments. Please review
-them to understand the requirements for Apache running under Graphene-SGX.
+recent version of Apache web server (as of this writing, version 2.4.41).
 
 We build Apache from the source code instead of using an existing installation.
-On Ubuntu 16.04, please make sure that the following packages are installed:
+On Ubuntu 18.04, please make sure that the following packages are installed:
 ```sh
 sudo apt-get install -y build-essential flex libapr1-dev libaprutil1-dev libpcre2-dev \
                         apache2-utils libssl-dev

@@ -1,14 +1,4 @@
-# Build PyTorch as follows:
-#
-# - make               -- create non-SGX no-debug-log manifest
-# - make SGX=1         -- create SGX no-debug-log manifest
-# - make SGX=1 DEBUG=1 -- create SGX debug-log manifest
-#
-# PyTorch and the pre-trained model must be installed on the system.
-# See README for details.
-#
-# Use `make clean` to remove Graphene-generated files.
-
+# PyTorch and the pre-trained model must be installed on the system. See README for details.
 
 include ../../Scripts/Makefile.configs
 

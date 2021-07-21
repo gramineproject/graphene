@@ -1,22 +1,9 @@
 # R manifest example
-#
-# This manifest was prepared and tested on Ubuntu 16.04.
 
-libos.entrypoint = "{{ r_exec }}"
-
-# Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"
-
-# Graphene log level
+libos.entrypoint = "{{ r_exec }}"
 loader.log_level = "{{ log_level }}"
 
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
-
-# Allow for injecting SIGTERM signal from the host.
-sys.enable_sigterm_injection = true
-
-# Environment variables for R
 loader.env.LD_LIBRARY_PATH = "{{ r_home }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 loader.env.PATH = "{{ r_home }}/bin:/usr/bin:/bin"
 loader.env.USERNAME = ""
@@ -25,74 +12,49 @@ loader.env.PWD = ""
 loader.env.R_ARCH = ""
 loader.env.R_HOME = "{{ r_home }}"
 
-# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the guest. Other parts
-# of the host FS will not be available in the guest.
+loader.insecure__use_cmdline_argv = true
 
-# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+sys.enable_sigterm_injection = true
+
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the R executable
 fs.mount.lib2.type = "chroot"
 fs.mount.lib2.path = "{{ arch_libdir }}"
 fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
-# Host-level directory (/usr) required by the R executable
 fs.mount.usr.type = "chroot"
 fs.mount.usr.path = "/usr"
 fs.mount.usr.uri = "file:/usr"
 
-# Mount $R_HOME
 fs.mount.r_home.type = "chroot"
 fs.mount.r_home.path = "{{ r_home }}"
 fs.mount.r_home.uri = "file:{{ r_home }}"
 
-# Mount /tmp
 fs.mount.tmp.type = "chroot"
 fs.mount.tmp.path = "/tmp"
 fs.mount.tmp.uri = "file:/tmp"
 
-# Mount host's /bin
 fs.mount.bin.type = "chroot"
 fs.mount.bin.path = "/bin"
 fs.mount.bin.uri = "file:/bin"
 
-# Workload `scripts/R-benchmark-25.R` requires large stack
-sys.stack.size = "8M"
-
-# SGX general options
-
 sgx.nonpie_binary = true
-
-# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave size must be specified
-# during signing. If R needs more virtual memory than the enclave size, Graphene will not be able to
-# allocate it.
+sys.stack.size = "8M"
 sgx.enclave_size = "1G"
-
-# Set the maximum number of enclave threads. For SGX v1, the number of enclave TCSes must be
-# specified during signing, so the application cannot use more threads than the number of TCSes.
-# Note that Graphene also creates an internal thread for handling inter-process communication (IPC),
-# and potentially another thread for asynchronous events. Therefore, the actual number of threads
-# that the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 4
-
-# SGX trusted files
 
 sgx.trusted_files.r = "file:{{ r_exec }}"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
-sgx.trusted_files.usr_libdir = "file:/usr/lib/" # can be removed after dropping support for
-                                                # Ubuntu 16.04
-
-# Other libraries as dependencies of R
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 sgx.trusted_files.stats_lib = "file:{{ r_home }}/"
 sgx.trusted_files.scripts = "file:scripts/"
-
-# SGX untrusted (allowed) files/directories
-sgx.allowed_files.tmp = "file:/tmp"
 
 # R uses shell to delete files, so we need to allow /bin/sh and /bin/rm to be accessed.
 # strace snippet: execve("/bin/sh", ["sh", "-c", "rm -rf /tmp/RtmpEiedDF"], [/* 41 vars */])
 sgx.trusted_files.rm = "file:/bin/rm"
 sgx.trusted_files.sh = "file:/bin/sh"
+
+sgx.allowed_files.tmp = "file:/tmp"

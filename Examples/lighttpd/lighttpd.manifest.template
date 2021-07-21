@@ -1,82 +1,44 @@
 # lighttpd manifest example
-#
-# This manifest was prepared and tested on Ubuntu 16.04.
-#
-# lighttpd must be run with the graphene-direct or graphene-sgx:
-#
-# graphene-direct ./lighttpd <script>
-# graphene-sgx ./lighttpd <script>
 
-libos.entrypoint = "{{ install_dir }}/sbin/lighttpd"
-
-# Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"
-
-# Graphene log level
+libos.entrypoint = "{{ install_dir }}/sbin/lighttpd"
 loader.log_level = "{{ log_level }}"
 
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
-
-# Environment variables for lighttpd
 loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:{{ install_dir }}/lib"
 
-# Allow for injecting SIGTERM signal from the host.
+loader.insecure__use_cmdline_argv = true
+
 sys.enable_sigterm_injection = true
 
-# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
-# guest. Other parts of the host FS will not be available in the guest.
-
-# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the lighttpd executable
 fs.mount.lib2.type = "chroot"
 fs.mount.lib2.path = "{{ arch_libdir }}"
 fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
-# Host-level directory (/usr) required by the lighttpd executable
 fs.mount.usr.type = "chroot"
 fs.mount.usr.path = "/usr"
 fs.mount.usr.uri = "file:/usr"
 
-# Mount the current working directory
 fs.mount.cwd.type = "chroot"
 fs.mount.cwd.path = "{{ install_dir_abspath }}"
 fs.mount.cwd.uri = "file:{{ install_dir }}"
 
-# Mount lighttpd's default server.upload-dirs path
 fs.mount.var_tmp.type = "tmpfs"
 fs.mount.var_tmp.path = "/var/tmp"
 fs.mount.var_tmp.uri = "file:dummy-unused-by-tmpfs-uri"
 
-# SGX general options
-
-# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
-# size must be specified during signing. If lighttpd needs more virtual memory
-# than the enclave size, Graphene will not be able to allocate it.
-sgx.enclave_size = "256M"
-
-# Set the maximum number of enclave threads. For SGX v1, the number of enclave
-# TCSes must be specified during signing, so the application cannot use more
-# threads than the number of TCSes. Note that Graphene also creates an internal
-# thread for handling inter-process communication (IPC), and potentially another
-# thread for asynchronous events. Therefore, the actual number of threads that
-# the application can create is (sgx.thread_num - 2).
-sgx.thread_num = 3
-
 sgx.nonpie_binary = true
-
-# SGX trusted files
+sgx.enclave_size = "256M"
+sgx.thread_num = 3
 
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.install_dir = "file:{{ install_dir }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
-# Trusted configuration files
 sgx.trusted_files.conf = "file:lighttpd.conf"
 sgx.trusted_files.conf2 = "file:lighttpd-generic.conf"
 sgx.trusted_files.conf3 = "file:lighttpd-server.conf"

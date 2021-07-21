@@ -1,70 +1,37 @@
 # OpenVINO (object_detection_sample_ssd) manifest example
-#
-# This manifest was prepared and tested on Ubuntu 18.04.
 
-libos.entrypoint = "{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/object_detection_sample_ssd"
-
-# Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"
-
-# Graphene log level
+libos.entrypoint = "{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/object_detection_sample_ssd"
 loader.log_level = "{{ log_level }}"
 
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
-
-# Environment variables
 loader.env.LD_LIBRARY_PATH = "/lib:{{ openvino_dir }}/inference-engine/temp/tbb/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
-# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
-# guest. Other parts of the host FS will not be available in the guest.
+loader.insecure__use_cmdline_argv = true
 
-# Default glibc files, mounted from the Runtime directory in GRAPHENE_DIR.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by OpenVINO.
 fs.mount.lib2.type = "chroot"
 fs.mount.lib2.path = "{{ arch_libdir }}"
 fs.mount.lib2.uri = "file:{{ arch_libdir }}"
 
-# More host-level libraries (e.g., /usr/lib/x86_64-linux-gnu) required by OpenVINO.
 fs.mount.lib3.type = "chroot"
 fs.mount.lib3.path = "/usr/{{ arch_libdir }}"
 fs.mount.lib3.uri = "file:/usr/{{ arch_libdir }}"
 
-# Host-level directory to NSS files required by Glibc + NSS libs.
 fs.mount.etc.type = "chroot"
 fs.mount.etc.path = "/etc"
 fs.mount.etc.uri = "file:/etc"
 
-# Mount the current working directory
 fs.mount.cwd.type = "chroot"
 fs.mount.cwd.path = "{{ openvino_dir }}"
 fs.mount.cwd.uri = "file:{{ openvino_dir }}"
 
-# SGX general options
-
-# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
-# size must be specified during signing. If OpenVINO needs more virtual memory
-# than the enclave size, Graphene will not be able to allocate it.
 sgx.enclave_size = "2G"
-
-# Set the maximum number of enclave threads. For SGX v1, the number of enclave
-# TCSes must be specified during signing, so the application cannot use more
-# threads than the number of TCSes. Note that Graphene also creates an internal
-# thread for handling inter-process communication (IPC), and potentially another
-# thread for asynchronous events. Therefore, the actual number of threads that
-# the application can create is (sgx.thread_num - 2).
-#
-# We (somewhat arbitrarily) specify 16 threads since OpenVINO is multithreaded.
 sgx.thread_num = 16
 
-# SGX trusted files
-
 sgx.trusted_files.object_detection_sample_ssd = "file:{{ openvino_dir }}/bin/intel64/{{ openvino_build }}/object_detection_sample_ssd"
-
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
@@ -73,10 +40,7 @@ sgx.trusted_files.opencv_libs = "file:{{ openvino_dir }}/inference-engine/temp/"
 sgx.trusted_files.modelxml = "file:{{ model_dir }}/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml"
 sgx.trusted_files.modelbin = "file:{{ model_dir }}/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.bin"
 
-# OpenVINO images (allowed instead of trusted for simplicity, but insecure!)
 sgx.allowed_files.imagesdir = "file:images"
-
-# Name Service Switch (NSS) files (Glibc reads these files)
 sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
 sgx.allowed_files.ethers = "file:/etc/ethers"
 sgx.allowed_files.hosts = "file:/etc/hosts"

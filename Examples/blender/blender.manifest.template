@@ -1,28 +1,14 @@
-# INSECURE!!!
-# These 3 lines are insecure by design and should never be used in production environments.
-# There is a lot of files that Blender uses (e.g. bundled Python) and listing them here would
-# be counter productive, as they may change between Blender releases and this is just a testing
-# manifest.
-# Additionally, Blender scenes could allow for code execution (e.g. via bundled scripts), so
-# running untrusted scenes should not be allowed. This can be achieved for example by adding scenes
-# to trusted files or uploading them to a running and attested enclave via secured connection.
-sgx.allowed_files.blender_dir = "file:{{ blender_dir }}/{{ blender_ver }}/"
-sgx.allowed_files.blender_input = "file:{{ data_dir }}/scenes/"
-sgx.allowed_files.blender_output = "file:{{ data_dir }}/images/"
-
-
-libos.entrypoint = "/blender/blender"
-
-# Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = true
+# Blender manifest example
 
 loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "/blender/blender"
 loader.log_level = "{{ log_level }}"
 
 loader.env.LD_LIBRARY_PATH = "/graphene_lib:/blender_lib:/usr/{{ arch_libdir }}:{{ arch_libdir }}"
 loader.env.HOME = "/home/user"
-# Graphene implicitly copies host environment variables - overwriting troublesome one
 loader.env.PWD = ""
+
+loader.insecure__use_cmdline_argv = true
 
 fs.mount.graphene_lib.type = "chroot"
 fs.mount.graphene_lib.path = "/graphene_lib"
@@ -48,15 +34,24 @@ fs.mount.blender.type = "chroot"
 fs.mount.blender.path = "/blender"
 fs.mount.blender.uri = "file:{{ blender_dir }}"
 
-
+sgx.nonpie_binary = true
 sys.stack.size = "8M"
-
 sgx.enclave_size = "2048M"
 sgx.thread_num = 64
-sgx.nonpie_binary = true
 
 sgx.trusted_files.blender = "file:{{ blender_dir }}/blender"
 sgx.trusted_files.libGL = "file:{{ blender_dir }}/lib/"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+
+# INSECURE! These 3 lines are insecure by design and should never be used in production environments.
+# There is a lot of files that Blender uses (e.g. bundled Python) and listing them here would
+# be counter productive, as they may change between Blender releases and this is just a testing
+# manifest.
+# Additionally, Blender scenes could allow for code execution (e.g. via bundled scripts), so
+# running untrusted scenes should not be allowed. This can be achieved for example by adding scenes
+# to trusted files or uploading them to a running and attested enclave via secured connection.
+sgx.allowed_files.blender_dir = "file:{{ blender_dir }}/{{ blender_ver }}/"
+sgx.allowed_files.blender_input = "file:{{ data_dir }}/scenes/"
+sgx.allowed_files.blender_output = "file:{{ data_dir }}/images/"

@@ -1,16 +1,3 @@
-# Build Secret Provisioning client/server example (backed by RA-TLS) as follows:
-#
-# - make          -- build SGX version with apps built in release mode and no logs
-# - make DEBUG=1  -- build SGX version with apps built in debug mode and with logs
-#
-# Any of these invocations clones mbedTLS' git repository (version 2.26.0) and
-# builds it in default configuration. Also, server and client programs are
-# built. See README for details.
-#
-# Use `make clean` to remove Graphene-generated files and `make distclean` to
-# additionally remove the cloned mbedTLS git repository.
-
-# Relative path to Graphene root
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
