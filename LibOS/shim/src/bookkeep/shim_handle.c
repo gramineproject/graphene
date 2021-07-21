@@ -517,15 +517,6 @@ int get_file_size(struct shim_handle* hdl, uint64_t* size) {
     if (!hdl->fs || !hdl->fs->fs_ops)
         return -EINVAL;
 
-    if (hdl->fs->fs_ops->poll) {
-        off_t x = hdl->fs->fs_ops->poll(hdl, FS_POLL_SZ);
-        if (x < 0) {
-            return -EINVAL;
-        }
-        *size = (uint64_t)x;
-        return 0;
-    }
-
     if (hdl->fs->fs_ops->hstat) {
         struct stat stat;
         int ret = hdl->fs->fs_ops->hstat(hdl, &stat);
