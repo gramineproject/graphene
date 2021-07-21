@@ -48,9 +48,7 @@ sys.enable_sigterm_injection = true
 #   for simplicity (except for the first 'lib' case).
 
 # Mount host-OS directory to Graphene glibc/runtime libraries (in 'uri') into
-# in-Graphene visible directory /lib (in 'path'). Note that GRAPHENEDIR macro
-# is expanded to relative path to Graphene repository in the Makefile as part
-# of the build process.
+# in-Graphene visible directory /lib (in 'path').
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
