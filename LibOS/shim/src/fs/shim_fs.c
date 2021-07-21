@@ -225,6 +225,22 @@ static int __mount_one_other(toml_table_t* mount) {
         goto out;
     }
 
+    if (!g_pal_control->parent_process) {
+        /* print warnings on suspicious mounts but don't exit; only in first process */
+       if (!strncmp(mount_uri, "file:/proc", strlen("file:/proc")) ||
+            !strncmp(mount_uri, "file:/sys", strlen("file:/sys")) ||
+            !strncmp(mount_uri, "file:/dev", strlen("file:/dev"))) {
+           log_error("Mounting %s overlaps with Graphene internal mounts (/proc, /sys, /dev). "
+                     "Graphene will continue application execution, but this configuration is not "
+                     "recommended for use in production!", mount_uri);
+       }
+       if (!strncmp(mount_uri, "file:/etc", strlen("file:/etc"))) {
+           log_error("Mounting %s may expose non-sanitized files to the application. "
+                     "Graphene will continue application execution, but this configuration is not "
+                     "recommended for use in production!", mount_uri);
+       }
+    }
+
     if ((ret = mount_fs(mount_type, mount_uri, mount_path)) < 0) {
         log_error("Mounting %s on %s (type=%s) failed (%d)", mount_uri, mount_path, mount_type,
                   -ret);
