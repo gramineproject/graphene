@@ -1,14 +1,14 @@
 # Redis manifest file example
 #
-# This manifest was prepared and tested on Ubuntu 16.04.
+# This manifest was prepared and tested on Ubuntu 18.04.
 
 ################################## GRAPHENE ###################################
 
 # LibOS layer library of Graphene. There is currently only one implementation,
-# so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
-# to relative path to Graphene repository in the Makefile as part of the
-# build process.
+# so it is always set to libsysdb.so.
 loader.preload = "file:{{ graphene.libos }}"
+
+# Entrypoint binary which Graphene invokes.
 libos.entrypoint = "redis-server"
 
 # Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
@@ -80,8 +80,6 @@ fs.mount.etc.uri = "file:/etc"
 # typical Redis workloads.
 sgx.enclave_size = "1024M"
 
-sgx.nonpie_binary = true
-
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at
 # enclave creation time.
@@ -108,9 +106,7 @@ sgx.thread_num = 8
 # and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
 # match, this file is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
-
 sgx.trusted_files.redis-server = "file:redis-server"
-
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"

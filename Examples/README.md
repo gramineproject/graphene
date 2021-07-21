@@ -3,7 +3,10 @@
 This folder contains application integration examples.
 
 For instructions how to build and run each application under Graphene,
-please see the README or README.md in each subdirectory.
+please see the README.md in each subdirectory.
+
+We recommend to look at the (extensively commented) Redis example to get an idea
+how to write the README, Makefile and manifest files.
 
 ## How to Contribute?
 

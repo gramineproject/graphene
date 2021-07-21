@@ -2,7 +2,7 @@
 
 This directory contains an example for running Bash in Graphene, including
 the Makefile and a template for generating the manifest. The application is
-tested on Ubuntu 16.04, with both normal Linux and SGX platforms.
+tested on Ubuntu 18.04, with both normal Linux and SGX platforms.
 
 # Generating the manifest
 

@@ -58,8 +58,8 @@ $(SRCDIR)/memcached: $(SRCDIR)/configure
 ######################################## MEMCACHED MANIFEST ########################################
 
 # The template file contains almost all necessary information to run Memcached under Graphene /
-# Graphene-SGX. We create memcached.manifest (to be run under non-SGX Graphene) by simply replacing
-# variables in the template file via sed.
+# Graphene-SGX. We create memcached.manifest (to be run under non-SGX Graphene) by replacing
+# variables in the template file using the "graphene-manifest" script.
 
 memcached.manifest: memcached.manifest.template
 	graphene-manifest \
