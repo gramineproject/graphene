@@ -1,7 +1,4 @@
 # Node.js manifest file example
-#
-# This manifest was prepared and tested on Ubuntu 18.04.
-# The tested version of Node.js was v13.14.0.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ nodejs_dir }}/nodejs"

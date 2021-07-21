@@ -1,6 +1,4 @@
 # PyTorch manifest template
-#
-# This manifest was tested on Ubuntu 18.04.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ entrypoint }}"

@@ -1,6 +1,4 @@
 # lighttpd manifest example
-#
-# This manifest was prepared and tested on Ubuntu 18.04.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ install_dir }}/sbin/lighttpd"

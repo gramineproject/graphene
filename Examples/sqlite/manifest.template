@@ -1,6 +1,5 @@
 # This is a general manifest template for running SQLite.
-#
-# This manifest was prepared and tested on Ubuntu 20.04.
+
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ execdir }}/sqlite3"
 loader.log_level = "{{ log_level }}"

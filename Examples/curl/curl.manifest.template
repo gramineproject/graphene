@@ -1,6 +1,4 @@
 # Curl manifest file example
-#
-# This manifest was prepared and tested on Ubuntu 18.04.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ curl_dir }}/curl"

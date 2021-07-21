@@ -1,7 +1,4 @@
 # Python3 manifest example
-#
-# This manifest was prepared and tested on Ubuntu 18.04 and 20.04 and tested with
-# Python 3.6 and 3.8.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ entrypoint }}"

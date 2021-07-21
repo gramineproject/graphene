@@ -1,7 +1,5 @@
 # This is a general manifest template for running Bash and core utility programs,
 # including ls, cat, cp, date, and rm.
-#
-# This manifest was prepared and tested on Ubuntu 18.04.
 
 loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "{{ execdir }}/bash"
