@@ -9,11 +9,9 @@ LIGHTTPD_MIRRORS ?= \
     https://download.lighttpd.net/lighttpd/releases-1.4.x \
     https://packages.grapheneproject.io/distfiles
 
-# Host and port on which lighttpd listens
 HOST ?= 127.0.0.1
 PORT ?= 8003
 
-# Relative path to Graphene root
 GRAPHENEDIR ?= $(THIS_DIR)../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -33,8 +31,6 @@ endif
 
 include ../../Scripts/Makefile.configs
 
-# The commands for downloading and compiling the lighttpd source code, and
-# installing the binaries.
 $(INSTALL_DIR)/sbin/lighttpd: $(LIGHTTPD_SRC)/configure
 	cd $(LIGHTTPD_SRC) && ./configure --prefix=$(abspath $(INSTALL_DIR)) \
 		--without-openssl --without-pcre --without-bzip2
@@ -59,8 +55,6 @@ lighttpd.manifest: lighttpd.manifest.template
 		-Dinstall_dir_abspath=$(abspath $(INSTALL_DIR)) \
 		$< >$@
 
-# Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
-# for enclave initialization.
 lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
@@ -73,7 +67,6 @@ lighttpd.token: lighttpd.sig
 	graphene-sgx-get-token --output $@ --sig $^
 
 # lighttpd configuration and test data
-
 lighttpd-server.conf:
 	@$(RM) $@
 	@echo "server.document-root       = \"$(abspath $(INSTALL_DIR))/html\""    >> $@
@@ -103,8 +96,6 @@ $(RANDOM_DIR)/%.html:
 
 .PHONY: testdata
 testdata: $(TEST_DATA)
-
-# Targets to run lighttpd
 
 .PHONY: start-native-server
 start-native-server: all

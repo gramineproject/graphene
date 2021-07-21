@@ -4,12 +4,7 @@ This directory contains a Makefile and a template manifest for the most
 recent version of OpenVINO toolkit (as of this writing, version 2020.4).
 We use the "Object Detection C++ Sample SSD" (object_detection_sample_ssd)
 example from the OpenVINO distribution as a concrete application running
-under Graphene-SGX. We test only the CPU backend (i.e., no GPU or FPGA). This
-was tested on a machine with SGX v1 and Ubuntu 18.04.
-
-The Makefile and the template manifest contain extensive comments. Please review
-them to understand the requirements for OpenVINO/object_detection_sample_ssd
-running under Graphene-SGX.
+under Graphene-SGX. We test only the CPU backend (i.e., no GPU or FPGA).
 
 We build OpenVINO from the source code instead of using an existing installation.
 **Note:** the build process requires ~1.1GB of disk space and takes ~20 minutes.

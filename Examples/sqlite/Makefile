@@ -7,7 +7,6 @@
 #
 # Use `make clean` to remove Graphene-generated files.
 
-# Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 

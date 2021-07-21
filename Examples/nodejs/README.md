@@ -1,9 +1,8 @@
 # Node.js
 
 This directory contains a Makefile and template manifest to run Node.js on
-Graphene. We tested it with Node.js 8.10.0 on Ubuntu 18.04. This example uses
-Node.js installed on the system instead of compiling from source as some of the
-other examples do.
+Graphene. This example uses Node.js installed on the system instead of compiling
+from source as some of the other examples do.
 
 # Quick Start
 

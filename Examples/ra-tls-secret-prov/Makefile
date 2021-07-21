@@ -10,7 +10,6 @@
 # Use `make clean` to remove Graphene-generated files and `make distclean` to
 # additionally remove the cloned mbedTLS git repository.
 
-# Relative path to Graphene root
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 

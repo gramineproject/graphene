@@ -1,6 +1,5 @@
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-# Relative path to Graphene root
 GRAPHENEDIR ?= $(THIS_DIR)/../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 BZIP2_MIRRORS ?= \

@@ -2,8 +2,7 @@
 
 This directory contains steps and artifacts to run a PyTorch sample workload on
 Graphene. Specifically, this example uses a pre-trained model for image
-classification. We tested this on 18.04. The sample uses the package version 3.6
-of Python.
+classification.
 
 The workload reads an image from a file on disk `input.jpg` and runs the
 classifier to detect what object is present in the image. For the image shipping

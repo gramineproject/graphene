@@ -1,8 +1,7 @@
 # Lighttpd Example
 
 This directory contains an example for running lighttpd in Graphene, including
-the Makefile and a template for generating the manifest. We tested lighttpd on
-Ubuntu 18.04.
+the Makefile and a template for generating the manifest.
 
 # Building lighttpd source
 

@@ -10,7 +10,6 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 NODEJS_DIR ?= /usr/bin
 
-# Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -35,7 +34,6 @@ nodejs.manifest: nodejs.manifest.template
 		-Dnodejs_dir=$(NODEJS_DIR) \
 		$< >$@
 
-# Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 nodejs.manifest.sgx: nodejs.manifest helloworld.js
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \

@@ -10,9 +10,6 @@
 # Use `make clean` to remove Graphene-generated files and `make distclean` to
 # additionally remove the Busybox source.
 
-################################# CONSTANTS ###################################
-
-# Relative path to Graphene root
 GRAPHENEDIR = ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -35,12 +32,6 @@ endif
 
 include ../../Scripts/Makefile.configs
 
-############################ BUSYBOX EXECUTABLE ###############################
-
-# Busybox is built as usual, without any changes to the build process. The
-# source is downloaded and then built via classic make. The result of this
-# build process is the final executable "src/busybox".
-
 $(SRCDIR)/Makefile:
 	$(GRAPHENEDIR)/Scripts/download --output busybox.tar.bz2 \
 		--sha256 $(BUSYBOX_SHA256) --url $(BUSYBOX_URL)
@@ -61,28 +52,11 @@ $(SRCDIR)/.config: $(SRCDIR)/Makefile
 $(SRCDIR)/busybox: $(SRCDIR)/.config
 	$(MAKE) -C $(SRCDIR)
 
-############################## BUSYBOX MANIFEST ###############################
-
-# The template file contains almost all necessary information to run Busybox
-# under Graphene / Graphene-SGX. We create busybox.manifest (to be run under
-# non-SGX Graphene) by simply replacing variables in the template file via sed.
-
 busybox.manifest: busybox.manifest.template
 	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
-
-# Manifest for Graphene-SGX requires special "graphene-sgx-sign" procedure. This procedure measures
-# all Busybox trusted files, adds the measurement to the resulting manifest.sgx file (among other,
-# less important SGX options) and creates busybox.sig (SIGSTRUCT object).
-#
-# Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see SGX hardware ABI, in particular EINIT
-# instruction). The "graphene-sgx-get-token" script generates EINITTOKEN based on a SIGSTRUCT and
-# puts it in .token file. Note that filenames must be the same as the manifest name (i.e.,
-# "busybox"). EINITTOKEN must be generated on the machine where the application will run, not where
-# it was built.
-
 
 busybox.manifest.sgx: busybox.manifest busybox
 	graphene-sgx-sign \
@@ -92,15 +66,9 @@ busybox.manifest.sgx: busybox.manifest busybox
 	graphene-sgx-get-token \
 		--output busybox.token --sig busybox.sig
 
-########################### COPIES OF EXECUTABLES #############################
-
-# Busybox build process creates the final executable as "src/busybox".
 # Copy Busybox binary to our root directory for simplicity.
-
 busybox: $(SRCDIR)/busybox
 	cp $(SRCDIR)/busybox busybox
-
-################################## CLEANUP ####################################
 
 .PHONY: clean
 clean:
@@ -109,4 +77,3 @@ clean:
 .PHONY: distclean
 distclean: clean
 	$(RM) -r $(SRCDIR) busybox.tar.bz2
-

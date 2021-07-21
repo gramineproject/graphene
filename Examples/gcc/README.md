@@ -4,10 +4,9 @@
 the one from the system***
 
 This directory contains a Makefile and template manifests to run gcc and its
-related tools on Graphene. We tested on Ubuntu 18.04 with gcc version 7.4.0 and
-binutils version 2.30. This example uses the package version of gcc and related
-tools (as, cc1, collect2, ld) installed on the system instead of compiling them
-from source as some of the other examples do.
+related tools on Graphene. This example uses the package version of gcc and
+related tools (as, cc1, collect2, ld) installed on the system instead of
+compiling them from source as some of the other examples do.
 
 # Quick Start
 

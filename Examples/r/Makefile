@@ -7,13 +7,10 @@
 #
 # Use `make clean` to remove Graphene-generated files.
 
-# Constants
-
 # Installation location of R. By default, Graphene will run the system R executable.
 R_HOME ?= /usr/lib/R
 R_EXEC = $(R_HOME)/bin/exec/R
 
-# Relative path to Graphene root
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -41,10 +38,6 @@ R.manifest: R.manifest.template
 		-Dr_home=$(R_HOME) \
 		-Dr_exec=$(R_EXEC) \
 		$< >$@
-
-# R manifests for SGX:
-#   Generating the SGX-specific manifest (R.manifest.sgx), the enclave signature,
-#   and the token for enclave initialization.
 
 %.manifest.sgx: %.manifest
 	graphene-sgx-sign \

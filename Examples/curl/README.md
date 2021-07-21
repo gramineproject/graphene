@@ -1,10 +1,8 @@
 # Curl
 
 This directory contains a Makefile and template manifest to run curl on
-Graphene. We tested it with curl 7.58.0 on Ubuntu 18.04. This example uses curl
-installed on the system instead of compiling from source as some of the other
-examples do.  The Makefile and the template manifest contain comments to
-hopefully make them easier to understand.
+Graphene. This example uses curl installed on the system instead of compiling
+from source as some of the other examples do.
 
 # Quick Start
 

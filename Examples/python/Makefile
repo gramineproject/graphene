@@ -9,7 +9,6 @@
 
 include ../../Scripts/Makefile.configs
 
-# Relative path to Graphene root
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -31,10 +30,6 @@ python.manifest: python.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
 		$< >$@
-
-# Python manifests for SGX:
-#   Generating the SGX-specific manifest (python.manifest.sgx), the enclave signature,
-#   and the token for enclave initialization.
 
 python.manifest.sgx: python.manifest
 	graphene-sgx-sign \

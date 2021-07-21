@@ -10,7 +10,6 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 CURL_DIR ?= /usr/bin
 
-# Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
@@ -36,7 +35,6 @@ curl.manifest: curl.manifest.template
 		-Dcurl_dir=$(CURL_DIR) \
 		$< >$@
 
-# Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 curl.manifest.sgx: curl.manifest
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
