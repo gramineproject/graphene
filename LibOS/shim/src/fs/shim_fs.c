@@ -225,6 +225,17 @@ static int __mount_one_other(toml_table_t* mount) {
         goto out;
     }
 
+    if (!strcmp(mount_uri, "file:/proc") ||
+            !strcmp(mount_uri, "file:/sys") ||
+            !strcmp(mount_uri, "file:/dev") ||
+            !strncmp(mount_uri, "file:/proc/", strlen("file:/proc/")) ||
+            !strncmp(mount_uri, "file:/sys/", strlen("file:/sys/")) ||
+            !strncmp(mount_uri, "file:/dev/", strlen("file:/dev/"))) {
+        log_error("Mounting %s may expose unsanitized, unsafe files to unsuspecting application. "
+                  "Graphene will continue application execution, but this configuration is not "
+                  "recommended for use in production!", mount_uri);
+    }
+
     if ((ret = mount_fs(mount_type, mount_uri, mount_path)) < 0) {
         log_error("Mounting %s on %s (type=%s) failed (%d)", mount_uri, mount_path, mount_type,
                   -ret);
