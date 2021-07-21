@@ -83,7 +83,7 @@ static inline struct enclave_tls* get_tcb_trts(void) {
     } while (0)
 
 
-__attribute__((__optimize__("-fno-stack-protector")))
+__attribute_no_stack_protector
 static inline void pal_set_tcb_stack_canary(uint64_t canary) {
     ((char*)&canary)[0] = 0; /* prevent C-string-based stack leaks from exposing the cookie */
     SET_ENCLAVE_TLS(common.stack_protector_canary, canary);

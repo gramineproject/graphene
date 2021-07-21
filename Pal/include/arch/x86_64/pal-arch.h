@@ -47,7 +47,7 @@ typedef struct pal_tcb {
     /* data private to PAL implementation follows this struct. */
 } PAL_TCB;
 
-__attribute__((__optimize__("-fno-stack-protector")))
+__attribute_no_stack_protector
 static inline void pal_tcb_arch_set_stack_canary(PAL_TCB* tcb, uint64_t canary) {
     tcb->stack_protector_canary = canary;
 }

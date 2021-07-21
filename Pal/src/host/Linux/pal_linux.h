@@ -170,7 +170,7 @@ static inline PAL_TCB_LINUX* get_tcb_linux(void) {
     return (PAL_TCB_LINUX*)pal_get_tcb();
 }
 
-__attribute__((__optimize__("-fno-stack-protector")))
+__attribute_no_stack_protector
 static inline void pal_tcb_set_stack_canary(PAL_TCB* tcb, uint64_t canary) {
     ((char*)&canary)[0] = 0; /* prevent C-string-based stack leaks from exposing the cookie */
     pal_tcb_arch_set_stack_canary(tcb, canary);

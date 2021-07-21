@@ -138,6 +138,14 @@ typedef ptrdiff_t ssize_t;
 
 #define __alloca __builtin_alloca
 
+/* Clang has different syntax than GCC for no-stack-protector, see:
+ * https://reviews.llvm.org/D46300 */
+#ifdef __clang__
+#define __attribute_no_stack_protector __attribute((no_stack_protector))
+#else
+#define __attribute_no_stack_protector __attribute__((__optimize__("-fno-stack-protector")))
+#endif
+
 #define XSTRINGIFY(x) STRINGIFY(x)
 #define STRINGIFY(x)  #x
 

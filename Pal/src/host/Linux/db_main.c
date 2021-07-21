@@ -144,7 +144,7 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
 
 /* Graphene uses GCC's stack protector that looks for a canary at gs:[0x8], but this function starts
  * with no TCB in the GS register, so we disable stack protector here */
-__attribute__((__optimize__("-fno-stack-protector")))
+__attribute_no_stack_protector
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
     int ret;
