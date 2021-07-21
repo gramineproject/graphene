@@ -943,16 +943,13 @@ static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
     return 0;
 }
 
-static off_t chroot_poll(struct shim_handle* hdl, int poll_type) {
+static int chroot_poll(struct shim_handle* hdl, int poll_type) {
     int ret;
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
 
     struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
     off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
-
-    if (poll_type == FS_POLL_SZ)
-        return size;
 
     struct shim_file_handle* file = &hdl->info.file;
     lock(&hdl->lock);

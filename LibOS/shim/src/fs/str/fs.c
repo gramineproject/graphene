@@ -258,17 +258,14 @@ int str_truncate(struct shim_handle* hdl, off_t len) {
     return ret;
 }
 
-off_t str_poll(struct shim_handle* hdl, int poll_type) {
+int str_poll(struct shim_handle* hdl, int poll_type) {
     assert(hdl->type == TYPE_STR);
 
     struct shim_str_handle* strhdl = &hdl->info.str;
     struct shim_str_data* data = strhdl->data;
     assert(data);
 
-    if (poll_type == FS_POLL_SZ)
-        return data->len;
-
-    off_t ret = 0;
+    int ret = 0;
     if (poll_type & FS_POLL_RD) {
         if (data->len > 0) {
             assert(data->str);

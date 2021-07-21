@@ -93,8 +93,8 @@ static int pipe_hstat(struct shim_handle* hdl, struct stat* stat) {
     return 0;
 }
 
-static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
-    off_t ret = 0;
+static int pipe_poll(struct shim_handle* hdl, int poll_type) {
+    int ret = 0;
 
     assert(hdl->type == TYPE_PIPE);
     if (!hdl->info.pipe.ready_for_ops)
@@ -111,11 +111,6 @@ static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     int query_ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
     if (query_ret < 0) {
         ret = pal_to_unix_errno(query_ret);
-        goto out;
-    }
-
-    if (poll_type == FS_POLL_SZ) {
-        ret = attr.pending_size;
         goto out;
     }
 

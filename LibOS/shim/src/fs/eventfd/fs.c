@@ -46,8 +46,8 @@ static ssize_t eventfd_write(struct shim_handle* hdl, const void* buf, size_t co
     return (ssize_t)count;
 }
 
-static off_t eventfd_poll(struct shim_handle* hdl, int poll_type) {
-    off_t ret = 0;
+static int eventfd_poll(struct shim_handle* hdl, int poll_type) {
+    int ret = 0;
 
     lock(&hdl->lock);
 
@@ -60,11 +60,6 @@ static off_t eventfd_poll(struct shim_handle* hdl, int poll_type) {
     int query_ret = DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr);
     if (query_ret < 0) {
         ret = pal_to_unix_errno(query_ret);
-        goto out;
-    }
-
-    if (poll_type == FS_POLL_SZ) {
-        ret = attr.pending_size;
         goto out;
     }
 

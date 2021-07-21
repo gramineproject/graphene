@@ -442,17 +442,14 @@ static int pseudo_close(struct shim_handle* hdl) {
     }
 }
 
-static off_t pseudo_poll(struct shim_handle* hdl, int poll_type) {
+static int pseudo_poll(struct shim_handle* hdl, int poll_type) {
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_DEV: {
-            if (poll_type == FS_POLL_SZ)
-                return 0;
-
-            off_t ret = 0;
+            int ret = 0;
             if ((poll_type & FS_POLL_RD) && node->dev.dev_ops.read)
                 ret |= FS_POLL_RD;
             if ((poll_type & FS_POLL_WR) && node->dev.dev_ops.write)
