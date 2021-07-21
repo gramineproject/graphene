@@ -19,14 +19,6 @@
 #include "shim_utils.h"
 #include "stat.h"
 
-/* Advances a char pointer (string) past any repeated slashes and returns the result.
- * Must be a null-terminated string. */
-static inline const char* eat_slashes(const char* string) {
-    while (*string == '/')
-        string++;
-    return string;
-}
-
 int check_permissions(struct shim_dentry* dent, mode_t mask) {
     assert(locked(&g_dcache_lock));
     assert(dent->state & DENTRY_VALID);
