@@ -17,7 +17,7 @@ CFLAGS += \
 
 # Some of the code uses alignof on expressions, which is a GNU extension.
 # Silence Clang - it complains but does support it.
-CFLAGS += $(cc-option,-Wno-gnu-alignof-expression)
+CFLAGS += $(call cc-option,-Wno-gnu-alignof-expression)
 
 ASFLAGS += \
 	-I. \
