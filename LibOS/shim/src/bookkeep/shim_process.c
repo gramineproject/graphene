@@ -151,14 +151,10 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE c
     /* We send signal to our process while still holding the lock, so that no thread is able to
      * see 0 pending signals but still get an exited child info. */
     if (parent_signal) {
-        siginfo_t info = {
-            .si_signo = parent_signal,
-            .si_pid = child_pid,
-            .si_uid = child_uid,
-            /* These 2 fields are not supported in Graphene. */
-            .si_utime = 0,
-            .si_stime = 0,
-        };
+        siginfo_t info = {0};
+        info.si_signo = parent_signal;
+        info.si_pid = child_pid;
+        info.si_uid = child_uid;
         fill_siginfo_code_and_status(&info, signal, exit_code);
         int x = kill_current_proc(&info);
         if (x < 0) {
