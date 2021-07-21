@@ -129,10 +129,10 @@ static int socket_hstat(struct shim_handle* hdl, struct stat* stat) {
     return 0;
 }
 
-static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
+static int socket_poll(struct shim_handle* hdl, int poll_type) {
     assert(hdl->type == TYPE_SOCK);
     struct shim_sock_handle* sock = &hdl->info.sock;
-    off_t ret = 0;
+    int ret = 0;
 
     lock(&hdl->lock);
 
@@ -178,11 +178,6 @@ static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
         goto out;
     }
 
-    if (poll_type == FS_POLL_SZ) {
-        ret = attr.pending_size;
-        goto out;
-    }
-
     ret = 0;
     if (attr.disconnected)
         ret |= FS_POLL_ER;
@@ -193,7 +188,7 @@ static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
 
 out:
     if (ret < 0) {
-        log_error("socket_poll failed (%ld)", ret);
+        log_error("socket_poll failed (%d)", ret);
         sock->error = -ret;
     }
 

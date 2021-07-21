@@ -24,7 +24,6 @@ struct shim_handle;
 #define FS_POLL_RD 0x01
 #define FS_POLL_WR 0x02
 #define FS_POLL_ER 0x04
-#define FS_POLL_SZ 0x08
 
 struct shim_fs_ops {
     /* mount: mount an uri to the certain location */
@@ -79,10 +78,7 @@ struct shim_fs_ops {
     int (*checkin)(struct shim_handle* hdl);
 
     /* poll a single handle */
-    /* POLL_RD|POLL_WR: return POLL_RD|POLL_WR for readable|writable,
-       POLL_ER for failure, -EAGAIN for unknown. */
-    /* POLL_SZ: return total size */
-    off_t (*poll)(struct shim_handle* hdl, int poll_type);
+    int (*poll)(struct shim_handle* hdl, int poll_type);
 
     /* checkpoint/migrate the file system */
     ssize_t (*checkpoint)(void** checkpoint, void* mount_data);
@@ -703,6 +699,6 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
 int str_truncate(struct shim_handle* hdl, off_t len);
-off_t str_poll(struct shim_handle* hdl, int poll_type);
+int str_poll(struct shim_handle* hdl, int poll_type);
 
 #endif /* _SHIM_FS_H_ */
