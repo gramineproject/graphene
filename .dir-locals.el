@@ -7,6 +7,7 @@
  (asm-mode . ((indent-tabs-mode . t)))
  (shell-script-mode . ((indent-tabs-mode . t)))
  ("\.git/COMMIT_EDITMSG" . ((nil . ((fill-column . 80)))))
+ (markdown-mode . ((fill-column . 80)))
  (rst-mode . ((fill-column . 80)))
  ((nil . ((truncate-lines . t)))
           (text-mode . ((eval . ((turn-on-auto-fill)))))))
