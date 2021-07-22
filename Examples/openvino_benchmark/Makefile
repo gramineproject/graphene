@@ -8,6 +8,7 @@
 # Use `make clean` to remove Graphene-generated files.
 # Use `make distclean` to further remove model directory and venv directory
 #
+SHELL := /bin/bash
 OPENVINO_DIR ?= $(INTEL_OPENVINO_DIR)
 
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
@@ -50,7 +51,7 @@ include ../../Scripts/Makefile.configs
 $(VENV_DIR):
 	mkdir -p model
 	python3 -m venv $(VENV_DIR) \
-	&& . $(VENV_DIR)/bin/activate \
+	&& source $(VENV_DIR)/bin/activate \
 	&& pip install --upgrade pip \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 -mpip install -r ./requirements.in \
@@ -59,42 +60,42 @@ $(VENV_DIR):
 	&& deactivate
 
 $(MODEL_DIR)/public/$(MODEL_RESNET): $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate \
+	source $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_RESNET) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_RESNET) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
 $(MODEL_DIR)/intel/$(MODEL_BERT): $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate \
+	source $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BERT) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BERT) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
 $(MODEL_DIR)/intel/$(MODEL_BERT_INT8): $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate \
+	source $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BERT_INT8) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BERT_INT8) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
 $(MODEL_DIR)/public/$(MODEL_BRATS0001): $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate \
+	source $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BRATS0001) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BRATS0001) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
 $(MODEL_DIR)/public/$(MODEL_BRATS0002): $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate \
+	source $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_BRATS0002) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_BRATS0002) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
 	&& deactivate
 
 $(MODEL_DIR)/public/$(MODEL_SSD_COCO): $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate \
+	source $(VENV_DIR)/bin/activate \
 	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
 	&& python3 ./downloader.py --name $(MODEL_SSD_COCO) -o $(abspath $(MODEL_DIR)) \
 	&& python3 ./converter.py --name $(MODEL_SSD_COCO) -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)) \
@@ -110,7 +111,7 @@ benchmark_app.manifest: benchmark_app.manifest.template
 
 # Generating the SGX-specific manifest (benchmark_app.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-benchmark_app.manifest.sgx: benchmark_app.manifest benchmark_app
+benchmark_app.manifest.sgx: benchmark_app.manifest | benchmark_app
 	graphene-sgx-sign \
 	-key $(SGX_SIGNER_KEY) \
 	-manifest $< -output $@
@@ -120,6 +121,7 @@ benchmark_app.sig: benchmark_app.manifest.sgx
 benchmark_app.token: benchmark_app.sig
 	graphene-sgx-get-token --sig $< --output $@
 
+# OpenVINO's build_samples.sh always installs samples in HOME directory
 benchmark_app:
 	cd $(OPENVINO_DIR)/deployment_tools/inference_engine/samples/cpp && ./build_samples.sh
 	ln -s $(HOME)/inference_engine_cpp_samples_build/intel64/Release/benchmark_app $@

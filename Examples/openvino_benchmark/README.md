@@ -1,22 +1,19 @@
 Enabling OpenVINO benchmark runs with Graphene-SGX
 =====================================================
-This directory contains a Makefile and a template manifest for the most recent version of OpenVINO\
-toolkit (as of this writing, version 2021.4). We use the "Benchmark C++ Tool" (benchmark_app) from\
-the OpenVINO distribution as a concrete application running under Graphene-SGX to estimate deep\
-learning inference performance. We test only the CPU backend (i.e., no GPU or FPGA). This was\
+This directory contains a Makefile and a template manifest for the most recent version of OpenVINO
+toolkit (as of this writing, version 2021.4). We use the ``Benchmark C++ Tool`` (benchmark_app) from
+the OpenVINO distribution as a concrete application running under Graphene-SGX to estimate deep
+learning inference performance. We test only the CPU backend (i.e., no GPU or FPGA). This was
 tested on a machine with Ubuntu 18.04 and Python 3.6.
-
-The Makefile and the template manifest contain extensive comments. Please review them to\
-understand the requirements for "Benchmark C++ Tool" running under Graphene-SGX.
 
 Note: the models require ~3GB of disk space.
 
 # Pre-system setting
-Linux systems have CPU frequency scaling governor that helps the system to scale the CPU frequency\
-to achieve best performance or to save power based on the requirement. To achieve the best\
+Linux systems have CPU frequency scaling governor that helps the system to scale the CPU frequency
+to achieve best performance or to save power based on the requirement. To achieve the best
 performance, please set the CPU frequency scaling governor to `performance` mode.
 
-```console
+```
 for ((i=0; i<$(nproc); i++)); \
 do echo 'performance' > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor; done
 ```
@@ -24,10 +21,10 @@ do echo 'performance' > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor; 
 # Bare-metal
 
 ## Software requirements
-- OpenVINO: Please download latest OpenVINO toolkit (as of this writing, version 2021.4) for Linux\
-from https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html.\
-For OpenVINO installation step-by-step instructions please refer to this [link](https://docs.openv\
-inotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_linux.html).
+- OpenVINO: Please download latest OpenVINO toolkit (as of this writing, version 2021.4) for Linux
+from https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html.
+For OpenVINO installation step-by-step instructions please refer to this
+[link](https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_linux.html).
 - Python (version 3.6 or higher)
 - Python virtual environment: `sudo apt-get install python3-venv`
 
@@ -44,38 +41,40 @@ The following models have been enabled and tested with Graphene-SGX.
 ## Preparing the source:
 1. Clone and build graphene from https://github.com/oscarlab/graphene
 2. ``cd $(GRAPHENE_DIR)/Examples/openvino_benchmark``
-3. Set up OpenVINO environment variables for a root user by running\
-``source /opt/intel/openvino_2021/bin/setupvars.sh`` or you can permanently set it by appending\
-``source /opt/intel/openvino_2021/bin/setupvars.sh`` to ``~/.bashrc``. For regular users run\
+3. Set up OpenVINO environment variables for a root user by running
+``source /opt/intel/openvino_2021/bin/setupvars.sh`` or you can permanently set it by appending
+``source /opt/intel/openvino_2021/bin/setupvars.sh`` to ``~/.bashrc``. For regular users run
  ``source /home/<USER>/intel/openvino_2021/bin/setupvars.sh``.
 4. Build: ``make SGX=1``
-> **NOTE**: After setting up OpenVINO environment variables if you want to build graphene after\
-cleaning you need to unset LD_LIBRARY_PATH. Please make sure to set up OpenVINO environment\
+
+**NOTE**: After setting up OpenVINO environment variables if you want to build graphene after
+cleaning you need to unset LD_LIBRARY_PATH. Please make sure to set up OpenVINO environment
 variables after building graphene again.
 
 ## Running the benchmark
-Performance benchmark on Xeon servers (Silver/Gold/Platinum) must be launched with increased number\
-of inference requests. For them -nireq -nstreams -nthreads options should be set to the\
-``number of physical cores * 2`` (take into account hyperthreading) for achieving maximal\
+Performance benchmark on Xeon servers (Silver/Gold/Platinum) must be launched with increased number
+of inference requests. For them -nireq -nstreams -nthreads options should be set to the
+``number of physical cores * 2`` (take into account hyperthreading) for achieving maximal
 performance.
->**NOTE** To get 'number of physical cores', do ``lscpu | grep 'Core(s) per socket'``
+
+**NOTE** To get 'number of physical cores', do ``lscpu | grep 'Core(s) per socket'``
 
 ### Throughput runs
 
 #### Graphene-SGX
 
-```console
-$ export OPTIMAL_VALUE=number of physical cores * 2
+```
+$ export OPTIMAL_VALUE=<number of physical cores * 2>
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 graphene-sgx benchmark_app -i <image files> -m <model path XML file> \
 -d CPU -b 1 -t 20 \
 -nstreams OPTIMAL_VALUE -nthreads OPTIMAL_VALUE -nireq OPTIMAL_VALUE
 ```
-For example, in a system with 36 physical cores, the following commands will execute the OpenVINO\
+For example, in a system with 36 physical cores, the following commands will execute the OpenVINO
 benchmark for obtaining throughput measurements for the corresponding model.
-```console
+```
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-graphene-sgx benchmark_app \
+graphene-sgx benchmark_app -i <image files> \
 -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
 -d CPU -b 1 -t 20 \
 -nstreams 72 -nthreads 72 -nireq 72
@@ -83,90 +82,72 @@ graphene-sgx benchmark_app \
 
 #### Bare-metal
 
-```console
-$ export OPTIMAL_VALUE=number of physical cores * 2
+```
+$ export OPTIMAL_VALUE=<number of physical cores * 2>
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 ./benchmark_app -i <image files> -m <model path XML file> \
 -d CPU -b 1 -t 20 \
 -nstreams OPTIMAL_VALUE -nthreads OPTIMAL_VALUE -nireq OPTIMAL_VALUE
 ```
-For example, in a system with 36 physical cores, the following commands will execute the OpenVINO\
+For example, in a system with 36 physical cores, the following commands will execute the OpenVINO
 benchmark for obtaining throughput measurements for the corresponding model.
-```console
+```
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-./benchmark_app -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
+./benchmark_app -i <image files> -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
 -d CPU -b 1 -t 20 \
 -nstreams 72 -nthreads 72 -nireq 72
 ```
 
-> **NOTE 1**: Option ``-i \<image files\>`` is optional. A user may use this option as required.  
-> **NOTE 2**: Please tune batch size to get best performance in your system.  
-> **NOTE 3**: Model files for bert-large can be found in ``model/intel`` directory and for rest of\
+**NOTE 1**: Option ``-i <image files>`` is optional. A user may use this option as required.  
+**NOTE 2**: Please tune batch size to get best performance in your system.  
+**NOTE 3**: Model files for bert-large can be found in ``model/intel`` directory and for rest of
 the models these are stored in ``model/public`` directory.  
-> **NOTE 4**: Based on the precision for bert-large and brain-tumor-segmentation models the enclave\
+**NOTE 4**: Based on the precision for bert-large and brain-tumor-segmentation models the enclave
 size must be set to 64/128 GB.  
-> **NOTE 5**: In multi-socket systems for bert-large-uncased-whole-word-masking-squad-0001 and\
-brain-tumor-segmentation-0001 FP32/FP16 models if allocation of memory fails when there is not\
+**NOTE 5**: In multi-socket systems for bert-large-uncased-whole-word-masking-squad-0001 and
+brain-tumor-segmentation-0001 FP32/FP16 models if allocation of memory fails when there is not
 enough memory available please expand memory nodes usage with numactl --membind option.
 
 
 ### Latency runs
 
 #### Graphene-SGX
-
-```console
-$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-graphene-sgx benchmark_app -i <image files> -m <model path XML file> \
--d CPU -t 20 -b 1 -api sync
 ```
-
-For example, in a system with 36 physical cores, the following commands will execute the OpenVINO\
-benchmark for obtaining latency measurements for the corresponding model.
-```console
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-graphene-sgx benchmark_app \
+graphene-sgx benchmark_app -i <image files> \
 -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
--d CPU -b 1 -t 20 -api sync
+-d CPU -t 20 -b 1 -api sync
 ```
 
 #### Bare-metal
-
-```console
+```
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-./benchmark_app -i <image files> -m <model path XML file> \
+./benchmark_app -i <image files> -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
 -d CPU -t 20 -b 1 -api sync
 ```
 
-For example, in a system with 36 physical cores, the following commands will execute the OpenVINO\
-benchmark for obtaining latency measurements for the corresponding model.
-```console
-$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-./benchmark_app -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
--d CPU -b 1 -t 20 -api sync
-```
-
-> **NOTE**: Option ``-i \<image files\>`` is optional. A user may use this option as required.
+**NOTE**: Option ``-i <image files>`` is optional. A user may use this option as required.
 
 # Performance considerations
-- Preheat manifest option pre-faults the enclave memory and moves the performance penalty to\
-graphene-sgx invocation (before the workload starts executing). To use preheat option, add\
+- Preheat manifest option pre-faults the enclave memory and moves the performance penalty to
+graphene-sgx invocation (before the workload starts executing). To use preheat option, add
 ``sgx.preheat_enclave = 1`` to the manifest template.
-- Skipping invalid user pointer checks when the application does not pass any invalid pointers can\
-help improve performance. To use this option, add  ``libos.check_invalid_pointers = 0`` to the\
+- Skipping invalid user pointer checks when the application does not pass any invalid pointers can
+help improve performance. To use this option, add  ``libos.check_invalid_pointers = 0`` to the
 manifest template.
-- TCMalloc and mimalloc are memory allocator libraries from Google and Microsoft that can help\
-improve performance significantly based on the workloads. At any point, only one of these\
+- TCMalloc and mimalloc are memory allocator libraries from Google and Microsoft that can help
+improve performance significantly based on the workloads. At any point, only one of these
 allocators can be used.
   - TCMalloc (Please update the binary location and name if different from default)
-	- Install tcmalloc : sudo apt-get install google-perftools
-	- Add these in the manifest template  
-		``loader.env.LD_PRELOAD = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"``  
-		``sgx.trusted_files.libtcmalloc = "file:/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"``  
-		``sgx.trusted_files.libunwind = "file:/usr/lib/x86_64-linux-gnu/libunwind.so.8"``  
-	- Save the template and rebuild.
+    - Install tcmalloc : sudo apt-get install google-perftools
+    - Add these in the manifest template
+        - ``loader.env.LD_PRELOAD = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"``
+        - ``sgx.trusted_files.libtcmalloc = "file:/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"``
+        - ``sgx.trusted_files.libunwind = "file:/usr/lib/x86_64-linux-gnu/libunwind.so.8"``
+    - Save the template and rebuild.
   - mimalloc (Please update the binary location and name if different from default)
-	- Install mimalloc using the steps from https://github.com/microsoft/mimalloc
-	- Add these in the manifest template  
-		``loader.env.LD_PRELOAD = "/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``  
-		``sgx.trusted_files.libmimalloc = "file:/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``  
+    - Install mimalloc using the steps from https://github.com/microsoft/mimalloc
+    - Add these in the manifest template
+        - ``loader.env.LD_PRELOAD = "/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``
+        - ``sgx.trusted_files.libmimalloc = "file:/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``
 	- Save the template and rebuild.
