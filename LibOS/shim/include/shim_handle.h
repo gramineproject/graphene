@@ -74,8 +74,8 @@ struct shim_file_handle {
     struct shim_file_data* data;
 
     enum shim_file_type type;
-    off_t size;
-    off_t marker;
+    file_off_t size;
+    file_off_t marker;
 
     struct sync_handle* sync;
 };
@@ -171,7 +171,7 @@ struct shim_dir_handle {
 struct shim_str_data {
     REFTYPE ref_count;
     char* str;
-    off_t len;
+    file_off_t len;
     size_t buf_size;
     bool dirty;
     int (*update)(struct shim_handle* hdl);

@@ -47,14 +47,14 @@ struct shim_fs_ops {
     int (*flush)(struct shim_handle* hdl);
 
     /* seek: the content from the file opened as handle */
-    off_t (*seek)(struct shim_handle* hdl, off_t offset, int whence);
+    file_off_t (*seek)(struct shim_handle* hdl, file_off_t offset, int whence);
 
     /* move, copy: rename or duplicate the file */
     int (*move)(const char* trim_old_name, const char* trim_new_name);
     int (*copy)(const char* trim_old_name, const char* trim_new_name);
 
     /* Returns 0 on success, -errno on error */
-    int (*truncate)(struct shim_handle* hdl, off_t len);
+    int (*truncate)(struct shim_handle* hdl, file_off_t len);
 
     /* hstat: get status of the file; `st_ino` will be taken from dentry, if there's one */
     int (*hstat)(struct shim_handle* hdl, struct stat* buf);
@@ -693,9 +693,24 @@ int str_dput(struct shim_dentry* dent);
 int str_close(struct shim_handle* hdl);
 ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count);
 ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
-off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
+file_off_t str_seek(struct shim_handle* hdl, file_off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
-int str_truncate(struct shim_handle* hdl, off_t len);
+int str_truncate(struct shim_handle* hdl, file_off_t len);
 int str_poll(struct shim_handle* hdl, int poll_type);
+
+/*!
+ * \brief Compute file position for `seek`
+ *
+ * \param pos current file position (non-negative)
+ * \param size file size (non-negative)
+ * \param offset desired offset
+ * \param origin `seek` origin parameter (SEEK_SET, SEEK_CUR, SEEK_END)
+ * \param[out] out_pos on success, contains new file position
+ *
+ * Computes new file position according to `seek` semantics. The new position will be non-negative,
+ * although it can be larger than file size.
+ */
+int generic_seek(file_off_t pos, file_off_t size, file_off_t offset, int origin,
+                 file_off_t* out_pos);
 
 #endif /* _SHIM_FS_H_ */

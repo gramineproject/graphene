@@ -32,8 +32,8 @@ struct mount_data {
 };
 
 struct file_sync_data {
-    off_t size;
-    off_t marker;
+    file_off_t size;
+    file_off_t marker;
 };
 
 static void file_sync_lock(struct shim_file_handle* file, int state) {
@@ -427,7 +427,7 @@ static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
 
     assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
-    off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
+    file_off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type     = TYPE_FILE;
@@ -457,7 +457,7 @@ static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct
 
     assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
-    off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
+    file_off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type     = TYPE_FILE;
@@ -538,7 +538,7 @@ static inline bool check_version(struct shim_handle* hdl) {
 static void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle* file,
                                struct shim_file_data* data) {
     if (check_version(hdl)) {
-        off_t size;
+        file_off_t size;
         do {
             if ((size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST)) >= file->size) {
                 file->size = size;
@@ -598,7 +598,7 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
 
     struct shim_file_handle* file = &hdl->info.file;
 
-    off_t dummy_off_t;
+    file_off_t dummy_off_t;
     if (file->type != FILE_TTY && file->type != FILE_DEV &&
             __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
         ret = -EFBIG;
@@ -645,7 +645,7 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     assert(hdl->type == TYPE_FILE);
     struct shim_file_handle* file = &hdl->info.file;
 
-    off_t dummy_off_t;
+    file_off_t dummy_off_t;
     if (file->type != FILE_TTY && file->type != FILE_DEV &&
             __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
         ret = -EFBIG;
@@ -696,8 +696,8 @@ static int chroot_mmap(struct shim_handle* hdl, void** addr, size_t size, int pr
     return pal_to_unix_errno(DkStreamMap(hdl->pal_handle, addr, pal_prot, offset, size));
 }
 
-static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
-    off_t ret = -EINVAL;
+static file_off_t chroot_seek(struct shim_handle* hdl, file_off_t offset, int whence) {
+    file_off_t ret = -EINVAL;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
@@ -710,8 +710,8 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
     /* TODO: this function emulates lseek() completely inside the LibOS, but some device files
      *       may report size == 0 during fstat() and may provide device-specific lseek() logic;
      *       this emulation breaks for such device-specific cases */
-    off_t marker = file->marker;
-    off_t size = file->size;
+    file_off_t marker = file->marker;
+    file_off_t size = file->size;
 
     if (check_version(hdl)) {
         struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
@@ -721,21 +721,9 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int whence) {
         }
     }
 
-    switch (whence) {
-        case SEEK_SET:
-            if (offset < 0)
-                goto out;
-            marker = offset;
-            break;
-
-        case SEEK_CUR:
-            marker += offset;
-            break;
-
-        case SEEK_END:
-            marker = size + offset;
-            break;
-    }
+    ret = generic_seek(marker, size, offset, whence, &marker);
+    if (ret < 0)
+        goto out;
 
     ret = file->marker = marker;
 
@@ -745,7 +733,7 @@ out:
     return ret;
 }
 
-static int chroot_truncate(struct shim_handle* hdl, off_t len) {
+static int chroot_truncate(struct shim_handle* hdl, file_off_t len) {
     int ret = 0;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
@@ -941,7 +929,7 @@ static int chroot_poll(struct shim_handle* hdl, int poll_type) {
         return ret;
 
     struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
-    off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
+    file_off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
     struct shim_file_handle* file = &hdl->info.file;
     lock(&hdl->lock);
@@ -950,7 +938,7 @@ static int chroot_poll(struct shim_handle* hdl, int poll_type) {
     if (check_version(hdl) && file->size < size)
         file->size = size;
 
-    off_t marker = file->marker;
+    file_off_t marker = file->marker;
 
     if (file->type == FILE_REGULAR) {
         ret = poll_type & FS_POLL_WR;

@@ -78,7 +78,7 @@ static int flock_to_posix_lock(struct flock* fl, struct shim_handle* hdl, struct
             if (!fs->fs_ops->seek)
                 return -EINVAL;
 
-            off_t pos = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
+            file_off_t pos = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
             if (pos < 0)
                 return pos;
             origin = pos;

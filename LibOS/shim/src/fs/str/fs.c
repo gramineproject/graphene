@@ -106,7 +106,7 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!strhdl->ptr)
         strhdl->ptr = data->str;
 
-    off_t offset  = strhdl->ptr - data->str;
+    file_off_t offset = strhdl->ptr - data->str;
 
     if (data->len <= offset) {
         ret = 0;
@@ -187,7 +187,7 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
     return count;
 }
 
-off_t str_seek(struct shim_handle* hdl, off_t offset, int whence) {
+file_off_t str_seek(struct shim_handle* hdl, file_off_t offset, int whence) {
     struct shim_str_handle* strhdl = &hdl->info.str;
 
     assert(hdl->dentry);
@@ -195,27 +195,17 @@ off_t str_seek(struct shim_handle* hdl, off_t offset, int whence) {
 
     struct shim_str_data* data = strhdl->data;
 
-    switch (whence) {
-        case SEEK_SET:
-            if (offset < 0)
-                return -EINVAL;
-            strhdl->ptr = data->str + offset;
-            break;
+    /* TODO: The handle position should be stored as a number, not as a pointer. A handle can point
+     * past the end of file, and a pointer pointing outside of buffer is UB. */
+    file_off_t pos = strhdl->ptr - data->str;
+    assert(pos >= 0);
+    file_off_t size = data->len;
+    int ret = generic_seek(pos, size, offset, whence, &pos);
+    if (ret < 0)
+        return ret;
+    strhdl->ptr = data->str + pos;
 
-        case SEEK_CUR:
-            if (strhdl->ptr + offset < data->str)
-                return -EINVAL;
-            strhdl->ptr += offset;
-            break;
-
-        case SEEK_END:
-            if (data->len + offset < 0)
-                return -EINVAL;
-            strhdl->ptr = data->str + data->len + offset;
-            break;
-    }
-
-    return strhdl->ptr - data->str;
+    return pos;
 }
 
 int str_flush(struct shim_handle* hdl) {
@@ -235,7 +225,7 @@ int str_flush(struct shim_handle* hdl) {
     return data->modify(hdl);
 }
 
-int str_truncate(struct shim_handle* hdl, off_t len) {
+int str_truncate(struct shim_handle* hdl, file_off_t len) {
     int ret = 0;
 
     if (!(hdl->acc_mode & MAY_WRITE))

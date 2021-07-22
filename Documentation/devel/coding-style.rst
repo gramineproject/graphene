@@ -143,7 +143,7 @@ Conventions and high-level style
 #. Types:
 
     #. All in-memory sizes and array indexes should be stored using ``size_t``.
-    #. All file offsets and sizes should be stored using ``uint64_t``.
+    #. All file offsets and sizes should be stored using ``file_off_t``.
     #. In general, C99 types should be used where possible (although some code
        is "grandfathered" in, it should also be changed as time allows).
 

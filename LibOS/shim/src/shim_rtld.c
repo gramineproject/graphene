@@ -110,7 +110,7 @@ struct loadcmd {
 static struct link_map* loaded_libraries = NULL;
 static struct link_map* interp_map = NULL;
 
-static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, uint64_t offset);
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, file_off_t offset);
 
 static struct link_map* new_elf_object(const char* realname) {
     struct link_map* new;
@@ -586,27 +586,28 @@ verify_failed:
     return -EINVAL;
 }
 
-/* TODO: On 32-bit platforms, this function will not handle big offsets because fs_ops->seek() takes
- * offset as off_t. That's a limitation of Graphene filesystem API and should be fixed there. */
-static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, uint64_t offset) {
+static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, file_off_t offset) {
     if (!file)
         return -EINVAL;
 
     if (!file->fs || !file->fs->fs_ops)
         return -EACCES;
 
-    ssize_t (*read)(struct shim_handle*, void*, size_t) = file->fs->fs_ops->read;
-    off_t (*seek)(struct shim_handle*, off_t, int)      = file->fs->fs_ops->seek;
+    ssize_t (*read)(struct shim_handle*, void*, size_t)      = file->fs->fs_ops->read;
+    file_off_t (*seek)(struct shim_handle*, file_off_t, int) = file->fs->fs_ops->seek;
 
     if (!read || !seek)
         return -EACCES;
 
-    ssize_t ret;
-    if ((ret = (*seek)(file, offset, SEEK_SET)) < 0)
-        return ret;
-    if ((ret = (*read)(file, buf, size)) < 0)
-        return ret;
-    if ((size_t)ret < size)
+    file_off_t seek_ret = seek(file, offset, SEEK_SET);
+    if (seek_ret < 0)
+        return seek_ret;
+
+    ssize_t read_ret = read(file, buf, size);
+    if (read_ret < 0)
+        return read_ret;
+
+    if ((size_t)read_ret < size)
         return -EINVAL;
     return 0;
 }

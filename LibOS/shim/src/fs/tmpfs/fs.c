@@ -260,7 +260,7 @@ static int tmpfs_mmap(struct shim_handle* hdl, void** addr, size_t size, int pro
     return -ENOSYS;
 }
 
-static off_t tmpfs_seek(struct shim_handle* hdl, off_t offset, int whence) {
+static file_off_t tmpfs_seek(struct shim_handle* hdl, file_off_t offset, int whence) {
     return str_seek(hdl, offset, whence);
 }
 
@@ -390,7 +390,7 @@ static int tmpfs_hstat(struct shim_handle* hdl, struct stat* stat) {
     return query_dentry(hdl->dentry, stat);
 }
 
-static int tmpfs_truncate(struct shim_handle* hdl, off_t len) {
+static int tmpfs_truncate(struct shim_handle* hdl, file_off_t len) {
     int ret = 0;
     lock(&hdl->lock);
     ret = str_truncate(hdl, len);

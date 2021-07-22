@@ -156,13 +156,13 @@ long shim_do_close(int fd) {
 }
 
 /* See also `do_getdents`. */
-static off_t do_lseek_dir(struct shim_handle* hdl, off_t offset, int origin) {
+static file_off_t do_lseek_dir(struct shim_handle* hdl, off_t offset, int origin) {
     assert(hdl->is_dir);
 
     lock(&g_dcache_lock);
     lock(&hdl->lock);
 
-    int ret;
+    file_off_t ret;
 
     /* Refresh the directory handle, so that after `lseek` the user sees an updated listing. */
     clear_directory_handle(hdl);
@@ -171,37 +171,12 @@ static off_t do_lseek_dir(struct shim_handle* hdl, off_t offset, int origin) {
 
     struct shim_dir_handle* dirhdl = &hdl->dir_info;
 
-    off_t pos = dirhdl->pos;
-    switch (origin) {
-        case SEEK_SET:
-            if (offset < 0) {
-                ret = -EINVAL;
-                goto out;
-            }
-            pos = offset;
-            break;
-        case SEEK_CUR:
-            if (__builtin_add_overflow(pos, offset, &pos)) {
-                ret = -EOVERFLOW;
-                goto out;
-            }
-            break;
-        case SEEK_END:
-            if (__builtin_add_overflow(dirhdl->count, offset, &pos)) {
-                ret = -EOVERFLOW;
-                goto out;
-            }
-            break;
-        default:
-            ret = -EINVAL;
-            goto out;
-    }
-    if (pos < 0) {
-        ret = -EINVAL;
+    file_off_t pos;
+    ret = generic_seek(dirhdl->pos, dirhdl->count, offset, origin, &pos);
+    if (ret < 0)
         goto out;
-    }
     dirhdl->pos = pos;
-    ret = 0;
+    ret = pos;
 
 out:
     unlock(&hdl->lock);

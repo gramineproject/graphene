@@ -342,6 +342,9 @@ typedef uint16_t FDTYPE;
 #define FDTYPE_MAX UINT16_MAX
 typedef uint64_t HASHTYPE;
 
+#define FILE_OFF_MAX INT64_MAX
+typedef int64_t file_off_t;
+
 typedef struct atomic_int REFTYPE;
 
 struct shim_lock {

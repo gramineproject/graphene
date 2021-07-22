@@ -407,7 +407,7 @@ long shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count) {
         goto out;
     }
 
-    off_t old_offset = 0;
+    file_off_t old_offset = 0;
 
     if (offset) {
         if (!in_hdl->fs->fs_ops->seek) {
