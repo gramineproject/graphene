@@ -2,11 +2,9 @@
 #
 # STEP 1: Prepare Server certificate
 #         1.1 Create server certificate signed by your trusted root CA. Ensure Common Name
-#	      field in the server certificate corresponds to <AKS-DNS-NAME> used in STEP 5.
-#	  1.2 Put trusted root CA certificate, server certificate, and server key in
-#	      graphene/Examples/ra-tls-secret-prov/certs directory with existing naming convention.
-#         1.3 Provide password for your server key to mbedtls_pk_parse_keyfile(,,pwd) API call,
-#	      available at graphene/Pal/src/host/Linux-SGX/tools/ra-tls/tools/secret_prov_verify.c.
+#             field in the server certificate corresponds to <AKS-DNS-NAME> used in STEP 5.
+#         1.2 Put trusted root CA certificate, server certificate, and server key in
+#             graphene/Examples/ra-tls-secret-prov/certs directory with existing naming convention.
 #
 # STEP 2: Make sure RA-TLS DCAP libraries are built in Graphene via:
 #         $ cd graphene/Pal/src/host/Linux-SGX/tools/ra-tls && make dcap
@@ -24,23 +22,25 @@
 # STEP 5: Deploy <aks-ra-tls-secret-prov-server-img> in AKS confidential compute cluster
 #         Reference deployment file: graphene/Tools/gsc/images/aks-server-deployment.yaml
 #
-# NOTE:  Server can be deployed at non-confidential compute node as well. However, in that
+# NOTE:  Server can be deployed at non-confidential compute node as well. However, in that case
 #        QVE-based dcap verification will fail.
 
 FROM ubuntu:18.04
 
 RUN apt-get update \
-    && env DEBIAN_FRONTEND=noninteractive apt-get install -y wget \
+    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential \
-    python3 \
-    libcurl3-gnutls \
     gnupg2 \
-    libcurl4-openssl-dev
+    libcurl3-gnutls \
+    libcurl4-openssl-dev \
+    python3 \
+    wget
 
-# Installing Azure DCAP Quote Provider Library (az-dcap-client)
+# Installing Azure DCAP Quote Provider Library (az-dcap-client).
+# Here, we are using the deb package that we tested for this demo.
+# User can install the latest az-dcap-client as well.
 
 RUN wget https://github.com/microsoft/Azure-DCAP-Client/releases/download/1.8/az-dcap-client_1.8_amd64_18.04.deb \
-    && chmod u+x az-dcap-client_1.8_amd64_18.04.deb \
     && dpkg -i az-dcap-client_1.8_amd64_18.04.deb
 
 # Installing DCAP Quote Verification Library
@@ -90,4 +90,4 @@ ENV LD_LIBRARY_PATH = "${LD_LIBRARY_PATH}:./libs"
 
 ENV PATH = "${PATH}:/graphene/Examples/ra-tls-secret-prov"
 
-ENTRYPOINT ["/graphene/Examples/ra-tls-secret-prov/secret_prov_server_dcap","&"]
+ENTRYPOINT ["/graphene/Examples/ra-tls-secret-prov/secret_prov_server_dcap"]
