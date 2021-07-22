@@ -39,4 +39,4 @@ Exit status
    SGX Platform Software (:term:`PSW`) is not installed
 
 4
-   The ``aesmd`` :term:`PSW` daemon is not running
+   The ``aesmd`` :term:`PSW` daemon is not installed

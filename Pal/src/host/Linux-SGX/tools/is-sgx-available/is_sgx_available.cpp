@@ -15,8 +15,7 @@ enum ExitCodes {
     NO_CPU_SUPPORT = 1,
     NO_BIOS_SUPPORT = 2,
     PSW_NOT_INSTALLED = 3,
-    AESMD_NOT_RUNNING = 4 // This is a separate exit code, because AESMD tends
-                          // to die spontaneously.
+    AESMD_NOT_INSTALLED = 4
 };
 
 bool file_exists(const char* path) {
@@ -175,7 +174,7 @@ bool psw_installed() {
     return sgx_driver_loaded() && aesmd_installed;
 }
 
-bool aesmd_running() {
+bool aesmd_installed() {
     return file_exists("/var/run/aesmd/aesm.socket");
 }
 
@@ -209,8 +208,8 @@ void print_detailed_info(const SgxCpuChecker& cpu_checker) {
     printf("Max enclave size (64-bit): 0x%" PRIx64 "\n", cpu_checker.maximum_enclave_size_x64());
     printf("EPC size: 0x%" PRIx64 "\n", cpu_checker.epc_region_size());
     printf("SGX driver loaded: %s\n", bool2str(sgx_driver_loaded()));
+    printf("AESMD installed: %s\n", bool2str(aesmd_installed()));
     printf("SGX PSW/libsgx installed: %s\n", bool2str(psw_installed()));
-    printf("AESMD running: %s\n", bool2str(aesmd_running()));
 }
 
 int main(int argc, char* argv[]) {
@@ -231,7 +230,7 @@ int main(int argc, char* argv[]) {
         return ExitCodes::NO_BIOS_SUPPORT;
     if (!psw_installed())
         return ExitCodes::PSW_NOT_INSTALLED;
-    if (!aesmd_running())
-        return ExitCodes::AESMD_NOT_RUNNING;
+    if (!aesmd_installed())
+        return ExitCodes::AESMD_NOT_INSTALLED;
     return ExitCodes::SUCCESS;
 }

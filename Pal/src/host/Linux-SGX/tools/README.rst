@@ -18,8 +18,8 @@ Example output::
     Max enclave size (64-bit): 0x1000000000
     EPC size: 0x5d80000
     SGX driver loaded: true
+    AESMD installed: true
     SGX PSW/libsgx installed: true
-    AESMD running: false
 
 The program terminates successfully if all SGX1 components are detected and running, otherwise
 the program exits with an error code (see the source code for possible values).
