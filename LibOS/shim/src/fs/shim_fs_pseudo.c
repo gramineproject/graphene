@@ -96,20 +96,6 @@ static int pseudo_mount(const char* uri, void** mount_data) {
     return 0;
 }
 
-/* The `modify` callback for string handle. Invokes `save` from user. */
-static int pseudo_modify(struct shim_handle* hdl) {
-    assert(hdl->type == TYPE_STR);
-    assert(hdl->dentry);
-
-    struct pseudo_node* node = pseudo_find(hdl->dentry);
-    if (!node)
-        return -ENOENT;
-
-    assert(node->type == PSEUDO_STR);
-    assert(node->str.save);
-    return node->str.save(hdl->dentry, hdl->info.str.data->str, hdl->info.str.data->len);
-}
-
 static int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     int ret;
     struct pseudo_node* node = pseudo_find(dent);
@@ -138,20 +124,10 @@ static int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
                 str = NULL;
             }
 
-            struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
-            if (!data) {
-                free(str);
-                return -ENOMEM;
-            }
-
             hdl->type = TYPE_STR;
-            hdl->info.str.data = data;
-            hdl->info.str.data->str = str;
-            hdl->info.str.data->len = len;
-            hdl->info.str.data->buf_size = len;
-            if (node->str.save)
-                hdl->info.str.data->modify = &pseudo_modify;
-            hdl->info.str.ptr = str;
+            mem_file_init(&hdl->info.str.mem, str, len);
+            hdl->info.str.dirty = false;
+            hdl->info.str.pos = 0;
             break;
         }
 
@@ -307,8 +283,15 @@ static ssize_t pseudo_read(struct shim_handle* hdl, void* buf, size_t size) {
     if (!node)
         return -ENOENT;
     switch (node->type) {
-        case PSEUDO_STR:
-            return str_read(hdl, buf, size);
+        case PSEUDO_STR: {
+            assert(hdl->type == TYPE_STR);
+            lock(&hdl->lock);
+            ssize_t ret = mem_file_read(&hdl->info.str.mem, hdl->info.str.pos, buf, size);
+            if (ret > 0)
+                hdl->info.str.pos += ret;
+            unlock(&hdl->lock);
+            return ret;
+        }
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.read)
@@ -326,8 +309,17 @@ static ssize_t pseudo_write(struct shim_handle* hdl, const void* buf, size_t siz
     if (!node)
         return -ENOENT;
     switch (node->type) {
-        case PSEUDO_STR:
-            return str_write(hdl, buf, size);
+        case PSEUDO_STR: {
+            assert(hdl->type == TYPE_STR);
+            lock(&hdl->lock);
+            ssize_t ret = mem_file_write(&hdl->info.str.mem, hdl->info.str.pos, buf, size);
+            if (ret > 0) {
+                hdl->info.str.pos += ret;
+                hdl->info.str.dirty = true;
+            }
+            unlock(&hdl->lock);
+            return ret;
+        }
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.write)
@@ -340,13 +332,24 @@ static ssize_t pseudo_write(struct shim_handle* hdl, const void* buf, size_t siz
 }
 
 static file_off_t pseudo_seek(struct shim_handle* hdl, file_off_t offset, int whence) {
+    file_off_t ret;
+
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
         return -ENOENT;
     switch (node->type) {
-        case PSEUDO_STR:
-            return str_seek(hdl, offset, whence);
+        case PSEUDO_STR: {
+            lock(&hdl->lock);
+            file_off_t pos = hdl->info.str.pos;
+            ret = generic_seek(pos, hdl->info.str.mem.size, offset, whence, &pos);
+            if (ret == 0) {
+                hdl->info.str.pos = pos;
+                ret = pos;
+            }
+            unlock(&hdl->lock);
+            return ret;
+        }
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.seek)
@@ -365,7 +368,13 @@ static int pseudo_truncate(struct shim_handle* hdl, file_off_t size) {
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_STR:
-            return str_truncate(hdl, size);
+            assert(hdl->type == TYPE_STR);
+            lock(&hdl->lock);
+            int ret = mem_file_truncate(&hdl->info.str.mem, size);
+            if (ret == 0)
+                hdl->info.str.dirty = true;
+            unlock(&hdl->lock);
+            return ret;
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.truncate)
@@ -377,6 +386,20 @@ static int pseudo_truncate(struct shim_handle* hdl, file_off_t size) {
     }
 }
 
+static int pseudo_str_flush(struct pseudo_node* node, struct shim_handle* hdl) {
+    assert(locked(&hdl->lock));
+    assert(hdl->type == TYPE_STR);
+
+    if (hdl->info.str.dirty && node->str.save) {
+        struct shim_mem_file* mem = &hdl->info.str.mem;
+        int ret = node->str.save(hdl->dentry, mem->buf, mem->size);
+        if (ret < 0)
+            return ret;
+    }
+    hdl->info.str.dirty = false;
+    return 0;
+}
+
 static int pseudo_flush(struct shim_handle* hdl) {
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
@@ -384,7 +407,7 @@ static int pseudo_flush(struct shim_handle* hdl) {
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_STR:
-            return str_flush(hdl);
+            return pseudo_str_flush(node, hdl);
 
         case PSEUDO_DEV:
             if (!node->dev.dev_ops.flush)
@@ -403,27 +426,13 @@ static int pseudo_close(struct shim_handle* hdl) {
         return -ENOENT;
     switch (node->type) {
         case PSEUDO_STR: {
-            /*
-             * TODO: we don't use `str_close` here, but free the handle data ourselves. This is
-             * because `str_close` also attempts to free the dentry data (`hdl->dentry->data`), and
-             * pseudofs uses this field for other purposes.
-             *
-             * The `str_*` set of functions should probably work differently, but that requires
-             * rewriting tmpfs as well.
-             */
-            int ret = 0;
-            if (hdl->flags & (O_WRONLY | O_RDWR)) {
-                int ret = str_flush(hdl);
-                if (ret < 0) {
-                    log_debug("str_flush() failed, proceeding with close");
-                }
+            lock(&hdl->lock);
+            int ret = pseudo_str_flush(node, hdl);
+            if (ret < 0) {
+                log_debug("pseudo_str_flush() failed, proceeding with close");
             }
-
-            if (hdl->info.str.data) {
-                free(hdl->info.str.data->str);
-                free(hdl->info.str.data);
-                hdl->info.str.data = NULL;
-            }
+            mem_file_destroy(&hdl->info.str.mem);
+            unlock(&hdl->lock);
             return ret;
         }
 
@@ -443,6 +452,14 @@ static int pseudo_poll(struct shim_handle* hdl, int poll_type) {
     if (!node)
         return -ENOENT;
     switch (node->type) {
+        case PSEUDO_STR: {
+            assert(hdl->type == TYPE_STR);
+            lock(&hdl->lock);
+            int ret = mem_file_poll(&hdl->info.str.mem, hdl->info.str.pos, poll_type);
+            unlock(&hdl->lock);
+            return ret;
+        }
+
         case PSEUDO_DEV: {
             int ret = 0;
             if ((poll_type & FS_POLL_RD) && node->dev.dev_ops.read)
@@ -451,8 +468,6 @@ static int pseudo_poll(struct shim_handle* hdl, int poll_type) {
                 ret |= FS_POLL_WR;
             return ret;
         }
-        case PSEUDO_STR:
-            return str_poll(hdl, poll_type);
 
         default:
             return -ENOSYS;
