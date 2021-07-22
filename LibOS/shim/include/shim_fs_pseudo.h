@@ -22,6 +22,10 @@
  * TODO: The pseudo filesystem currently does not implement proper invalidation for
  * dynamically-generated directory listings (such as `/proc/<pid>`), so stale dentries might remain
  * for files that shouldn't exist anymore.
+ *
+ * TODO: The string-backed files are kept per handle, not per dentry. This doesn't matter so much
+ * for read-only files, but if a writable file is opened twice, changes will not propagate between
+ * handles.
  */
 
 #ifndef SHIM_FS_PSEUDO_H_

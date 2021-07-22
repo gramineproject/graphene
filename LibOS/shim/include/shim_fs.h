@@ -680,19 +680,6 @@ extern struct shim_fs eventfd_builtin_fs;
 
 struct shim_fs* find_fs(const char* name);
 
-/* string-type file system */
-int str_add_dir(const char* path, mode_t mode, struct shim_dentry** dent);
-int str_add_file(const char* path, mode_t mode, struct shim_dentry** dent);
-int str_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags);
-int str_dput(struct shim_dentry* dent);
-int str_close(struct shim_handle* hdl);
-ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count);
-ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
-file_off_t str_seek(struct shim_handle* hdl, file_off_t offset, int whence);
-int str_flush(struct shim_handle* hdl);
-int str_truncate(struct shim_handle* hdl, file_off_t len);
-int str_poll(struct shim_handle* hdl, int poll_type);
-
 /*!
  * \brief Compute file position for `seek`
  *

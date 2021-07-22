@@ -22,6 +22,7 @@
 #include "list.h"
 #include "pal.h"
 #include "shim_defs.h"
+#include "shim_fs_mem.h"
 #include "shim_sync.h"
 #include "shim_types.h"
 
@@ -30,10 +31,10 @@ enum shim_handle_type {
     /* Files: */
     TYPE_FILE,       /* host files, used by `chroot` filesystem */
     TYPE_DEV,        /* emulated devices, used by `dev` filesystem */
-    TYPE_STR,        /* string-based files, handled by `str_*` functions, used by several
-                      * filesystems */
-    TYPE_PSEUDO,     /* pseudo nodes (currently directories), handled by `pseudo_*` functions, used
-                      * by several filesystems */
+    TYPE_STR,        /* string-based files (with data inside handle), handled by `pseudo_*`
+                      * functions */
+    TYPE_PSEUDO,     /* pseudo nodes (currently directories), handled by `pseudo_*` functions */
+    TYPE_TMPFS,      /* string-based files (with data inside dentry), used by `tmpfs` filesystem */
 
     /* Pipes and sockets: */
     TYPE_PIPE,       /* pipes, used by `pipe` filesystem */
@@ -168,20 +169,14 @@ struct shim_dir_handle {
     size_t pos;
 };
 
-struct shim_str_data {
-    REFTYPE ref_count;
-    char* str;
-    file_off_t len;
-    size_t buf_size;
+struct shim_str_handle {
+    struct shim_mem_file mem;
     bool dirty;
-    int (*update)(struct shim_handle* hdl);
-    int (*modify)(struct shim_handle* hdl);
+    file_off_t pos;
 };
 
-struct shim_str_handle {
-    struct shim_str_data* data; /* inode is stored in dentry, too.
-                                   store pointer here for efficiency */
-    char* ptr;
+struct shim_tmpfs_handle {
+    file_off_t pos;
 };
 
 DEFINE_LIST(shim_epoll_item);
@@ -247,6 +242,7 @@ struct shim_handle {
         /* (no data) */                  /* TYPE_DEV */
         struct shim_str_handle str;      /* TYPE_STR */
         /* (no data) */                  /* TYPE_PSEUDO */
+        struct shim_tmpfs_handle tmpfs;  /* TYPE_TMPFS */
 
         struct shim_pipe_handle pipe;    /* TYPE_PIPE */
         struct shim_sock_handle sock;    /* TYPE_SOCK */
