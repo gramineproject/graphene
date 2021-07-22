@@ -209,9 +209,6 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
     assert(sig_data[sig_data_size - 1] == '\0');
     sig_data_size--;
 
-    /* TODO: obtain cert revocation lists via ias_get_sigrl(); currently they are not used during
-     *       IAS attestation report verification, so we don't obtain them */
-
     /* verify the received IAS attestation report */
     bool allow_outdated_tcb;
     ret = getenv_allow_outdated_tcb(&allow_outdated_tcb);
@@ -224,6 +221,9 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
     if (ret < 0)
         goto out;
 
+    /* below function verifies `isvEnclaveQuoteStatus` returned in the IAS attestation report; it
+     * fails if the SGX quote is invalid or if the EPID group/private key/signature is revoked (see
+     * also https://api.trustedservices.intel.com/documents/IAS-API-Spec-rev-5.0.pdf) */
     ret = verify_ias_report_extract_quote((uint8_t*)report_data, report_data_size,
                                           (uint8_t*)sig_data, sig_data_size,
                                           allow_outdated_tcb, nonce,
