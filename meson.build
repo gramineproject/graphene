@@ -70,12 +70,19 @@ subdir('Scripts')
 # Not all compilers support mstack-protector-guard, so use stack protector only if supported.
 # Graphene-custom stack protector uses the canary stored in the TCB (same for both in LibOS and PAL)
 # at offset 0x8.
-cflags_custom_stack_protector = [
-    '-fstack-protector-strong',
-    '-mstack-protector-guard=tls',
-    '-mstack-protector-guard-reg=%gs',
-    '-mstack-protector-guard-offset=8',
-]
+if host_machine.cpu_family() == 'x86_64'
+    cflags_custom_stack_protector = [
+        '-fstack-protector-strong',
+        '-mstack-protector-guard=tls',
+        '-mstack-protector-guard-reg=%gs',
+        '-mstack-protector-guard-offset=8',
+    ]
+else
+    cflags_custom_stack_protector = [
+        '-fstack-protector-strong',
+    ]
+endif
+
 if not cc.has_multi_arguments(cflags_custom_stack_protector)
     cflags_custom_stack_protector = '-fno-stack-protector'
 endif
