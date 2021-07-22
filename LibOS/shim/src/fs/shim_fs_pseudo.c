@@ -196,11 +196,6 @@ static int pseudo_lookup(struct shim_dentry* dent) {
     return 0;
 }
 
-static int pseudo_mode(struct shim_dentry* dent, mode_t* mode) {
-    *mode = dent->type | dent->perm;
-    return 0;
-}
-
 static int count_nlink(const char* name, void* arg) {
     __UNUSED(name);
     size_t* nlink = arg;
@@ -547,7 +542,6 @@ struct shim_fs_ops pseudo_fs_ops = {
 struct shim_d_ops pseudo_d_ops = {
     .open        = &pseudo_open,
     .lookup      = &pseudo_lookup,
-    .mode        = &pseudo_mode,
     .readdir     = &pseudo_readdir,
     .stat        = &pseudo_stat,
     .follow_link = &pseudo_follow_link,
