@@ -339,7 +339,7 @@ static ssize_t pseudo_write(struct shim_handle* hdl, const void* buf, size_t siz
     }
 }
 
-static off_t pseudo_seek(struct shim_handle* hdl, off_t offset, int whence) {
+static loff_t pseudo_seek(struct shim_handle* hdl, loff_t offset, int whence) {
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
@@ -358,7 +358,7 @@ static off_t pseudo_seek(struct shim_handle* hdl, off_t offset, int whence) {
     }
 }
 
-static int pseudo_truncate(struct shim_handle* hdl, off_t size) {
+static int pseudo_truncate(struct shim_handle* hdl, loff_t size) {
     assert(hdl->dentry);
     struct pseudo_node* node = pseudo_find(hdl->dentry);
     if (!node)
