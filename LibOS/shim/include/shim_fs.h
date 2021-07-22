@@ -178,9 +178,6 @@ struct shim_d_ops {
      */
     int (*lookup)(struct shim_dentry* dent);
 
-    /* this is to check file type and access, returning the stat.st_mode */
-    int (*mode)(struct shim_dentry* dent, mode_t* mode);
-
     /* detach internal data from dentry */
     int (*dput)(struct shim_dentry* dent);
 

@@ -102,20 +102,7 @@ static int validate_dentry(struct shim_dentry* dent) {
     int ret = dent->fs->d_ops->lookup(dent);
 
     if (ret == 0) {
-        /*
-         * Lookup succeeded. Now, ensure `dent->perm` and `dent->type` are valid.
-         *
-         * TODO: remove `mode()` as a separate operation, and make sure this is always done by
-         * `lookup()`.
-         */
-        assert(dent->fs->d_ops->mode);
-        mode_t mode;
-        ret = dent->fs->d_ops->mode(dent, &mode);
-        if (ret < 0) {
-            return ret;
-        }
-        dent->perm = mode & ~S_IFMT;
-        dent->type = mode & S_IFMT;
+        /* Lookup succeeded. */
         dent->state |= DENTRY_VALID;
         return 0;
     } else if (ret == -ENOENT) {

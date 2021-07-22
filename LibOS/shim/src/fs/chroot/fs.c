@@ -313,8 +313,7 @@ static inline int try_create_data(struct shim_dentry* dent, const char* uri, siz
     return 0;
 }
 
-static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, mode_t* mode,
-                        struct stat* stat) {
+static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, struct stat* stat) {
     int ret = 0;
 
     struct shim_file_data* data;
@@ -327,9 +326,6 @@ static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, mode_t*
         unlock(&data->lock);
         return ret;
     }
-
-    if (mode)
-        *mode = dent->type | dent->perm;
 
     if (stat) {
         struct mount_data* mdata = DENTRY_MOUNT_DATA(dent);
@@ -349,16 +345,12 @@ static int query_dentry(struct shim_dentry* dent, PAL_HANDLE pal_handle, mode_t*
     return 0;
 }
 
-static int chroot_mode(struct shim_dentry* dent, mode_t* mode) {
-    return query_dentry(dent, NULL, mode, NULL);
-}
-
 static int chroot_stat(struct shim_dentry* dent, struct stat* statbuf) {
-    return query_dentry(dent, NULL, NULL, statbuf);
+    return query_dentry(dent, NULL, statbuf);
 }
 
 static int chroot_lookup(struct shim_dentry* dent) {
-    return query_dentry(dent, NULL, NULL, NULL);
+    return query_dentry(dent, NULL, NULL);
 }
 
 static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, mode_t mode,
@@ -577,7 +569,7 @@ static int chroot_hstat(struct shim_handle* hdl, struct stat* stat) {
         return 0;
     }
 
-    return query_dentry(hdl->dentry, hdl->pal_handle, NULL, stat);
+    return query_dentry(hdl->dentry, hdl->pal_handle, stat);
 }
 
 static int chroot_flush(struct shim_handle* hdl) {
@@ -1057,7 +1049,6 @@ struct shim_fs_ops chroot_fs_ops = {
 
 struct shim_d_ops chroot_d_ops = {
     .open    = &chroot_open,
-    .mode    = &chroot_mode,
     .lookup  = &chroot_lookup,
     .creat   = &chroot_creat,
     .mkdir   = &chroot_mkdir,

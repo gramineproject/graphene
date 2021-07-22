@@ -750,12 +750,6 @@ static int __load_interp_object(struct link_map* exec_map) {
             return ret;
         }
 
-        if (fs->d_ops->mode) {
-            mode_t mode;
-            if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
-                goto err;
-        }
-
         struct shim_handle* interp = NULL;
 
         if (!(interp = get_new_handle())) {
