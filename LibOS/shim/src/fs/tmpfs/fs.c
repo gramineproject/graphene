@@ -264,7 +264,7 @@ static off_t tmpfs_seek(struct shim_handle* hdl, off_t offset, int whence) {
     return str_seek(hdl, offset, whence);
 }
 
-static int query_dentry(struct shim_dentry* dent, mode_t* mode, struct stat* stat) {
+static int query_dentry(struct shim_dentry* dent, struct stat* stat) {
     int ret = 0;
 
     struct shim_tmpfs_data* data;
@@ -285,9 +285,6 @@ static int query_dentry(struct shim_dentry* dent, mode_t* mode, struct stat* sta
             unlock(&data->lock);
             return -ENOENT;
     }
-
-    if (mode)
-        *mode = dent->perm | dent->type;
 
     if (stat) {
         memset(stat, 0, sizeof(struct stat));
@@ -317,26 +314,19 @@ static int query_dentry(struct shim_dentry* dent, mode_t* mode, struct stat* sta
     return 0;
 }
 
-static int tmpfs_mode(struct shim_dentry* dent, mode_t* mode) {
-    if (!dent->parent) {
-        /* root of pseudo-FS */
-        *mode = PERM_rwx______ | S_IFDIR;
-        return 0;
-    }
-    return query_dentry(dent, mode, NULL);
-}
-
 static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
-    return query_dentry(dent, NULL, statbuf);
+    return query_dentry(dent, statbuf);
 }
 
 static int tmpfs_lookup(struct shim_dentry* dent) {
     if (!dent->parent) {
         /* root of pseudo-FS */
         dent->state |= DENTRY_ISDIRECTORY;
+        dent->type = S_IFDIR;
+        dent->perm = PERM_rwx______;
         return 0;
     }
-    return query_dentry(dent, NULL, NULL);
+    return query_dentry(dent, NULL);
 }
 
 static int tmpfs_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct shim_dentry* dent,
@@ -397,7 +387,7 @@ static int tmpfs_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t
 
 static int tmpfs_hstat(struct shim_handle* hdl, struct stat* stat) {
     assert(hdl->dentry);
-    return query_dentry(hdl->dentry, NULL, stat);
+    return query_dentry(hdl->dentry, stat);
 }
 
 static int tmpfs_truncate(struct shim_handle* hdl, off_t len) {
@@ -528,7 +518,6 @@ struct shim_fs_ops tmp_fs_ops = {
 
 struct shim_d_ops tmp_d_ops = {
     .open    = &tmpfs_open,
-    .mode    = &tmpfs_mode,
     .lookup  = &tmpfs_lookup,
     .creat   = &tmpfs_creat,
     .mkdir   = &tmpfs_mkdir,
