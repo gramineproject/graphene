@@ -106,7 +106,6 @@ benchmark_app.manifest: benchmark_app.manifest.template
 	-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 	-Darch_libdir=$(ARCH_LIBDIR) \
 	-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
-	-DHOME=$(HOME) \
 	$< > $@
 
 # Generating the SGX-specific manifest (benchmark_app.manifest.sgx), the enclave signature,

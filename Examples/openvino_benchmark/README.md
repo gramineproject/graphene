@@ -3,8 +3,7 @@ Enabling OpenVINO benchmark runs with Graphene-SGX
 This directory contains a Makefile and a template manifest for the most recent version of OpenVINO
 toolkit (as of this writing, version 2021.4). We use the ``Benchmark C++ Tool`` (benchmark_app) from
 the OpenVINO distribution as a concrete application running under Graphene-SGX to estimate deep
-learning inference performance. We test only the CPU backend (i.e., no GPU or FPGA). This was
-tested on a machine with Ubuntu 18.04 and Python 3.6.
+learning inference performance. We test only the CPU backend (i.e., no GPU or FPGA).
 
 Note: the models require ~3GB of disk space.
 
@@ -39,13 +38,12 @@ The following models have been enabled and tested with Graphene-SGX.
 - brain-tumor-segmentation-0002(FP16/FP32)
 
 ## Preparing the source:
-1. Clone and build graphene from https://github.com/oscarlab/graphene
-2. ``cd $(GRAPHENE_DIR)/Examples/openvino_benchmark``
-3. Set up OpenVINO environment variables for a root user by running
+1. ``cd $(GRAPHENE_DIR)/Examples/openvino_benchmark``
+2. Set up OpenVINO environment variables for a root user by running
 ``source /opt/intel/openvino_2021/bin/setupvars.sh`` or you can permanently set it by appending
 ``source /opt/intel/openvino_2021/bin/setupvars.sh`` to ``~/.bashrc``. For regular users run
  ``source /home/<USER>/intel/openvino_2021/bin/setupvars.sh``.
-4. Build: ``make SGX=1``
+3. Build: ``make SGX=1``
 
 **NOTE**: After setting up OpenVINO environment variables if you want to build graphene after
 cleaning you need to unset LD_LIBRARY_PATH. Please make sure to set up OpenVINO environment
@@ -53,7 +51,7 @@ variables after building graphene again.
 
 ## Running the benchmark
 Performance benchmark on Xeon servers (Silver/Gold/Platinum) must be launched with increased number
-of inference requests. For them -nireq -nstreams -nthreads options should be set to the
+of inference requests. Options ``-nireq``, ``-nstreams`` and ``-nthreads`` should be set to the
 ``number of physical cores * 2`` (take into account hyperthreading) for achieving maximal
 performance.
 
@@ -66,18 +64,14 @@ performance.
 ```
 $ export OPTIMAL_VALUE=<number of physical cores * 2>
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-graphene-sgx benchmark_app -i <image files> -m <model path XML file> \
--d CPU -b 1 -t 20 \
--nstreams OPTIMAL_VALUE -nthreads OPTIMAL_VALUE -nireq OPTIMAL_VALUE
-```
-For example, in a system with 36 physical cores, the following commands will execute the OpenVINO
-benchmark for obtaining throughput measurements for the corresponding model.
-```
-$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 graphene-sgx benchmark_app -i <image files> \
 -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
 -d CPU -b 1 -t 20 \
--nstreams 72 -nthreads 72 -nireq 72
+-nstreams OPTIMAL_VALUE -nthreads OPTIMAL_VALUE -nireq OPTIMAL_VALUE
+```
+For example, in a system with 36 physical cores, please export ``OPTIMAL_VALUE`` as below.
+```
+$ export OPTIMAL_VALUE=72
 ```
 
 #### Bare-metal
@@ -85,17 +79,14 @@ graphene-sgx benchmark_app -i <image files> \
 ```
 $ export OPTIMAL_VALUE=<number of physical cores * 2>
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-./benchmark_app -i <image files> -m <model path XML file> \
+./benchmark_app -i <image files> \
+-m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
 -d CPU -b 1 -t 20 \
 -nstreams OPTIMAL_VALUE -nthreads OPTIMAL_VALUE -nireq OPTIMAL_VALUE
 ```
-For example, in a system with 36 physical cores, the following commands will execute the OpenVINO
-benchmark for obtaining throughput measurements for the corresponding model.
+For example, in a system with 36 physical cores, please export ``OPTIMAL_VALUE`` as below.
 ```
-$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-./benchmark_app -i <image files> -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
--d CPU -b 1 -t 20 \
--nstreams 72 -nthreads 72 -nireq 72
+$ export OPTIMAL_VALUE=72
 ```
 
 **NOTE 1**: Option ``-i <image files>`` is optional. A user may use this option as required.  
@@ -105,9 +96,8 @@ the models these are stored in ``model/public`` directory.
 **NOTE 4**: Based on the precision for bert-large and brain-tumor-segmentation models the enclave
 size must be set to 64/128 GB.  
 **NOTE 5**: In multi-socket systems for bert-large-uncased-whole-word-masking-squad-0001 and
-brain-tumor-segmentation-0001 FP32/FP16 models if allocation of memory fails when there is not
-enough memory available please expand memory nodes usage with numactl --membind option.
-
+brain-tumor-segmentation-0001 FP32/FP16 models please expand memory nodes usage with
+``numactl --membind`` if memory allocation fails.
 
 ### Latency runs
 
@@ -130,24 +120,25 @@ $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --memb
 
 # Performance considerations
 - Preheat manifest option pre-faults the enclave memory and moves the performance penalty to
-graphene-sgx invocation (before the workload starts executing). To use preheat option, add
+graphene-sgx startup (before the workload starts executing). To use preheat option, add
 ``sgx.preheat_enclave = 1`` to the manifest template.
-- Skipping invalid user pointer checks when the application does not pass any invalid pointers can
-help improve performance. To use this option, add  ``libos.check_invalid_pointers = 0`` to the
+- Skipping invalid user pointer checks when the application does not invoke system calls with
+invalid pointers (typical case) can help improve performance. To use this option, add
+``libos.check_invalid_pointers = 0`` to the
 manifest template.
 - TCMalloc and mimalloc are memory allocator libraries from Google and Microsoft that can help
 improve performance significantly based on the workloads. At any point, only one of these
 allocators can be used.
-  - TCMalloc (Please update the binary location and name if different from default)
-    - Install tcmalloc : sudo apt-get install google-perftools
-    - Add these in the manifest template
+  - TCMalloc (please update the binary location and name if different from default)
+    - Install tcmalloc : ``sudo apt-get install google-perftools``
+    - Add these in the manifest template:
         - ``loader.env.LD_PRELOAD = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"``
         - ``sgx.trusted_files.libtcmalloc = "file:/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"``
         - ``sgx.trusted_files.libunwind = "file:/usr/lib/x86_64-linux-gnu/libunwind.so.8"``
-    - Save the template and rebuild.
-  - mimalloc (Please update the binary location and name if different from default)
+    - Save the manifest template and rebuild this example.
+  - mimalloc (please update the binary location and name if different from default)
     - Install mimalloc using the steps from https://github.com/microsoft/mimalloc
-    - Add these in the manifest template
+    - Add these in the manifest template:
         - ``loader.env.LD_PRELOAD = "/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``
         - ``sgx.trusted_files.libmimalloc = "file:/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``
-	- Save the template and rebuild.
+    - Save the manifest template and rebuild this example.
