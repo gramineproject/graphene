@@ -705,7 +705,7 @@ int str_poll(struct shim_handle* hdl, int poll_type);
  * \param size file size (non-negative)
  * \param offset desired offset
  * \param origin `seek` origin parameter (SEEK_SET, SEEK_CUR, SEEK_END)
- * \param[out] on success, contains new offset
+ * \param[out] on success, contains new file position
  *
  * Computes new file position according to `seek` semantics. The new position will be non-negative,
  * although it can be larger than file size.
