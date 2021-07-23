@@ -78,8 +78,6 @@ struct shim_fs_ops {
     int (*checkin)(struct shim_handle* hdl);
 
     /* poll a single handle */
-    /* POLL_RD|POLL_WR: return POLL_RD|POLL_WR for readable|writable,
-       POLL_ER for failure, -EAGAIN for unknown. */
     int (*poll)(struct shim_handle* hdl, int poll_type);
 
     /* checkpoint/migrate the file system */
