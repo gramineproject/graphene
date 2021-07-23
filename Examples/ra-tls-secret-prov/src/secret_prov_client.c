@@ -31,8 +31,9 @@ int main(int argc, char** argv) {
 
     if (!is_constructor) {
         /* secret provisioning was not run as part of initialization, run it now */
-        ret = secret_provision_start("dummyserver:80;localhost:4433;anotherdummy:4433",
-                                     "certs/test-ca-sha256.crt", &ctx);
+        char* server = getenv(SECRET_PROVISION_SERVERS);
+        ret = secret_provision_start(server, "certs/test-ca-sha256.crt", &ctx);
+
         if (ret < 0) {
             fprintf(stderr, "[error] secret_provision_start() returned %d\n", ret);
             goto out;
