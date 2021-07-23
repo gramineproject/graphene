@@ -1,5 +1,3 @@
-# This manifest was tested on Ubuntu 18.04 with python3.6.
-
 libos.entrypoint = "{{ entrypoint }}"
 loader.preload = "file:{{ graphene.libos }}"
 
@@ -7,13 +5,13 @@ loader.preload = "file:{{ graphene.libos }}"
 loader.log_level = "{{ log_level }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true
 
 # Propagate environment variables from the host. Don't use this on production!
-loader.insecure__use_host_env = 1
+loader.insecure__use_host_env = true
 
 # Disable address space layout randomization. Don't use this on production!
-loader.insecure__disable_aslr = 1
+loader.insecure__disable_aslr = true
 
 # Update Library Path - overwrites environment variable
 loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
@@ -62,8 +60,8 @@ fs.mount.etc.uri = "file:/etc"
 # SGX general options
 sgx.enclave_size = "32G"
 sgx.thread_num = 300
-sgx.preheat_enclave = 1
-sgx.nonpie_binary = 1
+sgx.preheat_enclave = true
+sgx.nonpie_binary = true
 
 # SGX trusted files
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
