@@ -25,16 +25,16 @@ Here's an example of running SQLite under Graphene:
 
 Without SGX:
 ```
-graphene-direct sqlite scripts/testdir/test.db < scripts/create.sql
-graphene-direct sqlite scripts/testdir/test.db < scripts/update.sql
-graphene-direct sqlite scripts/testdir/test.db < scripts/select.sql
+graphene-direct sqlite3 scripts/testdir/test.db < scripts/create.sql
+graphene-direct sqlite3 scripts/testdir/test.db < scripts/update.sql
+graphene-direct sqlite3 scripts/testdir/test.db < scripts/select.sql
 ```
 
 With SGX:
 ```
-graphene-sgx sqlite scripts/testdir/test.db < scripts/create.sql
-graphene-sgx sqlite scripts/testdir/test.db < scripts/update.sql
-graphene-sgx sqlite scripts/testdir/test.db < scripts/select.sql
+graphene-sgx sqlite3 scripts/testdir/test.db < scripts/create.sql
+graphene-sgx sqlite3 scripts/testdir/test.db < scripts/update.sql
+graphene-sgx sqlite3 scripts/testdir/test.db < scripts/select.sql
 ```
 
 # Note about concurrency
