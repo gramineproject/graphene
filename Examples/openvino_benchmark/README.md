@@ -1,4 +1,4 @@
-Enabling OpenVINO benchmark runs with Graphene-SGX
+OpenVINO benchmark runs with Graphene-SGX
 =====================================================
 This directory contains a Makefile and a template manifest for the most recent version of OpenVINO
 toolkit (as of this writing, version 2021.4). We use the ``Benchmark C++ Tool`` (benchmark_app) from
@@ -7,7 +7,7 @@ learning inference performance. We test only the CPU backend (i.e., no GPU or FP
 
 Note: the models require ~3GB of disk space.
 
-# Pre-system setting
+# Tips for better performance
 Linux systems have CPU frequency scaling governor that helps the system to scale the CPU frequency
 to achieve best performance or to save power based on the requirement. To achieve the best
 performance, please set the CPU frequency scaling governor to `performance` mode.
@@ -16,8 +16,6 @@ performance, please set the CPU frequency scaling governor to `performance` mode
 for ((i=0; i<$(nproc); i++)); \
 do echo 'performance' > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor; done
 ```
-
-# Bare-metal
 
 ## Software requirements
 - OpenVINO: Please download latest OpenVINO toolkit (as of this writing, version 2021.4) for Linux
@@ -47,15 +45,15 @@ The following models have been enabled and tested with Graphene-SGX.
 
 **NOTE**: After setting up OpenVINO environment variables if you want to build graphene after
 cleaning you need to unset LD_LIBRARY_PATH. Please make sure to set up OpenVINO environment
-variables after building graphene again.
+variables after building Graphene again.
 
 ## Running the benchmark
 Performance benchmark on Xeon servers (Silver/Gold/Platinum) must be launched with increased number
 of inference requests. Options ``-nireq``, ``-nstreams`` and ``-nthreads`` should be set to the
-``number of physical cores * 2`` (take into account hyperthreading) for achieving maximal
+``number of physical cores * 2`` (take into account hyperthreading) for achieving maximum
 performance.
 
-**NOTE** To get 'number of physical cores', do ``lscpu | grep 'Core(s) per socket'``
+**NOTE**: To get 'number of physical cores', do ``lscpu | grep 'Core(s) per socket'``.
 
 ### Throughput runs
 
@@ -74,7 +72,7 @@ For example, in a system with 36 physical cores, please export ``OPTIMAL_VALUE``
 $ export OPTIMAL_VALUE=72
 ```
 
-#### Bare-metal
+#### Native
 
 ```
 $ export OPTIMAL_VALUE=<number of physical cores * 2>
@@ -89,12 +87,12 @@ For example, in a system with 36 physical cores, please export ``OPTIMAL_VALUE``
 $ export OPTIMAL_VALUE=72
 ```
 
-**NOTE 1**: Option ``-i <image files>`` is optional. A user may use this option as required.  
-**NOTE 2**: Please tune batch size to get best performance in your system.  
+**NOTE 1**: Option ``-i <image files>`` is optional. A user may use this option as required.\
+**NOTE 2**: Please tune batch size to get best performance in your system.\
 **NOTE 3**: Model files for bert-large can be found in ``model/intel`` directory and for rest of
-the models these are stored in ``model/public`` directory.  
+the models these are stored in ``model/public`` directory.\
 **NOTE 4**: Based on the precision for bert-large and brain-tumor-segmentation models the enclave
-size must be set to 64/128 GB.  
+size must be set to 64/128 GB.\
 **NOTE 5**: In multi-socket systems for bert-large-uncased-whole-word-masking-squad-0001 and
 brain-tumor-segmentation-0001 FP32/FP16 models please expand memory nodes usage with
 ``numactl --membind`` if memory allocation fails.
@@ -106,14 +104,15 @@ brain-tumor-segmentation-0001 FP32/FP16 models please expand memory nodes usage 
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
 graphene-sgx benchmark_app -i <image files> \
 -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
--d CPU -t 20 -b 1 -api sync
+-d CPU -b 1 -t 20 -api sync
 ```
 
-#### Bare-metal
+#### Native
 ```
 $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
-./benchmark_app -i <image files> -m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
--d CPU -t 20 -b 1 -api sync
+./benchmark_app -i <image files> \
+-m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
+-d CPU -b 1 -t 20 -api sync
 ```
 
 **NOTE**: Option ``-i <image files>`` is optional. A user may use this option as required.
