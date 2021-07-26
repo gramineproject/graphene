@@ -2,8 +2,10 @@ manifests = $(addsuffix .manifest,label_image)
 exec_target = $(manifests)
 target = label_image
 
-GRAPHENEDIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
+
 TF_DIR ?= tensorflow
 BAZEL_BIN ?= $(HOME)/bin/bazel
 
@@ -28,10 +30,8 @@ else
 GRAPHENE = graphene-sgx
 endif
 
-include ../../Scripts/Makefile.configs
-
 $(TF_DIR)/configure:
-	$(GRAPHENEDIR)/Scripts/download --output tensorflow.tar.gz --sha256 $(TAR_SHA256)\
+	../common_tools/download --output tensorflow.tar.gz --sha256 $(TAR_SHA256)\
 		--url https://github.com/tensorflow/tensorflow/archive/$(GIT_COMMIT).tar.gz
 	mkdir $(TF_DIR)
 	tar -C $(TF_DIR) --strip-components=1 -xf tensorflow.tar.gz
@@ -47,7 +47,7 @@ libtensorflow_framework.so: label_image
 
 INCEPTION_HASH=b1a1f91276e48a9ddf0cb0d854f044ebfbf985dc2c2cedceb52b3d668894299a
 inception_v3.tflite:
-	$(GRAPHENEDIR)/Scripts/download --output inception_v3_2018_04_27.tgz --sha256 $(INCEPTION_HASH)\
+	../common_tools/download --output inception_v3_2018_04_27.tgz --sha256 $(INCEPTION_HASH)\
 		--url https://storage.googleapis.com/download.tensorflow.org/models/tflite/model_zoo/upload_20180427/inception_v3_2018_04_27.tgz
 	tar xfz inception_v3_2018_04_27.tgz
 
@@ -57,19 +57,16 @@ labels.txt: $(TF_DIR)/tensorflow/contrib/lite/java/ovic/src/testdata/labels.txt
 image.bmp: $(TF_DIR)/tensorflow/contrib/lite/examples/label_image/testdata/grace_hopper.bmp
 	cp $^ $@
 
-$(GRAPHENEDIR)/Runtime/libgcc_s.so.1:
-	cp $(ARCH_LIBDIR)/libgcc_s.so.1 $@
-
-$(GRAPHENEDIR)/Runtime/libstdc++.so.6:
-	cp /usr/$(ARCH_LIBDIR)/libstdc++.so.6 $@
-
 label_image.manifest: label_image.manifest.template libtensorflow_framework.so label_image \
                       inception_v3.tflite labels.txt image.bmp
 	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< > $@
 
 label_image.manifest.sgx: label_image.manifest inception_v3.tflite labels.txt
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \
@@ -106,7 +103,7 @@ install-dependencies-ubuntu:
 	apt-get install -y python-dev python-pip wget git
 	# https://docs.bazel.build/versions/master/install-ubuntu.html
 	apt-get install -y pkg-config zip g++ zlib1g-dev unzip python
-	$(GRAPHENEDIR)/Scripts/download --output bazel-0.16.1-installer-linux-x86_64.sh --sha256 $(BAZEL_INSTALLER_HASH)\
+	../common_tools/download --output bazel-0.16.1-installer-linux-x86_64.sh --sha256 $(BAZEL_INSTALLER_HASH)\
 		--url https://github.com/bazelbuild/bazel/releases/download/0.16.1/bazel-0.16.1-installer-linux-x86_64.sh
 	chmod +x bazel-0.16.1-installer-linux-x86_64.sh
 	./bazel-0.16.1-installer-linux-x86_64.sh --user
@@ -114,7 +111,7 @@ install-dependencies-ubuntu:
 .PHONY: install-dependencies-fedora
 install-dependencies-fedora:
 	dnf -y install python3-devel python3-pip wget git pkg-config zip gcc-g++ zlib-devel unzip
-	$(GRAPHENEDIR)/Scripts/download --output bazel-0.16.1-installer-linux-x86_64.sh --sha256 $(BAZEL_INSTALLER_HASH)\
+	../common_tools/download --output bazel-0.16.1-installer-linux-x86_64.sh --sha256 $(BAZEL_INSTALLER_HASH)\
 		--url https://github.com/bazelbuild/bazel/releases/download/0.16.1/bazel-0.16.1-installer-linux-x86_64.sh
 	chmod +x bazel-0.16.1-installer-linux-x86_64.sh
 	./bazel-0.16.1-installer-linux-x86_64.sh --user

@@ -16,9 +16,13 @@
 
 ################################# CONSTANTS ###################################
 
-# Relative path to Graphene root
-GRAPHENEDIR = ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+# In production env, SGX_SIGNER_KEY must point to production signing key
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
+# directory with arch-specific libraries, used by Redis
+# the below path works for Debian/Ubuntu; for CentOS/RHEL/Fedora, you should
+# overwrite this default like this: `ARCH_LIBDIR=/lib64 make`
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 SRCDIR = src
 COMMIT = 6.0.5
@@ -36,8 +40,6 @@ ifeq ($(SGX),1)
 all: redis-server.manifest.sgx redis-server.sig redis-server.token
 endif
 
-include ../../Scripts/Makefile.configs
-
 ############################## REDIS EXECUTABLE ###############################
 
 # Redis is built as usual, without any changes to the build process (except to
@@ -46,7 +48,7 @@ include ../../Scripts/Makefile.configs
 # is the final executable "src/redis-server".
 
 $(SRCDIR)/Makefile:
-	$(GRAPHENEDIR)/Scripts/download --output redis.tar.gz \
+	../common_tools/download --output redis.tar.gz \
 		--sha256 $(TAR_SHA256) \
 		--url https://github.com/antirez/redis/archive/$(COMMIT).tar.gz \
 		--url https://packages.grapheneproject.io/distfiles/redis-$(COMMIT).tar.gz
@@ -94,6 +96,8 @@ redis-server.sig redis-server.manifest.sgx: sgx_outputs
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: redis-server.manifest $(SRCDIR)/src/redis-server
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest redis-server.manifest \

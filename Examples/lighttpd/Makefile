@@ -1,5 +1,7 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
+
 INSTALL_DIR ?= $(THIS_DIR)install
 
 LIGHTTPD_SRC ?= $(THIS_DIR)lighttpd-1.4.59
@@ -12,8 +14,7 @@ LIGHTTPD_MIRRORS ?= \
 HOST ?= 127.0.0.1
 PORT ?= 8003
 
-GRAPHENEDIR ?= $(THIS_DIR)../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -29,8 +30,6 @@ ifeq ($(SGX),1)
 all: lighttpd.manifest.sgx lighttpd.sig lighttpd.token
 endif
 
-include ../../Scripts/Makefile.configs
-
 $(INSTALL_DIR)/sbin/lighttpd: $(LIGHTTPD_SRC)/configure
 	cd $(LIGHTTPD_SRC) && ./configure --prefix=$(abspath $(INSTALL_DIR)) \
 		--without-openssl --without-pcre --without-bzip2
@@ -44,7 +43,7 @@ $(LIGHTTPD_SRC)/configure: $(LIGHTTPD_SRC).tar.gz
 	touch $(LIGHTTPD_SRC)/configure
 
 $(LIGHTTPD_SRC).tar.gz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LIGHTTPD_HASH) \
+	../common_tools/download --output $@ --sha256 $(LIGHTTPD_HASH) \
 		$(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
 
 lighttpd.manifest: lighttpd.manifest.template
@@ -56,6 +55,8 @@ lighttpd.manifest: lighttpd.manifest.template
 		$< >$@
 
 lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest lighttpd.manifest \

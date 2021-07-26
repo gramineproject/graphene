@@ -1,5 +1,7 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
+
 INSTALL_DIR ?= $(THIS_DIR)install
 NGINX_SRC ?= $(THIS_DIR)nginx-1.16.1
 NGINX_SHA256 ?= f11c2a6dd1d3515736f0324857957db2de98be862461b5a542a3ac6188dbe32b
@@ -12,8 +14,7 @@ LISTEN_HOST ?= 127.0.0.1
 LISTEN_PORT ?= 8002
 LISTEN_SSL_PORT ?= 8444
 
-GRAPHENEDIR ?= $(THIS_DIR)../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -45,7 +46,7 @@ $(NGINX_SRC)/configure: $(NGINX_SRC).tar.gz
 	tar --touch -xzf $<
 
 $(NGINX_SRC).tar.gz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(NGINX_SHA256) \
+	../common_tools/download --output $@ --sha256 $(NGINX_SHA256) \
 		$(foreach mirror,$(NGINX_MIRRORS),--url $(mirror)/$(NGINX_SRC).tar.gz)
 
 nginx.manifest: nginx.manifest.template
@@ -60,6 +61,8 @@ nginx.manifest.sgx: nginx.manifest $(INSTALL_DIR)/sbin/nginx \
 		$(INSTALL_DIR)/conf/nginx-graphene.conf \
 		$(TEST_DATA) \
 		$(INSTALL_DIR)/conf/server.crt
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \

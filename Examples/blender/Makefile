@@ -1,8 +1,9 @@
 # assumes this makefile lies in cwd
 PWD := $(shell pwd)
 
-GRAPHENE_DIR = $(PWD)/../..
-SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
+
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 BLENDER_DIR = $(PWD)/blender_dir
 BLENDER_SRC ?= blender-2.82-linux64.tar.xz
@@ -30,10 +31,8 @@ ifeq ($(SGX),1)
 all: blender.manifest.sgx blender.sig blender.token
 endif
 
-include ../../Scripts/Makefile.configs
-
 $(BLENDER_DIR)/blender:
-	$(GRAPHENE_DIR)/Scripts/download --output blender.tar.xz --sha256 $(BLENDER_SHA256) \
+	../common_tools/download --output blender.tar.xz --sha256 $(BLENDER_SHA256) \
 		$(foreach mirror,$(BLENDER_MIRRORS),--url $(mirror)/$(BLENDER_SRC))
 	mkdir $(BLENDER_DIR)
 	tar -C $(BLENDER_DIR) --strip-components=1 -xf blender.tar.xz
@@ -57,6 +56,8 @@ blender.sig blender.manifest.sgx: sgx_outputs
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: $(BLENDER_DIR)/blender blender.manifest | $(RUN_DIR)
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--output blender.manifest.sgx \
 		--key $(SGX_SIGNER_KEY) \

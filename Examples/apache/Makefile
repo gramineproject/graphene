@@ -1,5 +1,7 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
+
 INSTALL_DIR ?= $(THIS_DIR)install
 HTTPD_SRC ?= $(THIS_DIR)httpd-2.4.46
 HTTPD_CHECKSUM ?= 44b759ce932dc090c0e75c0210b4485ebf6983466fb8ca1b446c8168e1a1aec2
@@ -15,8 +17,7 @@ HTTPD_MIRRORS ?= \
 LISTEN_HOST ?= 127.0.0.1
 LISTEN_PORT ?= 8001
 
-GRAPHENEDIR ?= $(THIS_DIR)../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -29,8 +30,6 @@ all: $(INSTALL_DIR)/bin/httpd httpd.manifest config testdata ssldata
 ifeq ($(SGX),1)
 all: httpd.manifest.sgx httpd.sig httpd.token
 endif
-
-include ../../Scripts/Makefile.configs
 
 $(INSTALL_DIR)/bin/httpd: $(HTTPD_SRC)/configure
 	cd $(HTTPD_SRC) && ./configure --prefix=$(abspath $(INSTALL_DIR)) \
@@ -46,7 +45,7 @@ $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
 	cd $(HTTPD_SRC) && patch -p1 -l < ../apache_makefile.patch
 
 $(HTTPD_SRC).tar.gz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) \
+	../common_tools/download --output $@ --sha256 $(HTTPD_CHECKSUM) \
 		$(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)/$(HTTPD_SRC).tar.gz)
 
 $(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)/bin/httpd
@@ -74,6 +73,8 @@ httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd \
 		$(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf \
 		$(TEST_DATA) \
 		$(INSTALL_DIR)/conf/server.crt
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest httpd.manifest \
