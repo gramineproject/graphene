@@ -52,43 +52,11 @@ OMP_NUM_THREADS=36 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 taskset -c 
 --inter_op_parallelism_threads=1 \
 --intra_op_parallelism_threads=36
 ```
-- To run int8 inference on graphene-direct (non-SGX version)
-```
-OMP_NUM_THREADS=36 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 taskset -c 0-35 \
-graphene-direct ./python models/models/language_modeling/tensorflow/bert_large/inference/run_squad.py \
---init_checkpoint=data/bert_large_checkpoints/model.ckpt-3649 \
---vocab_file=data/wwm_uncased_L-24_H-1024_A-16/vocab.txt \
---bert_config_file=data/wwm_uncased_L-24_H-1024_A-16/bert_config.json \
---predict_file=data/wwm_uncased_L-24_H-1024_A-16/dev-v1.1.json \
---precision=int8 \
---output_dir=output/bert-squad-output \
---predict_batch_size=32 \
---experimental_gelu=True \
---optimized_softmax=True \
---input_graph=data/asymmetric_per_channel_bert_int8.pb \
---do_predict=True \
---mode=benchmark \
---inter_op_parallelism_threads=1 \
---intra_op_parallelism_threads=36
-```
-- To run int8 inference on native baremetal (outside Graphene)
-```
-OMP_NUM_THREADS=36 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 taskset -c 0-35 python3.6 \
-models/models/language_modeling/tensorflow/bert_large/inference/run_squad.py \
---init_checkpoint=data/bert_large_checkpoints/model.ckpt-3649 \
---vocab_file=data/wwm_uncased_L-24_H-1024_A-16/vocab.txt \
---bert_config_file=data/wwm_uncased_L-24_H-1024_A-16/bert_config.json \
---predict_file=data/wwm_uncased_L-24_H-1024_A-16/dev-v1.1.json \
---precision=int8 --output_dir=output/bert-squad-output \
---predict_batch_size=32 \
---experimental_gelu=True \
---optimized_softmax=True \
---input_graph=data/asymmetric_per_channel_bert_int8.pb \
---do_predict=True \
---mode=benchmark \
---inter_op_parallelism_threads=1 \
---intra_op_parallelism_threads=36
-```
+- To run int8 inference on graphene-direct (non-SGX version), replace `graphene-sgx` with
+`graphene-direct` in the above command.
+- To run int8 inference on native baremetal (outside Graphene), replace `graphene-sgx ./python` with
+`python3` in the above command.
+
 - Above commands are for a 36 core system. Please set the following options accordingly for optimal
   performance:
     - Assuming that X is the number of cores per socket, set `OMP_NUM_THREADS=X`
@@ -114,28 +82,11 @@ OMP_NUM_THREADS=36 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 taskset -c 
 --warmup-steps=50 \
 --steps=500
 ```
-- To run inference on graphene-direct (non-SGX version)
-```
-OMP_NUM_THREADS=36 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 taskset -c 0-35 graphene-direct \
-./python models/models/image_recognition/tensorflow/resnet50v1_5/inference/eval_image_classifier_inference.py \
---input-graph=resnet50v1_5_int8_pretrained_model.pb \
---num-inter-threads=1 \
---num-intra-threads=36 \
---batch-size=32 \
---warmup-steps=50 \
---steps=500
-```
-- To run inference on native baremetal (outside Graphene)
-```
-OMP_NUM_THREADS=36 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 taskset -c 0-35 python3.6 \
-models/models/image_recognition/tensorflow/resnet50v1_5/inference/eval_image_classifier_inference.py \
---input-graph=resnet50v1_5_int8_pretrained_model.pb \
---num-inter-threads=1 \
---num-intra-threads=36 \
---batch-size=32 \
---warmup-steps=50 \
---steps=500
-```
+- To run inference on graphene-direct (non-SGX version), replace `graphene-sgx` with
+`graphene-direct` in the above command.
+- To run inference on native baremetal (outside Graphene), replace `graphene-sgx ./python` with
+`python3` in the above command.
+
 - Above commands are for a 36 core system. Please set the following options accordingly for optimal
   performance:
     - Assuming that X is the number of cores per socket, set `OMP_NUM_THREADS=X`
@@ -146,7 +97,7 @@ models/models/image_recognition/tensorflow/resnet50v1_5/inference/eval_image_cla
     - Note that `OMP_NUM_THREADS` sets the maximum number of threads to
       use for OpenMP parallel regions, and `KMP_AFFINITY` binds OpenMP threads
       to physical processing units.
-    - The options batch-size, warmup-steps and steps can be varied.
+    - The options `batch-size`, `warmup-steps` and `steps` can be varied.
 
 **NOTE:** To get number of cores per socket, do ``lscpu | grep 'Core(s) per socket'``.
 
