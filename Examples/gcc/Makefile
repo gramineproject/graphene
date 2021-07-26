@@ -1,7 +1,10 @@
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-GRAPHENEDIR ?= $(THIS_DIR)/../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+ARCH_LONG := $(shell $(CC) -dumpmachine)
+ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
 BZIP2_MIRRORS ?= \
 	https://people.csail.mit.edu/smcc/projects/single-file-programs/bzip2.c \
 	https://packages.grapheneproject.io/distfiles/single-file-programs/bzip2.c
@@ -16,8 +19,6 @@ GRAPHENE_LOG_LEVEL = debug
 else
 GRAPHENE_LOG_LEVEL = error
 endif
-
-include ../../Scripts/Makefile.configs
 
 # awk '{print $NF}' ...  print last field.
 BINUTILS_VERSION ?= $(shell ld -v | awk '{print $$NF}')
@@ -54,11 +55,11 @@ sgx_outputs: gcc.manifest
 	graphene-sgx-get-token --output $@ --sig $<
 
 test_files/bzip2.c:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(BZIP2_HASH) $(foreach mirror,$(BZIP2_MIRRORS),--url $(mirror))
+	../common_tools/download --output $@ --sha256 $(BZIP2_HASH) $(foreach mirror,$(BZIP2_MIRRORS),--url $(mirror))
 
 # the file hosted by the authors doesn't compile...
 test_files/gzip_broken.c:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(GZIP_HASH) $(foreach mirror,$(GZIP_MIRRORS),--url $(mirror))
+	../common_tools/download --output $@ --sha256 $(GZIP_HASH) $(foreach mirror,$(GZIP_MIRRORS),--url $(mirror))
 
 test_files/gzip.c: test_files/gzip_broken.c test_files/gzip.patch
 	patch test_files/gzip_broken.c -i test_files/gzip.patch -o $@

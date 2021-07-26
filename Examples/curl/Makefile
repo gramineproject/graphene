@@ -1,8 +1,9 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 CURL_DIR ?= /usr/bin
 
-GRAPHENEDIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -15,8 +16,6 @@ all: curl.manifest
 ifeq ($(SGX),1)
 all: curl.manifest.sgx curl.sig curl.token
 endif
-
-include ../../Scripts/Makefile.configs
 
 curl.manifest: curl.manifest.template
 	graphene-manifest \

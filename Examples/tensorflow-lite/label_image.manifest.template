@@ -4,7 +4,7 @@ loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "label_image"
 loader.log_level = "{{ log_level }}"
 
-loader.env.LD_LIBRARY_PATH = "/lib:."
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}:."
 loader.env.PATH = "/bin:/usr/bin"
 
 loader.insecure__use_cmdline_argv = true
@@ -13,13 +13,25 @@ fs.mount.lib1.type = "chroot"
 fs.mount.lib1.path = "/lib"
 fs.mount.lib1.uri = "file:{{ graphene.runtimedir() }}"
 
+fs.mount.lib2.type = "chroot"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
+
+fs.mount.lib3.type = "chroot"
+fs.mount.lib3.path = "/usr{{ arch_libdir }}"
+fs.mount.lib3.uri = "file:/usr{{ arch_libdir }}"
+
 sgx.nonpie_binary = true
 sgx.enclave_size = "512M"
 sgx.thread_num = 16
 
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.libtensorflowframework = "file:libtensorflow_framework.so"
 sgx.trusted_files.label_image = "file:label_image"
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.libtensorflowframework = "file:libtensorflow_framework.so"
+
 sgx.trusted_files.model = "file:inception_v3.tflite"
-sgx.allowed_files.image = "file:image.bmp"
 sgx.trusted_files.labels = "file:labels.txt"
+
+sgx.allowed_files.image = "file:image.bmp"

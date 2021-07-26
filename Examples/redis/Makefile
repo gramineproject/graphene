@@ -16,9 +16,11 @@
 
 ################################# CONSTANTS ###################################
 
-# Relative path to Graphene root
-GRAPHENEDIR = ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+# In production env, SGX_SIGNER_KEY must point to production signing key
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
+# directory with arch-specific libraries, used by Redis
+ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
 
 SRCDIR = src
 COMMIT = 6.0.5
@@ -36,8 +38,6 @@ ifeq ($(SGX),1)
 all: redis-server.manifest.sgx redis-server.sig redis-server.token
 endif
 
-include ../../Scripts/Makefile.configs
-
 ############################## REDIS EXECUTABLE ###############################
 
 # Redis is built as usual, without any changes to the build process (except to
@@ -46,7 +46,7 @@ include ../../Scripts/Makefile.configs
 # is the final executable "src/redis-server".
 
 $(SRCDIR)/Makefile:
-	$(GRAPHENEDIR)/Scripts/download --output redis.tar.gz \
+	../common_tools/download --output redis.tar.gz \
 		--sha256 $(TAR_SHA256) \
 		--url https://github.com/antirez/redis/archive/$(COMMIT).tar.gz \
 		--url https://packages.grapheneproject.io/distfiles/redis-$(COMMIT).tar.gz

@@ -1,5 +1,6 @@
-GRAPHENEDIR = ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
+ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
 
 SRCDIR = src
 BUSYBOX_URL ?= https://busybox.net/downloads/busybox-1.32.0.tar.bz2
@@ -18,10 +19,8 @@ ifeq ($(SGX),1)
 all: busybox.manifest.sgx busybox.sig busybox.token
 endif
 
-include ../../Scripts/Makefile.configs
-
 $(SRCDIR)/Makefile:
-	$(GRAPHENEDIR)/Scripts/download --output busybox.tar.bz2 \
+	../common_tools/download --output busybox.tar.bz2 \
 		--sha256 $(BUSYBOX_SHA256) --url $(BUSYBOX_URL)
 	mkdir $(SRCDIR)
 	tar -C $(SRCDIR) --strip-components=1 -xf busybox.tar.bz2

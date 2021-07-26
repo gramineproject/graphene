@@ -1,9 +1,8 @@
 # PyTorch and the pre-trained model must be installed on the system. See README for details.
 
-include ../../Scripts/Makefile.configs
+ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
 
-GRAPHENEDIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug

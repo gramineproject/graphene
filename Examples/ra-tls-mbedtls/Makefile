@@ -1,6 +1,8 @@
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
+ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+
 # for EPID attestation, specify your SPID and linkable/unlinkable attestation policy;
 # for DCAP/ECDSA attestation, specify SPID as empty string (linkable value is ignored)
 RA_CLIENT_SPID ?=
@@ -13,8 +15,6 @@ else
 GRAPHENE_LOG_LEVEL = error
 CFLAGS += -O2
 endif
-
-include ../../Scripts/Makefile.configs
 
 .PHONY: all
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
@@ -44,7 +44,7 @@ MBED_BUILD_TYPE=Release
 endif
 
 $(MBEDTLS_SRC):
-	$(GRAPHENEDIR)/Scripts/download --output $@ $(foreach mirror,$(MBEDTLS_URI),--url $(mirror)/$(MBEDTLS_SRC)) --sha256 $(MBEDTLS_CHECKSUM)
+	../common_tools/download --output $@ $(foreach mirror,$(MBEDTLS_URI),--url $(mirror)/$(MBEDTLS_SRC)) --sha256 $(MBEDTLS_CHECKSUM)
 
 .SECONDARY: mbedtls/.mbedtls_downloaded
 mbedtls/.mbedtls_downloaded: $(MBEDTLS_SRC)

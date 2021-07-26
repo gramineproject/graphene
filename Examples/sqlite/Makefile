@@ -1,5 +1,6 @@
-GRAPHENEDIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
+ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -12,8 +13,6 @@ all: sqlite3.manifest
 ifeq ($(SGX),1)
 all: sqlite3.manifest.sgx sqlite3.sig sqlite3.token
 endif
-
-include ../../Scripts/Makefile.configs
 
 sqlite3.manifest: manifest.template
 	graphene-manifest \
