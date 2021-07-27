@@ -122,7 +122,7 @@ $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --memb
 
 ## Performance considerations
 - Preheat manifest option pre-faults the enclave memory and moves the performance penalty to
-graphene-sgx startup (before the workload starts executing). To use preheat option, add
+Graphene-SGX startup (before the workload starts executing). To use preheat option, add
 ``sgx.preheat_enclave = true`` to the manifest template.
 - Skipping invalid user pointer checks when the application does not invoke system calls with
 invalid pointers (typical case) can help improve performance. To use this option, add
