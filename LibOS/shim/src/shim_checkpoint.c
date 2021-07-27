@@ -216,6 +216,7 @@ END_RS_FUNC(qstr)
 /* Checkpoints an owned C string (char*). */
 BEGIN_CP_FUNC(str) {
     __UNUSED(objp);
+    __UNUSED(size);
     assert(size == sizeof(char*));
 
     char** str_ptr = obj;
