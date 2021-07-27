@@ -12,6 +12,7 @@
 #include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <stdnoreturn.h>
 
 #include "api.h"
 #include "pal.h"
@@ -106,7 +107,7 @@ int pal_thread_init(void* tcbptr) {
             .ss_size  = ALT_STACK_SIZE - sizeof(*tcb),
         };
 
-        ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
+        ret = DO_SYSCALL(sigaltstack, &ss, NULL);
         if (ret < 0)
             return ret;
     }
@@ -115,6 +116,11 @@ int pal_thread_init(void* tcbptr) {
         return (*tcb->callback)(tcb->param);
 
     return 0;
+}
+
+static noreturn void pal_thread_exit_wrapper(int ret_val) {
+    __UNUSED(ret_val);
+    _DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* param) {
@@ -162,9 +168,9 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     // TODO: pal_thread_init() may fail during initialization, we should check its result (but this
     // happens asynchronously, so it's not trivial to do).
     ret = clone(pal_thread_init, child_stack,
-                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND |
-                    CLONE_PARENT_SETTID,
-                (void*)tcb, &hdl->thread.tid, NULL);
+                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND
+                | CLONE_PARENT_SETTID,
+                tcb, &hdl->thread.tid, /*tls=*/NULL, /*child_tid=*/NULL, pal_thread_exit_wrapper);
 
     if (ret < 0) {
         ret = -PAL_ERROR_DENIED;
@@ -183,7 +189,7 @@ err:
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
 void _DkThreadYieldExecution(void) {
-    INLINE_SYSCALL(sched_yield, 0);
+    DO_SYSCALL(sched_yield);
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
@@ -201,7 +207,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 
         /* take precautions to unset alternate stack; note that we cannot unset the TCB because
          * GCC's stack protector still uses the GS register until the end of this function */
-        INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
+        DO_SYSCALL(sigaltstack, &ss, NULL);
     }
 
     /* we do not free thread stack but instead mark it as recycled, see get_thread_stack() */
@@ -246,7 +252,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 }
 
 int _DkThreadResume(PAL_HANDLE threadHandle) {
-    int ret = INLINE_SYSCALL(tgkill, 3, g_linux_state.pid, threadHandle->thread.tid, SIGCONT);
+    int ret = DO_SYSCALL(tgkill, g_linux_state.pid, threadHandle->thread.tid, SIGCONT);
 
     if (ret < 0)
         return -PAL_ERROR_DENIED;
@@ -255,13 +261,13 @@ int _DkThreadResume(PAL_HANDLE threadHandle) {
 }
 
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
-    int ret = INLINE_SYSCALL(sched_setaffinity, 3, thread->thread.tid, cpumask_size, cpu_mask);
+    int ret = DO_SYSCALL(sched_setaffinity, thread->thread.tid, cpumask_size, cpu_mask);
 
     return ret < 0 ? unix_to_pal_error(ret) : ret;
 }
 
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
-    int ret = INLINE_SYSCALL(sched_getaffinity, 3, thread->thread.tid, cpumask_size, cpu_mask);
+    int ret = DO_SYSCALL(sched_getaffinity, thread->thread.tid, cpumask_size, cpu_mask);
 
     return ret < 0 ? unix_to_pal_error(ret) : ret;
 }

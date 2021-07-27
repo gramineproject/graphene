@@ -107,6 +107,7 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET(PAL_TCB_URTS_EENTER_CNT, pal_tcb_urts, eenter_cnt);
     OFFSET(PAL_TCB_URTS_EEXIT_CNT, pal_tcb_urts, eexit_cnt);
     OFFSET(PAL_TCB_URTS_AEX_CNT, pal_tcb_urts, aex_cnt);
+    OFFSET(PAL_TCB_URTS_LAST_ASYNC_EVENT, pal_tcb_urts, last_async_event);
 
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_FLAGS, sgx_arch_tcs_t, flags);

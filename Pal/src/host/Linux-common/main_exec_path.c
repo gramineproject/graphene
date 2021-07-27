@@ -1,6 +1,6 @@
 #include "api.h"
 #include "linux_utils.h"
-#include "sysdep-arch.h"
+#include "syscall.h"
 
 /* In theory we could get symlink length using `lstat`, but that does not work on `/proc/self/exe`
  * (because it's not really a symlink). */
@@ -12,7 +12,7 @@ char* get_main_exec_path(void) {
         return NULL;
     }
 
-    ssize_t len = INLINE_SYSCALL(readlink, 3, "/proc/self/exe", buf, BUF_SIZE);
+    ssize_t len = DO_SYSCALL(readlink, "/proc/self/exe", buf, BUF_SIZE);
     if (len < 0) {
         free(buf);
         return NULL;

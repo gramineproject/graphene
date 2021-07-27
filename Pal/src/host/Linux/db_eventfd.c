@@ -49,14 +49,14 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
     }
 
     /* Using create arg as a work-around (note: initval is uint32 but create is int32).*/
-    int fd = INLINE_SYSCALL(eventfd2, 2, create, eventfd_type(options));
+    int fd = DO_SYSCALL(eventfd2, create, eventfd_type(options));
 
     if (fd < 0)
         return unix_to_pal_error(fd);
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(eventfd));
     if (!hdl) {
-        INLINE_SYSCALL(close, 1, fd);
+        DO_SYSCALL(close, fd);
         return -PAL_ERROR_NOMEM;
     }
     SET_HANDLE_TYPE(hdl, eventfd);
@@ -81,7 +81,7 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
-    int64_t bytes = INLINE_SYSCALL(read, 3, handle->eventfd.fd, buffer, len);
+    int64_t bytes = DO_SYSCALL(read, handle->eventfd.fd, buffer, len);
 
     if (bytes < 0)
         return unix_to_pal_error(bytes);
@@ -100,7 +100,7 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
-    int64_t bytes = INLINE_SYSCALL(write, 3, handle->eventfd.fd, buffer, len);
+    int64_t bytes = DO_SYSCALL(write, handle->eventfd.fd, buffer, len);
     if (bytes < 0)
         return unix_to_pal_error(bytes);
 
@@ -119,7 +119,7 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
 
     /* get number of bytes available for reading */
-    ret = INLINE_SYSCALL(ioctl, 3, handle->eventfd.fd, FIONREAD, &val);
+    ret = DO_SYSCALL(ioctl, handle->eventfd.fd, FIONREAD, &val);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -128,7 +128,7 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
     /* query if there is data available for reading */
     struct pollfd pfd  = {.fd = handle->eventfd.fd, .events = POLLIN | POLLOUT, .revents = 0};
     struct timespec tp = {0, 0};
-    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    ret = DO_SYSCALL(ppoll, &pfd, 1, &tp, NULL, 0);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -147,7 +147,7 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
 static int eventfd_pal_close(PAL_HANDLE handle) {
     if (IS_HANDLE_TYPE(handle, eventfd)) {
         if (handle->eventfd.fd != PAL_IDX_POISON) {
-            INLINE_SYSCALL(close, 1, handle->eventfd.fd);
+            DO_SYSCALL(close, handle->eventfd.fd);
             handle->eventfd.fd = PAL_IDX_POISON;
         }
     }

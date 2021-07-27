@@ -171,13 +171,9 @@ sgx_raise:
 	.cfi_def_cfa %rsp, 8
 
 	movq %rax, %rdi
-	# Not interrupted
-	xorq %rsi, %rsi
+	xor %esi, %esi
+	lock xchgl %esi, %gs:PAL_TCB_URTS_LAST_ASYNC_EVENT
 
-	.global sgx_entry_return
-	.type sgx_entry_return, @function
-
-sgx_entry_return:
 	# return to enclave, arguments:
 	# RDI - return value
 	# RSI - external event

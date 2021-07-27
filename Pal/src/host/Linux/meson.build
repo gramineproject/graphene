@@ -17,7 +17,6 @@ pal_direct_sources = files(
 )
 
 pal_direct_sources_arch = [
-    'clone.S',
     'db_arch_exception.c',
     'db_arch_misc.c',
     'pal_start.S',

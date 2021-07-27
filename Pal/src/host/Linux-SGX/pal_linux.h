@@ -21,12 +21,8 @@
 #include "sgx_api.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
+#include "sgx_syscall.h"
 #include "sgx_tls.h"
-#include "sysdep-arch.h"
-
-#define IS_ERR_P    INTERNAL_SYSCALL_ERROR_P
-#define ERRNO_P     INTERNAL_SYSCALL_ERRNO_P
-#define IS_UNIX_ERR INTERNAL_SYSCALL_ERRNO_RANGE
 
 extern struct pal_linux_state {
     const char** host_environ;
@@ -293,23 +289,7 @@ int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* 
 
 #else /* IN_ENCLAVE */
 
-#ifdef DEBUG
-#ifndef SIGCHLD
-#define SIGCHLD 17
-#endif
-
-#define ARCH_VFORK()                                                                 \
-    (g_pal_enclave.pal_sec.in_gdb                                                    \
-         ? INLINE_SYSCALL(clone, 4, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, NULL, NULL) \
-         : INLINE_SYSCALL(clone, 4, CLONE_VM | CLONE_VFORK, 0, NULL, NULL))
-#else
-#define ARCH_VFORK() \
-    (INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
-#endif
-
 int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const char* manifest);
-
-int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void* __arg, ...);
 
 #endif /* IN_ENCLAVE */
 

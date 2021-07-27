@@ -3,11 +3,11 @@
 #include "api.h"
 #include "cpu.h"
 #include "linux_utils.h"
-#include "sysdep-arch.h"
+#include "syscall.h"
 
 void time_get_now_plus_ns(struct timespec* ts, uint64_t addend_ns) {
     /* This can only fail if arguments are invalid. */
-    int ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, ts);
+    int ret = DO_SYSCALL(clock_gettime, CLOCK_MONOTONIC, ts);
     if (ret < 0) {
         die_or_inf_loop();
     }
@@ -23,7 +23,7 @@ void time_get_now_plus_ns(struct timespec* ts, uint64_t addend_ns) {
 int64_t time_ns_diff_from_now(struct timespec* ts) {
     struct timespec time_now;
     /* This can only fail if arguments are invalid. */
-    int ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time_now);
+    int ret = DO_SYSCALL(clock_gettime, CLOCK_MONOTONIC, &time_now);
     if (ret < 0) {
         die_or_inf_loop();
     }

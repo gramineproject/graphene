@@ -40,7 +40,7 @@ void update_and_print_stats(bool process_wide) {
 
     PAL_TCB_URTS* tcb = get_tcb_urts();
 
-    int tid = INLINE_SYSCALL(gettid, 0);
+    int tid = DO_SYSCALL(gettid);
     assert(tid > 0);
     log_always("----- SGX stats for thread %d -----\n"
                "  # of EENTERs:        %lu\n"
@@ -58,7 +58,7 @@ void update_and_print_stats(bool process_wide) {
     g_async_signal_cnt += tcb->async_signal_cnt;
 
     if (process_wide) {
-        int pid = INLINE_SYSCALL(getpid, 0);
+        int pid = DO_SYSCALL(getpid);
         assert(pid > 0);
         log_always("----- Total SGX stats for process %d -----\n"
                    "  # of EENTERs:        %lu\n"
@@ -84,6 +84,8 @@ void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
     tcb->async_signal_cnt = 0;
 
     tcb->profile_sample_time = 0;
+
+    tcb->last_async_event = 0;
 }
 
 static spinlock_t tcs_lock = INIT_SPINLOCK_UNLOCKED;
@@ -93,9 +95,9 @@ void create_tcs_mapper(void* tcs_base, unsigned int thread_num) {
 
     g_enclave_tcs = tcs_base;
     g_enclave_thread_num = thread_num;
-    g_enclave_thread_map = (struct thread_map*)INLINE_SYSCALL(mmap, 6, NULL, thread_map_size,
-                                                              PROT_READ | PROT_WRITE,
-                                                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    g_enclave_thread_map = (struct thread_map*)DO_SYSCALL(mmap, NULL, thread_map_size,
+                                                          PROT_READ | PROT_WRITE,
+                                                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     for (uint32_t i = 0; i < thread_num; i++) {
         g_enclave_thread_map[i].tid = 0;
@@ -151,7 +153,7 @@ int pal_thread_init(void* tcbptr) {
     int ret;
 
     /* set GS reg of this thread to thread's TCB; after this point, can use get_tcb_urts() */
-    ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
+    ret = DO_SYSCALL(arch_prctl, ARCH_SET_GS, tcb);
     if (ret < 0) {
         ret = -EPERM;
         goto out;
@@ -163,14 +165,14 @@ int pal_thread_init(void* tcbptr) {
             .ss_flags = 0,
             .ss_size  = ALT_STACK_SIZE - sizeof(*tcb)
         };
-        ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
+        ret = DO_SYSCALL(sigaltstack, &ss, NULL);
         if (ret < 0) {
             ret = -EPERM;
             goto out;
         }
     }
 
-    int tid = INLINE_SYSCALL(gettid, 0);
+    int tid = DO_SYSCALL(gettid);
     map_tcs(tid); /* updates tcb->tcs */
 
     if (!tcb->tcs) {
@@ -195,7 +197,7 @@ int pal_thread_init(void* tcbptr) {
     unmap_tcs();
     ret = 0;
 out:
-    INLINE_SYSCALL(munmap, 2, tcb->stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
+    DO_SYSCALL(munmap, tcb->stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
     return ret;
 }
 
@@ -215,8 +217,8 @@ noreturn void thread_exit(int status) {
         ss.ss_size  = 0;
 
         /* take precautions to unset the TCB and alternative stack first */
-        INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, 0);
-        INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
+        DO_SYSCALL(arch_prctl, ARCH_SET_GS, 0);
+        DO_SYSCALL(sigaltstack, &ss, NULL);
     }
 
     /* free the thread stack (via munmap) and exit; note that exit() needs a "status" arg
@@ -241,9 +243,9 @@ noreturn void thread_exit(int status) {
 int clone_thread(void) {
     int ret = 0;
 
-    void* stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, THREAD_STACK_SIZE + ALT_STACK_SIZE,
-                                        PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (IS_ERR_P(stack))
+    void* stack = (void*)DO_SYSCALL(mmap, NULL, THREAD_STACK_SIZE + ALT_STACK_SIZE,
+                                    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (IS_PTR_ERR(stack))
         return -ENOMEM;
 
     /* Stack layout for the new thread looks like this (recall that stacks grow towards lower
@@ -268,16 +270,14 @@ int clone_thread(void) {
     /* align child_stack to 16 */
     child_stack_top = ALIGN_DOWN_PTR(child_stack_top, 16);
 
-    int dummy_parent_tid_field = 0;
     // TODO: pal_thread_init() may fail during initialization (e.g. on TCS exhaustion), we should
     // check its result (but this happens asynchronously, so it's not trivial to do).
     ret = clone(pal_thread_init, child_stack_top,
-                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND |
-                    CLONE_PARENT_SETTID,
-                (void*)tcb, &dummy_parent_tid_field, NULL);
+                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND,
+                tcb, /*parent_tid=*/NULL, /*tls=*/NULL, /*child_tid=*/NULL, thread_exit);
 
     if (ret < 0) {
-        INLINE_SYSCALL(munmap, 2, stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
+        DO_SYSCALL(munmap, stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
         return ret;
     }
     return 0;

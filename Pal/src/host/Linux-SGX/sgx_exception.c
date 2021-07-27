@@ -47,8 +47,6 @@ __asm__(
 __attribute__((visibility("hidden"))) void __restore_rt(void);
 #endif /* defined(__x86_64__) */
 
-void sgx_entry_return(void);
-
 static const int ASYNC_SIGNALS[] = {SIGTERM, SIGCONT};
 
 static int block_signal(int sig, bool block) {
@@ -58,7 +56,7 @@ static int block_signal(int sig, bool block) {
     __sigemptyset(&mask);
     __sigaddset(&mask, sig);
 
-    int ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL, sizeof(__sigset_t));
+    int ret = DO_SYSCALL(rt_sigprocmask, how, &mask, NULL, sizeof(__sigset_t));
     return ret < 0 ? ret : 0;
 }
 
@@ -73,7 +71,7 @@ static int set_signal_handler(int sig, void* handler) {
     for (size_t i = 0; i < ARRAY_SIZE(ASYNC_SIGNALS); i++)
         __sigaddset((__sigset_t*)&action.sa_mask, ASYNC_SIGNALS[i]);
 
-    int ret = INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
+    int ret = DO_SYSCALL(rt_sigaction, sig, &action, NULL, sizeof(__sigset_t));
     if (ret < 0)
         return ret;
 
@@ -97,7 +95,6 @@ static int get_pal_event(int sig) {
         case SIGBUS:
             return PAL_EVENT_MEMFAULT;
         case SIGILL:
-        case SIGSYS:
             return PAL_EVENT_ILLEGAL;
         case SIGTERM:
             return PAL_EVENT_QUIT;
@@ -129,7 +126,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     /* send dummy signal to RPC threads so they interrupt blocked syscalls */
     if (g_rpc_queue)
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
-            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
+            DO_SYSCALL(tkill, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     if (interrupted_in_enclave(uc)) {
         /* exception happened in app/LibOS/trusted PAL code, handle signal inside enclave */
@@ -154,7 +151,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
             log_error("Memory Mapping Exception in Untrusted Code (RIP = %08lx)", rip);
             break;
     }
-    INLINE_SYSCALL(exit_group, 1, 1);
+    DO_SYSCALL(exit_group, 1);
     die_or_inf_loop();
 }
 
@@ -167,7 +164,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     /* send dummy signal to RPC threads so they interrupt blocked syscalls */
     if (g_rpc_queue)
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
-            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
+            DO_SYSCALL(tkill, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     if (interrupted_in_enclave(uc) || interrupted_in_aex_profiling()) {
         /* signal arrived while in app/LibOS/trusted PAL code or when handling another AEX, handle
@@ -177,11 +174,19 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
         return;
     }
 
-    /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if syscall
-     * was interrupted by calling sgx_entry_return(syscall_return_value=-EINTR, event) */
-    /* TODO: we abandon PAL state here (possibly still holding some locks, etc) and return to
-     *       enclave; ideally we must unwind/fix the state and only then jump into enclave */
-    ucontext_set_function_parameters(uc, sgx_entry_return, -EINTR, event);
+    assert(event == PAL_EVENT_INTERRUPTED || event == PAL_EVENT_QUIT);
+    if (get_tcb_urts()->last_async_event != PAL_EVENT_QUIT) {
+        /* Do not overwrite `PAL_EVENT_QUIT`. The only other possible event here is
+         * `PAL_EVENT_INTERRUPTED`, which is basically a no-op (just makes sure that a thread
+         * notices any new signals or other state changes, which also happens for other events). */
+        get_tcb_urts()->last_async_event = event;
+    }
+
+    uint64_t rip = ucontext_get_ip(uc);
+    if (rip == (uint64_t)&do_syscall_intr_after_check1
+            || rip == (uint64_t)&do_syscall_intr_after_check2) {
+        ucontext_set_ip(uc, (uint64_t)&do_syscall_intr_eintr);
+    }
 }
 
 static void handle_dummy_signal(int signum, siginfo_t* info, struct ucontext* uc) {
@@ -220,10 +225,6 @@ int sgx_signal_setup(void) {
     if (ret < 0)
         goto err;
 
-    ret = set_signal_handler(SIGSYS, handle_sync_signal);
-    if (ret < 0)
-        goto err;
-
     /* register asynchronous signals in host Linux */
     ret = set_signal_handler(SIGTERM, handle_async_signal);
     if (ret < 0)
@@ -252,6 +253,6 @@ err:
  * functions and by assert.h's assert() defined in the common library. Thus it might be called by
  * any PAL execution context, including this untrusted context. */
 noreturn void pal_abort(void) {
-    INLINE_SYSCALL(exit_group, 1, 1);
+    DO_SYSCALL(exit_group, 1);
     die_or_inf_loop();
 }

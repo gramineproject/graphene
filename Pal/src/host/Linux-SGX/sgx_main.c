@@ -50,7 +50,7 @@ struct pal_enclave g_pal_enclave;
 static int read_file_fragment(int fd, void* buf, size_t size, off_t offset) {
     ssize_t ret;
 
-    ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
+    ret = DO_SYSCALL(lseek, fd, offset, SEEK_SET);
     if (ret < 0)
         return ret;
 
@@ -167,12 +167,12 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
             zeropage = zeroend;
 
         if (c->mapend > c->mapstart) {
-            void* addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, c->mapend - c->mapstart,
-                                               PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FILE, fd,
-                                               c->mapoff);
+            void* addr = (void*)DO_SYSCALL(mmap, NULL, c->mapend - c->mapstart,
+                                           PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FILE, fd,
+                                           c->mapoff);
 
-            if (IS_ERR_P(addr)) {
-                ret = -ERRNO_P(addr);
+            if (IS_PTR_ERR(addr)) {
+                ret = PTR_TO_ERR(addr);
                 goto out;
             }
 
@@ -187,7 +187,7 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
                                        SGX_PAGE_REG, c->prot, /*skip_eextend=*/false,
                                        (c->prot & PROT_EXEC) ? "code" : "data");
 
-            INLINE_SYSCALL(munmap, 2, addr, c->mapend - c->mapstart);
+            DO_SYSCALL(munmap, addr, c->mapend - c->mapstart);
 
             if (ret < 0)
                 goto out;
@@ -221,7 +221,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     /* this array may overflow the stack, so we allocate it in BSS */
     static void* tcs_addrs[MAX_DBG_THREADS];
 
-    enclave_image = INLINE_SYSCALL(open, 3, enclave->libpal_uri + URI_PREFIX_FILE_LEN, O_RDONLY, 0);
+    enclave_image = DO_SYSCALL(open, enclave->libpal_uri + URI_PREFIX_FILE_LEN, O_RDONLY, 0);
     if (enclave_image < 0) {
         log_error("Cannot find enclave image: %s", enclave->libpal_uri);
         ret = enclave_image;
@@ -429,9 +429,9 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
         void* data = NULL;
         if (areas[i].data_src != ZERO) {
-            data = (void*)INLINE_SYSCALL(mmap, 6, NULL, areas[i].size, PROT_READ | PROT_WRITE,
-                                         MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-            if (IS_ERR_P(data) || data == NULL) {
+            data = (void*)DO_SYSCALL(mmap, NULL, areas[i].size, PROT_READ | PROT_WRITE,
+                                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            if (IS_PTR_ERR(data) || data == NULL) {
                 /* Note that Graphene currently doesn't handle 0x0 addresses */
                 log_error("Allocating memory failed");
                 ret = -ENOMEM;
@@ -484,7 +484,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                                    areas[i].desc);
 
         if (data)
-            INLINE_SYSCALL(munmap, 2, data, areas[i].size);
+            DO_SYSCALL(munmap, data, areas[i].size);
 
         if (ret < 0) {
             log_error("Adding pages (%s) to enclave failed: %d", areas[i].desc, ret);
@@ -500,13 +500,14 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     create_tcs_mapper((void*)tcs_area->addr, enclave->thread_num);
 
-    struct enclave_dbginfo* dbg = (void*)INLINE_SYSCALL(
-        mmap, 6, DBGINFO_ADDR, sizeof(struct enclave_dbginfo), PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-    if (IS_ERR_P(dbg)) {
+    struct enclave_dbginfo* dbg = (void*)DO_SYSCALL(mmap, DBGINFO_ADDR,
+                                                    sizeof(struct enclave_dbginfo),
+                                                    PROT_READ | PROT_WRITE,
+                                                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (IS_PTR_ERR(dbg)) {
         log_warning("Cannot allocate debug information (GDB will not work)");
     } else {
-        dbg->pid            = INLINE_SYSCALL(getpid, 0);
+        dbg->pid            = DO_SYSCALL(getpid);
         dbg->base           = enclave->baseaddr;
         dbg->size           = enclave->size;
         dbg->ssa_frame_size = enclave->ssa_frame_size;
@@ -519,7 +520,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
     if (g_sgx_enable_stats) {
         /* set TCS.FLAGS.DBGOPTIN in all enclave threads to enable perf counters, Intel PT, etc */
-        ret = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDWR | O_LARGEFILE, 0);
+        ret = DO_SYSCALL(open, "/proc/self/mem", O_RDWR | O_LARGEFILE, 0);
         if (ret < 0) {
             log_error("Setting TCS.FLAGS.DBGOPTIN failed: %d", ret);
             goto out;
@@ -530,8 +531,8 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             uint64_t tcs_flags;
             uint64_t* tcs_flags_ptr = tcs_addrs[i] + offsetof(sgx_arch_tcs_t, flags);
 
-            ret = INLINE_SYSCALL(pread, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
-                                 (off_t)tcs_flags_ptr);
+            ret = DO_SYSCALL(pread64, enclave_mem, &tcs_flags, sizeof(tcs_flags),
+                             (off_t)tcs_flags_ptr);
             if (ret < 0) {
                 log_error("Reading TCS.FLAGS.DBGOPTIN failed: %d", ret);
                 goto out;
@@ -539,8 +540,8 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
             tcs_flags |= TCS_FLAGS_DBGOPTIN;
 
-            ret = INLINE_SYSCALL(pwrite, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
-                                 (off_t)tcs_flags_ptr);
+            ret = DO_SYSCALL(pwrite64, enclave_mem, &tcs_flags, sizeof(tcs_flags),
+                             (off_t)tcs_flags_ptr);
             if (ret < 0) {
                 log_error("Writing TCS.FLAGS.DBGOPTIN failed: %d", ret);
                 goto out;
@@ -568,9 +569,9 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
 out:
     if (enclave_image >= 0)
-        INLINE_SYSCALL(close, 1, enclave_image);
+        DO_SYSCALL(close, enclave_image);
     if (enclave_mem >= 0)
-        INLINE_SYSCALL(close, 1, enclave_mem);
+        DO_SYSCALL(close, enclave_mem);
 
     return ret;
 }
@@ -746,7 +747,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     } else if (!strcmp(profile_str, "all")) {
         enclave_info->profile_enable = true;
         snprintf(enclave_info->profile_filename, ARRAY_SIZE(enclave_info->profile_filename),
-                 SGX_PROFILE_FILENAME_WITH_PID, (int)INLINE_SYSCALL(getpid, 0));
+                 SGX_PROFILE_FILENAME_WITH_PID, (int)DO_SYSCALL(getpid));
     } else {
         log_error("Invalid 'sgx.profile.enable' "
                   "(the value must be \"none\", \"main\" or \"all\")");
@@ -880,7 +881,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     struct pal_sec* pal_sec = &enclave->pal_sec;
 
     uint64_t start_time;
-    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
+    DO_SYSCALL(gettimeofday, &tv, NULL);
     start_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 
     ret = parse_loader_config(enclave->raw_manifest_data, enclave);
@@ -896,9 +897,9 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     if (!is_wrfsbase_supported())
         return -EPERM;
 
-    pal_sec->pid = INLINE_SYSCALL(getpid, 0);
-    pal_sec->uid = INLINE_SYSCALL(getuid, 0);
-    pal_sec->gid = INLINE_SYSCALL(getgid, 0);
+    pal_sec->pid = DO_SYSCALL(getpid);
+    pal_sec->uid = DO_SYSCALL(getuid);
+    pal_sec->gid = DO_SYSCALL(getgid);
 
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
      * instead extract info on total number of logical cores, number of physical cores,
@@ -982,7 +983,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
         return -ENOMEM;
     }
 
-    enclave->sigfile = INLINE_SYSCALL(open, 3, sig_path, O_RDONLY | O_CLOEXEC, 0);
+    enclave->sigfile = DO_SYSCALL(open, sig_path, O_RDONLY | O_CLOEXEC, 0);
     if (enclave->sigfile < 0) {
         log_error("Cannot open sigstruct file %s", sig_path);
         return -EINVAL;
@@ -994,7 +995,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
         return -ENOMEM;
     }
 
-    enclave->token = INLINE_SYSCALL(open, 3, token_path, O_RDONLY | O_CLOEXEC, 0);
+    enclave->token = DO_SYSCALL(open, token_path, O_RDONLY | O_CLOEXEC, 0);
     if (enclave->token < 0) {
         log_error(
             "Cannot open token %s. Use graphene-sgx-get-token on the runtime host or run "
@@ -1022,9 +1023,9 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
             return ret;
     }
 
-    void* alt_stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, ALT_STACK_SIZE, PROT_READ | PROT_WRITE,
-                                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (IS_ERR_P(alt_stack))
+    void* alt_stack = (void*)DO_SYSCALL(mmap, NULL, ALT_STACK_SIZE, PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (IS_PTR_ERR(alt_stack))
         return -ENOMEM;
 
     /* initialize TCB at the top of the alternative stack */
@@ -1036,7 +1037,7 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
         return ret;
 
     uint64_t end_time;
-    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
+    DO_SYSCALL(gettimeofday, &tv, NULL);
     end_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 
     if (g_sgx_enable_stats) {
@@ -1051,8 +1052,8 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     ecall_enclave_start(enclave->libpal_uri, args, args_size, env, env_size);
 
     unmap_tcs();
-    INLINE_SYSCALL(munmap, 2, alt_stack, ALT_STACK_SIZE);
-    INLINE_SYSCALL(exit, 1, 0);
+    DO_SYSCALL(munmap, alt_stack, ALT_STACK_SIZE);
+    DO_SYSCALL(exit, 0);
     die_or_inf_loop();
 }
 
@@ -1072,7 +1073,7 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
                self, self);
     log_always("This is an internal interface. Use pal_loader to launch applications in "
                "Graphene.");
-    INLINE_SYSCALL(exit_group, 1, 1);
+    DO_SYSCALL(exit_group, 1);
     die_or_inf_loop();
 }
 

@@ -84,7 +84,7 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
         timeout_ts.tv_nsec = microsec * 1000;
     }
 
-    ret = INLINE_SYSCALL(ppoll, 5, fds, nfds, timeout_us >= 0 ? &timeout_ts : NULL, NULL, 0);
+    ret = DO_SYSCALL(ppoll, fds, nfds, timeout_us >= 0 ? &timeout_ts : NULL, NULL, 0);
 
     if (ret < 0) {
         ret = unix_to_pal_error(ret);

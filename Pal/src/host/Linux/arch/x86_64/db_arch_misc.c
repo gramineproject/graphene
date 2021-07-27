@@ -230,7 +230,7 @@ out_vendor_id:
 int _DkSegmentRegisterGet(int reg, void** addr) {
     switch (reg) {
         case PAL_SEGMENT_FS:
-            return INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, addr);
+            return unix_to_pal_error(DO_SYSCALL(arch_prctl, ARCH_GET_FS, addr));
         case PAL_SEGMENT_GS:
             // The GS segment is used for the internal TCB of PAL
             return -PAL_ERROR_DENIED;
@@ -242,7 +242,7 @@ int _DkSegmentRegisterGet(int reg, void** addr) {
 int _DkSegmentRegisterSet(int reg, void* addr) {
     switch (reg) {
         case PAL_SEGMENT_FS:
-            return INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
+            return unix_to_pal_error(DO_SYSCALL(arch_prctl, ARCH_SET_FS, addr));
         case PAL_SEGMENT_GS:
             // The GS segment is used for the internal TCB of PAL
             return -PAL_ERROR_DENIED;

@@ -10,12 +10,12 @@
 
 #include "api.h"
 #include "linux_utils.h"
-#include "sysdep-arch.h"
+#include "syscall.h"
 
 int read_all(int fd, void* buf, size_t size) {
     size_t bytes_read = 0;
     while (bytes_read < size) {
-        long ret = INLINE_SYSCALL(read, 3, fd, buf + bytes_read, size - bytes_read);
+        long ret = DO_SYSCALL(read, fd, buf + bytes_read, size - bytes_read);
         if (ret <= 0) {
             if (ret == -EINTR)
                 continue;
@@ -31,7 +31,7 @@ int read_all(int fd, void* buf, size_t size) {
 int write_all(int fd, const void* buf, size_t size) {
     size_t bytes_written = 0;
     while (bytes_written < size) {
-        long ret = INLINE_SYSCALL(write, 3, fd, buf + bytes_written, size - bytes_written);
+        long ret = DO_SYSCALL(write, fd, buf + bytes_written, size - bytes_written);
         if (ret <= 0) {
             if (ret == -EINTR)
                 continue;
@@ -49,19 +49,19 @@ int write_all(int fd, const void* buf, size_t size) {
 int read_text_file_to_cstr(const char* path, char** out) {
     long ret;
     char* buf = NULL;
-    long fd = INLINE_SYSCALL(open, 3, path, O_RDONLY, 0);
+    long fd = DO_SYSCALL(open, path, O_RDONLY, 0);
     if (fd < 0) {
         ret = fd;
         goto out;
     }
 
-    ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_END);
+    ret = DO_SYSCALL(lseek, fd, 0, SEEK_END);
     if (ret < 0) {
         goto out;
     }
     size_t size = ret;
 
-    ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
+    ret = DO_SYSCALL(lseek, fd, 0, SEEK_SET);
     if (ret < 0) {
         goto out;
     }
@@ -78,7 +78,7 @@ int read_text_file_to_cstr(const char* path, char** out) {
 
     size_t bytes_read = 0;
     while (bytes_read < size) {
-        ret = INLINE_SYSCALL(read, 3, fd, buf + bytes_read, size - bytes_read);
+        ret = DO_SYSCALL(read, fd, buf + bytes_read, size - bytes_read);
         if (ret <= 0) {
             if (ret == -EINTR)
                 continue;
@@ -94,7 +94,7 @@ int read_text_file_to_cstr(const char* path, char** out) {
     ret = 0;
 out:
     if (fd >= 0) {
-        long close_ret = INLINE_SYSCALL(close, 1, fd);
+        long close_ret = DO_SYSCALL(close, fd);
         if (ret == 0)
             ret = close_ret;
     }

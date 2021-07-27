@@ -45,7 +45,7 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     int socktype = SOCK_STREAM | SOCK_CLOEXEC;
     int ret;
 
-    ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds);
+    ret = DO_SYSCALL(socketpair, AF_UNIX, socktype, 0, fds);
     if (ret < 0) {
         ret = -PAL_ERROR_DENIED;
         goto out;
@@ -81,9 +81,9 @@ out:
         free(phdl);
         free(chdl);
         if (fds[0] != -1)
-            INLINE_SYSCALL(close, 1, fds[0]);
+            DO_SYSCALL(close, fds[0]);
         if (fds[1] != -1)
-            INLINE_SYSCALL(close, 1, fds[1]);
+            DO_SYSCALL(close, fds[1]);
     }
     return ret;
 }
@@ -103,30 +103,15 @@ struct proc_args {
     size_t manifest_data_size;
 };
 
-/*
- * vfork() shares stack between child and parent. Any stack modifications in
- * child are reflected in parent's stack. Compiler may unwittingly modify
- * child's stack for its own purposes and thus corrupt parent's stack
- * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
- * lifetimes).
- * Introduce noinline function with stack area used only by child.
- * Make this function non-local to keep function signature.
- * NOTE: more tricks may be needed to prevent unexpected optimization for
- * future compiler.
- */
-static int __attribute_noinline child_process(struct proc_param* proc_param) {
-    int ret = ARCH_VFORK();
+static int child_process(struct proc_param* proc_param) {
+    int ret = vfork();
     if (ret)
         return ret;
 
     /* child */
-    if (proc_param->parent)
-        handle_set_cloexec(proc_param->parent, false);
-
-    int res = INLINE_SYSCALL(execve, 3, g_pal_loader_path, proc_param->argv,
-                             g_linux_state.host_environ);
+    DO_SYSCALL(execve, g_pal_loader_path, proc_param->argv, g_linux_state.host_environ);
     /* execve failed, but we're after vfork, so we can't do anything more than just exit */
-    INLINE_SYSCALL(exit_group, 1, -res);
+    DO_SYSCALL(exit_group, 1);
     die_or_inf_loop();
 }
 
@@ -145,7 +130,8 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
     if (ret < 0)
         goto out;
 
-    param.parent   = parent_handle;
+    handle_set_cloexec(parent_handle, false);
+    param.parent = parent_handle;
 
     /* step 2: compose process parameters */
 
@@ -291,7 +277,7 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, char** ma
 }
 
 noreturn void _DkProcessExit(int exitcode) {
-    INLINE_SYSCALL(exit_group, 1, exitcode);
+    DO_SYSCALL(exit_group, exitcode);
     die_or_inf_loop();
 }
 
@@ -299,7 +285,7 @@ static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    int64_t bytes = INLINE_SYSCALL(read, 3, handle->process.stream, buffer, count);
+    int64_t bytes = DO_SYSCALL(read, handle->process.stream, buffer, count);
 
     if (bytes < 0)
         switch (bytes) {
@@ -318,7 +304,7 @@ static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    int64_t bytes = INLINE_SYSCALL(write, 3, handle->process.stream, buffer, count);
+    int64_t bytes = DO_SYSCALL(write, handle->process.stream, buffer, count);
 
     if (bytes < 0)
         switch (bytes) {
@@ -335,7 +321,7 @@ static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
 
 static int proc_close(PAL_HANDLE handle) {
     if (handle->process.stream != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->process.stream);
+        DO_SYSCALL(close, handle->process.stream);
         handle->process.stream = PAL_IDX_POISON;
     }
 
@@ -359,7 +345,7 @@ static int proc_delete(PAL_HANDLE handle, int access) {
     }
 
     if (handle->process.stream != PAL_IDX_POISON)
-        INLINE_SYSCALL(shutdown, 2, handle->process.stream, shutdown);
+        DO_SYSCALL(shutdown, handle->process.stream, shutdown);
 
     return 0;
 }
@@ -376,7 +362,7 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
 
     /* get number of bytes available for reading */
-    ret = INLINE_SYSCALL(ioctl, 3, handle->process.stream, FIONREAD, &val);
+    ret = DO_SYSCALL(ioctl, handle->process.stream, FIONREAD, &val);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -385,7 +371,7 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     /* query if there is data available for reading */
     struct pollfd pfd  = {.fd = handle->process.stream, .events = POLLIN | POLLOUT, .revents = 0};
     struct timespec tp = {0, 0};
-    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    ret = DO_SYSCALL(ppoll, &pfd, 1, &tp, NULL, 0);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -400,8 +386,8 @@ static int proc_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     int ret;
     if (attr->nonblocking != handle->process.nonblocking) {
-        ret = INLINE_SYSCALL(fcntl, 3, handle->process.stream, F_SETFL,
-                             handle->process.nonblocking ? O_NONBLOCK : 0);
+        ret = DO_SYSCALL(fcntl, handle->process.stream, F_SETFL,
+                         handle->process.nonblocking ? O_NONBLOCK : 0);
 
         if (ret < 0)
             return unix_to_pal_error(ret);

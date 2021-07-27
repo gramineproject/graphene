@@ -96,11 +96,8 @@ static inline uint64_t ucontext_get_ip(ucontext_t* uc) {
     return uc->uc_mcontext.rip;
 }
 
-static inline void ucontext_set_function_parameters(ucontext_t* uc, void* func, uint64_t arg1,
-                                                    uint64_t arg2) {
-    uc->uc_mcontext.rip = (uint64_t)func;
-    uc->uc_mcontext.rdi = arg1;
-    uc->uc_mcontext.rsi = arg2;
+static inline void ucontext_set_ip(ucontext_t* uc, uint64_t ip) {
+    uc->uc_mcontext.rip = ip;
 }
 
 #endif /* LINUX_X86_64_UCONTEXT_H_ */
