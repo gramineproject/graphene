@@ -29,13 +29,13 @@ int urts_log_init(const char* path) {
     int ret;
 
     if (g_urts_log_fd != PAL_LOG_DEFAULT_FD) {
-        ret = INLINE_SYSCALL(close, 1, g_urts_log_fd);
+        ret = DO_SYSCALL(close, g_urts_log_fd);
         g_urts_log_fd = PAL_LOG_DEFAULT_FD;
         if (ret < 0)
             return ret;
     }
 
-    ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
+    ret = DO_SYSCALL(open, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
     if (ret < 0)
         return ret;
     g_urts_log_fd = ret;

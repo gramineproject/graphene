@@ -21,11 +21,8 @@
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
 #include "stat.h"
-#include "sysdep-arch.h"
+#include "syscall.h"
 #include "sysdeps/generic/ldsodefs.h"
-
-#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
 
 struct timespec;
 struct timeval;
@@ -50,52 +47,7 @@ extern struct pal_linux_state {
     long int (*vdso_clock_gettime)(long int clk, struct timespec* tp);
 } g_linux_state;
 
-#ifdef INLINE_SYSCALL
-#ifdef __i386__
-#define ARCH_MMAP(addr, len, prot, flags, fd, offset) \
-    ({                                                \
-        struct mmap_arg_struct {                      \
-            unsigned long addr;                       \
-            unsigned long len;                        \
-            unsigned long prot;                       \
-            unsigned long flags;                      \
-            unsigned long fd;                         \
-            unsigned long offset;                     \
-        } args = {                                    \
-            .addr   = (unsigned long)(addr),          \
-            .len    = (unsigned long)(len),           \
-            .prot   = (unsigned long)(prot),          \
-            .flags  = (unsigned long)(flags),         \
-            .fd     = (unsigned long)(fd),            \
-            .offset = (unsigned long)(offset),        \
-        };                                            \
-        INLINE_SYSCALL(mmap, 1, &args);               \
-    })
-#else
-#define ARCH_MMAP(addr, len, prot, flags, fd, offset) \
-    INLINE_SYSCALL(mmap, 6, addr, len, prot, flags, fd, offset)
-#endif
-#else
-#error "INLINE_SYSCALL not supported"
-#endif
-
-#ifndef SIGCHLD
-#define SIGCHLD 17
-#endif
-
-#ifdef DEBUG
-#define ARCH_VFORK()                                                                 \
-    (g_linux_state.in_gdb                                                            \
-         ? INLINE_SYSCALL(clone, 4, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, NULL, NULL) \
-         : INLINE_SYSCALL(clone, 4, CLONE_VM | CLONE_VFORK, 0, NULL, NULL))
-#else
-# define ARCH_VFORK()                                                       \
-    (INLINE_SYSCALL(clone, 4, CLONE_VM | CLONE_VFORK, 0, NULL, NULL))
-#endif
-
 #define DEFAULT_BACKLOG 2048
-
-int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void* __arg, ...);
 
 /* PAL main function */
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);

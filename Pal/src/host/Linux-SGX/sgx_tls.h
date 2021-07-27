@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "pal.h"
+#include "sgx_arch.h"
 
 struct untrusted_area {
     void* addr;
@@ -104,6 +105,7 @@ typedef struct pal_tcb_urts {
     atomic_ulong sync_signal_cnt;  /* # of sync signals, corresponds to # of SIGSEGV/SIGILL/.. */
     atomic_ulong async_signal_cnt; /* # of async signals, corresponds to # of SIGINT/SIGCONT/.. */
     uint64_t profile_sample_time;  /* last time sgx_profile_sample() recorded a sample */
+    int32_t last_async_event;      /* last async signal, reported to the enclave on ocall return */
 } PAL_TCB_URTS;
 
 extern void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack);

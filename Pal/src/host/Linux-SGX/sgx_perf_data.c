@@ -103,7 +103,7 @@ struct perf_data {
 
 static ssize_t write_all(int fd, const void* buf, size_t count) {
     while (count > 0) {
-        ssize_t ret = INLINE_SYSCALL(write, 3, fd, buf, count);
+        ssize_t ret = DO_SYSCALL(write, fd, buf, count);
         if (ret == -EINTR)
             continue;
         if (ret < 0)
@@ -142,7 +142,7 @@ static int pd_write(struct perf_data* pd, const void* data, size_t size) {
 struct perf_data* pd_open(const char* file_name, bool with_stack) {
     int ret;
 
-    int fd = INLINE_SYSCALL(open, 3, file_name, O_WRONLY | O_TRUNC | O_CREAT, PERM_rw_r__r__);
+    int fd = DO_SYSCALL(open, file_name, O_WRONLY | O_TRUNC | O_CREAT, PERM_rw_r__r__);
     if (fd < 0) {
         log_error("pd_open: cannot open %s for writing: %d", file_name, fd);
         return NULL;
@@ -153,11 +153,11 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
      * write_prologue_epilogue().
      */
 
-    ret = INLINE_SYSCALL(ftruncate, 2, fd, PROLOGUE_SIZE);
+    ret = DO_SYSCALL(ftruncate, fd, PROLOGUE_SIZE);
     if (ret < 0)
         goto fail;
 
-    ret = INLINE_SYSCALL(lseek, 3, fd, PROLOGUE_SIZE, SEEK_SET);
+    ret = DO_SYSCALL(lseek, fd, PROLOGUE_SIZE, SEEK_SET);
     if (ret < 0)
         goto fail;
 
@@ -173,7 +173,7 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
     return pd;
 
 fail:
-    ret = INLINE_SYSCALL(close, 1, fd);
+    ret = DO_SYSCALL(close, fd);
     if (ret < 0)
         log_error("pd_open: close failed: %d", ret);
     return NULL;
@@ -183,7 +183,7 @@ static int write_prologue_epilogue(struct perf_data* pd) {
     int ret;
 
     assert(pd->buf_count == 0); // all data flushed
-    ssize_t data_end = INLINE_SYSCALL(lseek, 3, pd->fd, 0, SEEK_CUR);
+    ssize_t data_end = DO_SYSCALL(lseek, pd->fd, 0, SEEK_CUR);
     if (data_end < 0)
         return data_end;
 
@@ -193,7 +193,7 @@ static int write_prologue_epilogue(struct perf_data* pd) {
      * - struct perf_file_attr: event configuration
      */
 
-    ret = INLINE_SYSCALL(lseek, 3, pd->fd, 0, SEEK_SET);
+    ret = DO_SYSCALL(lseek, pd->fd, 0, SEEK_SET);
     if (ret < 0)
         return ret;
 
@@ -242,7 +242,7 @@ static int write_prologue_epilogue(struct perf_data* pd) {
      * without it.
      */
 
-    ret = INLINE_SYSCALL(lseek, 3, pd->fd, data_end, SEEK_SET);
+    ret = DO_SYSCALL(lseek, pd->fd, data_end, SEEK_SET);
     if (ret < 0)
         return ret;
 
@@ -277,12 +277,12 @@ ssize_t pd_close(struct perf_data* pd) {
     if (ret < 0)
         goto out;
 
-    ret = INLINE_SYSCALL(lseek, 3, pd->fd, 0, SEEK_CUR);
+    ret = DO_SYSCALL(lseek, pd->fd, 0, SEEK_CUR);
     if (ret < 0)
         goto out;
 
 out:
-    close_ret = INLINE_SYSCALL(close, 1, pd->fd);
+    close_ret = DO_SYSCALL(close, pd->fd);
     if (close_ret < 0)
         log_error("pd_close: close failed: %d", close_ret);
 

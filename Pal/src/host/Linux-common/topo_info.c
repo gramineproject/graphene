@@ -13,16 +13,17 @@
 
 #include "api.h"
 #include "pal_linux.h"
+#include "syscall.h"
 #include "topo_info.h"
 
 int get_hw_resource(const char* filename, bool count) {
-    int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
+    int fd = DO_SYSCALL(open, filename, O_RDONLY | O_CLOEXEC, 0);
     if (fd < 0)
         return fd;
 
     char buf[64];
-    int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
-    INLINE_SYSCALL(close, 1, fd);
+    int ret = DO_SYSCALL(read, fd, buf, sizeof(buf) - 1);
+    DO_SYSCALL(close, fd);
     if (ret < 0)
         return ret;
 
@@ -79,12 +80,12 @@ int get_hw_resource(const char* filename, bool count) {
 }
 
 int read_file_buffer(const char* filename, char* buf, size_t count) {
-    int fd = INLINE_SYSCALL(open, 2, filename, O_RDONLY);
+    int fd = DO_SYSCALL(open, filename, O_RDONLY);
     if (fd < 0)
         return fd;
 
-    int ret = INLINE_SYSCALL(read, 3, fd, buf, count);
-    INLINE_SYSCALL(close, 1, fd);
+    int ret = DO_SYSCALL(read, fd, buf, count);
+    DO_SYSCALL(close, fd);
     if (ret < 0)
         return ret;
 
@@ -105,12 +106,12 @@ static int get_num_cache_level(const char* path) {
     char buf[1024];
     int num_dirs = 0;
 
-    int fd = INLINE_SYSCALL(open, 2, path, O_RDONLY | O_DIRECTORY);
+    int fd = DO_SYSCALL(open, path, O_RDONLY | O_DIRECTORY);
     if (fd < 0)
         return fd;
 
     while (true) {
-        int nread = INLINE_SYSCALL(getdents64, 3, fd, buf, 1024);
+        int nread = DO_SYSCALL(getdents64, fd, buf, 1024);
         if (nread < 0) {
             num_dirs = nread;
             goto out;
@@ -128,7 +129,7 @@ static int get_num_cache_level(const char* path) {
     }
 
 out:
-    INLINE_SYSCALL(close, 1, fd);
+    DO_SYSCALL(close, fd);
     return num_dirs ?: -ENOENT;
 }
 

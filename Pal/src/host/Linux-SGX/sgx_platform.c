@@ -50,7 +50,7 @@ static const sgx_ql_att_key_id_t g_default_ecdsa_p256_att_key_id = {
  * for each request to the AESM service.
  */
 static int connect_aesm_service(void) {
-    int sock = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM, 0);
+    int sock = DO_SYSCALL(socket, AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0)
         return sock;
 
@@ -59,7 +59,7 @@ static int connect_aesm_service(void) {
     addr.sun_family = AF_UNIX;
     (void)strcpy_static(addr.sun_path, "\0" AESM_SOCKET_NAME_LEGACY, sizeof(addr.sun_path));
 
-    int ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
+    int ret = DO_SYSCALL(connect, sock, &addr, sizeof(addr));
     if (ret >= 0)
         return sock;
     if (ret != -ECONNREFUSED)
@@ -69,12 +69,12 @@ static int connect_aesm_service(void) {
     addr.sun_family = AF_UNIX;
     (void)strcpy_static(addr.sun_path, AESM_SOCKET_NAME_NEW, sizeof(addr.sun_path));
 
-    ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
+    ret = DO_SYSCALL(connect, sock, &addr, sizeof(addr));
     if (ret >= 0)
         return sock;
 
 err:
-    INLINE_SYSCALL(close, 1, sock);
+    DO_SYSCALL(close, sock);
     log_error("Cannot connect to aesm_service (tried " AESM_SOCKET_NAME_LEGACY " and "
               AESM_SOCKET_NAME_NEW " UNIX sockets).\nPlease check its status! (`service aesmd "
               "status` on Ubuntu)");
@@ -122,7 +122,7 @@ static int request_aesm_service(Request* req, Response** res) {
     ret = *res == NULL ? -EINVAL : 0;
 out:
     free(res_buf);
-    INLINE_SYSCALL(close, 1, aesm_socket);
+    DO_SYSCALL(close, aesm_socket);
     if (ret < 0) {
         log_error("Cannot communicate with aesm_service (read/write returned error %d).\n"
                   "Please check its status! (`service aesmd status` on Ubuntu)", ret);
@@ -311,11 +311,11 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
         goto out;
     }
 
-    char* mmapped = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(actual_quote_size),
-                                          PROT_READ|PROT_WRITE,
-                                          MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-    if (IS_ERR_P(mmapped)) {
+    char* mmapped = (char*)DO_SYSCALL(mmap, NULL, ALLOC_ALIGN_UP(actual_quote_size),
+                                      PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    if (IS_PTR_ERR(mmapped)) {
         log_error("Failed to allocate memory for the quote");
+        ret = -ENOMEM;
         goto out;
     }
 

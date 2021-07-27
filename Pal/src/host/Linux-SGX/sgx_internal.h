@@ -13,11 +13,8 @@
 #include "api.h"
 #include "pal_linux.h"
 #include "pal_security.h"
-#include "sysdep-arch.h"
+#include "sgx_syscall.h"
 #include "toml.h"
-
-#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
 
 extern const size_t g_page_size;
 

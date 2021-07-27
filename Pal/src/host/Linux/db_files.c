@@ -33,11 +33,11 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     /* try to do the real open */
     // FIXME: No idea why someone hardcoded O_CLOEXEC here. We should drop it and carefully
     // investigate if this causes any descriptor leaks.
-    int ret = INLINE_SYSCALL(open, 3, uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
-                                           PAL_CREATE_TO_LINUX_OPEN(create)  |
-                                           PAL_OPTION_TO_LINUX_OPEN(options) |
-                                           O_CLOEXEC,
-                             share);
+    int ret = DO_SYSCALL(open, uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
+                                    PAL_CREATE_TO_LINUX_OPEN(create)  |
+                                    PAL_OPTION_TO_LINUX_OPEN(options) |
+                                    O_CLOEXEC,
+                         share);
 
     if (ret < 0)
         return unix_to_pal_error(ret);
@@ -46,7 +46,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     size_t uri_size = strlen(uri) + 1;
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + uri_size);
     if (!hdl) {
-        INLINE_SYSCALL(close, 1, ret);
+        DO_SYSCALL(close, ret);
         return -PAL_ERROR_NOMEM;
     }
 
@@ -57,7 +57,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     char* path = (void*)hdl + HANDLE_SIZE(file);
     ret = get_norm_path(uri, path, &uri_size);
     if (ret < 0) {
-        INLINE_SYSCALL(close, 1, hdl->file.fd);
+        DO_SYSCALL(close, hdl->file.fd);
         free(hdl);
         return ret;
     }
@@ -65,9 +65,9 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     hdl->file.realpath = (PAL_STR)path;
 
     struct stat st;
-    ret = INLINE_SYSCALL(fstat, 2, hdl->file.fd, &st);
+    ret = DO_SYSCALL(fstat, hdl->file.fd, &st);
     if (ret < 0) {
-        INLINE_SYSCALL(close, 1, hdl->file.fd);
+        DO_SYSCALL(close, hdl->file.fd);
         free(hdl);
         return unix_to_pal_error(ret);
     }
@@ -84,9 +84,9 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     int64_t ret;
 
     if (handle->file.seekable) {
-        ret = INLINE_SYSCALL(pread64, 4, fd, buffer, count, offset);
+        ret = DO_SYSCALL(pread64, fd, buffer, count, offset);
     } else {
-        ret = INLINE_SYSCALL(read, 3, fd, buffer, count);
+        ret = DO_SYSCALL(read, fd, buffer, count);
     }
 
     if (ret < 0)
@@ -101,9 +101,9 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     int64_t ret;
 
     if (handle->file.seekable) {
-        ret = INLINE_SYSCALL(pwrite64, 4, fd, buffer, count, offset);
+        ret = DO_SYSCALL(pwrite64, fd, buffer, count, offset);
     } else {
-        ret = INLINE_SYSCALL(write, 3, fd, buffer, count);
+        ret = DO_SYSCALL(write, fd, buffer, count);
     }
 
     if (ret < 0)
@@ -117,7 +117,7 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
 static int file_close(PAL_HANDLE handle) {
     int fd = handle->file.fd;
 
-    int ret = INLINE_SYSCALL(close, 1, fd);
+    int ret = DO_SYSCALL(close, fd);
 
     /* initial realpath is part of handle object and will be freed with it */
     if (handle->file.realpath && handle->file.realpath != (void*)handle + HANDLE_SIZE(file)) {
@@ -133,7 +133,7 @@ static int file_delete(PAL_HANDLE handle, int access) {
     if (access)
         return -PAL_ERROR_INVAL;
 
-    INLINE_SYSCALL(unlink, 1, handle->file.realpath);
+    DO_SYSCALL(unlink, handle->file.realpath);
     return 0;
 }
 
@@ -155,10 +155,10 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     prot = PAL_PROT_TO_LINUX(prot);
 
     /* The memory will always be allocated with flag MAP_PRIVATE and MAP_FILE */
-    mem = (void*)ARCH_MMAP(mem, size, prot, flags, fd, offset);
+    mem = (void*)DO_SYSCALL(mmap, mem, size, prot, flags, fd, offset);
 
-    if (IS_ERR_P(mem))
-        return -PAL_ERROR_DENIED;
+    if (IS_PTR_ERR(mem))
+        return unix_to_pal_error(PTR_TO_ERR(mem));
 
     *addr = mem;
     return 0;
@@ -166,7 +166,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 
 /* 'setlength' operation for file stream. */
 static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
-    int ret = INLINE_SYSCALL(ftruncate, 2, handle->file.fd, length);
+    int ret = DO_SYSCALL(ftruncate, handle->file.fd, length);
 
     if (ret < 0)
         return (ret == -EINVAL || ret == -EBADF) ? -PAL_ERROR_BADHANDLE
@@ -177,7 +177,7 @@ static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
 
 /* 'flush' operation for file stream. */
 static int file_flush(PAL_HANDLE handle) {
-    int ret = INLINE_SYSCALL(fsync, 1, handle->file.fd);
+    int ret = DO_SYSCALL(fsync, handle->file.fd);
 
     if (ret < 0)
         return (ret == -EINVAL || ret == -EBADF) ? -PAL_ERROR_BADHANDLE
@@ -220,7 +220,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     struct stat stat_buf;
     /* try to do the real open */
-    int ret = INLINE_SYSCALL(stat, 2, uri, &stat_buf);
+    int ret = DO_SYSCALL(stat, uri, &stat_buf);
 
     /* if it failed, return the right error code */
     if (ret < 0)
@@ -235,7 +235,7 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int fd = handle->generic.fds[0];
     struct stat stat_buf;
 
-    int ret = INLINE_SYSCALL(fstat, 2, fd, &stat_buf);
+    int ret = DO_SYSCALL(fstat, fd, &stat_buf);
 
     if (ret < 0)
         return unix_to_pal_error(ret);
@@ -247,7 +247,7 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 static int file_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int fd = handle->generic.fds[0], ret;
 
-    ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags | PERM_rw_______);
+    ret = DO_SYSCALL(fchmod, fd, attr->share_flags | PERM_rw_______);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -262,7 +262,7 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     if (!tmp)
         return -PAL_ERROR_NOMEM;
 
-    int ret = INLINE_SYSCALL(rename, 2, handle->file.realpath, uri);
+    int ret = DO_SYSCALL(rename, handle->file.realpath, uri);
     if (ret < 0) {
         free(tmp);
         return unix_to_pal_error(ret);
@@ -323,7 +323,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         return -PAL_ERROR_INVAL;
 
     if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {
-        int ret = INLINE_SYSCALL(mkdir, 2, uri, share);
+        int ret = DO_SYSCALL(mkdir, uri, share);
 
         if (ret < 0) {
             if (ret == -EEXIST && create & PAL_CREATE_ALWAYS)
@@ -334,15 +334,14 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         }
     }
 
-    int fd = INLINE_SYSCALL(open, 3, uri,
-                            O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options) | O_CLOEXEC, 0);
+    int fd = DO_SYSCALL(open, uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options) | O_CLOEXEC, 0);
     if (fd < 0)
         return unix_to_pal_error(fd);
 
     size_t len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
     if (!hdl) {
-        INLINE_SYSCALL(close, 1, fd);
+        DO_SYSCALL(close, fd);
         return -PAL_ERROR_NOMEM;
     }
     SET_HANDLE_TYPE(hdl, dir);
@@ -417,7 +416,7 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* 
             }
         }
 
-        int size = INLINE_SYSCALL(getdents64, 3, handle->dir.fd, handle->dir.buf, DIRBUF_SIZE);
+        int size = DO_SYSCALL(getdents64, handle->dir.fd, handle->dir.buf, DIRBUF_SIZE);
         if (size < 0) {
             /* If something was written just return that and pretend
              * no error was seen - it will be caught next time. */
@@ -444,7 +443,7 @@ out:
 static int dir_close(PAL_HANDLE handle) {
     int fd = handle->dir.fd;
 
-    int ret = INLINE_SYSCALL(close, 1, fd);
+    int ret = DO_SYSCALL(close, fd);
 
     if (handle->dir.buf) {
         free((void*)handle->dir.buf);
@@ -472,7 +471,7 @@ static int dir_delete(PAL_HANDLE handle, int access) {
     if (ret < 0)
         return ret;
 
-    ret = INLINE_SYSCALL(rmdir, 1, handle->dir.realpath);
+    ret = DO_SYSCALL(rmdir, handle->dir.realpath);
 
     return (ret < 0 && ret != -ENOENT) ? -PAL_ERROR_DENIED : 0;
 }
@@ -485,7 +484,7 @@ static int dir_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     if (!tmp)
         return -PAL_ERROR_NOMEM;
 
-    int ret = INLINE_SYSCALL(rename, 2, handle->dir.realpath, uri);
+    int ret = DO_SYSCALL(rename, handle->dir.realpath, uri);
     if (ret < 0) {
         free(tmp);
         return unix_to_pal_error(ret);

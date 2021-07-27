@@ -30,32 +30,15 @@ struct proc_args {
     size_t       manifest_size; // manifest will follow application path on the pipe.
 };
 
-/*
- * vfork() shares stack between child and parent. Any stack modifications in
- * child are reflected in parent's stack. Compiler may unwittingly modify
- * child's stack for its own purposes and thus corrupt parent's stack
- * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
- * lifetimes).
- * Introduce noinline function with stack area used only by child.
- * Make this function non-local to keep function signature.
- * NOTE: more tricks may be needed to prevent unexpected optimization for
- * future compiler.
- */
-static int __attribute_noinline vfork_exec(int parent_stream, const char** argv) {
-    int ret = ARCH_VFORK();
+static int vfork_exec(const char** argv) {
+    int ret = vfork();
     if (ret)
         return ret;
 
-    /* child: close parent's FDs and execve */
-    INLINE_SYSCALL(close, 1, parent_stream);
-
     extern char** environ;
-    ret = INLINE_SYSCALL(execve, 3, g_pal_loader_path, argv, environ);
-
-    /* shouldn't get to here */
-    log_error("unexpected failure of execve");
-    __asm__ volatile("hlt");
-    return 0;
+    DO_SYSCALL(execve, g_pal_loader_path, argv, environ);
+    DO_SYSCALL(exit_group, 1);
+    die_or_inf_loop();
 }
 
 int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const char* manifest) {
@@ -63,9 +46,14 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
     int fds[2] = {-1, -1};
 
     int socktype = SOCK_STREAM;
-    ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds);
+    ret = DO_SYSCALL(socketpair, AF_UNIX, socktype, 0, fds);
     if (ret < 0)
         goto out;
+
+    ret = DO_SYSCALL(fcntl, fds[1], F_SETFD, FD_CLOEXEC);
+    if (ret < 0) {
+        goto out;
+    }
 
     const char** argv = __alloca(sizeof(const char*) * (nargs + 5));
     argv[0] = g_pal_loader_path;
@@ -83,7 +71,7 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
         goto out;
     }
 
-    ret = vfork_exec(/*parent_stream=*/fds[1], argv);
+    ret = vfork_exec(argv);
     if (ret < 0)
         goto out;
 
@@ -96,7 +84,7 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
     }
 
     /* TODO: add error checking. */
-    INLINE_SYSCALL(close, 1, fds[0]); /* child stream */
+    DO_SYSCALL(close, fds[0]); /* child stream */
 
     struct proc_args proc_args;
     proc_args.stream_fd         = fds[0];
@@ -128,9 +116,6 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
         goto out;
     }
 
-    /* TODO: add error checking. */
-    INLINE_SYSCALL(fcntl, 3, fds[1], F_SETFD, FD_CLOEXEC);
-
     if (stream_fd)
         *stream_fd = fds[1];
 
@@ -138,9 +123,9 @@ int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const ch
 out:
     if (ret < 0) {
         if (fds[0] >= 0)
-            INLINE_SYSCALL(close, 1, fds[0]);
+            DO_SYSCALL(close, fds[0]);
         if (fds[1] >= 0)
-            INLINE_SYSCALL(close, 1, fds[1]);
+            DO_SYSCALL(close, fds[1]);
     }
 
     return ret;

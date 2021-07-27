@@ -7,6 +7,7 @@
 #include <linux/signal.h>
 
 #include "sigset.h"
+#include "syscall.h"
 #include "ucontext.h"
 
 /* in x86_64 kernels, sigaction is required to have a user-defined restorer */
@@ -28,7 +29,7 @@ int arch_do_rt_sigprocmask(int sig, int how) {
     __sigemptyset(&mask);
     __sigaddset(&mask, sig);
 
-    return INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL, sizeof(__sigset_t));
+    return DO_SYSCALL(rt_sigprocmask, how, &mask, NULL, sizeof(__sigset_t));
 }
 
 int arch_do_rt_sigaction(int sig, void* handler,
@@ -43,5 +44,5 @@ int arch_do_rt_sigaction(int sig, void* handler,
     for (size_t i = 0; i < num_async_signals; i++)
         __sigaddset((__sigset_t*)&action.sa_mask, async_signals[i]);
 
-    return INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
+    return DO_SYSCALL(rt_sigaction, sig, &action, NULL, sizeof(__sigset_t));
 }

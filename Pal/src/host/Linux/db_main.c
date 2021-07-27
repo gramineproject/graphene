@@ -111,10 +111,10 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
         if (start_addr >= end_addr)
             INIT_FAIL(PAL_ERROR_NOMEM, "no user memory available");
 
-        void* mem = (void*)ARCH_MMAP(start_addr, g_pal_state.alloc_align, PROT_NONE,
-                                     MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-        if (!IS_ERR_P(mem)) {
-            INLINE_SYSCALL(munmap, 2, mem, g_pal_state.alloc_align);
+        void* mem = (void*)DO_SYSCALL(mmap, start_addr, g_pal_state.alloc_align, PROT_NONE,
+                                      MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if (!IS_PTR_ERR(mem)) {
+            DO_SYSCALL(munmap, mem, g_pal_state.alloc_align);
             if (mem == start_addr)
                 break;
         }
@@ -202,7 +202,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     if (!first_thread)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
     SET_HANDLE_TYPE(first_thread, thread);
-    first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
+    first_thread->thread.tid = DO_SYSCALL(gettid);
 
     void* alt_stack = calloc(1, ALT_STACK_SIZE);
     if (!alt_stack)
@@ -253,7 +253,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         log_warning("vvar address range not preloaded, is your system missing vvar?!");
     }
 
-    g_linux_state.pid = INLINE_SYSCALL(getpid, 0);
+    g_linux_state.pid = DO_SYSCALL(getpid);
 
     g_linux_state.uid = g_uid;
     g_linux_state.gid = g_gid;
@@ -293,10 +293,10 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'loader.pal_internal_mem_size'");
     }
 
-    void* internal_mem_addr = (void*)ARCH_MMAP(NULL, g_pal_internal_mem_size,
-                                               PROT_READ | PROT_WRITE,
-                                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    if (IS_ERR_P(internal_mem_addr)) {
+    void* internal_mem_addr = (void*)DO_SYSCALL(mmap, NULL, g_pal_internal_mem_size,
+                                                PROT_READ | PROT_WRITE,
+                                                MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    if (IS_PTR_ERR(internal_mem_addr)) {
         INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate PAL internal memory pool");
     }
 

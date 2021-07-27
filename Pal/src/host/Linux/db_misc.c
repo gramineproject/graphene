@@ -25,7 +25,7 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     if (g_linux_state.vdso_clock_gettime) {
         ret = g_linux_state.vdso_clock_gettime(CLOCK_REALTIME, &time);
     } else {
-        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
+        ret = DO_SYSCALL(clock_gettime, CLOCK_REALTIME, &time);
     }
 
     if (ret < 0)
@@ -38,7 +38,7 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
 
 int _DkRandomBitsRead(void* buffer, size_t size) {
     if (!g_pal_sec.random_device) {
-        int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
+        int fd = DO_SYSCALL(open, RANDGEN_DEVICE, O_RDONLY, 0);
         if (fd < 0)
             return -PAL_ERROR_DENIED;
 

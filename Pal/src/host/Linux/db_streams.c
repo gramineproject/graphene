@@ -71,7 +71,7 @@ int handle_set_cloexec(PAL_HANDLE handle, bool enable) {
     for (int i = 0; i < MAX_FDS; i++)
         if (HANDLE_HDR(handle)->flags & (RFD(i) | WFD(i))) {
             long flags = enable ? FD_CLOEXEC : 0;
-            int ret = INLINE_SYSCALL(fcntl, 3, handle->generic.fds[i], F_SETFD, flags);
+            int ret = DO_SYSCALL(fcntl, handle->generic.fds[i], F_SETFD, flags);
             if (ret < 0 && ret != -EBADF)
                 return -PAL_ERROR_DENIED;
         }
@@ -83,7 +83,7 @@ int handle_set_cloexec(PAL_HANDLE handle, bool enable) {
    The memory is unmapped as a whole.*/
 int _DkStreamUnmap(void* addr, uint64_t size) {
     /* Just let the kernel tell us if the mapping isn't good. */
-    int ret = INLINE_SYSCALL(munmap, 2, addr, size);
+    int ret = DO_SYSCALL(munmap, addr, size);
 
     if (ret < 0)
         return -PAL_ERROR_DENIED;
@@ -240,7 +240,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     message_hdr.msg_iov    = iov;
     message_hdr.msg_iovlen = 1;
 
-    ret = INLINE_SYSCALL(sendmsg, 3, fd, &message_hdr, MSG_NOSIGNAL);
+    ret = DO_SYSCALL(sendmsg, fd, &message_hdr, MSG_NOSIGNAL);
     if (ret < 0) {
         free(hdl_data);
         return unix_to_pal_error(ret);
@@ -265,7 +265,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     message_hdr.msg_iov    = iov;
     message_hdr.msg_iovlen = 1;
 
-    ret = INLINE_SYSCALL(sendmsg, 3, fd, &message_hdr, 0);
+    ret = DO_SYSCALL(sendmsg, fd, &message_hdr, 0);
     if (ret < 0) {
         free(hdl_data);
         return unix_to_pal_error(ret);
@@ -299,7 +299,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     message_hdr.msg_iov    = iov;
     message_hdr.msg_iovlen = 1;
 
-    ret = INLINE_SYSCALL(recvmsg, 3, fd, &message_hdr, 0);
+    ret = DO_SYSCALL(recvmsg, fd, &message_hdr, 0);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -330,7 +330,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     message_hdr.msg_iov    = iov;
     message_hdr.msg_iovlen = 1;
 
-    ret = INLINE_SYSCALL(recvmsg, 3, fd, &message_hdr, 0);
+    ret = DO_SYSCALL(recvmsg, fd, &message_hdr, 0);
     if (ret < 0)
         return unix_to_pal_error(ret);
 
@@ -366,13 +366,13 @@ int _DkInitDebugStream(const char* path) {
     int ret;
 
     if (g_log_fd != PAL_LOG_DEFAULT_FD) {
-        ret = INLINE_SYSCALL(close, 1, g_log_fd);
+        ret = DO_SYSCALL(close, g_log_fd);
         g_log_fd = PAL_LOG_DEFAULT_FD;
         if (ret < 0)
             return unix_to_pal_error(ret);
     }
 
-    ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
+    ret = DO_SYSCALL(open, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
     if (ret < 0)
         return unix_to_pal_error(ret);
     g_log_fd = ret;
