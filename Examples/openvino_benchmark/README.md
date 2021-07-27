@@ -1,5 +1,4 @@
-OpenVINO benchmark runs with Graphene-SGX
-=====================================================
+# OpenVINO benchmark
 This directory contains a Makefile and a template manifest for the most recent version of OpenVINO
 toolkit (as of this writing, version 2021.4). We use the ``Benchmark C++ Tool`` (benchmark_app) from
 the OpenVINO distribution as a concrete application running under Graphene-SGX to estimate deep
@@ -7,7 +6,7 @@ learning inference performance. We test only the CPU backend (i.e., no GPU or FP
 
 Note: the models require ~3GB of disk space.
 
-# Tips for better performance
+## Tips for better performance
 Linux systems have CPU frequency scaling governor that helps the system to scale the CPU frequency
 to achieve best performance or to save power based on the requirement. To achieve the best
 performance, please set the CPU frequency scaling governor to `performance` mode.
@@ -43,7 +42,7 @@ The following models have been enabled and tested with Graphene-SGX.
  ``source /home/<USER>/intel/openvino_2021/bin/setupvars.sh``.
 3. Build: ``make SGX=1``
 
-**NOTE**: After setting up OpenVINO environment variables if you want to build graphene after
+**NOTE**: After setting up OpenVINO environment variables if you want to build Graphene after
 cleaning you need to unset LD_LIBRARY_PATH. Please make sure to set up OpenVINO environment
 variables after building Graphene again.
 
@@ -87,12 +86,16 @@ For example, in a system with 36 physical cores, please export ``OPTIMAL_VALUE``
 $ export OPTIMAL_VALUE=72
 ```
 
-**NOTE 1**: Option ``-i <image files>`` is optional. A user may use this option as required.\
-**NOTE 2**: Please tune batch size to get best performance in your system.\
+**NOTE 1**: Option ``-i <image files>`` is optional. A user may use this option as required.
+
+**NOTE 2**: Please tune batch size to get best performance in your system.
+
 **NOTE 3**: Model files for bert-large can be found in ``model/intel`` directory and for rest of
-the models these are stored in ``model/public`` directory.\
+the models these are stored in ``model/public`` directory.
+
 **NOTE 4**: Based on the precision for bert-large and brain-tumor-segmentation models the enclave
-size must be set to 64/128 GB.\
+size must be set to 64/128 GB.
+
 **NOTE 5**: In multi-socket systems for bert-large-uncased-whole-word-masking-squad-0001 and
 brain-tumor-segmentation-0001 FP32/FP16 models please expand memory nodes usage with
 ``numactl --membind`` if memory allocation fails.
@@ -117,13 +120,13 @@ $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --memb
 
 **NOTE**: Option ``-i <image files>`` is optional. A user may use this option as required.
 
-# Performance considerations
+## Performance considerations
 - Preheat manifest option pre-faults the enclave memory and moves the performance penalty to
 graphene-sgx startup (before the workload starts executing). To use preheat option, add
-``sgx.preheat_enclave = 1`` to the manifest template.
+``sgx.preheat_enclave = true`` to the manifest template.
 - Skipping invalid user pointer checks when the application does not invoke system calls with
 invalid pointers (typical case) can help improve performance. To use this option, add
-``libos.check_invalid_pointers = 0`` to the
+``libos.check_invalid_pointers = false`` to the
 manifest template.
 - TCMalloc and mimalloc are memory allocator libraries from Google and Microsoft that can help
 improve performance significantly based on the workloads. At any point, only one of these
