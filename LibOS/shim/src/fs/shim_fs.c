@@ -662,8 +662,10 @@ BEGIN_CP_FUNC(mount) {
         INIT_LIST_HEAD(new_mount, list);
         REF_SET(new_mount->ref_count, 0);
 
-        DO_CP_IN_MEMBER(str, new_mount, path);
-        DO_CP_IN_MEMBER(str, new_mount, uri);
+        DO_CP_MEMBER(str, mount, new_mount, path);
+
+        if (mount->uri)
+            DO_CP_MEMBER(str, mount, new_mount, uri);
 
         if (mount->mount_point)
             DO_CP_MEMBER(dentry, mount, new_mount, mount_point);

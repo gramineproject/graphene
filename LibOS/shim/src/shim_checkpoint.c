@@ -213,19 +213,30 @@ BEGIN_RS_FUNC(qstr) {
 }
 END_RS_FUNC(qstr)
 
-/* Checkpoints an owned C string (char*). */
+/* Checkpoints a C string (char*). */
 BEGIN_CP_FUNC(str) {
-    __UNUSED(objp);
     __UNUSED(size);
-    assert(size == sizeof(char*));
+    /* `size` is sizeof(char) because the macros take a char* value; however, we are going to copy
+     * the whole string */
+    assert(size == sizeof(char));
 
-    char** str_ptr = obj;
-    char* str = *str_ptr;
+    char* str = obj;
+    char* new_str;
 
-    size_t len = strlen(str);
-    char* new_str = (char*)base + ADD_CP_OFFSET(len + 1);
-    memcpy(new_str, str, len + 1);
-    *str_ptr = new_str;
+    size_t off = GET_FROM_CP_MAP(obj);
+
+    if (!off) {
+        size_t len = strlen(obj);
+        off = ADD_CP_OFFSET(len + 1);
+        ADD_TO_CP_MAP(obj, off);
+        new_str = (char*)(base + off);
+        memcpy(new_str, str, len + 1);
+    } else {
+        new_str = (char*)(base + off);
+    }
+
+    if (objp)
+        *objp = new_str;
 }
 END_CP_FUNC_NO_RS(str)
 
