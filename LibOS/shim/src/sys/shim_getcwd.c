@@ -17,6 +17,7 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 #ifndef ERANGE
 #define ERANGE 34
@@ -87,7 +88,7 @@ long shim_do_fchdir(int fd) {
 
     struct shim_dentry* dent = hdl->dentry;
 
-    if (!(dent->state & DENTRY_ISDIRECTORY)) {
+    if (dent->type != S_IFDIR) {
         char* path = NULL;
         dentry_abs_path(dent, &path, /*size=*/NULL);
         log_debug("%s is not a directory", path);

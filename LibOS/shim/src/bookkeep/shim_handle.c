@@ -711,7 +711,7 @@ BEGIN_CP_FUNC(handle) {
         DO_CP_IN_MEMBER(qstr, new_hdl, uri);
 
         if (hdl->dentry) {
-            if (hdl->dentry->state & DENTRY_ISDIRECTORY) {
+            if (hdl->dentry->type == S_IFDIR) {
                 /*
                  * We don't checkpoint children dentries of a directory dentry, so the child process
                  * will need to list the directory again. However, we keep `dir_info.pos` unchanged

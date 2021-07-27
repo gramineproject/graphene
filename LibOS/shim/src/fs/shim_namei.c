@@ -218,7 +218,7 @@ static int lookup_enter_dentry(struct lookup* lookup) {
     if ((ret = traverse_mount_and_validate(&lookup->dent)) < 0)
         return ret;
 
-    if (!(lookup->dent->state & DENTRY_NEGATIVE) && (lookup->dent->state & DENTRY_ISLINK)) {
+    if (!(lookup->dent->state & DENTRY_NEGATIVE) && (lookup->dent->type == S_IFLNK)) {
         /* Traverse the symbolic link. This applies to all intermediate segments, final segments
          * ending with slash, and to all final segments if LOOKUP_FOLLOW is set. */
         if (!is_final || has_slash || (lookup->flags & LOOKUP_FOLLOW)) {
@@ -257,7 +257,6 @@ static int lookup_enter_dentry(struct lookup* lookup) {
             lookup->dent->state &= ~DENTRY_NEGATIVE;
             lookup->dent->state |= DENTRY_VALID | DENTRY_SYNTHETIC;
             if (!is_final || has_slash) {
-                lookup->dent->state |= DENTRY_ISDIRECTORY;
                 lookup->dent->type = S_IFDIR;
             } else {
                 lookup->dent->type = S_IFREG;
@@ -267,7 +266,7 @@ static int lookup_enter_dentry(struct lookup* lookup) {
         } else {
             return -ENOENT;
         }
-    } else if (!(lookup->dent->state & DENTRY_ISDIRECTORY)) {
+    } else if (lookup->dent->type != S_IFDIR) {
         /*
          * The file exists, but is not a directory. We expect a directory (and need to fail with
          * -ENOTDIR) in the following cases:
@@ -465,7 +464,7 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
 
     assoc_handle_with_dentry(hdl, dent, flags);
 
-    if (dent->state & DENTRY_ISDIRECTORY) {
+    if (dent->type == S_IFDIR) {
         /* Initialize directory handle */
         hdl->is_dir = true;
 
@@ -474,8 +473,8 @@ int dentry_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
 
     /* truncate regular writable file if O_TRUNC is given */
     if ((flags & O_TRUNC) && ((flags & O_RDWR) | (flags & O_WRONLY))
-            && !(dent->state & DENTRY_ISDIRECTORY)
-            && !(dent->state & DENTRY_ISLINK)) {
+            && (dent->type != S_IFDIR)
+            && (dent->type != S_IFLNK)) {
 
         if (!(fs->fs_ops && fs->fs_ops->truncate)) {
             ret = -EINVAL;
@@ -522,14 +521,14 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
 
     assert(dent->state & DENTRY_VALID);
 
-    if (dent->state & DENTRY_ISDIRECTORY) {
+    if (dent->type == S_IFDIR) {
         if (flags & O_WRONLY || flags & O_RDWR) {
             ret = -EISDIR;
             goto err;
         }
     }
 
-    if (dent->state & DENTRY_ISLINK) {
+    if (dent->type == S_IFLNK) {
         /*
          * Can happen if user specified O_NOFOLLOW, or O_TRUNC | O_EXCL. Posix requires us to fail
          * with -ELOOP when trying to open a symlink.
@@ -571,7 +570,6 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
             if (ret < 0)
                 goto err;
             dent->state &= ~DENTRY_NEGATIVE;
-            dent->state |= DENTRY_ISDIRECTORY;
             dent->type = S_IFDIR;
         } else {
             if (!dir->fs->d_ops->creat) {

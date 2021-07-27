@@ -178,11 +178,9 @@ static int pseudo_lookup(struct shim_dentry* dent) {
 
     switch (node->type) {
         case PSEUDO_DIR:
-            dent->state |= DENTRY_ISDIRECTORY;
             dent->type = S_IFDIR;
             break;
         case PSEUDO_LINK:
-            dent->state |= DENTRY_ISLINK;
             dent->type = S_IFLNK;
             break;
         case PSEUDO_STR:

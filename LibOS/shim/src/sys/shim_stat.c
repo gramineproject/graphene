@@ -15,6 +15,7 @@
 #include "shim_internal.h"
 #include "shim_process.h"
 #include "shim_table.h"
+#include "stat.h"
 
 static int do_stat(struct shim_dentry* dent, struct stat* stat) {
     struct shim_fs* fs = dent->fs;
@@ -119,7 +120,7 @@ long shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     ret = -EINVAL;
     /* The correct behavior is to return -EINVAL if file is not a
        symbolic link */
-    if (!(dent->state & DENTRY_ISLINK))
+    if (dent->type != S_IFLNK)
         goto out;
 
     if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->follow_link)

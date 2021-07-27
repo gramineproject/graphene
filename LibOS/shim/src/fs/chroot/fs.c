@@ -203,7 +203,7 @@ static int create_data(struct shim_dentry* dent, const char* uri, size_t len) {
 
     struct mount_data* mdata = DENTRY_MOUNT_DATA(dent);
     assert(mdata);
-    data->type = (dent->state & DENTRY_ISDIRECTORY) ? FILE_DIR : mdata->base_type;
+    data->type = (dent->type == S_IFDIR) ? FILE_DIR : mdata->base_type;
     data->queried = false;
 
     if (uri) {
@@ -273,7 +273,6 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
         /* Move up the uri update; need to convert manifest-level file:
          * directives to 'dir:' uris */
         if (old_type != FILE_DIR) {
-            dent->state |= DENTRY_ISDIRECTORY;
             if ((ret = make_uri(dent)) < 0)
                 return ret;
         }

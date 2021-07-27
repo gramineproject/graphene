@@ -80,8 +80,7 @@ int init_dcache(void) {
      *  will fail. */
     g_dentry_root->state |= DENTRY_VALID;
 
-    /* The root should be a directory too*/
-    g_dentry_root->state |= DENTRY_ISDIRECTORY;
+    /* The root should be a directory too */
     g_dentry_root->perm = PERM_rwx______;
     g_dentry_root->type = S_IFDIR;
 
@@ -402,8 +401,11 @@ static void dump_dentry(struct shim_dentry* dent, unsigned int level) {
         buf_puts(&buf, "  ");
 
     buf_puts(&buf, qstrgetstr(&dent->name));
-    DUMP_FLAG(DENTRY_ISDIRECTORY, "/", "");
-    DUMP_FLAG(DENTRY_ISLINK, " -> ", "");
+    switch (dent->type) {
+        case S_IFDIR: buf_puts(&buf, "/"); break;
+        case S_IFLNK: buf_puts(&buf, " -> "); break;
+        default: break;
+    }
     buf_flush(&buf);
 
     if (dent->attached_mount) {

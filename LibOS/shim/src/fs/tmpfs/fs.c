@@ -321,7 +321,6 @@ static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
 static int tmpfs_lookup(struct shim_dentry* dent) {
     if (!dent->parent) {
         /* root of pseudo-FS */
-        dent->state |= DENTRY_ISDIRECTORY;
         dent->type = S_IFDIR;
         dent->perm = PERM_rwx______;
         return 0;

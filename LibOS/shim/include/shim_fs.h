@@ -88,8 +88,6 @@ struct shim_fs_ops {
 #define DENTRY_VALID       0x0001 /* this dentry is verified to be valid */
 #define DENTRY_NEGATIVE    0x0002 /* recently deleted or inaccessible */
 #define DENTRY_PERSIST     0x0008 /* added as a persistent dentry */
-#define DENTRY_ISLINK      0x0080 /* this dentry is a link */
-#define DENTRY_ISDIRECTORY 0x0100 /* this dentry is a directory */
 #define DENTRY_LOCKED      0x0200 /* locked by mountpoints at children */
 /* These flags are not used */
 //#define DENTRY_REACHABLE    0x0400  /* permission checked to be reachable */
