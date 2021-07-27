@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -55,6 +56,21 @@ static int print_pf_key_and_read_protected_file(char* who) {
 }
 
 int main(int argc, char** argv) {
+    /* execvp() is only for testing purposes: to validate that secret provisioning happens only once
+     * (for the first process) and that exec logic preserves the provisioned key */
+    if (argc < 2 || strcmp(argv[1], "skip-execve")) {
+        puts("--- [main] Re-starting myself using execvp() ---");
+        fflush(stdout);
+        char* new_argv[] = {argv[0], "skip-execve", NULL};
+        int ret = execvp(argv[0], new_argv);
+        if (ret < 0) {
+            perror("execvp error");
+            return 1;
+        }
+    }
+
+    /* fork() is only for testing purposes: to validate that secret provisioning doesn't happen
+     * after fork (in the child enclave) and that fork logic preserves the provisioned key */
     int pid = fork();
 
     if (pid < 0) {

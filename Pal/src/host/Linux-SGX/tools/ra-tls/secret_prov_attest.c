@@ -306,6 +306,11 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
         uint8_t* secret = NULL;
         size_t secret_size = 0;
 
+        /* immediately unset envvar so that execve'd child processes do not land here (otherwise
+         * secret provisioning would happen for each new child, but each child already got all the
+         * secrets from the parent process during checkpoint-and-restore) */
+        unsetenv(SECRET_PROVISION_CONSTRUCTOR);
+
         unsetenv(SECRET_PROVISION_SECRET_STRING);
 
         int ret = secret_provision_start(/*in_servers=*/NULL, /*in_ca_chain_path=*/NULL,
