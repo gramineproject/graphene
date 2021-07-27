@@ -1,6 +1,6 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 MODEL_DIR ?= $(THIS_DIR)model
 MODEL_COMMIT ?= acf297c73db8cb3f68791ae1fad4a7cc4a6039e5     # corresponds to tag "2019_R3"

@@ -1,6 +1,6 @@
 # PyTorch and the pre-trained model must be installed on the system. See README for details.
 
-ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 

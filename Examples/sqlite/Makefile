@@ -1,6 +1,6 @@
 SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
-ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug

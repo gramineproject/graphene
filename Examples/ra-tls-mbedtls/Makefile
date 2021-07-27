@@ -1,7 +1,7 @@
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
-ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 # for EPID attestation, specify your SPID and linkable/unlinkable attestation policy;
 # for DCAP/ECDSA attestation, specify SPID as empty string (linkable value is ignored)

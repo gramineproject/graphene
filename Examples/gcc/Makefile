@@ -1,7 +1,7 @@
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-ARCH_LONG := $(shell $(CC) -dumpmachine)
-ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+ARCH_LONG ?= $(shell $(CC) -dumpmachine)
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 

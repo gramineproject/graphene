@@ -1,6 +1,6 @@
 SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
-ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 SRCDIR = src
 BUSYBOX_URL ?= https://busybox.net/downloads/busybox-1.32.0.tar.bz2

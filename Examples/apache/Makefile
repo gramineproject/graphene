@@ -1,6 +1,6 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-ARCH_LIBDIR := /lib/$(shell $(CC) -dumpmachine)
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 INSTALL_DIR ?= $(THIS_DIR)install
 HTTPD_SRC ?= $(THIS_DIR)httpd-2.4.46
