@@ -25,8 +25,13 @@
 #include "shim_utils.h"
 #include "stat.h"
 
+#define USEC_IN_SEC 1000000
+
 struct shim_tmpfs_data {
     struct shim_mem_file mem;
+    time_t ctime;
+    time_t mtime;
+    time_t atime;
 };
 
 /* Get data associated with dentry. This is created on demand, instead of during dentry validation,
@@ -43,6 +48,16 @@ static int tmpfs_get_data(struct shim_dentry* dent, struct shim_tmpfs_data** out
         return -ENOMEM;
 
     mem_file_init(&data->mem, /*data=*/NULL, /*size=*/0);
+
+    uint64_t time;
+    if (DkSystemTimeQuery(&time) < 0) {
+        free(data);
+        return -EPERM;
+    }
+
+    data->ctime = time / USEC_IN_SEC;
+    data->mtime = data->ctime;
+    data->atime = data->ctime;
 
     dent->data = data;
     *out_data = data;
@@ -85,16 +100,44 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
 static int tmpfs_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct shim_dentry* dent,
                        int flags, mode_t mode) {
     __UNUSED(dir);
+
+    int ret;
+
+    /* Trigger creating dentry data to ensure right timestamp. */
+    lock(&dent->lock);
+    struct shim_tmpfs_data* data;
+    ret = tmpfs_get_data(dent, &data);
+    if (ret < 0)
+        goto out;
+
     dent->type = S_IFREG;
     dent->perm = mode & ~S_IFMT;
-    return tmpfs_open(hdl, dent, flags);
+    unlock(&dent->lock);
+
+    ret = tmpfs_open(hdl, dent, flags);
+out:
+    return ret;
 }
 
 static int tmpfs_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t mode) {
     __UNUSED(dir);
+
+    int ret;
+
+    /* Trigger creating dentry data to ensure right timestamp. */
+    lock(&dent->lock);
+    struct shim_tmpfs_data* data;
+    ret = tmpfs_get_data(dent, &data);
+    if (ret < 0)
+        goto out;
+
     dent->type = S_IFDIR;
     dent->perm = mode & ~S_IFMT;
-    return 0;
+    unlock(&dent->lock);
+
+    ret = 0;
+out:
+    return ret;
 }
 
 static int tmpfs_stat(struct shim_dentry* dent, struct stat* buf) {
@@ -110,6 +153,9 @@ static int tmpfs_stat(struct shim_dentry* dent, struct stat* buf) {
     buf->st_mode  = dent->perm | dent->type;
     buf->st_size  = data->mem.size;
     buf->st_nlink = dent->type == S_IFDIR ? 2 : 1;
+    buf->st_ctime = data->ctime;
+    buf->st_mtime = data->mtime;
+    buf->st_atime = data->atime;
 
     ret = 0;
 out:
@@ -190,7 +236,16 @@ static void unlock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* d
 }
 
 static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
+    uint64_t time;
+    if (DkSystemTimeQuery(&time) < 0)
+        return -EPERM;
+
     lock_two_dentries(old, new);
+
+    /* TODO: this should be done in the syscall handler, not here */
+    new->type = old->type;
+    new->perm = old->perm;
+
     if (new->data) {
         struct shim_tmpfs_data* data = new->data;
         mem_file_destroy(&data->mem);
@@ -198,6 +253,10 @@ static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
     }
     new->data = old->data;
     old->data = NULL;
+
+    struct shim_tmpfs_data* data = new->data;
+    data->mtime = time / USEC_IN_SEC;
+
     unlock_two_dentries(old, new);
     return 0;
 }
@@ -223,6 +282,8 @@ static ssize_t tmpfs_read(struct shim_handle* hdl, void* buf, size_t size) {
     if (ret >= 0)
         hdl->info.tmpfs.pos += ret;
 
+    /* technically, we should update access time here, but we skip this because it could hurt
+     * performance on Linux-SGX host */
 out:
     unlock(&hdl->dentry->lock);
     unlock(&hdl->lock);
@@ -233,6 +294,10 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t size
     ssize_t ret;
 
     assert(hdl->type == TYPE_TMPFS);
+
+    uint64_t time;
+    if (DkSystemTimeQuery(&time) < 0)
+        return -EPERM;
 
     lock(&hdl->lock);
     lock(&hdl->dentry->lock);
@@ -245,6 +310,8 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t size
     if (ret >= 0)
         hdl->info.tmpfs.pos += ret;
 
+    data->mtime = time / USEC_IN_SEC;
+
 out:
     unlock(&hdl->dentry->lock);
     unlock(&hdl->lock);
@@ -253,6 +320,10 @@ out:
 
 static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
     int ret;
+
+    uint64_t time;
+    if (DkSystemTimeQuery(&time) < 0)
+        return -EPERM;
 
     assert(hdl->type == TYPE_TMPFS);
 
@@ -263,6 +334,8 @@ static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
         goto out;
 
     ret = mem_file_truncate(&data->mem, size);
+    if (ret == 0)
+        data->mtime = time / USEC_IN_SEC;
 
 out:
     unlock(&hdl->dentry->lock);
