@@ -112,10 +112,12 @@ static int tmpfs_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct 
 
     dent->type = S_IFREG;
     dent->perm = mode & ~S_IFMT;
-    unlock(&dent->lock);
+    ret = 0;
 
-    ret = tmpfs_open(hdl, dent, flags);
 out:
+    unlock(&dent->lock);
+    if (ret == 0)
+        return tmpfs_open(hdl, dent, flags);
     return ret;
 }
 
@@ -133,10 +135,10 @@ static int tmpfs_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t
 
     dent->type = S_IFDIR;
     dent->perm = mode & ~S_IFMT;
-    unlock(&dent->lock);
-
     ret = 0;
+
 out:
+    unlock(&dent->lock);
     return ret;
 }
 
@@ -156,8 +158,8 @@ static int tmpfs_stat(struct shim_dentry* dent, struct stat* buf) {
     buf->st_ctime = data->ctime;
     buf->st_mtime = data->mtime;
     buf->st_atime = data->atime;
-
     ret = 0;
+
 out:
     unlock(&dent->lock);
     return ret;
@@ -279,11 +281,16 @@ static ssize_t tmpfs_read(struct shim_handle* hdl, void* buf, size_t size) {
         goto out;
 
     ret = mem_file_read(&data->mem, hdl->info.tmpfs.pos, buf, size);
-    if (ret >= 0)
-        hdl->info.tmpfs.pos += ret;
+    if (ret < 0)
+        goto out;
+
+    hdl->info.tmpfs.pos += ret;
 
     /* technically, we should update access time here, but we skip this because it could hurt
      * performance on Linux-SGX host */
+
+    /* keep `ret` */
+
 out:
     unlock(&hdl->dentry->lock);
     unlock(&hdl->lock);
@@ -307,10 +314,12 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t size
         goto out;
 
     ret = mem_file_write(&data->mem, hdl->info.tmpfs.pos, buf, size);
-    if (ret >= 0)
-        hdl->info.tmpfs.pos += ret;
+    if (ret < 0)
+        goto out;
 
+    hdl->info.tmpfs.pos += ret;
     data->mtime = time / USEC_IN_SEC;
+    /* keep `ret` */
 
 out:
     unlock(&hdl->dentry->lock);
@@ -335,8 +344,11 @@ static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
         goto out;
 
     ret = mem_file_truncate(&data->mem, size);
-    if (ret == 0)
-        data->mtime = time / USEC_IN_SEC;
+    if (ret < 0)
+        goto out;
+
+    data->mtime = time / USEC_IN_SEC;
+    ret = 0;
 
 out:
     unlock(&hdl->dentry->lock);
