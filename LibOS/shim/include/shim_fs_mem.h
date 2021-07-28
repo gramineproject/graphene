@@ -16,16 +16,16 @@
 struct shim_mem_file {
     char* buf;
     file_off_t size;
-    file_off_t buf_size;
+    size_t buf_size;
 };
 
 void mem_file_init(struct shim_mem_file* mem, char* data, size_t size);
 void mem_file_destroy(struct shim_mem_file* mem);
 
 /*
- * The following operations correspond to the filesystem callbacks (see `shim_fs.h`). Note that the
- * caller has to pass the file position, and (in case of `read` and `write` update it after a
- * successful operation.
+ * The following operations can be used to implement corresponding filesystem callbacks (see
+ * `shim_fs.h`). Note that the caller has to pass the file position, and (in case of `read` and
+ * `write`) update it themselves after a successful operation.
  */
 ssize_t mem_file_read(struct shim_mem_file* mem, file_off_t pos_start, void* buf, size_t size);
 ssize_t mem_file_write(struct shim_mem_file* mem, file_off_t pos_start, const void* buf,

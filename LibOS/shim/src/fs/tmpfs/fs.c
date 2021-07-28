@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2021 Intel Corporation
  *                    Li Xun <xun.li@intel.com>
+ *                    Paweł Marczewski <pawel@invisiblethingslab.com>
  */
 
 /*
@@ -24,6 +25,10 @@
 #include "shim_utils.h"
 #include "stat.h"
 
+struct shim_tmpfs_data {
+    struct shim_mem_file mem;
+};
+
 /* Get data associated with dentry. This is created on demand, instead of during dentry validation,
  * because dentries restored from checkpoint don't have the `data` field filled. */
 static int tmpfs_get_data(struct shim_dentry* dent, struct shim_tmpfs_data** out_data) {
@@ -39,7 +44,8 @@ static int tmpfs_get_data(struct shim_dentry* dent, struct shim_tmpfs_data** out
 
     mem_file_init(&data->mem, /*data=*/NULL, /*size=*/0);
 
-    *out_data = dent->data = data;
+    dent->data = data;
+    *out_data = data;
     return 0;
 }
 
@@ -112,6 +118,8 @@ out:
 }
 
 static int tmpfs_readdir(struct shim_dentry* dent, readdir_callback_t callback, void* arg) {
+    assert(locked(&g_dcache_lock));
+
     struct shim_dentry* child;
     LISTP_FOR_EACH_ENTRY(child, &dent->children, siblings) {
         if ((child->state & DENTRY_VALID) && !(child->state & DENTRY_NEGATIVE)) {
@@ -127,17 +135,25 @@ static int tmpfs_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
     __UNUSED(dir);
 
     if (dent->type == S_IFDIR) {
+        /* TODO: the whole unlink operation should be wrapped in a lock; otherwise there's a race:
+         * new files can be created before we delete the directory */
+        lock(&g_dcache_lock);
         struct shim_dentry* child;
+        bool found = false;
         LISTP_FOR_EACH_ENTRY(child, &dent->children, siblings) {
             if ((child->state & DENTRY_VALID) && !(child->state & DENTRY_NEGATIVE)) {
-                return -ENOTEMPTY;
+                found = true;
+                break;
             }
         }
+        unlock(&g_dcache_lock);
+        if (found)
+            return -ENOTEMPTY;
     }
 
     /* TODO: our `unlink` wipes the file data, even though there might be still file handles
-     * pointing to the file. A proper solution would keep the unlinked file until all handles are
-     * closed, but also allow creating a new file with the same name. */
+     * associated with the dentry. A proper solution would keep the unlinked file until all handles
+     * are closed, but also allow creating a new file with the same name. */
     lock(&dent->lock);
     struct shim_tmpfs_data* data = dent->data;
     if (data) {
@@ -165,16 +181,21 @@ static void lock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* den
 static void unlock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2) {
     assert(dent1 != dent2);
     if ((uintptr_t)dent1 < (uintptr_t)dent2) {
-        unlock(&dent1->lock);
         unlock(&dent2->lock);
+        unlock(&dent1->lock);
     } else {
-        unlock(&dent2->lock);
         unlock(&dent1->lock);
+        unlock(&dent2->lock);
     }
 }
 
 static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
     lock_two_dentries(old, new);
+    if (new->data) {
+        struct shim_tmpfs_data* data = new->data;
+        mem_file_destroy(&data->mem);
+        free(data);
+    }
     new->data = old->data;
     old->data = NULL;
     unlock_two_dentries(old, new);
@@ -234,8 +255,6 @@ static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
     int ret;
 
     assert(hdl->type == TYPE_TMPFS);
-
-    __UNUSED(hdl);
 
     lock(&hdl->dentry->lock);
     struct shim_tmpfs_data* data;

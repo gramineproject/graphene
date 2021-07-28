@@ -32,9 +32,8 @@ enum shim_handle_type {
     TYPE_FILE,       /* host files, used by `chroot` filesystem */
     TYPE_DEV,        /* emulated devices, used by `dev` filesystem */
     TYPE_STR,        /* string-based files (with data inside handle), handled by `pseudo_*`
-                      * functions, used by several filesystems */
-    TYPE_PSEUDO,     /* pseudo nodes (currently directories), handled by `pseudo_*` functions, used
-                      * by several filesystems */
+                      * functions */
+    TYPE_PSEUDO,     /* pseudo nodes (currently directories), handled by `pseudo_*` functions */
     TYPE_TMPFS,      /* string-based files (with data inside dentry), used by `tmpfs` filesystem */
 
     /* Pipes and sockets: */
@@ -174,10 +173,6 @@ struct shim_str_handle {
     struct shim_mem_file mem;
     bool dirty;
     file_off_t pos;
-};
-
-struct shim_tmpfs_data {
-    struct shim_mem_file mem;
 };
 
 struct shim_tmpfs_handle {
