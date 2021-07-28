@@ -220,20 +220,6 @@ int sgx_get_seal_key(uint16_t key_policy, sgx_key_128bit_t* seal_key) {
     return 0;
 }
 
-int init_enclave_key(void) {
-    __sgx_mem_aligned sgx_key_request_t keyrequest;
-    memset(&keyrequest, 0, sizeof(sgx_key_request_t));
-    keyrequest.key_name = SEAL_KEY;
-
-    int ret = sgx_getkey(&keyrequest, &g_enclave_key);
-    if (ret) {
-        log_error("Can't get seal key\n");
-        return -PAL_ERROR_DENIED;
-    }
-
-    log_debug("Seal key: %s\n", ALLOCA_BYTES2HEXSTR(g_enclave_key));
-    return 0;
-}
 
 /* For each file that requires authentication (specified in the manifest as "sgx.trusted_files"), a
  * SHA256 hash is generated and stored in the manifest, signed and verified as part of the enclave's
