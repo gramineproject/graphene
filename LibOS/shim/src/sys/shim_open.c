@@ -25,7 +25,7 @@
 #include "shim_utils.h"
 #include "stat.h"
 
-int do_handle_read(struct shim_handle* hdl, void* buf, int count) {
+ssize_t do_handle_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!(hdl->acc_mode & MAY_READ))
         return -EACCES;
 
@@ -55,7 +55,7 @@ long shim_do_read(int fd, void* buf, size_t count) {
         return shim_do_recvfrom(fd, buf, count, 0, NULL, NULL);
     }
 
-    int ret = do_handle_read(hdl, buf, count);
+    ssize_t ret = do_handle_read(hdl, buf, count);
     put_handle(hdl);
     if (ret == -EINTR) {
         ret = -ERESTARTSYS;
@@ -63,7 +63,7 @@ long shim_do_read(int fd, void* buf, size_t count) {
     return ret;
 }
 
-int do_handle_write(struct shim_handle* hdl, const void* buf, int count) {
+ssize_t do_handle_write(struct shim_handle* hdl, const void* buf, size_t count) {
     if (!(hdl->acc_mode & MAY_WRITE))
         return -EACCES;
 
@@ -87,7 +87,7 @@ long shim_do_write(int fd, const void* buf, size_t count) {
     if (!hdl)
         return -EBADF;
 
-    int ret = do_handle_write(hdl, buf, count);
+    ssize_t ret = do_handle_write(hdl, buf, count);
     put_handle(hdl);
     if (ret == -EINTR) {
         ret = -ERESTARTSYS;

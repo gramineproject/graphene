@@ -331,7 +331,7 @@ int open_executable(struct shim_handle* hdl, const char* path);
 
 int get_file_size(struct shim_handle* file, uint64_t* size);
 
-int do_handle_read(struct shim_handle* hdl, void* buf, int count);
-int do_handle_write(struct shim_handle* hdl, const void* buf, int count);
+ssize_t do_handle_read(struct shim_handle* hdl, void* buf, size_t count);
+ssize_t do_handle_write(struct shim_handle* hdl, const void* buf, size_t count);
 
 #endif /* _SHIM_HANDLE_H_ */
