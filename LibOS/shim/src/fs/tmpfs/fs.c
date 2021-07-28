@@ -35,7 +35,8 @@ struct shim_tmpfs_data {
 };
 
 /* Get data associated with dentry. This is created on demand, instead of during dentry validation,
- * because dentries restored from checkpoint don't have the `data` field filled. */
+ * because the dentry might have been restored from a checkpoint, and Graphene's checkpointing
+ * system currently omits the dentry `data` field. */
 static int tmpfs_get_data(struct shim_dentry* dent, struct shim_tmpfs_data** out_data) {
     assert(locked(&dent->lock));
     if (dent->data) {
