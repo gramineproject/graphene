@@ -327,6 +327,7 @@ static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
 
     assert(hdl->type == TYPE_TMPFS);
 
+    lock(&hdl->lock);
     lock(&hdl->dentry->lock);
     struct shim_tmpfs_data* data;
     ret = tmpfs_get_data(hdl->dentry, &data);
@@ -339,6 +340,7 @@ static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
 
 out:
     unlock(&hdl->dentry->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
