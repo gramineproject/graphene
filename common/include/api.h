@@ -106,6 +106,8 @@ typedef ptrdiff_t ssize_t;
 #define ARRAY_SIZE(a) (FORCE_STATIC_ARRAY(a) + sizeof(a) / sizeof(a[0]))
 #endif
 
+#define IS_SIGNED(T) ((T)-1 < (T)1)
+
 #define SET_UNALIGNED(a, b) ({                  \
     __typeof__(b) _b = (b);                     \
     static_assert(SAME_TYPE((a), _b), "error"); \
@@ -160,12 +162,27 @@ int strcmp(const char* lhs, const char* rhs);
 
 long strtol(const char* s, char** endptr, int base);
 long long strtoll(const char* s, char** endptr, int base);
-/* Converts a string to an unsigned long value. "+" and "-" signs are not allowed in the string.
- * Return value indicates whether int overflow happened. If out_value is not NULL, then it contains
- * the result of conversion (or ULONG_MAX if int overflow happened). If out_endptr is not NULL, then
- * it contains the address of the first invalid char in str (or the original value of str if there
- * were no digits at all). */
-bool str_to_ulong(const char* str, int base, unsigned long* out_value, char** out_endptr);
+
+/*!
+ * \brief Convert a string to number
+ *
+ * \param str the string
+ * \param base digit base, between 2 and 36
+ * \param[out] out_value on success, set to the parsed number
+ * \param[out] out_end on success, set to the rest of string
+ *
+ * \return 0 on success, -1 on failure
+ *
+ * Parses a number from the beginning of a string. The number should be non-empty, consist of digits
+ * only (no `+`/`-` signs), and not overflow the `unsigned long` type. For base 16, the "0x" prefix
+ * is allowed but not required.
+ *
+ * On success, returns 0, sets `*out_value` to the value of the number, and `*out_end` to the first
+ * byte after the number.
+ */
+int str_to_ulong(const char* str, unsigned int base, unsigned long* out_value,
+                 const char** out_end);
+
 int atoi(const char* nptr);
 long int atol(const char* nptr);
 

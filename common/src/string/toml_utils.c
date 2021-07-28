@@ -85,7 +85,7 @@ int toml_bool_in(const toml_table_t* root, const char* key, bool defaultval, boo
         ret = toml_int_in(root, key, (int)defaultval, &int64_val);
         if (ret == 0 && (int64_val == 0 || int64_val == 1)) {
             log_warning("Manifest contains a deprecated syntax for '%s' key. Please use true/false "
-                        "instead of 1/0\n", key);
+                        "instead of 1/0", key);
             *retval = (bool)int64_val;
         } else {
             ret = -1;

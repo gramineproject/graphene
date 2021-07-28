@@ -28,6 +28,7 @@ static void log_vprintf(const char* prefix, const char* fmt, va_list ap) {
     if (prefix)
         buf_puts(&buf, prefix);
     buf_vprintf(&buf, fmt, ap);
+    buf_printf(&buf, "\n");
     buf_flush(&buf);
 }
 

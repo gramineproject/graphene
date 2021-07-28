@@ -15,6 +15,7 @@ enum {
     LOG_LEVEL_ALL     = 5,
 };
 
+/* All of them implicitly append a newline at the end of the message. */
 #define log_always(fmt...)   _log(LOG_LEVEL_NONE, fmt)
 #define log_error(fmt...)    _log(LOG_LEVEL_ERROR, fmt)
 #define log_warning(fmt...)  _log(LOG_LEVEL_WARNING, fmt)

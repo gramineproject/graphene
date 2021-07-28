@@ -12,6 +12,6 @@
 noreturn void __stack_chk_fail(void);
 
 noreturn void __stack_chk_fail(void) {
-    log_always("Stack protector: Graphene internal stack corruption detected\n");
+    log_always("Stack protector: Graphene internal stack corruption detected");
     abort();
 }

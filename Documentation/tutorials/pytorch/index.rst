@@ -509,7 +509,7 @@ the SGX enclave, Graphene instance, and the application running in it to the
 remote secret-provisioning server. Graphene needs to locate this library, so
 let's copy it to our working directory::
 
-   cp ../ra-tls-secret-prov/libsecret_prov_attest.so ./
+   cp ../ra-tls-secret-prov/libs/libsecret_prov_attest.so ./
 
 Building and Executing End-To-End PyTorch Example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

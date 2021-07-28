@@ -227,6 +227,9 @@ static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
     }
 
     MEM_OBJ mobj = container_of(obj, MEM_OBJ_TYPE, obj);
+#ifdef DEBUG
+    memset(obj, 0xCC, sizeof(*obj));
+#endif
 
     SYSTEM_LOCK();
     INIT_LIST_HEAD(mobj, __list);

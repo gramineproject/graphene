@@ -15,7 +15,7 @@ c_executables = \
 	bootstrap_static \
 	debug \
 	devfs \
-	device \
+	device_passthrough \
 	double_fork \
 	epoll_epollet \
 	epoll_wait_timeout \
@@ -27,6 +27,7 @@ c_executables = \
 	exec_victim \
 	exit \
 	exit_group \
+	fcntl_lock \
 	fdleak \
 	file_check_policy \
 	file_size \
@@ -49,8 +50,9 @@ c_executables = \
 	host_root_fs \
 	init_fail \
 	kill_all \
-	large_mmap \
 	large_dir_read \
+	large_file \
+	large_mmap \
 	madvise \
 	mkfifo \
 	mmap_file \
@@ -100,6 +102,7 @@ repo_manifests = \
 	argv_from_file.manifest \
 	debug_log_file.manifest \
 	debug_log_inline.manifest \
+	device_passthrough.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	file_check_policy_allow_all_but_log.manifest \
@@ -154,6 +157,12 @@ LDLIBS-attestation += ../../../../common/src/crypto/mbedtls/install/lib/libmbedc
 CFLAGS-fp_multithread += -pthread -fno-builtin  # see comment in the test's source
 LDLIBS-fp_multithread += -lm
 
+proc_common: proc_common.o dump.o
+	$(call cmd,cmulti)
+
+sysfs_common: sysfs_common.o dump.o
+	$(call cmd,cmulti)
+
 %: %.c
 	$(call cmd,csingle)
 
@@ -184,4 +193,5 @@ clean-tmp:
 		__pycache__ \
 		libos-regression.xml \
 		testfile \
-		tmp/*
+		tmp/* \
+		*.o

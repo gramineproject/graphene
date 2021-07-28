@@ -13,6 +13,7 @@
 #include "pal_error.h"
 #include "shim_checkpoint.h"
 #include "shim_fs.h"
+#include "shim_fs_pseudo.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_process.h"
@@ -21,15 +22,13 @@
 
 struct shim_fs* builtin_fs[] = {
     &chroot_builtin_fs,
-    &proc_builtin_fs,
-    &dev_builtin_fs,
-    &sys_builtin_fs,
     &tmp_builtin_fs,
     &pipe_builtin_fs,
     &fifo_builtin_fs,
     &socket_builtin_fs,
     &epoll_builtin_fs,
     &eventfd_builtin_fs,
+    &pseudo_builtin_fs,
 };
 
 static struct shim_lock mount_mgr_lock;
@@ -54,11 +53,28 @@ int init_fs(void) {
     if (!mount_mgr)
         return -ENOMEM;
 
+    int ret;
     if (!create_lock(&mount_mgr_lock) || !create_lock(&mount_list_lock)) {
-        destroy_mem_mgr(mount_mgr);
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto err;
     }
+
+    if ((ret = init_procfs()) < 0)
+        goto err;
+    if ((ret = init_devfs()) < 0)
+        goto err;
+    if ((ret = init_sysfs()) < 0)
+        goto err;
+
     return 0;
+
+err:
+    destroy_mem_mgr(mount_mgr);
+    if (lock_created(&mount_mgr_lock))
+        destroy_lock(&mount_mgr_lock);
+    if (lock_created(&mount_list_lock))
+        destroy_lock(&mount_list_lock);
+    return ret;
 }
 
 static struct shim_mount* alloc_mount(void) {
@@ -80,28 +96,28 @@ static int __mount_root(void) {
 
     ret = toml_string_in(g_manifest_root, "fs.root.type", &fs_root_type);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.root.type' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse 'fs.root.type' (the value must be put in double quotes!)");
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_string_in(g_manifest_root, "fs.root.uri", &fs_root_uri);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.root.uri' (the value must be put in double quotes!)\n");
+        log_error("Cannot parse 'fs.root.uri' (the value must be put in double quotes!)");
         ret = -EINVAL;
         goto out;
     }
 
     if (fs_root_type && fs_root_uri) {
-        log_debug("Mounting root as %s filesystem: from %s to /\n", fs_root_type, fs_root_uri);
+        log_debug("Mounting root as %s filesystem: from %s to /", fs_root_type, fs_root_uri);
         if ((ret = mount_fs(fs_root_type, fs_root_uri, "/")) < 0) {
-            log_error("Mounting root filesystem failed (%d)\n", ret);
+            log_error("Mounting root filesystem failed (%d)", ret);
             goto out;
         }
     } else {
-        log_debug("Mounting root as chroot filesystem: from file:. to /\n");
+        log_debug("Mounting root as chroot filesystem: from file:. to /");
         if ((ret = mount_fs("chroot", URI_PREFIX_FILE, "/")) < 0) {
-            log_error("Mounting root filesystem failed (%d)\n", ret);
+            log_error("Mounting root filesystem failed (%d)", ret);
             goto out;
         }
     }
@@ -116,28 +132,27 @@ out:
 static int __mount_sys(void) {
     int ret;
 
-    log_debug("Mounting special proc filesystem: /proc\n");
-    if ((ret = mount_fs("proc", NULL, "/proc")) < 0) {
-        log_error("Mounting /proc filesystem failed (%d)\n", ret);
+    log_debug("Mounting special proc filesystem: /proc");
+    if ((ret = mount_fs("pseudo", "proc", "/proc")) < 0) {
+        log_error("Mounting proc filesystem failed (%d)", ret);
         return ret;
     }
 
-    log_debug("Mounting special dev filesystem: /dev\n");
-    if ((ret = mount_fs("dev", NULL, "/dev")) < 0) {
-        log_error("Mounting dev filesystem failed (%d)\n", ret);
+    log_debug("Mounting special dev filesystem: /dev");
+    if ((ret = mount_fs("pseudo", "dev", "/dev")) < 0) {
+        log_error("Mounting dev filesystem failed (%d)", ret);
         return ret;
     }
 
-    log_debug("Mounting terminal device /dev/tty under /dev\n");
+    log_debug("Mounting terminal device /dev/tty under /dev");
     if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty")) < 0) {
-        log_error("Mounting terminal device /dev/tty failed (%d)\n", ret);
+        log_error("Mounting terminal device /dev/tty failed (%d)", ret);
         return ret;
     }
 
-    log_debug("Mounting special sys filesystem: /sys\n");
-
-    if ((ret = mount_fs("sys", NULL, "/sys")) < 0) {
-        log_error("Mounting sys filesystem failed (%d)\n", ret);
+    log_debug("Mounting special sys filesystem: /sys");
+    if ((ret = mount_fs("pseudo", "sys", "/sys")) < 0) {
+        log_error("Mounting sys filesystem failed (%d)", ret);
         return ret;
     }
 
@@ -152,19 +167,19 @@ static int __mount_one_other(toml_table_t* mount) {
 
     toml_raw_t mount_type_raw = toml_raw_in(mount, "type");
     if (!mount_type_raw) {
-        log_error("Cannot find 'fs.mount.%s.type'\n", key);
+        log_error("Cannot find 'fs.mount.%s.type'", key);
         return -EINVAL;
     }
 
     toml_raw_t mount_path_raw = toml_raw_in(mount, "path");
     if (!mount_path_raw) {
-        log_error("Cannot find 'fs.mount.%s.path'\n", key);
+        log_error("Cannot find 'fs.mount.%s.path'", key);
         return -EINVAL;
     }
 
     toml_raw_t mount_uri_raw = toml_raw_in(mount, "uri");
     if (!mount_uri_raw) {
-        log_error("Cannot find 'fs.mount.%s.uri'\n", key);
+        log_error("Cannot find 'fs.mount.%s.uri'", key);
         return -EINVAL;
     }
 
@@ -174,29 +189,26 @@ static int __mount_one_other(toml_table_t* mount) {
 
     ret = toml_rtos(mount_type_raw, &mount_type);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.mount.%s.type' (the value must be put in double quotes!)\n",
-                  key);
+        log_error("Cannot parse 'fs.mount.%s.type' (the value must be put in double quotes!)", key);
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_rtos(mount_path_raw, &mount_path);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.mount.%s.path' (the value must be put in double quotes!)\n",
-                  key);
+        log_error("Cannot parse 'fs.mount.%s.path' (the value must be put in double quotes!)", key);
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_rtos(mount_uri_raw, &mount_uri);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.mount.%s.uri' (the value must be put in double quotes!)\n",
-                  key);
+        log_error("Cannot parse 'fs.mount.%s.uri' (the value must be put in double quotes!)", key);
         ret = -EINVAL;
         goto out;
     }
 
-    log_debug("Mounting as %s filesystem: from %s to %s\n", mount_type, mount_uri, mount_path);
+    log_debug("Mounting as %s filesystem: from %s to %s", mount_type, mount_uri, mount_path);
 
     if (!strcmp(mount_path, "/")) {
         log_error(
@@ -208,13 +220,13 @@ static int __mount_one_other(toml_table_t* mount) {
     }
 
     if (!strcmp(mount_path, ".") || !strcmp(mount_path, "..")) {
-        log_error("Mount points '.' and '..' are not allowed, remove them from manifest.\n");
+        log_error("Mount points '.' and '..' are not allowed, remove them from manifest.");
         ret = -EINVAL;
         goto out;
     }
 
     if ((ret = mount_fs(mount_type, mount_uri, mount_path)) < 0) {
-        log_error("Mounting %s on %s (type=%s) failed (%d)\n", mount_uri, mount_path, mount_type,
+        log_error("Mounting %s on %s (type=%s) failed (%d)", mount_uri, mount_path, mount_type,
                   -ret);
         goto out;
     }
@@ -327,8 +339,7 @@ int init_mount(void) {
     char* fs_start_dir = NULL;
     ret = toml_string_in(g_manifest_root, "fs.start_dir", &fs_start_dir);
     if (ret < 0) {
-        log_error("Can't parse 'fs.start_dir' (note that the value must be put in double quotes)!"
-                  "\n");
+        log_error("Can't parse 'fs.start_dir' (note that the value must be put in double quotes)!");
         return ret;
     }
 
@@ -337,7 +348,7 @@ int init_mount(void) {
         ret = path_lookupat(/*start=*/NULL, fs_start_dir, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &dent);
         free(fs_start_dir);
         if (ret < 0) {
-            log_error("Invalid 'fs.start_dir' in manifest.\n");
+            log_error("Invalid 'fs.start_dir' in manifest.");
             return ret;
         }
         lock(&g_process.fs_lock);
@@ -422,7 +433,7 @@ static int mount_fs_at_dentry(const char* type, const char* uri, const char* mou
 
     struct shim_dentry* root;
     if ((ret = _path_lookupat(g_dentry_root, mount_path, LOOKUP_NO_FOLLOW, &root))) {
-        log_warning("error looking up mount root %s: %d\n", mount_path, ret);
+        log_warning("error looking up mount root %s: %d", mount_path, ret);
         goto err;
     }
     assert(root == mount->root);
@@ -454,7 +465,7 @@ err:
     if (fs->fs_ops->unmount) {
         int ret_unmount = fs->fs_ops->unmount(mount_data);
         if (ret_unmount < 0) {
-            log_warning("error unmounting %s: %d\n", mount_path, ret_unmount);
+            log_warning("error unmounting %s: %d", mount_path, ret_unmount);
         }
     }
 
@@ -469,7 +480,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_path) {
 
     int lookup_flags = LOOKUP_NO_FOLLOW | LOOKUP_MAKE_SYNTHETIC;
     if ((ret = _path_lookupat(g_dentry_root, mount_path, lookup_flags, &mount_point)) < 0) {
-        log_warning("error looking up mountpoint %s: %d\n", mount_path, ret);
+        log_warning("error looking up mountpoint %s: %d", mount_path, ret);
         goto out;
     }
 

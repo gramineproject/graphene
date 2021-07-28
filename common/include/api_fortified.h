@@ -13,9 +13,13 @@
  * - https://gcc.gnu.org/onlinedocs/gcc/Object-Size-Checking.html
  * - glibc sources: string_fortified.h, stdio2.h
  *
- * This file will conflict with regular glibc headers (e.g. stdio.h, string.h). You should not use
- * these headers in no-stdlib context, but if necessary, you can disable this file by defining
- * USE_STDLIB before including api.h:
+ * This file will conflict with regular libc headers (e.g. <stdio.h>, <string.h>). That should not
+ * be an issue because in no-stdlib context you should not use most libc headers, and in stdlib
+ * context you should not use "api.h".
+ *
+ * However, if for any reason you need to include both "api.h" and headers such as <stdio.h>
+ * alongside each other, you can disable this file (and prevent the conflict) by defining
+ * USE_STDLIB:
  *
  *     #include <stdio.h>
  *     #include <string.h>

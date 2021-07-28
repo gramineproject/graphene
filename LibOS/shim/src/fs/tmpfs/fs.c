@@ -256,7 +256,7 @@ static int tmpfs_mmap(struct shim_handle* hdl, void** addr, size_t size, int pro
     __UNUSED(flags);
     __UNUSED(offset);
 
-    log_error("tmpfs_mmap(): mmap() function for tmpfs mount type is not implemented.\n");
+    log_error("tmpfs_mmap(): mmap() function for tmpfs mount type is not implemented.");
     return -ENOSYS;
 }
 
@@ -327,13 +327,6 @@ static int tmpfs_mode(struct shim_dentry* dent, mode_t* mode) {
 }
 
 static int tmpfs_stat(struct shim_dentry* dent, struct stat* statbuf) {
-    if (!dent->parent) {
-        /* root of pseudo-FS */
-        int ret = pseudo_dir_stat(/*name=*/NULL, statbuf);
-        if (ret < 0)
-            return ret;
-        statbuf->st_mode = PERM_rwx______ | S_IFDIR;
-    }
     return query_dentry(dent, NULL, statbuf);
 }
 
@@ -404,10 +397,6 @@ static int tmpfs_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t
 
 static int tmpfs_hstat(struct shim_handle* hdl, struct stat* stat) {
     assert(hdl->dentry);
-    if (!hdl->dentry->parent) {
-        /* root of pseudo-FS */
-        return pseudo_dir_stat(/*name=*/NULL, stat);
-    }
     return query_dentry(hdl->dentry, NULL, stat);
 }
 

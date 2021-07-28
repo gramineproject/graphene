@@ -56,7 +56,7 @@ static int __attribute_noinline vfork_exec(int parent_stream, const char** argv)
     ret = INLINE_SYSCALL(execve, 3, g_pal_loader_path, argv, environ);
 
     /* shouldn't get to here */
-    log_error("unexpected failure of execve\n");
+    log_error("unexpected failure of execve");
     __asm__ volatile("hlt");
     return 0;
 }

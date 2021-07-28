@@ -1,0 +1,18 @@
+loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "device_passthrough"
+loader.env.LD_LIBRARY_PATH = "/lib"
+loader.argv0_override = "device_passthrough"
+
+fs.mount.graphene_lib.type = "chroot"
+fs.mount.graphene_lib.path = "/lib"
+fs.mount.graphene_lib.uri = "file:{{ graphene.runtimedir() }}"
+
+fs.mount.dev.type = "chroot"
+fs.mount.dev.path = "/dev/host-zero"
+fs.mount.dev.uri = "dev:/dev/zero"
+
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+
+sgx.trusted_files.entrypoint = "file:device_passthrough"
+
+sgx.nonpie_binary = true

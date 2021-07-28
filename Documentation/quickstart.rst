@@ -15,7 +15,7 @@ Quick start without SGX support
       sudo apt-get install -y build-essential autoconf gawk bison wget python3
       cd graphene
       make
-      meson build -Ddirect=enabled -Dsgx=disabled
+      meson build --buildtype=release -Ddirect=enabled -Dsgx=disabled
       ninja -C build
       sudo ninja -C build install
 
@@ -39,13 +39,8 @@ Graphene requires several features from your system:
 If your system doesn't meet these requirements, please refer to more detailed
 descriptions in :doc:`building`.
 
-#. Ensure that Intel SGX is enabled on your platform::
-
-      lsmod | grep sgx
-      ps ax | grep [a]esm_service
-
-The first command should list :command:`isgx` (or :command:`sgx`) and the
-second command should list the process status of :command:`aesm_service`.
+#. Ensure that Intel SGX is enabled on your platform using
+   :program:`is_sgx_available`.
 
 #. Clone the Graphene repository::
 
@@ -64,7 +59,7 @@ second command should list the process status of :command:`aesm_service`.
       python3 -m pip install toml>=0.10
       make
       make ISGX_DRIVER_PATH="" SGX=1                  # this assumes Linux 5.11+
-      meson build -Ddirect=enabled -Dsgx=enabled
+      meson build --buildtype=release -Ddirect=enabled -Dsgx=enabled
       ninja -C build
       sudo ninja -C build install
 

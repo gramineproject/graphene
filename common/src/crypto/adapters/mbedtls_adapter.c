@@ -211,7 +211,7 @@ int lib_AESCMAC(const uint8_t* key, size_t key_size, const uint8_t* input, size_
 
     const mbedtls_cipher_info_t* cipher_info = mbedtls_cipher_info_from_type(cipher);
 
-    if (mac_size < cipher_info->block_size) {
+    if (!cipher_info || mac_size < cipher_info->block_size) {
         return -PAL_ERROR_INVAL;
     }
 
@@ -254,7 +254,7 @@ int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT* context, uint8_t* mac, size_t mac_siz
     const mbedtls_cipher_info_t* cipher_info = mbedtls_cipher_info_from_type(context->cipher);
 
     int ret = -PAL_ERROR_INVAL;
-    if (mac_size < cipher_info->block_size)
+    if (!cipher_info || mac_size < cipher_info->block_size)
         goto exit;
 
     ret = mbedtls_cipher_cmac_finish(&context->ctx, mac);

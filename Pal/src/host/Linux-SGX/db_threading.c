@@ -81,7 +81,7 @@ __attribute__((__optimize__("-fno-stack-protector"))) void pal_start_thread(void
     uint64_t stack_protector_canary;
     int ret = _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
     if (ret < 0) {
-        log_error("_DkRandomBitsRead() failed (%d)\n", ret);
+        log_error("_DkRandomBitsRead() failed (%d)", ret);
         _DkProcessExit(1);
     }
     pal_set_tcb_stack_canary(stack_protector_canary);

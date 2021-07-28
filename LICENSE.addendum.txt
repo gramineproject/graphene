@@ -10,6 +10,7 @@ MIT JOS (mix of MIT and BSD licenses):
 * common/src/stdlib/printfmt.c
 
 cJSON - MIT
+tomlc99 - MIT
 uthash - BSD revised
 
 A number of files taken from other C libraries:

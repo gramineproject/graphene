@@ -385,13 +385,13 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
     assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
-    size_t uri_len = strlen(uri) + 1;
+    size_t uri_size = strlen(uri) + 1;
 
-    if (uri_len > PAL_SOCKADDR_SIZE)
+    if (uri_size > PAL_SOCKADDR_SIZE)
         return -PAL_ERROR_TOOLONG;
 
     char uri_buf[PAL_SOCKADDR_SIZE];
-    memcpy(uri_buf, uri, uri_len);
+    memcpy(uri_buf, uri, uri_size);
 
     if (!strcmp(type, URI_TYPE_TCP_SRV))
         return tcp_listen(handle, uri_buf, create, options);

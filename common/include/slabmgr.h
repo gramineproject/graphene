@@ -354,7 +354,7 @@ static inline size_t slab_get_buf_size(const void* ptr) {
     }
 
     if (level >= SLAB_LEVEL) {
-        log_always("Heap corruption detected: invalid heap level %u\n", level);
+        log_always("Heap corruption detected: invalid heap level %u", level);
         abort();
     }
 
@@ -378,6 +378,9 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
 
     if (level == (unsigned char)-1) {
         LARGE_MEM_OBJ mem = RAW_TO_OBJ(obj, LARGE_MEM_OBJ_TYPE);
+#ifdef DEBUG
+        memset(obj, 0xCC, mem->size);
+#endif
         system_free(mem, mem->size + sizeof(LARGE_MEM_OBJ_TYPE));
         return;
     }
@@ -390,7 +393,7 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
      * more likely to be detected by adding a non-zero offset to the level,
      * so a level of 0 in the header would no longer be a valid level. */
     if (level >= SLAB_LEVEL) {
-        log_always("Heap corruption detected: invalid heap level %d\n", level);
+        log_always("Heap corruption detected: invalid heap level %d", level);
         abort();
     }
 
@@ -401,6 +404,9 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
 #endif
 
     SLAB_OBJ mobj = RAW_TO_OBJ(obj, SLAB_OBJ_TYPE);
+#ifdef DEBUG
+    memset(obj, 0xCC, slab_levels[level]);
+#endif
 
     SYSTEM_LOCK();
     INIT_LIST_HEAD(mobj, __list);

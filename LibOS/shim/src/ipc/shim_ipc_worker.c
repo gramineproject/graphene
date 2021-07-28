@@ -45,16 +45,14 @@ static PAL_HANDLE g_self_ipc_handle = NULL;
 
 typedef int (*ipc_callback)(IDTYPE src, void* data, uint64_t seq);
 static ipc_callback ipc_callbacks[] = {
-    [IPC_MSG_RESP]          = ipc_response_callback,
-    [IPC_MSG_CONNBACK]      = ipc_connect_back_callback,
-    [IPC_MSG_CHILDEXIT]     = ipc_cld_exit_callback,
-    [IPC_MSG_LEASE]         = ipc_lease_callback,
-    [IPC_MSG_SUBLEASE]      = ipc_sublease_callback,
-    [IPC_MSG_QUERY]         = ipc_query_callback,
-    [IPC_MSG_QUERYALL]      = ipc_queryall_callback,
-    [IPC_MSG_PID_KILL]      = ipc_pid_kill_callback,
-    [IPC_MSG_PID_GETSTATUS] = ipc_pid_getstatus_callback,
-    [IPC_MSG_PID_GETMETA]   = ipc_pid_getmeta_callback,
+    [IPC_MSG_RESP]              = ipc_response_callback,
+    [IPC_MSG_CHILDEXIT]         = ipc_cld_exit_callback,
+    [IPC_MSG_ALLOC_ID_RANGE]    = ipc_alloc_id_range_callback,
+    [IPC_MSG_RELEASE_ID_RANGE]  = ipc_release_id_range_callback,
+    [IPC_MSG_CHANGE_ID_OWNER]   = ipc_change_id_owner_callback,
+    [IPC_MSG_GET_ID_OWNER]      = ipc_get_id_owner_callback,
+    [IPC_MSG_PID_KILL]          = ipc_pid_kill_callback,
+    [IPC_MSG_PID_GETMETA]       = ipc_pid_getmeta_callback,
 
     [IPC_MSG_SYNC_REQUEST_UPGRADE]   = ipc_sync_request_upgrade_callback,
     [IPC_MSG_SYNC_REQUEST_DOWNGRADE] = ipc_sync_request_downgrade_callback,
@@ -62,13 +60,17 @@ static ipc_callback ipc_callbacks[] = {
     [IPC_MSG_SYNC_CONFIRM_UPGRADE]   = ipc_sync_confirm_upgrade_callback,
     [IPC_MSG_SYNC_CONFIRM_DOWNGRADE] = ipc_sync_confirm_downgrade_callback,
     [IPC_MSG_SYNC_CONFIRM_CLOSE]     = ipc_sync_confirm_close_callback,
+
+    [IPC_MSG_POSIX_LOCK_SET]       = ipc_posix_lock_set_callback,
+    [IPC_MSG_POSIX_LOCK_GET]       = ipc_posix_lock_get_callback,
+    [IPC_MSG_POSIX_LOCK_CLEAR_PID] = ipc_posix_lock_clear_pid_callback,
 };
 
 static void ipc_leader_died_callback(void) {
     /* This might happen legitimately e.g. if IPC leader is also our parent and does `wait` + `exit`
      * If this is an erroneous disconnect it will be noticed when trying to communicate with
      * the leader. */
-    log_debug("IPC leader disconnected\n");
+    log_debug("IPC leader disconnected");
 }
 
 static void disconnect_callbacks(struct shim_ipc_connection* conn) {
@@ -141,7 +143,7 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                     continue;
                 }
                 ret = pal_to_unix_errno(ret);
-                log_error(LOG_PREFIX "receiving message header from %u failed: %d\n", conn->vmid,
+                log_error(LOG_PREFIX "receiving message header from %u failed: %d", conn->vmid,
                           ret);
                 return ret;
             }
@@ -150,7 +152,7 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                     /* EOF on the handle, but exactly on the message boundary. */
                     return 1;
                 }
-                log_error(LOG_PREFIX "receiving message from %u failed: remote closed early\n",
+                log_error(LOG_PREFIX "receiving message from %u failed: remote closed early",
                           conn->vmid);
                 return -ENODATA;
             }
@@ -183,13 +185,13 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                                  data_size - current_size);
             if (ret < 0) {
                 free(msg_data);
-                log_error(LOG_PREFIX "receiving message from %u failed: %d\n", conn->vmid, ret);
+                log_error(LOG_PREFIX "receiving message from %u failed: %d", conn->vmid, ret);
                 return ret;
             }
             size = 0;
         }
 
-        log_debug(LOG_PREFIX "received IPC message from %u: code=%d size=%lu seq=%lu\n", conn->vmid,
+        log_debug(LOG_PREFIX "received IPC message from %u: code=%d size=%lu seq=%lu", conn->vmid,
                   msg_code, msg_size, msg_seq);
 
         int ret = 0;
@@ -200,7 +202,7 @@ static int receive_ipc_messages(struct shim_ipc_connection* conn) {
                 DkProcessExit(1);
             }
         } else {
-            log_error(LOG_PREFIX "received unknown IPC msg type: %u\n", msg_code);
+            log_error(LOG_PREFIX "received unknown IPC msg type: %u", msg_code);
         }
 
         if (msg_code != IPC_MSG_RESP) {
@@ -236,7 +238,7 @@ static noreturn void ipc_worker_main(void) {
             events = malloc(items_cnt * sizeof(*events));
             ret_events = malloc(items_cnt * sizeof(*ret_events));
             if (!connections || !handles || !events || !ret_events) {
-                log_error(LOG_PREFIX "arrays allocation failed\n");
+                log_error(LOG_PREFIX "arrays allocation failed");
                 goto out_die;
             }
 
@@ -270,17 +272,17 @@ static noreturn void ipc_worker_main(void) {
                 continue;
             }
             ret = pal_to_unix_errno(ret);
-            log_error(LOG_PREFIX "DkStreamsWaitEvents failed: %d\n", ret);
+            log_error(LOG_PREFIX "DkStreamsWaitEvents failed: %d", ret);
             goto out_die;
         }
 
         if (ret_events[0]) {
             /* `exit_notification_event`. */
             if (ret_events[0] & ~PAL_WAIT_READ) {
-                log_error(LOG_PREFIX "unexpected event (%d) on exit handle\n", ret_events[0]);
+                log_error(LOG_PREFIX "unexpected event (%d) on exit handle", ret_events[0]);
                 goto out_die;
             }
-            log_debug(LOG_PREFIX "exiting worker thread\n");
+            log_debug(LOG_PREFIX "exiting worker thread");
 
             free(connections);
             free(handles);
@@ -300,25 +302,25 @@ static noreturn void ipc_worker_main(void) {
         if (ret_events[1]) {
             /* New connection incoming. */
             if (ret_events[1] & ~PAL_WAIT_READ) {
-                log_error(LOG_PREFIX "unexpected event (%d) on listening handle\n", ret_events[1]);
+                log_error(LOG_PREFIX "unexpected event (%d) on listening handle", ret_events[1]);
                 goto out_die;
             }
             PAL_HANDLE new_handle = NULL;
             ret = DkStreamWaitForClient(g_self_ipc_handle, &new_handle);
             if (ret < 0) {
                 ret = pal_to_unix_errno(ret);
-                log_error(LOG_PREFIX "DkStreamWaitForClient failed: %d\n", ret);
+                log_error(LOG_PREFIX "DkStreamWaitForClient failed: %d", ret);
                 goto out_die;
             }
             IDTYPE new_id = 0;
             ret = read_exact(new_handle, &new_id, sizeof(new_id));
             if (ret < 0) {
-                log_error(LOG_PREFIX "receiving id failed: %d\n", ret);
+                log_error(LOG_PREFIX "receiving id failed: %d", ret);
                 DkObjectClose(new_handle);
             } else {
                 ret = add_ipc_connection(new_handle, new_id);
                 if (ret < 0) {
-                    log_error(LOG_PREFIX "add_ipc_connection failed: %d\n", ret);
+                    log_error(LOG_PREFIX "add_ipc_connection failed: %d", ret);
                     goto out_die;
                 }
             }
@@ -335,7 +337,7 @@ static noreturn void ipc_worker_main(void) {
                     continue;
                 }
                 if (ret < 0) {
-                    log_error(LOG_PREFIX "failed to receive an IPC message from %u: %d\n",
+                    log_error(LOG_PREFIX "failed to receive an IPC message from %u: %d",
                               conn->vmid, ret);
                     /* Let the code below handle this error. */
                     ret_events[i] = PAL_WAIT_ERROR;
@@ -363,7 +365,7 @@ static void ipc_worker_wrapper(void* arg) {
 
     log_setprefix(shim_get_tcb());
 
-    log_debug("IPC worker started\n");
+    log_debug("IPC worker started");
     ipc_worker_main();
     /* Unreachable. */
 }

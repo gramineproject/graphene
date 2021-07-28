@@ -43,14 +43,14 @@ static pf_status_t cb_read(pf_handle_t handle, void* buffer, uint64_t offset, si
             continue;
 
         if (read < 0) {
-            log_error("cb_read(%d, %p, %lu, %lu): read failed: %ld\n", fd, buffer, offset,
-                      size, read);
+            log_warning("cb_read(%d, %p, %lu, %lu): read failed: %ld", fd, buffer, offset,
+                        size, read);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         /* EOF is an error condition, we want to read exactly `size` bytes */
         if (read == 0) {
-            log_error("cb_read(%d, %p, %lu, %lu): EOF\n", fd, buffer, offset, size);
+            log_warning("cb_read(%d, %p, %lu, %lu): EOF", fd, buffer, offset, size);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -71,14 +71,14 @@ static pf_status_t cb_write(pf_handle_t handle, const void* buffer, uint64_t off
             continue;
 
         if (written < 0) {
-            log_error("cb_write(%d, %p, %lu, %lu): write failed: %ld\n", fd, buffer, offset,
-                      size, written);
+            log_warning("cb_write(%d, %p, %lu, %lu): write failed: %ld", fd, buffer, offset,
+                        size, written);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         /* EOF is an error condition, we want to write exactly `size` bytes */
         if (written == 0) {
-            log_error("cb_write(%d, %p, %lu, %lu): EOF\n", fd, buffer, offset, size);
+            log_warning("cb_write(%d, %p, %lu, %lu): EOF", fd, buffer, offset, size);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -92,7 +92,7 @@ static pf_status_t cb_truncate(pf_handle_t handle, uint64_t size) {
     int fd = *(int*)handle;
     int ret = ocall_ftruncate(fd, size);
     if (ret < 0) {
-        log_error("cb_truncate(%d, %lu): ocall failed: %d\n", fd, size, ret);
+        log_warning("cb_truncate(%d, %lu): ocall failed: %d", fd, size, ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -109,7 +109,7 @@ static pf_status_t cb_aes_cmac(const pf_key_t* key, const void* input, size_t in
     int ret = lib_AESCMAC((const uint8_t*)key, sizeof(*key), input, input_size, (uint8_t*)mac,
                           sizeof(*mac));
     if (ret != 0) {
-        log_error("lib_AESCMAC failed: %d\n", ret);
+        log_warning("lib_AESCMAC failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -121,7 +121,7 @@ static pf_status_t cb_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv, co
     int ret = lib_AESGCMEncrypt((const uint8_t*)key, sizeof(*key), (const uint8_t*)iv, input,
                                 input_size, aad, aad_size, output, (uint8_t*)mac, sizeof(*mac));
     if (ret != 0) {
-        log_error("lib_AESGCMEncrypt failed: %d\n", ret);
+        log_warning("lib_AESGCMEncrypt failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -134,7 +134,7 @@ static pf_status_t cb_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv, co
                                 input_size, aad, aad_size, output, (const uint8_t*)mac,
                                 sizeof(*mac));
     if (ret != 0) {
-        log_error("lib_AESGCMDecrypt failed: %d\n", ret);
+        log_warning("lib_AESGCMDecrypt failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -143,7 +143,7 @@ static pf_status_t cb_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv, co
 static pf_status_t cb_random(uint8_t* buffer, size_t size) {
     int ret = _DkRandomBitsRead(buffer, size);
     if (ret < 0) {
-        log_error("_DkRandomBitsRead failed: %d\n", ret);
+        log_warning("_DkRandomBitsRead failed: %d", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -234,7 +234,7 @@ struct protected_file* get_protected_file(const char* path) {
     pf = find_protected_dir(path);
     if (pf) {
         /* path not registered but matches registered dir */
-        log_debug("get_pf: registering new PF '%s' in dir '%s'\n", path, pf->path);
+        log_debug("get_pf: registering new PF '%s' in dir '%s'", path, pf->path);
         int ret = register_protected_path(path, &pf);
         __UNUSED(ret);
         assert(ret == 0);
@@ -262,7 +262,7 @@ static int is_directory(const char* path, bool* is_dir) {
     fd = ret;
     ret = ocall_fstat(fd, &st);
     if (ret < 0) {
-        log_error("is_directory(%s): fstat failed: %d\n", path, ret);
+        log_warning("is_directory(%s): fstat failed: %d", path, ret);
         goto out;
     }
 
@@ -273,7 +273,7 @@ out:
     if (fd >= 0) {
         int rv = ocall_close(fd);
         if (rv < 0) {
-            log_error("is_directory(%s): close failed: %d\n", path, rv);
+            log_warning("is_directory(%s): close failed: %d", path, rv);
         }
     }
 
@@ -292,7 +292,7 @@ static int register_protected_dir(const char* path) {
 
     ret = ocall_open(path, O_RDONLY | O_DIRECTORY, 0);
     if (ret < 0) {
-        log_error("register_protected_dir: opening %s failed: %d\n", path, ret);
+        log_warning("register_protected_dir: opening %s failed: %d", path, ret);
         ret = unix_to_pal_error(ret);
         goto out;
     }
@@ -304,7 +304,7 @@ static int register_protected_dir(const char* path) {
         returned = ocall_getdents(fd, buf, bufsize);
         if (returned < 0) {
             ret = unix_to_pal_error(returned);
-            log_error("register_protected_dir: reading %s failed: %d\n", path, ret);
+            log_warning("register_protected_dir: reading %s failed: %d", path, ret);
             goto out;
         }
 
@@ -356,7 +356,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     size_t len = URI_MAX;
     ret = get_norm_path(path, normpath, &len);
     if (ret < 0) {
-        log_error("Couldn't normalize path (%s): %s\n", path, pal_strerror(ret));
+        log_warning("Couldn't normalize path (%s): %s", path, pal_strerror(ret));
         goto out;
     }
 
@@ -368,7 +368,7 @@ static int register_protected_path(const char* path, struct protected_file** new
 
     if (find_protected_file(path)) {
         ret = 0;
-        log_debug("register_protected_path: file %s already registered\n", path);
+        log_debug("register_protected_path: file %s already registered", path);
         goto out;
     }
 
@@ -396,7 +396,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     if (ret < 0)
         goto out;
 
-    log_debug("register_protected_path: [%s] %s = %p\n", is_dir ? "dir" : "file", path, new);
+    log_debug("register_protected_path: [%s] %s = %p", is_dir ? "dir" : "file", path, new);
 
     if (is_dir)
         register_protected_dir(path);
@@ -451,7 +451,7 @@ static int register_protected_files(void) {
         char* toml_pf_value = NULL;
         ret = toml_rtos(toml_pf_value_raw, &toml_pf_value);
         if (ret < 0) {
-            log_error("Invalid PF entry in manifest: \'%s\'\n", toml_pf_key);
+            log_error("Invalid PF entry in manifest: \'%s\'", toml_pf_key);
             continue;
         }
 
@@ -465,7 +465,7 @@ static int register_protected_files(void) {
     }
 
     pf_lock();
-    log_debug("Registered %u protected directories and %u protected files\n",
+    log_debug("Registered %u protected directories and %u protected files",
               HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
     pf_unlock();
     return 0;
@@ -497,8 +497,8 @@ int init_protected_files(void) {
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.protected_files_key",
                          &protected_files_key_str);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.protected_files_key' "
-                  "(the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sgx.protected_files_key\' "
+                  "(the value must be put in double quotes!)");
         return -PAL_ERROR_INVAL;
     }
 
@@ -528,7 +528,7 @@ int init_protected_files(void) {
     } else {
         /* this must be a 16-byte hex string (hard-coded 128-bit key) */
         if (strlen(protected_files_key_str) != PF_KEY_SIZE * 2) {
-            log_error("Malformed 'sgx.protected_files_key' value in the manifest\n");
+            log_error("Malformed \'sgx.protected_files_key\' value in the manifest");
             free(protected_files_key_str);
             return -PAL_ERROR_INVAL;
         }
@@ -537,12 +537,19 @@ int init_protected_files(void) {
         for (size_t i = 0; i < strlen(protected_files_key_str); i++) {
             int8_t val = hex2dec(protected_files_key_str[i]);
             if (val < 0) {
-                log_error("Malformed 'sgx.protected_files_key' value in the manifest\n");
+                log_error("Malformed \'sgx.protected_files_key\' value in the manifest");
                 free(protected_files_key_str);
                 return -PAL_ERROR_INVAL;
             }
             g_pf_wrap_key[i / 2] = g_pf_wrap_key[i / 2] * 16 + (uint8_t)val;
         }
+
+        free(protected_files_key_str);
+        g_pf_wrap_key_set = true;
+    }
+
+    if (register_protected_files() < 0) {
+        log_error("Malformed protected files found in manifest");
     }
 
     free(protected_files_key_str);
@@ -554,14 +561,14 @@ int init_protected_files(void) {
 static int open_protected_file(const char* path, struct protected_file* pf, pf_handle_t handle,
                                uint64_t size, pf_file_mode_t mode, bool create) {
     if (!g_pf_wrap_key_set) {
-        log_error("pf_open(%d, %s) failed: wrap key was not provided\n", *(int*)handle, path);
+        log_error("pf_open(%d, %s) failed: wrap key was not provided", *(int*)handle, path);
         return -PAL_ERROR_DENIED;
     }
 
     pf_status_t pfs;
     pfs = pf_open(handle, path, size, mode, create, &g_pf_wrap_key, &pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("pf_open(%d, %s) failed: %s\n", *(int*)handle, path, pf_strerror(pfs));
+        log_warning("pf_open(%d, %s) failed: %s", *(int*)handle, path, pf_strerror(pfs));
         return -PAL_ERROR_DENIED;
     }
     return 0;
@@ -573,7 +580,7 @@ static int open_protected_file(const char* path, struct protected_file* pf, pf_h
 struct protected_file* load_protected_file(const char* path, int* fd, uint64_t size,
                                            pf_file_mode_t mode, bool create,
                                            struct protected_file* pf) {
-    log_debug("load_protected_file: %s, fd %d, size %lu, mode %d, create %d, pf %p\n", path,
+    log_debug("load_protected_file: %s, fd %d, size %lu, mode %d, create %d, pf %p", path,
               *fd, size, mode, create, pf);
 
     if (!pf)
@@ -581,12 +588,12 @@ struct protected_file* load_protected_file(const char* path, int* fd, uint64_t s
 
     if (pf) {
         if (!pf->context) {
-            log_debug("load_protected_file: %s, fd %d: opening new PF %p\n", path, *fd, pf);
+            log_debug("load_protected_file: %s, fd %d: opening new PF %p", path, *fd, pf);
             int ret = open_protected_file(path, pf, (pf_handle_t)fd, size, mode, create);
             if (ret < 0)
                 return NULL;
         } else {
-            log_debug("load_protected_file: %s, fd %d: returning old PF %p\n", path, *fd, pf);
+            log_debug("load_protected_file: %s, fd %d: returning old PF %p", path, *fd, pf);
         }
     }
 
@@ -625,7 +632,7 @@ int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
         if (map_size > 0) {
             pfs = pf_write(map_pf->context, map->offset, map_size, map->buffer);
             if (PF_FAILURE(pfs)) {
-                log_error("flush_pf_maps: pf_write failed: %s\n", pf_strerror(pfs));
+                log_error("flush_pf_maps: pf_write failed: %s", pf_strerror(pfs));
                 pf_unlock();
                 return -PAL_ERROR_INVAL;
             }
@@ -649,7 +656,7 @@ int unload_protected_file(struct protected_file* pf) {
         return ret;
     pf_status_t pfs = pf_close(pf->context);
     if (PF_FAILURE(pfs)) {
-        log_error("unload_protected_file(%p) failed: %s\n", pf, pf_strerror(pfs));
+        log_warning("unload_protected_file(%p) failed: %s", pf, pf_strerror(pfs));
     }
 
     pf->context = NULL;

@@ -9,6 +9,7 @@
 #include "pal_error.h"
 #include "shim_checkpoint.h"
 #include "shim_fs.h"
+#include "shim_fs_lock.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
@@ -102,12 +103,12 @@ static int init_exec_handle(void) {
     assert(g_manifest_root);
     ret = toml_string_in(g_manifest_root, "libos.entrypoint", &entrypoint);
     if (ret < 0) {
-        log_error("Cannot parse 'libos.entrypoint'\n");
+        log_error("Cannot parse 'libos.entrypoint'");
         ret = -EINVAL;
         goto out;
     }
     if (!entrypoint) {
-        log_error("'libos.entrypoint' must be specified in the manifest\n");
+        log_error("'libos.entrypoint' must be specified in the manifest");
         ret = -EINVAL;
         goto out;
     }
@@ -117,7 +118,7 @@ static int init_exec_handle(void) {
     if (strstartswith(exec_path, URI_PREFIX_FILE)) {
         /* TODO: change to error after some deprecation period */
         log_error("'libos.entrypoint' is now a Graphene path, not URI. "
-                  "Ignoring the 'file:' prefix.\n");
+                  "Ignoring the 'file:' prefix.");
         exec_path += strlen(URI_PREFIX_FILE);
     }
 
@@ -129,7 +130,7 @@ static int init_exec_handle(void) {
 
     ret = open_executable(hdl, exec_path);
     if (ret < 0) {
-        log_error("init_exec_handle: error opening executable: %d\n", ret);
+        log_error("init_exec_handle: error opening executable: %d", ret);
         goto out;
     }
 
@@ -313,6 +314,22 @@ struct shim_handle* detach_fd_handle(FDTYPE fd, int* flags, struct shim_handle_m
         handle = __detach_fd_handle(handle_map->map[fd], flags, handle_map);
 
     unlock(&handle_map->lock);
+
+    if (handle && handle->dentry) {
+        /* Clear POSIX locks for a file. We are required to do that every time a FD is closed, even
+         * if the process holds other handles for that file, or duplicated FDs for the same
+         * handle. */
+        struct posix_lock pl = {
+            .type = F_UNLCK,
+            .start = 0,
+            .end = FS_LOCK_EOF,
+            .pid = g_process.pid,
+        };
+        int ret = posix_lock_set(handle->dentry, &pl, /*block=*/false);
+        if (ret < 0)
+            log_warning("error releasing locks: %d", ret);
+    }
+
     return handle;
 }
 
@@ -442,7 +459,7 @@ void get_handle(struct shim_handle* hdl) {
 #ifdef DEBUG_REF
     int ref_count = REF_INC(hdl->ref_count);
 
-    log_debug("get handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
+    log_debug("get handle %p(%s) (ref_count = %d)", hdl, __handle_name(hdl), ref_count);
 #else
     REF_INC(hdl->ref_count);
 #endif
@@ -458,7 +475,7 @@ void put_handle(struct shim_handle* hdl) {
     int ref_count = REF_DEC(hdl->ref_count);
 
 #ifdef DEBUG_REF
-    log_debug("put handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl), ref_count);
+    log_debug("put handle %p(%s) (ref_count = %d)", hdl, __handle_name(hdl), ref_count);
 #endif
 
     if (!ref_count) {
@@ -483,7 +500,7 @@ void put_handle(struct shim_handle* hdl) {
 
         if (hdl->pal_handle) {
 #ifdef DEBUG_REF
-            log_debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
+            log_debug("handle %p closes PAL handle %p", hdl, hdl->pal_handle);
 #endif
             DkObjectClose(hdl->pal_handle); // TODO: handle errors
             hdl->pal_handle = NULL;
@@ -775,15 +792,7 @@ BEGIN_RS_FUNC(handle) {
         case TYPE_FILE:
             CP_REBASE(hdl->info.file.sync);
             break;
-        case TYPE_DEV:
-            /* for device handles, info.dev.dev_ops contains function pointers into LibOS; they may
-             * have become invalid due to relocation of LibOS text section in the child, update them
-             */
-            if (dev_update_dev_ops(hdl) < 0) {
-                return -EINVAL;
-            }
-            break;
-        case TYPE_EPOLL: ;
+        case TYPE_EPOLL: {
             int ret = create_event(&hdl->info.epoll.event);
             if (ret < 0) {
                 return ret;
@@ -797,6 +806,7 @@ BEGIN_RS_FUNC(handle) {
             }
             assert(hdl->info.epoll.fds_count == count);
             break;
+        }
         default:
             break;
     }

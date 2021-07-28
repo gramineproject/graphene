@@ -81,11 +81,11 @@ extern struct shim_lock __master_lock;
 #define MASTER_LOCK()                                          \
     do {                                                       \
         lock(&__master_lock);                                  \
-        log_debug("master lock " __FILE__ ":%d\n", __LINE__);  \
+        log_debug("master lock " __FILE__ ":%d", __LINE__);    \
     } while (0)
 #define MASTER_UNLOCK()                                          \
     do {                                                         \
-        log_debug("master unlock " __FILE__ ":%d\n", __LINE__);  \
+        log_debug("master unlock " __FILE__ ":%d", __LINE__);    \
         unlock(&__master_lock);                                  \
     } while (0)
 #else

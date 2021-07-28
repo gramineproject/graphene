@@ -16,7 +16,7 @@ To build Graphene with debug symbols, the source code needs to be compiled with
 
     make clean
     make DEBUG=1
-    meson build -Ddirect=enabled
+    meson build --buildtype=debug -Ddirect=enabled
     ninja -C build
     sudo ninja -C build install
 
@@ -41,7 +41,7 @@ To build Graphene with debug symbols, the source code needs to be compiled with
 
     make SGX=1 clean
     make SGX=1 DEBUG=1
-    meson build -Dsgx=enabled
+    meson build --buildtype=debug -Dsgx=enabled
     ninja -C build
     sudo ninja -C build install
 

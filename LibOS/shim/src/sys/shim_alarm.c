@@ -23,7 +23,7 @@ static void signal_alarm(IDTYPE caller, void* arg) {
         .si_code = SI_USER,
     };
     if (kill_current_proc(&info) < 0) {
-        log_warning("signal_alarm: failed to deliver a signal\n");
+        log_warning("signal_alarm: failed to deliver a signal");
     }
 }
 

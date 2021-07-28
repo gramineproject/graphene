@@ -48,7 +48,7 @@ int init_process(int argc, const char** argv) {
     struct shim_dentry* dent = NULL;
     int ret = path_lookupat(/*start=*/NULL, "/", LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &dent);
     if (ret < 0) {
-        log_error("Could not set up dentry for \"/\", something is seriously broken.\n");
+        log_error("Could not set up dentry for \"/\", something is seriously broken.");
         return ret;
     }
     g_process.root = dent;
@@ -95,9 +95,6 @@ struct shim_child_process* create_child_process(void) {
 void destroy_child_process(struct shim_child_process* child) {
     assert(LIST_EMPTY(child, list));
 
-    /* This only removes the pid from internal IPC tracking in this process.  */
-    release_ipc_id(child->pid);
-
     free(child);
 }
 
@@ -135,7 +132,7 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE c
             child->term_signal = signal;
             child->uid = child_uid;
 
-            LISTP_DEL_INIT(child, &g_process.children, list);
+            LISTP_DEL(child, &g_process.children, list);
             /* TODO: if SIGCHLD is ignored or has SA_NOCLDWAIT flag set, then the child should not
              * become a zombie. */
             LISTP_ADD(child, &g_process.zombies, list);
@@ -165,7 +162,7 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE c
         fill_siginfo_code_and_status(&info, signal, exit_code);
         int x = kill_current_proc(&info);
         if (x < 0) {
-            log_error("Sending child death signal failed: %d!\n", x);
+            log_error("Sending child death signal failed: %d!", x);
         }
     }
 

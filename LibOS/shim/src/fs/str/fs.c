@@ -98,7 +98,7 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count) {
     struct shim_str_data* data = strhdl->data;
 
     if (!data->str) {
-        log_warning("str_read: str_data has no str\n");
+        log_warning("str_read: str_data has no str");
         ret = 0;
         goto out;
     }
@@ -139,7 +139,7 @@ static ssize_t str_maybe_expand_buf(struct shim_str_handle* strhdl, size_t size)
         size_t new_size = 0;
 
         if (data->str) {
-            new_size = data->buf_size * 2;
+            new_size = data->buf_size ?: 1;
 
             while (size > new_size) {
                 new_size *= 2;
@@ -258,6 +258,30 @@ int str_truncate(struct shim_handle* hdl, off_t len) {
     return ret;
 }
 
+off_t str_poll(struct shim_handle* hdl, int poll_type) {
+    assert(hdl->type == TYPE_STR);
+
+    struct shim_str_handle* strhdl = &hdl->info.str;
+    struct shim_str_data* data = strhdl->data;
+    assert(data);
+
+    if (poll_type == FS_POLL_SZ)
+        return data->len;
+
+    off_t ret = 0;
+    if (poll_type & FS_POLL_RD) {
+        if (data->len > 0) {
+            assert(data->str);
+            if (!strhdl->ptr || strhdl->ptr < (data->str + data->len))
+                ret |= FS_POLL_RD;
+        }
+    }
+    if (poll_type & FS_POLL_WR)
+        ret |= FS_POLL_WR;
+
+    return ret;
+}
+
 struct shim_fs_ops str_fs_ops = {
     .close    = &str_close,
     .read     = &str_read,
@@ -265,6 +289,7 @@ struct shim_fs_ops str_fs_ops = {
     .seek     = &str_seek,
     .flush    = &str_flush,
     .truncate = &str_truncate,
+    .poll     = &str_poll,
 };
 
 struct shim_d_ops str_d_ops = {

@@ -22,10 +22,6 @@ fs.mount.bin.type = "chroot"
 fs.mount.bin.path = "/bin"
 fs.mount.bin.uri = "file:/bin"
 
-fs.mount.devkmsg.type = "chroot"
-fs.mount.devkmsg.path = "/dev/kmsg"
-fs.mount.devkmsg.uri = "dev:/dev/kmsg"
-
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.libgcc_s = "file:{{ arch_libdir }}/libgcc_s.so.1"
 sgx.trusted_files.libstdcxx = "file:/usr{{ arch_libdir }}/libstdc++.so.6"

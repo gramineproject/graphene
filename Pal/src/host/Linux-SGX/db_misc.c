@@ -273,7 +273,7 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
                 if (extension_enabled(xfrm, subleaf)) {
                     if (values[EAX] != extension_sizes_bytes[subleaf] ||
                             values[EBX] != extension_offset_bytes[subleaf]) {
-                        log_error("Unexpected value in host CPUID. Exiting...\n");
+                        log_error("Unexpected value in host CPUID. Exiting...");
                         _DkProcessExit(1);
                     }
                 } else {
@@ -302,6 +302,7 @@ struct cpuid_leaf {
  *       different sockets in a multisocket system and thus should not be declared with
  *       `.cache = true` below, but we don't know of any such systems and currently ignore this */
 static const struct cpuid_leaf cpuid_known_leaves[] = {
+    /* basic CPUID leaf functions start here */
     {.leaf = 0x00, .zero_subleaf = true,  .cache = true},  /* Highest Func Param and Manufacturer */
     {.leaf = 0x01, .zero_subleaf = true,  .cache = false}, /* Processor Info and Feature Bits */
     {.leaf = 0x02, .zero_subleaf = true,  .cache = true},  /* Cache and TLB Descriptor */
@@ -310,13 +311,18 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     {.leaf = 0x05, .zero_subleaf = true,  .cache = true},  /* MONITOR/MWAIT */
     {.leaf = 0x06, .zero_subleaf = true,  .cache = true},  /* Thermal and Power Management */
     {.leaf = 0x07, .zero_subleaf = false, .cache = true},  /* Structured Extended Feature Flags */
+    /* NOTE: 0x08 leaf is reserved, see code below */
     {.leaf = 0x09, .zero_subleaf = true,  .cache = true},  /* Direct Cache Access Information */
     {.leaf = 0x0A, .zero_subleaf = true,  .cache = true},  /* Architectural Performance Monitoring */
     {.leaf = 0x0B, .zero_subleaf = false, .cache = false}, /* Extended Topology Enumeration */
+    /* NOTE: 0x0C leaf is reserved, see code below */
     {.leaf = 0x0D, .zero_subleaf = false, .cache = true},  /* Processor Extended State Enumeration */
+    /* NOTE: 0x0E leaf is reserved, see code below */
     {.leaf = 0x0F, .zero_subleaf = false, .cache = true},  /* Intel RDT Monitoring */
     {.leaf = 0x10, .zero_subleaf = false, .cache = true},  /* RDT/L2/L3 Cache Allocation Tech */
+    /* NOTE: 0x11 leaf is reserved, see code below */
     {.leaf = 0x12, .zero_subleaf = false, .cache = true},  /* Intel SGX Capability */
+    /* NOTE: 0x13 leaf is reserved, see code below */
     {.leaf = 0x14, .zero_subleaf = false, .cache = true},  /* Intel Processor Trace Enumeration */
     {.leaf = 0x15, .zero_subleaf = true,  .cache = true},  /* Time Stamp Counter/Core Clock */
     {.leaf = 0x16, .zero_subleaf = true,  .cache = true},  /* Processor Frequency Information */
@@ -324,8 +330,18 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     {.leaf = 0x18, .zero_subleaf = false, .cache = true},  /* Deterministic Address Translation */
     {.leaf = 0x19, .zero_subleaf = true,  .cache = true},  /* Key Locker */
     {.leaf = 0x1A, .zero_subleaf = true,  .cache = false}, /* Hybrid Information Enumeration */
+    /* NOTE: 0x1B leaf is not recognized, see code below */
+    /* NOTE: 0x1C leaf is not recognized, see code below */
+    /* NOTE: 0x1D leaf is not recognized, see code below */
+    /* NOTE: 0x1E leaf is not recognized, see code below */
     {.leaf = 0x1F, .zero_subleaf = false, .cache = false}, /* Intel V2 Ext Topology Enumeration */
+    /* basic CPUID leaf functions end here */
 
+    /* invalid CPUID leaf functions (no existing or future CPU will return any meaningful
+     * information in these leaves) occupy 40000000 - 4FFFFFFFH -- they are treated the same as
+     * unrecognized leaves, see code below */
+
+    /* extended CPUID leaf functions start here */
     {.leaf = 0x80000000, .zero_subleaf = true, .cache = true}, /* Get Highest Extended Function */
     {.leaf = 0x80000001, .zero_subleaf = true, .cache = true}, /* Extended Processor Info */
     {.leaf = 0x80000002, .zero_subleaf = true, .cache = true}, /* Processor Brand String 1 */
@@ -335,14 +351,17 @@ static const struct cpuid_leaf cpuid_known_leaves[] = {
     {.leaf = 0x80000006, .zero_subleaf = true, .cache = true}, /* Extended L2 Cache Features */
     {.leaf = 0x80000007, .zero_subleaf = true, .cache = true}, /* Advanced Power Management */
     {.leaf = 0x80000008, .zero_subleaf = true, .cache = true}, /* Virtual/Physical Address Sizes */
+    /* extended CPUID leaf functions end here */
 };
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    /* leaves 0x40000000 to 0x4FFFFFFF are used by virtualization software (KVM, Hyper-V, etc.),
-     * they return all zeros on bare metal; runtimes like JVM query these leaves to learn about
-     * the underlying virtualization software */
-    if (leaf >= 0x40000000 && leaf <= 0x4FFFFFFF) {
-        /* let Graphene report that there is no virtualization software */
+    /* A few basic leaves are considered reserved and always return zeros; see corresponding EAX
+     * cases in the "Operation" section of CPUID description in Intel SDM, Vol. 2A, Chapter 3.2.
+     *
+     * NOTE: Leaves 0x11 and 0x13 are not marked as reserved in Intel SDM but the actual CPUs return
+     *       all-zeros on them (as if these leaves are reserved). It is unclear why this discrepancy
+     *       exists, but we decided to emulate how actual CPUs behave. */
+    if (leaf == 0x08 || leaf == 0x0C || leaf == 0x0E || leaf == 0x11 || leaf == 0x13) {
         values[0] = 0;
         values[1] = 0;
         values[2] = 0;
@@ -351,15 +370,26 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     }
 
     const struct cpuid_leaf* known_leaf = NULL;
-    for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
         if (leaf == cpuid_known_leaves[i].leaf) {
             known_leaf = &cpuid_known_leaves[i];
             break;
         }
     }
 
-    if (!known_leaf)
-        goto fail;
+    if (!known_leaf) {
+        /* leaf is not recognized (EAX value is outside of recongized range for CPUID), return info
+         * for highest basic information leaf (see cpuid_known_leaves table; currently 0x1F); see
+         * the DEFAULT case in the "Operation" section of CPUID description in Intel SDM, Vol. 2A,
+         * Chapter 3.2 */
+        leaf = 0x1F;
+        for (size_t i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
+            if (leaf == cpuid_known_leaves[i].leaf) {
+                known_leaf = &cpuid_known_leaves[i];
+                break;
+            }
+        }
+    }
 
     if ((leaf == 0x07 && subleaf != 0 && subleaf != 1) ||
         (leaf == 0x0F && subleaf != 0 && subleaf != 1) ||
@@ -385,8 +415,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     return 0;
 fail:
-    log_error("Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...\n", leaf,
-              subleaf);
+    log_error("Unrecognized leaf/subleaf in CPUID (EAX=0x%x, ECX=0x%x). Exiting...", leaf, subleaf);
     _DkProcessExit(1);
 }
 
@@ -461,8 +490,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     char* ra_client_spid_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.ra_client_spid", &ra_client_spid_str);
     if (ret < 0) {
-        log_error("Cannot parse \'sgx.ra_client_spid\' "
-                  "(the value must be put in double quotes!)\n");
+        log_error("Cannot parse \'sgx.ra_client_spid\' (the value must be put in double quotes!)");
         return -PAL_ERROR_INVAL;
     }
 
@@ -476,7 +504,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         is_epid = true;
 
         if (strlen(ra_client_spid_str) != sizeof(sgx_spid_t) * 2) {
-            log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
+            log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s",
                       ra_client_spid_str);
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
@@ -485,7 +513,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         for (size_t i = 0; i < strlen(ra_client_spid_str); i++) {
             int8_t val = hex2dec(ra_client_spid_str[i]);
             if (val < 0) {
-                log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s\n",
+                log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s",
                           ra_client_spid_str);
                 free(ra_client_spid_str);
                 return -PAL_ERROR_INVAL;
@@ -498,7 +526,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
                            /*defaultval=*/false, &linkable);
         if (ret < 0) {
             log_error("Cannot parse \'sgx.ra_client_linkable\' (the value must be `true` or "
-                      "`false`)\n");
+                      "`false`)");
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
         }
@@ -707,7 +735,8 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
                       (BIT_EXTRACT_LE(words[CPUID_WORD_EAX], 16, 20) << 4);
     ci->cpu_stepping = BIT_EXTRACT_LE(words[CPUID_WORD_EAX],  0,  4);
 
-    int flen = 0, fmax = 80;
+    size_t flen = 0;
+    size_t fmax = 80;
     char* flags = malloc(fmax);
     if (!flags) {
         rv = -PAL_ERROR_NOMEM;
@@ -719,7 +748,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
             continue;
 
         if (BIT_EXTRACT_LE(words[CPUID_WORD_EDX], i, i + 1)) {
-            int len = strlen(g_cpu_flags[i]);
+            size_t len = strlen(g_cpu_flags[i]);
             if (flen + len + 1 > fmax) {
                 char* new_flags = malloc(fmax * 2);
                 if (!new_flags) {
@@ -742,7 +771,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     ci->cpu_bogomips = get_bogomips();
     if (ci->cpu_bogomips == 0.0) {
-        log_warning("bogomips could not be retrieved, passing 0.0 to the application\n");
+        log_warning("bogomips could not be retrieved, passing 0.0 to the application");
     }
 
     return rv;

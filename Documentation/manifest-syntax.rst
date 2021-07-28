@@ -55,6 +55,10 @@ Graphene outputs log messages of the following types:
 * ``trace``: More detailed information, such as all system calls requested by
   the application. Might contain a lot of noise.
 
+.. warning::
+   Only ``error`` log level is suitable for production. Other levels may leak
+   sensitive data.
+
 Preloaded libraries
 ^^^^^^^^^^^^^^^^^^^
 
@@ -80,9 +84,8 @@ the current working directory (i.e. from ``/`` by default, or ``fs.start_dir``
 if specified).
 
 The recommended usage is to provide an absolute path, and mount the executable
-at that path. For example:
+at that path. For example::
 
-::
    libos.entrypoint = "/usr/bin/python3.8"
 
    fs.mount.python.type = "chroot"
@@ -430,8 +433,8 @@ Optional CPU features (AVX, AVX512, MPX, PKRU)
 
 This syntax ensures that the CPU features are available and enabled for the
 enclave. If the options are set in the manifest but the features are unavailable
-on the platform, enclave initialization should fail. If the options are unset,
-enclave initialization should succeed even if these features are unavailable on
+on the platform, enclave initialization will fail. If the options are unset,
+enclave initialization will succeed even if these features are unavailable on
 the platform.
 
 ISV Product ID and SVN
@@ -453,11 +456,15 @@ Allowed files
 
     sgx.allowed_files.[identifier] = "[URI]"
 
-This syntax specifies the files that are allowed to be loaded into the enclave
-unconditionally. These files are not cryptographically hashed and are thus not
-protected. It is insecure to allow files containing code or critical
-information; developers must not allow files blindly! Instead, use trusted or
-protected files.
+This syntax specifies the files that are allowed to be created or loaded into
+the enclave unconditionally. In other words, allowed files can be opened for
+reading/writing and can be created if they do not exist already. Allowed files
+are not cryptographically hashed and are thus not protected.
+
+.. warning::
+   It is insecure to allow files containing code or critical information;
+   developers must not allow files blindly! Instead, use trusted or protected
+   files.
 
 Trusted files
 ^^^^^^^^^^^^^
@@ -466,12 +473,14 @@ Trusted files
 
     sgx.trusted_files.[identifier] = "[URI]"
 
-This syntax specifies the files to be cryptographically hashed, and thus allowed
-to be loaded into the enclave. The signer tool will automatically generate
-hashes of these files and add them into the SGX-specific manifest
-(``.manifest.sgx``). This is especially useful for shared libraries:
-a |~| trusted library cannot be silently replaced by a malicious host because
-the hash verification will fail.
+This syntax specifies the files to be cryptographically hashed at build time,
+and allowed to be accessed by the app in runtime only if their hashes match.
+This implies that trusted files can be only opened for reading (not for writing)
+and cannot be created if they do not exist already. The signer tool will
+automatically generate hashes of these files and add them to the SGX-specific
+manifest (``.manifest.sgx``). Marking files as trusted is especially useful for
+shared libraries: a |~| trusted library cannot be silently replaced by a
+malicious host because the hash verification will fail.
 
 Protected files
 ^^^^^^^^^^^^^^^
@@ -487,7 +496,7 @@ Protected files guarantee data confidentiality and integrity (tamper
 resistance), as well as file swap protection (a protected file can only be
 accessed when in a specific path).
 
-URIs can be files or directories. If a directory is specified, all existing
+URI can be a file or a directory. If a directory is specified, all existing
 files/directories within it are registered as protected recursively (and are
 expected to be encrypted in the PF format). New files created in a protected
 directory are automatically treated as protected.
@@ -495,27 +504,16 @@ directory are automatically treated as protected.
 Note that path size of a protected file is limited to 512 bytes and filename
 size is limited to 260 bytes.
 
-``sgx.protected_files_key`` specifies the wrap (master) encryption key:
+``sgx.protected_files_key`` specifies the wrap (master) encryption key and must
+be used only for debugging purposes.
 
-* ``sgx.protected_files_key = "sgx_seal_key_mrenclave"`` specifies that the key
-  is generated via SGX hardware instruction ``EGETKEY(SEAL_KEY)``, bound to the
-  MRENCLAVE enclave measurement (so that only instances of the same enclave may
-  decrypt protected files). Note that enclave's CPU/ISV/CONFIG SVNs are also
-  used for protected files key derivation.
-
-* ``sgx.protected_files_key = "sgx_seal_key_mrsigner"`` specifies that the key
-  is generated via SGX hardware instruction ``EGETKEY(SEAL_KEY)``, bound to the
-  MRSIGNER enclave measurement (so that only enclaves with the same signer may
-  decrypt protected files). Note that enclave's CPU/ISV/CONFIG SVNs are also
-  used for protected files key derivation.
-
-* ``sgx.protected_files_key = "[16-byte hex value]"`` specifies that the key is
-  hard-coded in the manifest and should be used as-is. *Note:* this option is
-  insecure and must not be used in production environments!
-
-If you want to provision the protected files wrap key using SGX local/remote
-attestation, do *not* specify the ``sgx.protected_files_key`` manifest option at
-all. Instead, use the Secret Provisioning interface (see :doc:`attestation`).
+.. warning::
+   ``sgx.protected_files_key`` hard-codes the key in the manifest. This option
+   is thus insecure and must not be used in production environments! Typically,
+   you want to provision the protected files wrap key using SGX local/remote
+   attestation, thus you should not specify the ``sgx.protected_files_key``
+   manifest option at all. Instead, use the Secret Provisioning interface (see
+   :doc:`attestation`).
 
 File check policy
 ^^^^^^^^^^^^^^^^^
@@ -527,11 +525,15 @@ File check policy
 
 This syntax specifies the file check policy, determining the behavior of
 authentication when opening files. By default, only files explicitly listed as
-_trusted_files_ or _allowed_files_ declared in the manifest are allowed for
-access. If the file check policy is ``allow_all_but_log``, all files other than
-trusted and allowed are allowed for access, and Graphene-SGX emits a warning
-message for every such file. This is a convenient way to determine the set of
-files that the ported application uses.
+``trusted_files`` or ``allowed_files`` declared in the manifest are allowed for
+access.
+
+If the file check policy is ``allow_all_but_log``, all files other than trusted
+and allowed are allowed for access, and Graphene-SGX emits a warning message for
+every such file. Effectively, this policy operates on all unknown files as if
+they were listed as ``allowed_files``. (However, this policy still does not
+allow writing/creating files specified as trusted.) This policy is a convenient
+way to determine the set of files that the ported application uses.
 
 Attestation and quotes
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -597,9 +599,10 @@ This syntax specifies whether to enable SGX enclave-specific statistics:
    includes creating the enclave, adding enclave pages, measuring them and
    initializing the enclave.
 
-*Note:* this option is insecure and cannot be used with production enclaves
-(``sgx.debug = false``). If the production enclave is started with this option
-set, Graphene will fail initialization of the enclave.
+.. warning::
+   This option is insecure and cannot be used with production enclaves
+   (``sgx.debug = false``). If a production enclave is started with this option
+   set, Graphene will fail initialization of the enclave.
 
 SGX profiling
 ^^^^^^^^^^^^^
@@ -622,9 +625,10 @@ sgx-perf.data``.
 
 See :ref:`sgx-profile` for more information.
 
-*Note:* this option is insecure and cannot be used with production enclaves
-(``sgx.debug = false``). If the production enclave is started with this option
-set, Graphene will fail initialization of the enclave.
+.. warning::
+   This option is insecure and cannot be used with production enclaves
+   (``sgx.debug = false``). If a production enclave is started with this option
+   set, Graphene will fail initialization of the enclave.
 
 ::
 
@@ -666,5 +670,6 @@ lower overhead.
 Note that the accuracy is limited by how often the process is interrupted by
 Linux scheduler: the effective maximum is 250 samples per second.
 
-**Note**: This option applies only to ``aex`` mode. In the ``ocall_*`` modes,
-currently all samples are taken.
+.. note::
+   This option applies only to ``aex`` mode. In the ``ocall_*`` modes, currently
+   all samples are taken.

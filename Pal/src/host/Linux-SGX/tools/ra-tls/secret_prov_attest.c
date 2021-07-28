@@ -320,6 +320,8 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
             return;
         }
 
+        size_t secret_len = secret_size - 1; /* length without null terminator */
+
         /* successfully retrieved the secret: is it a protected files key? */
         e = getenv(SECRET_PROVISION_SET_PF_KEY);
         if (e && (!strcmp(e, "1") || !strcmp(e, "true") || !strcmp(e, "TRUE"))) {
@@ -329,8 +331,8 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
                 return;
 
             ssize_t total_written = 0;
-            while (total_written < secret_size) {
-                ssize_t written = write(fd, secret + total_written, secret_size - total_written);
+            while (total_written < secret_len) {
+                ssize_t written = write(fd, secret + total_written, secret_len - total_written);
                 if (written > 0) {
                     total_written += written;
                 } else if (written == 0) {

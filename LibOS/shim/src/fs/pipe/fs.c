@@ -56,7 +56,7 @@ static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count
                 .si_code = SI_USER,
             };
             if (kill_current_proc(&info) < 0) {
-                log_error("pipe_write: failed to deliver a signal\n");
+                log_error("pipe_write: failed to deliver a signal");
             }
         }
         return ret;
@@ -178,7 +178,7 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
          * one end (read or write) in our emulation, so we treat such FIFOs as read-only. This
          * covers most apps seen in the wild (in particular, LTP apps). */
         log_warning("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
-                    "Treating it as read-only.\n", qstrgetstr(&dent->mount->path));
+                    "Treating it as read-only.", qstrgetstr(&dent->mount->path));
         flags = O_RDONLY;
     }
 

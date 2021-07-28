@@ -53,8 +53,9 @@ static void print_to_fd(int fd, const char* prefix, const char* fmt, va_list ap)
     if (prefix)
         buf_puts(&buf, prefix);
     buf_vprintf(&buf, fmt, ap);
+    buf_printf(&buf, "\n");
     buf_flush(&buf);
-    // No error handling, as `_urts_log` doesn't return errors anyways.
+    // No error handling, as `pal_log` doesn't return errors anyways.
 }
 
 void pal_log(int level, const char* fmt, ...) {

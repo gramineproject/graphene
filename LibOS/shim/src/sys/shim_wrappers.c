@@ -15,11 +15,11 @@
 #include "shim_table.h"
 #include "shim_utils.h"
 
-long shim_do_readv(int fd, const struct iovec* vec, int vlen) {
+long shim_do_readv(unsigned long fd, const struct iovec* vec, unsigned long vlen) {
     if (!is_user_memory_readable(vec, sizeof(*vec) * vlen))
         return -EINVAL;
 
-    for (int i = 0; i < vlen; i++) {
+    for (size_t i = 0; i < vlen; i++) {
         if (vec[i].iov_base) {
             if (!access_ok(vec[i].iov_base, vec[i].iov_len))
                 return -EINVAL;
@@ -41,13 +41,11 @@ long shim_do_readv(int fd, const struct iovec* vec, int vlen) {
 
     ssize_t bytes = 0;
 
-    for (int i = 0; i < vlen; i++) {
-        int b_vec;
-
+    for (size_t i = 0; i < vlen; i++) {
         if (!vec[i].iov_base)
             continue;
 
-        b_vec = hdl->fs->fs_ops->read(hdl, vec[i].iov_base, vec[i].iov_len);
+        ssize_t b_vec = hdl->fs->fs_ops->read(hdl, vec[i].iov_base, vec[i].iov_len);
         if (b_vec < 0) {
             ret = bytes ?: b_vec;
             goto out;
@@ -80,11 +78,11 @@ out:
  * actually written. Otherwise, it shall return a value of -1, the file-pointer
  * shall remain unchanged, and errno shall be set to indicate an error
  */
-long shim_do_writev(int fd, const struct iovec* vec, int vlen) {
+long shim_do_writev(unsigned long fd, const struct iovec* vec, unsigned long vlen) {
     if (!is_user_memory_readable(vec, sizeof(*vec) * vlen))
         return -EINVAL;
 
-    for (int i = 0; i < vlen; i++) {
+    for (size_t i = 0; i < vlen; i++) {
         if (vec[i].iov_base) {
             if (!access_ok(vec[i].iov_base, vec[i].iov_len))
                 return -EINVAL;
@@ -106,13 +104,11 @@ long shim_do_writev(int fd, const struct iovec* vec, int vlen) {
 
     ssize_t bytes = 0;
 
-    for (int i = 0; i < vlen; i++) {
-        int b_vec;
-
+    for (size_t i = 0; i < vlen; i++) {
         if (!vec[i].iov_base)
             continue;
 
-        b_vec = hdl->fs->fs_ops->write(hdl, vec[i].iov_base, vec[i].iov_len);
+        ssize_t b_vec = hdl->fs->fs_ops->write(hdl, vec[i].iov_base, vec[i].iov_len);
         if (b_vec < 0) {
             ret = bytes ?: b_vec;
             goto out;

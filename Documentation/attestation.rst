@@ -186,12 +186,12 @@ use the :program:`quote_dump`, :program:`ias_request` and
 EPID based quote verification) or to use the Intel DCAP libraries and tools (for
 DCAP based quote verification).
 
-The ``/dev/attestation`` pseudo-filesystem also exposes the pseudo-file to set
-the protected files wrap (master) key (see also :doc:`manifest-syntax`):
+The ``/dev/attestation`` pseudo-filesystem also exposes a pseudo-file to set the
+protected files wrap (master) key (see also :doc:`manifest-syntax`):
 
 - ``/dev/attestation/protected_files_key`` pseudo-file can be opened for write
   access. Typically, it is opened before the actual application runs and filled
-  with they 128-bit key obtained from a remote secret provisioning service.
+  with a 128-bit key obtained from a remote secret provisioning service.
 
 
 Mid-level RA-TLS interface
@@ -403,7 +403,7 @@ environment variables if available:
   similar to ``sgx.protected_files_key`` manifest option. This environment
   variable is checked only if ``SECRET_PROVISION_CONSTRUCTOR`` is set. The
   library puts the provisioned key into ``/dev/attestation/protected_files_key``
-  so that Graphene recognizes the provisioned protected-files master key.
+  so that Graphene recognizes it.
 
 - ``SECRET_PROVISION_SERVERS`` (optional) -- a comma, semicolon or space
   separated list of server names with ports to connect to for secret

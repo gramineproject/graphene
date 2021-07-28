@@ -54,9 +54,9 @@ Building
 #. Build Graphene::
 
        make ISGX_DRIVER_PATH=/usr/src/linux-headers-`uname -r`/arch/x86/ SGX=1
-       meson build -Dsgx=enabled -Ddirect=disabled
+       meson build --buildtype=release -Dsgx=enabled -Ddirect=disabled
        ninja -C build
-       sudo ninja -C install
+       sudo ninja -C build install
 
 #. Build and run :program:`helloworld`::
 
@@ -102,10 +102,9 @@ cluster.
 
 .. warning::
 
-       This example relies on insecure arguments provided at runtime and should
-       not be used production. To use trusted arguments, please see the `manpage
-       of GSC
-       <https://graphene.readthedocs.io/en/latest/manpages/gsc.html#using-graphene-s-trusted-command-line-arguments>`__.
+   This example relies on insecure arguments provided at runtime and should not
+   be used production. To use trusted arguments, please see the `manpage of GSC
+   <https://graphene.readthedocs.io/en/latest/manpages/gsc.html#using-graphene-s-trusted-command-line-arguments>`__.
 
 #. Pull Python image::
 
