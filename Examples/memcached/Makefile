@@ -41,6 +41,8 @@ memcached.manifest: memcached.manifest.template
 		$< > $@
 
 memcached.manifest.sgx: memcached.manifest memcached
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \

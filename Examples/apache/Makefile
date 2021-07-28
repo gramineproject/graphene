@@ -73,6 +73,8 @@ httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd \
 		$(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf \
 		$(TEST_DATA) \
 		$(INSTALL_DIR)/conf/server.crt
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest httpd.manifest \

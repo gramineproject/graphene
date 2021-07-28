@@ -56,6 +56,8 @@ blender.sig blender.manifest.sgx: sgx_outputs
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: $(BLENDER_DIR)/blender blender.manifest | $(RUN_DIR)
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--output blender.manifest.sgx \
 		--key $(SGX_SIGNER_KEY) \

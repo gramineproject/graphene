@@ -25,6 +25,8 @@ nodejs.manifest: nodejs.manifest.template
 		$< >$@
 
 nodejs.manifest.sgx: nodejs.manifest helloworld.js
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \

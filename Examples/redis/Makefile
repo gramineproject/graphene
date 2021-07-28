@@ -20,6 +20,8 @@
 SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 # directory with arch-specific libraries, used by Redis
+# the below path works for Debian/Ubuntu; for CentOS/RHEL/Fedora, you should
+# overwrite this default like this: `ARCH_LIBDIR=/lib64 make`
 ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 SRCDIR = src
@@ -94,6 +96,8 @@ redis-server.sig redis-server.manifest.sgx: sgx_outputs
 
 .INTERMEDIATE: sgx_outputs
 sgx_outputs: redis-server.manifest $(SRCDIR)/src/redis-server
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest redis-server.manifest \
