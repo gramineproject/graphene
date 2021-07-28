@@ -313,6 +313,13 @@ class TC_00_FileSystem(RegressionTestCase):
                                          timeout=30)
         self.verify_copy(stdout, stderr, '/mounted/input', executable)
 
+    def test_300_rename(self):
+        file1 = os.path.join(self.OUTPUT_DIR, 'file1')
+        file2 = os.path.join(self.OUTPUT_DIR, 'file2')
+
+        stdout, _stderr = self.run_binary(['rename', file1, file2])
+        self.assertIn('TEST OK', stdout)
+
 
 class TC_01_Sync(RegressionTestCase):
     TEST_DIR = 'tmp'

@@ -17,6 +17,7 @@ execs = \
 	open_close \
 	open_flags \
 	read_write \
+	rename \
 	seek_tell \
 	stat \
 	truncate
