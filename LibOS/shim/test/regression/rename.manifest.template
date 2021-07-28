@@ -1,0 +1,22 @@
+loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "{{ env.PWD }}/rename"
+loader.insecure__use_cmdline_argv = true
+
+loader.env.LD_LIBRARY_PATH = "/lib"
+
+fs.root.type = "chroot"
+fs.root.path = "/"
+fs.root.uri = "file:/"
+
+fs.mount.graphene_lib.type = "chroot"
+fs.mount.graphene_lib.path = "/lib"
+fs.mount.graphene_lib.uri = "file:{{ graphene.runtimedir() }}"
+
+fs.mount.tmpfs.type = "tmpfs"
+fs.mount.tmpfs.path = "/mnt/tmpfs"
+fs.mount.tmpfs.uri = "file:dummy-unused-by-tmpfs-uri"
+
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.host_root_fs = "file:{{ env.PWD }}/host_root_fs"
+
+sgx.nonpie_binary = true
