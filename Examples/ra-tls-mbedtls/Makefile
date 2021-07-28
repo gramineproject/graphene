@@ -1,8 +1,5 @@
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
-ifeq ($(wildcard $(SGX_SIGNER_KEY)),)
-$(error SGX signer private key was not found, please specify SGX_SIGNER_KEY!)
-endif
 
 ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
@@ -123,6 +120,8 @@ server.manifest: server.manifest.template
 		$< > $@
 
 server.manifest.sgx: server.manifest server mbedtls/.mbedtls_built libs/.epid_libs_copied
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \
@@ -142,6 +141,8 @@ client_dcap.manifest: client.manifest.template
 		$< >$@
 
 client_dcap.manifest.sgx: client_dcap.manifest client mbedtls/.mbedtls_built libs/.dcap_libs_copied
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \
@@ -161,6 +162,8 @@ client_epid.manifest: client.manifest.template
 		$< >$@
 
 client_epid.manifest.sgx: client_epid.manifest client libs/.epid_libs_copied
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \

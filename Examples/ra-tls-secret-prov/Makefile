@@ -1,8 +1,5 @@
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
-ifeq ($(wildcard $(SGX_SIGNER_KEY)),)
-$(error SGX signer private key was not found, please specify SGX_SIGNER_KEY!)
-endif
 
 ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
@@ -144,6 +141,8 @@ secret_prov_client.manifest: secret_prov_client.manifest.template
 		$< > $@
 
 secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client libs/.common_libs_copied
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \
@@ -165,6 +164,8 @@ secret_prov_min_client.manifest: secret_prov_min_client.manifest.template
 		$< > $@
 
 secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov_min_client libs/.common_libs_copied
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \
@@ -191,6 +192,8 @@ secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
 		$< > $@
 
 secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_pf_client libs/.common_libs_copied
+	@test -s $(SGX_SIGNER_KEY) || \
+	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \
