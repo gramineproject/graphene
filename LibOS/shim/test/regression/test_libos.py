@@ -429,6 +429,23 @@ class TC_30_Syscall(RegressionTestCase):
 
         self.assertIn('TEST OK', stdout)
 
+    def test_033_rename_chroot(self):
+        file1 = 'tmp/file1'
+        file2 = 'tmp/file2'
+        try:
+            stdout, _ = self.run_binary(['rename', file1, file2])
+        finally:
+            for path in [file1, file2]:
+                if os.path.exists(path):
+                    os.unlink(path)
+        self.assertIn('TEST OK', stdout)
+
+    def test_034_rename_tmpfs(self):
+        file1 = '/mnt/tmpfs/file1'
+        file2 = '/mnt/tmpfs/file2'
+        stdout, _ = self.run_binary(['rename', file1, file2])
+        self.assertIn('TEST OK', stdout)
+
     def test_040_futex_bitset(self):
         stdout, _ = self.run_binary(['futex_bitset'])
 

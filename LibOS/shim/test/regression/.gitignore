@@ -83,6 +83,7 @@
 /pthread_set_get_affinity
 /rdtsc
 /readdir
+/rename
 /sched
 /sched_set_get_affinity
 /select

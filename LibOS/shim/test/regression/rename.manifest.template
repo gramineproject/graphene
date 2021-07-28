@@ -1,0 +1,20 @@
+loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "{{ entrypoint }}"
+loader.insecure__use_cmdline_argv = true
+
+loader.env.LD_LIBRARY_PATH = "/lib"
+
+fs.mount.graphene_lib.type = "chroot"
+fs.mount.graphene_lib.path = "/lib"
+fs.mount.graphene_lib.uri = "file:{{ graphene.runtimedir() }}"
+
+fs.mount.tmpfs.type = "tmpfs"
+fs.mount.tmpfs.path = "/mnt/tmpfs"
+fs.mount.tmpfs.uri = "file:dummy-unused-by-tmpfs-uri"
+
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.entrypoint = "file:{{ entrypoint }}"
+
+sgx.allowed_files.tmp_dir = "file:tmp/"
+
+sgx.nonpie_binary = true
