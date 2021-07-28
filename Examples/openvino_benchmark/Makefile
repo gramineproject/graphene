@@ -1,17 +1,9 @@
-# Building the manifest for OpenVINO:
-#
-# - make                Build for Linux, OpenVINO with Release build
-# - make DEBUG=1        Build for Linux, OpenVINO with Debug build, Graphene with debug output
-# - make SGX=1          Build for SGX, OpenVINO with Release build
-# - make SGX=1 DEBUG=1  Build for SGX, OpenVINO with Debug build, Graphene with debug output
-#
-# Use `make clean` to remove Graphene-generated files.
-# Use `make distclean` to further remove model directory and venv directory
-#
 SHELL := /bin/bash
 OPENVINO_DIR ?= $(INTEL_OPENVINO_DIR)
 
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 MODEL_DIR ?= $(THIS_DIR)model
 MODEL_RESNET ?= resnet-50-tf
@@ -23,9 +15,7 @@ MODEL_SSD_COCO ?= ssd_mobilenet_v1_coco
 
 VENV_DIR ?= $(THIS_DIR)/openvino
 
-# Relative path to Graphene root and key for enclave signing
-GRAPHENE_DIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -45,8 +35,6 @@ ifeq ($(SGX),1)
 all: benchmark_app.manifest.sgx benchmark_app.sig \
      benchmark_app.token
 endif
-
-include ../../Scripts/Makefile.configs
 
 $(VENV_DIR):
 	mkdir -p model
@@ -108,9 +96,9 @@ benchmark_app.manifest: benchmark_app.manifest.template
 	-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
 	$< > $@
 
-# Generating the SGX-specific manifest (benchmark_app.manifest.sgx), the enclave signature,
-# and the token for enclave initialization.
 benchmark_app.manifest.sgx: benchmark_app.manifest | benchmark_app
+	@test -s $(SGX_SIGNER_KEY) || \
+		{ echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 	-key $(SGX_SIGNER_KEY) \
 	-manifest $< -output $@

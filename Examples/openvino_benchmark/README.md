@@ -4,7 +4,7 @@ toolkit (as of this writing, version 2021.4). We use the ``Benchmark C++ Tool`` 
 the OpenVINO distribution as a concrete application running under Graphene-SGX to estimate deep
 learning inference performance. We test only the CPU backend (i.e., no GPU or FPGA).
 
-Note: the models require ~3GB of disk space.
+**NOTE**: the models require ~3GB of disk space.
 
 ## Tips for better performance
 Linux systems have CPU frequency scaling governor that helps the system to scale the CPU frequency
@@ -122,7 +122,7 @@ $ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --memb
 
 ## Performance considerations
 - Preheat manifest option pre-faults the enclave memory and moves the performance penalty to
-Graphene-SGX startup (before the workload starts executing). To use preheat option, add
+graphene-sgx startup (before the workload starts executing). To use preheat option, add
 ``sgx.preheat_enclave = true`` to the manifest template.
 - Skipping invalid user pointer checks when the application does not invoke system calls with
 invalid pointers (typical case) can help improve performance. To use this option, add
@@ -141,6 +141,9 @@ allocators can be used.
   - mimalloc (please update the binary location and name if different from default)
     - Install mimalloc using the steps from https://github.com/microsoft/mimalloc
     - Add these in the manifest template:
+        - ``fs.mount.usr_local.type = "chroot"``
+        - ``fs.mount.usr_local.path = "/usr/local"``
+        - ``fs.mount.usr_local.uri = "file:/usr/local"``
         - ``loader.env.LD_PRELOAD = "/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``
         - ``sgx.trusted_files.libmimalloc = "file:/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"``
     - Save the manifest template and rebuild this example.
