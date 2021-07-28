@@ -10,17 +10,53 @@
  * existing, etc.
  */
 
+#include <assert.h>
 #include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "common.h"
+static int write_all(int fd, const char* str, size_t size) {
+    while (size > 0) {
+        ssize_t n = write(fd, str, size);
+        if (n == -1 && errno == -EINTR)
+            continue;
+        if (n == -1)
+            return -1;
+        assert(n <= size);
+        size -= n;
+        str += n;
+    }
+    return 0;
+}
+
+static int read_all(int fd, char* str, size_t size) {
+    while (size > 0) {
+        ssize_t n = read(fd, str, size);
+        if (n == -1 && errno == -EINTR)
+            continue;
+        if (n == -1)
+            return -1;
+        if (n == 0)
+            break;
+        assert(n <= size);
+        size -= n;
+        str += n;
+    }
+    if (size > 0) {
+        warnx("read less bytes than expected");
+        return -1;
+    }
+    return 0;
+}
 
 int main(int argc, char* argv[]) {
     if (argc != 3)
-        fatal_error("Usage: %s <path1> <path2>\n", argv[0]);
+        errx(1, "Usage: %s <path1> <path2>", argv[0]);
 
     const char* path1 = argv[1];
     const char* path2 = argv[2];
@@ -28,9 +64,15 @@ int main(int argc, char* argv[]) {
     const char* message = "hello world\n";
     size_t message_len = strlen(message);
 
-    int fd = open_output_fd(path1, /*rdwr=*/false);
-    write_fd(path1, fd, message, message_len);
-    close_fd(path1, fd);
+    int fd = open(path1, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd == -1)
+        err(1, "open %s", path1);
+
+    if (write_all(fd, message, message_len) == -1)
+        err(1, "write_all");
+
+    if (close(fd) == -1)
+        err(1, "close %s", path1);
 
     /* Rename path1 to path2 */
     if (rename(path1, path2) == -1)
@@ -53,11 +95,18 @@ int main(int argc, char* argv[]) {
         errx(1, "%s has wrong size (%lu)", path2, statbuf.st_size);
 
     /* path2 should have the right content */
+    fd = open(path2, O_RDONLY, 0);
+    if (fd == -1)
+        err(1, "open %s", path2);
+
     char buffer[message_len];
-    fd = open_input_fd(path2);
-    read_fd(path2, fd, buffer, message_len);
+    if (read_all(fd, buffer, message_len) == -1)
+        errx(1, "read_all");
     if (memcmp(buffer, message, message_len) != 0)
         errx(1, "%s has wrong content", path2);
+
+    if (close(fd) == -1)
+        err(1, "close %s", path2);
 
     /* Clean up */
     if (unlink(path2) == -1)
