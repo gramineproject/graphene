@@ -1,11 +1,11 @@
 # Graphene Attestation Inside AKS cluster
 
-This guide demonstrates how Graphene DCAP attestation quote can be verified inside AKS cluster.
-Here, we provide an end to end example to help CSPs integrate graphene’s RA TLS attestation and
-secret provisioning feature with a confidential compute cluster managed by the Azure Kubernetes
-Service. The necessary reference wrappers that will enable graphene to use the AKS components
-such as the AESMD and quote provider libraries are contributed. A microservice deployment is also
-provided for the RA-TLS verifier module that can be readily deployed to the AKS cluster.
+This guide demonstrates how Graphene DCAP attestation quote can be generated and verified from
+within an AKS cluster. Here, we provide an end to end example to help CSPs integrate graphene’s
+RA-TLS attestation and secret provisioning feature with a confidential compute cluster managed by
+Azure Kubernetes Service. The necessary reference wrappers that will enable graphene to use AKS
+components such as the AESMD and quote provider libraries are contributed. A microservice deployment
+is also provided for the RA-TLS verifier module that can be readily deployed to the AKS cluster.
 
 ## Create client and server images for graphene attestation samples
 
