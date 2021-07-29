@@ -9,13 +9,6 @@
     see `issue #1520 <https://github.com/oscarlab/graphene/issues/1520>`__ for a
     description of missing features and security caveats.
 
-.. warning::
-    GSC is currently set to a version of Graphene from 26. May, 2021 (commit
-    2e737e69f076c60918f87d6829bb769925e75fec). This means that GSC does *not*
-    track the latest Graphene and does not incorporate the latest changes and
-    bug fixes. This is a temporary limitation and will be fixed around July
-    2021.
-
 Synopsis
 ========
 
@@ -267,12 +260,13 @@ follows three main stages and produces an image named ``gsc-<image-name>``.
    via the configuration file).  It then prepares image-specific variables such
    as the executable path and the library path, and scans the entire image to
    generate a list of trusted files.  GSC excludes files and paths starting with
-   :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
-   :file:`/etc/rc`, since checksums are required which either don't exist or may
+   :file:`/boot`, :file:`/dev`, :file:`.dockerenv`, :file:`.dockerinit`,
+   :file:`/etc/mtab`, :file:`/etc/rc`, :file:`/proc`, :file:`/sys`, and
+   :file:`/var`, since checksums are required which either don't exist or may
    vary across different deployment machines. GSC combines these variables and
    list of trusted files into a new manifest file. In a last step the entrypoint
    is changed to launch the :file:`apploader.sh` script which generates an Intel
-   SGX token and starts the :program:`pal-Linux-SGX` loader. Note that the
+   SGX token and starts the :program:`graphene-sgx` loader. Note that the
    generated image (``gsc-<image-name>-unsigned``) cannot successfully load an
    Intel SGX enclave, since essential files and the signature of the enclave are
    still missing (see next stage).
@@ -327,13 +321,13 @@ in :file:`config.yaml.template`.
 
 .. describe:: SGXDriver.Repository
 
-   Source repository of the Intel SGX driver. Default value:
-   `https://github.com/intel/linux-sgx-driver.git
-   <https://github.com/intel/linux-sgx-driver.git>`__.
+   Source repository of the Intel SGX driver. Default value: ""
+   (in-kernel driver)
 
 .. describe:: SGXDriver.Branch
 
-   Use this branch of the repository. Default value: sgx_driver_1.9.
+   Use this branch of the repository. Default value: ""
+   (in-kernel driver)
 
 Run graphenized Docker images
 =============================
@@ -392,7 +386,7 @@ Example
 
 The :file:`test` folder in :file:`Tools/gsc` describes how to graphenize Docker
 images and test them with sample inputs. The samples include Ubuntu-based Docker
-images of Bash, Python, Node.js, Numpy and Pytorch.
+images of Bash, Python, Node.js, Numpy, Pytorch, and a few more.
 
 .. warning::
    All test images rely on insecure arguments to be able to set test-specific
@@ -511,11 +505,11 @@ files may be added to the manifest.
 Access to files in excluded paths
 ---------------------------------
 
-The manifest generation excludes all files and paths starting with
-:file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys`, and
-:file:`/etc/rc` from the list of trusted files. If your application
-relies on some files in these directories, you must manually add them to the
-manifest::
+The manifest generation excludes all files and paths starting with :file:`/boot`
+, :file:`/dev`, :file:`.dockerenv`, :file:`.dockerinit`, :file:`/etc/mtab`,
+:file:`/etc/rc`, :file:`/proc`, :file:`/sys`, and :file:`/var` from the list of
+trusted files. If your application relies on some files in these directories,
+you must manually add them to the manifest::
 
    sgx.trusted_files.[identifier] = "[URI]"
    or

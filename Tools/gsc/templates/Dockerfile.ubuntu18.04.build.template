@@ -29,48 +29,18 @@ ENV LC_ALL en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
 
-# Copy Graphene runtime and signer tools to /graphene
-RUN mkdir -p /graphene \
-    && mkdir -p /graphene/Pal/src \
-    && mkdir -p /graphene/Runtime \
-    && mkdir -p /graphene/Scripts \
-    && mkdir -p /graphene/Tools \
-    && mkdir -p /graphene/python
-COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/generated_offsets.py /graphene/python/
-COPY --from=graphene /graphene/Runtime/ /graphene/Runtime
-COPY --from=graphene /graphene/Scripts/Makefile.configs /graphene/Scripts
-COPY --from=graphene /graphene/Scripts/Makefile.Host /graphene/Scripts
+# Copy Graphene runtime and signer tools to /graphene/meson_build_output
+RUN mkdir -p /graphene/Tools \
+    && mkdir -p /graphene/meson_build_output
+
+# TODO: remove this copy after argv_serializer becomes a part of Meson build
 COPY --from=graphene /graphene/Tools/argv_serializer /graphene/Tools
-COPY --from=graphene /graphene/python /graphene/python
-
-{% if debug %}
-COPY --from=graphene /graphene/Pal/gdb_integration/debug_map_gdb.py \
-                     /graphene/Pal/gdb_integration/
-COPY --from=graphene /graphene/Pal/gdb_integration/pagination_gdb.py \
-                     /graphene/Pal/gdb_integration/
-COPY --from=graphene /graphene/Pal/gdb_integration/graphene.gdb \
-                     /graphene/Pal/gdb_integration/
-
-COPY --from=graphene /graphene/Pal/src/host/Linux/gdb_integration/graphene_linux_gdb.py \
-                     /graphene/Pal/src/host/Linux/gdb_integration/
-RUN ln -sf /graphene/Pal/gdb_integration /graphene/Pal/src/host/Linux/gdb_integration/common
-
-COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/sgx_gdb.so \
-                     /graphene/Pal/src/host/Linux-SGX/gdb_integration/
-COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/graphene_sgx_gdb.py \
-                     /graphene/Pal/src/host/Linux-SGX/gdb_integration/
-COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/graphene_sgx.gdb \
-                     /graphene/Pal/src/host/Linux-SGX/gdb_integration/
-RUN ln -sf /graphene/Pal/gdb_integration /graphene/Pal/src/host/Linux-SGX/gdb_integration/common
-{% endif %}
+COPY --from=graphene /graphene/meson_build_output /graphene/meson_build_output
 
 # Copy helper scripts and Graphene manifest
 COPY *.py /
 COPY apploader.sh /
 COPY entrypoint.manifest /
-
-# For convenience (e.g. for debugging), create a link to pal_loader in the root dir
-RUN ln -sf /graphene/Runtime/pal_loader
 
 # Generate trusted arguments if required
 {% if not insecure_args %}
@@ -80,6 +50,9 @@ RUN /graphene/Tools/argv_serializer {{binary}} {{binary_arguments}} "{{"\" \"".j
 # Docker entrypoint/cmd typically contains only the basename of the executable so create a symlink
 RUN cd / \
     && which {{binary}} | xargs ln -s || true
+
+# Include Meson build output directory in $PATH
+ENV PATH="/graphene/meson_build_output/bin:$PATH"
 
 # Mark apploader.sh executable, finalize manifest, and remove intermediate scripts
 RUN chmod u+x /apploader.sh \

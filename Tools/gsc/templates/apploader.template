@@ -2,12 +2,14 @@
 
 set -ex
 
+# Include Meson build output directory in $PYTHONPATH, needed by graphene-sgx-get-token
+export PYTHONPATH="${PYTHONPATH}:$(find /graphene/meson_build_output/lib -type d  -path '*/site-packages')"
+
 # Set default PAL to Linux-SGX
 if [ -z "$GSC_PAL" ] || [ "$GSC_PAL" == "Linux-SGX" ]
 then
-    GSC_PAL=Linux-SGX
-    /graphene/python/graphene-sgx-get-token -output /entrypoint.token -sig /entrypoint.sig
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init /entrypoint {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
+    graphene-sgx-get-token -output /entrypoint.token -sig /entrypoint.sig
+    graphene-sgx /entrypoint {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
 else
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init /entrypoint {{binary_arguments}} "${@}"
+    graphene-direct /entrypoint {{binary_arguments}} "${@}"
 fi
