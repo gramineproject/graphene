@@ -28,6 +28,12 @@ if sgx
     install_data([
         offsets_py,
         '_aesm_pb2.py',
+        '_sgx_manifest.py',
+        '_sgx_measure.py',
+        '_sgx_memory.py',
+        '_sgx_sign.py',
+        '_sgx_utility.py',
+        '_sgx_depend.py',
         'sgx_get_token.py',
         'sgx_sign.py',
     ], install_dir: python3_pkgdir)
