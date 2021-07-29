@@ -25,6 +25,12 @@ static inline int pal_set_tcb(PAL_TCB* tcb) {
     return INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
 }
 
+/* Linux PAL is loaded at a random address by the host Linux because of ASLR (approx. at 0x7f...
+ * address). The macro below is a max available address for LibOS memory management, chosen to
+ * preclude a case when the checkpointed-by-parent memory region overlaps with Linux PAL
+ * executable's memory region during restore-by-child. */
+#define MMAP_MAX_ADDR 0x555555554000ul
+
 #endif /* IN_PAL */
 
 #endif /* __LINUX_X86_64_PAL_HOST_ARCH_H__ */

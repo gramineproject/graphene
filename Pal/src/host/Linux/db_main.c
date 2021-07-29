@@ -102,8 +102,14 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
 }
 
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
-    void* end_addr = (void*)ALLOC_ALIGN_DOWN_PTR(TEXT_START);
     void* start_addr = (void*)MMAP_MIN_ADDR;
+    void* end_addr   = (void*)MMAP_MAX_ADDR;
+
+    if ((uintptr_t)ALLOC_ALIGN_DOWN_PTR(TEXT_START) < (uintptr_t)end_addr)
+        end_addr = (void*)ALLOC_ALIGN_DOWN_PTR(TEXT_START);
+
+    if (g_pal_internal_mem_addr && (uintptr_t)g_pal_internal_mem_addr < (uintptr_t)end_addr)
+        end_addr = g_pal_internal_mem_addr;
 
     assert(IS_ALLOC_ALIGNED_PTR(start_addr) && IS_ALLOC_ALIGNED_PTR(end_addr));
 
