@@ -436,8 +436,7 @@ static int mount_fs_at_dentry(const char* type, const char* uri, const char* mou
 
     /* Initialize root dentry of the new filesystem */
 
-    mount->root = get_new_dentry(mount, /*parent=*/NULL, mount_point->name,
-                                 strlen(mount_point->name));
+    mount->root = get_new_dentry(mount, /*parent=*/NULL, mount_point->name, mount_point->name_len);
     if (!mount->root) {
         ret = -ENOMEM;
         goto err;

@@ -94,6 +94,7 @@ int init_dcache(void) {
         return -ENOMEM;
     }
     g_dentry_root->name = name;
+    g_dentry_root->name_len = 0;
 
     return 0;
 }
@@ -187,6 +188,7 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
         free_dentry(dent);
         return NULL;
     }
+    dent->name_len = name_len;
 
     if (parent && parent->nchildren >= DENTRY_MAX_CHILDREN) {
         log_warning("get_new_dentry: nchildren limit reached");
@@ -228,8 +230,7 @@ struct shim_dentry* lookup_dcache(struct shim_dentry* parent, const char* name, 
     struct shim_dentry* tmp;
     struct shim_dentry* dent;
     LISTP_FOR_EACH_ENTRY_SAFE(dent, tmp, &parent->children, siblings) {
-        size_t dent_name_len = strlen(dent->name);
-        if (dent_name_len == name_len && memcmp(dent->name, name, name_len) == 0) {
+        if (dent->name_len == name_len && memcmp(dent->name, name, dent->name_len) == 0) {
             get_dentry(dent);
             return dent;
         }
@@ -273,7 +274,7 @@ static size_t dentry_path_size(struct shim_dentry* dent, bool relative) {
         first = false;
 
         /* Add name */
-        size += strlen(dent->name);
+        size += dent->name_len;
 
         dent = up;
     }
@@ -312,11 +313,10 @@ static char* dentry_path_into_buf(struct shim_dentry* dent, bool relative, char*
         first = false;
 
         /* Add name */
-        size_t name_len = strlen(dent->name);
-        if (pos < name_len)
+        if (pos < dent->name_len)
             return NULL;
-        pos -= name_len;
-        memcpy(&buf[pos], dent->name, name_len);
+        pos -= dent->name_len;
+        memcpy(&buf[pos], dent->name, dent->name_len);
 
         dent = up;
     }

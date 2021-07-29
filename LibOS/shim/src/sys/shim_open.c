@@ -400,7 +400,7 @@ static ssize_t do_getdents(int fd, uint8_t* buf, size_t buf_size, bool is_getden
             name_len = 2;
         } else {
             name = dent->name;
-            name_len = strlen(dent->name);
+            name_len = dent->name_len;
         }
 
         uint64_t d_ino = dentry_ino(dent);

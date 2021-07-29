@@ -123,8 +123,9 @@ struct shim_dentry {
     int state; /* flags for managing state */
 
     /* File name, maximum of NAME_MAX characters. By convention, the root has an empty name. Does
-     * not change. */
+     * not change. Length is kept for performance reasons. */
     char* name;
+    size_t name_len;
 
     /* Mounted filesystem this dentry belongs to. Does not change. */
     struct shim_mount* mount;
