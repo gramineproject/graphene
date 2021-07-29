@@ -50,13 +50,13 @@ static int tmpfs_get_data(struct shim_dentry* dent, struct shim_tmpfs_data** out
 
     mem_file_init(&data->mem, /*data=*/NULL, /*size=*/0);
 
-    uint64_t time;
-    if (DkSystemTimeQuery(&time) < 0) {
+    uint64_t time_us;
+    if (DkSystemTimeQuery(&time_us) < 0) {
         free(data);
         return -EPERM;
     }
 
-    data->ctime = time / USEC_IN_SEC;
+    data->ctime = time_us / USEC_IN_SEC;
     data->mtime = data->ctime;
     data->atime = data->ctime;
 
@@ -238,8 +238,8 @@ static void unlock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* d
 }
 
 static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
-    uint64_t time;
-    if (DkSystemTimeQuery(&time) < 0)
+    uint64_t time_us;
+    if (DkSystemTimeQuery(&time_us) < 0)
         return -EPERM;
 
     lock_two_dentries(old, new);
@@ -257,7 +257,7 @@ static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
     old->data = NULL;
 
     struct shim_tmpfs_data* data = new->data;
-    data->mtime = time / USEC_IN_SEC;
+    data->mtime = time_us / USEC_IN_SEC;
 
     unlock_two_dentries(old, new);
     return 0;
@@ -302,8 +302,8 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t size
 
     assert(hdl->type == TYPE_TMPFS);
 
-    uint64_t time;
-    if (DkSystemTimeQuery(&time) < 0)
+    uint64_t time_us;
+    if (DkSystemTimeQuery(&time_us) < 0)
         return -EPERM;
 
     lock(&hdl->lock);
@@ -318,7 +318,7 @@ static ssize_t tmpfs_write(struct shim_handle* hdl, const void* buf, size_t size
         goto out;
 
     hdl->info.tmpfs.pos += ret;
-    data->mtime = time / USEC_IN_SEC;
+    data->mtime = time_us / USEC_IN_SEC;
     /* keep `ret` */
 
 out:
@@ -330,8 +330,8 @@ out:
 static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
     int ret;
 
-    uint64_t time;
-    if (DkSystemTimeQuery(&time) < 0)
+    uint64_t time_us;
+    if (DkSystemTimeQuery(&time_us) < 0)
         return -EPERM;
 
     assert(hdl->type == TYPE_TMPFS);
@@ -347,7 +347,7 @@ static int tmpfs_truncate(struct shim_handle* hdl, file_off_t size) {
     if (ret < 0)
         goto out;
 
-    data->mtime = time / USEC_IN_SEC;
+    data->mtime = time_us / USEC_IN_SEC;
     ret = 0;
 
 out:
