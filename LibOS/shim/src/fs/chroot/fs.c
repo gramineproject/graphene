@@ -254,8 +254,13 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
             }
             type = S_IFCHR;
             break;
+        case pal_type_pipe:
+            log_warning("trying to access '%s' which is a host-level FIFO (named pipe); "
+                        "Graphene supports only named pipes created by Graphene processes",
+                        qstrgetstr(&data->host_uri));
+            return -EACCES;
         default:
-            log_error("unknown PAL handle type: %d", pal_attr.handle_type);
+            log_error("unexpected handle type returned by PAL: %d", pal_attr.handle_type);
             BUG();
     }
 
