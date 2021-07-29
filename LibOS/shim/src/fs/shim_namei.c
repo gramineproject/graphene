@@ -135,7 +135,7 @@ static int do_path_lookupat(struct shim_dentry* start, const char* path, int fla
 static int path_lookupat_follow(struct shim_dentry* link, int flags, struct shim_dentry** found,
                                 unsigned int link_depth) {
     int ret;
-    char* target;
+    char* target = NULL;
 
     assert(locked(&g_dcache_lock));
 

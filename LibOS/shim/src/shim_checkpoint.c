@@ -220,17 +220,16 @@ BEGIN_CP_FUNC(str) {
      * the whole string */
     assert(size == sizeof(char));
 
-    char* str = obj;
     char* new_str;
 
-    size_t off = GET_FROM_CP_MAP(str);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
-        size_t len = strlen(str);
+        size_t len = strlen(obj);
         off = ADD_CP_OFFSET(len + 1);
-        ADD_TO_CP_MAP(str, off);
+        ADD_TO_CP_MAP(obj, off);
         new_str = (char*)(base + off);
-        memcpy(new_str, str, len + 1);
+        memcpy(new_str, obj, len + 1);
     } else {
         new_str = (char*)(base + off);
     }

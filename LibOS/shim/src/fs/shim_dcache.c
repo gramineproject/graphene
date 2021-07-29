@@ -90,6 +90,7 @@ int init_dcache(void) {
     char* name = strdup("");
     if (!name) {
         free_dentry(g_dentry_root);
+        g_dentry_root = NULL;
         return -ENOMEM;
     }
     g_dentry_root->name = name;
