@@ -9,7 +9,7 @@ ENV LANGUAGE en_US.UTF-8
 
 COPY gsc-signer-key.pem /gsc-signer-key.pem
 
-RUN /graphene/python/graphene-sgx-sign \
+RUN graphene-sgx-sign \
         -libpal /graphene/Runtime/libpal-Linux-SGX.so \
         -key /gsc-signer-key.pem \
         -manifest /entrypoint.manifest \

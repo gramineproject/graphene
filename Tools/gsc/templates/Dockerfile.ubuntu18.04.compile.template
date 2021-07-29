@@ -15,6 +15,7 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
         python3-pip \
         python3-protobuf \
         wget \
+        meson \
     && python3 -B -m pip install toml>=0.10
 
 RUN git clone {{Graphene.Repository}} /graphene
@@ -34,11 +35,17 @@ ENV ISGX_DRIVER_PATH ""
 {% endif %}
 
 RUN cd /graphene \
-    && make -s -j WERROR=1 SGX=1 {% if debug %} DEBUG=1 {% endif %}
+    && make -s -j WERROR=1 SGX=1 {% if debug %} DEBUG=1 {% endif %} \
+    && meson build --prefix="/graphene/meson_build_output" --buildtype=release -Ddirect=disabled -Dsgx=enabled \
+    && ninja -C build \
+    && ninja -C build install
 
 {% if linux %}
 RUN cd /graphene \
-    && make -s -j WERROR=1 {% if debug %} DEBUG=1 {% endif %}
+    && make -s -j WERROR=1 {% if debug %} DEBUG=1 {% endif %} \
+    && meson build --prefix="/graphene/meson_build_output" --buildtype=release -Ddirect=enabled -Dsgx=disabled \
+    && ninja -C build \
+    && ninja -C build install
 {% endif %}
 
 # Translate runtime symlinks to files
