@@ -9,6 +9,7 @@
 #include <asm/errno.h>
 #include <asm/ioctls.h>
 #include <asm/mman.h>
+#include <linux/personality.h>
 
 #include "api.h"
 #include "elf/elf.h"
@@ -179,6 +180,24 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     bool first_process = !strcmp(argv[2], "init");
     if (!first_process && strcmp(argv[2], "child")) {
         print_usage_and_exit(argv[0]);
+    }
+
+    if (first_process) {
+        ret = INLINE_SYSCALL(personality, 1, 0xffffffff);
+        if (ret == -1) {
+            INIT_FAIL(unix_to_pal_error(-ret), "retriving personality failed");
+        }
+        if (!(ret & ADDR_NO_RANDOMIZE)) {
+            /* Grapthene fork() emulation does fork()+execve() on host and then sends all necessary
+             * data, including memory content, to the child process. Disable ASLR to prevent memory
+             * colliding with PAL executable (as it would get a new random address in the child). */
+            ret = INLINE_SYSCALL(personality, 1, (unsigned int)ret | ADDR_NO_RANDOMIZE);
+            if (ret == -1) {
+                INIT_FAIL(unix_to_pal_error(-ret), "setting personality failed");
+            }
+            ret = INLINE_SYSCALL(execve, 3, argv[0], argv, envp);
+            INIT_FAIL(unix_to_pal_error(-ret), "execve to disable ASLR failed");
+        }
     }
 
     g_pal_map.l_addr = elf_machine_load_address();
