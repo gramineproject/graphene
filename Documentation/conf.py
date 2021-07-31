@@ -95,7 +95,11 @@ def generate_doxygen(app):
         subprocess.check_call(['doxygen', 'Doxyfile-{}'.format(p)])
 
 def setup(app):
-    app.add_stylesheet('css/graphene.css')
+    import sphinx
+    if sphinx.__version__ < '1.8': 
+        app.add_stylesheet('css/graphene.css')
+    else:
+        app.add_css_file('css/graphene.css')
     app.connect('builder-inited', generate_doxygen)
 
 breathe_domain_by_extension = {
