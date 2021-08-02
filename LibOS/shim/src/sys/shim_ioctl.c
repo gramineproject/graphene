@@ -37,7 +37,7 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
     int ret;
     switch (cmd) {
         case TIOCGPGRP:
-            if (hdl->type != TYPE_FILE || hdl->info.file.type != FILE_TTY) {
+            if (strcmp(qstrgetstr(&hdl->uri), "dev:tty") != 0) {
                 ret = -ENOTTY;
                 break;
             }

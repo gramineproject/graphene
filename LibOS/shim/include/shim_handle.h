@@ -29,7 +29,7 @@
 /* Handle types. Many of these are used by a single filesystem. */
 enum shim_handle_type {
     /* Files: */
-    TYPE_FILE,       /* host files, used by `chroot` filesystem */
+    TYPE_CHROOT,     /* host files, used by `chroot` filesystem */
     TYPE_DEV,        /* emulated devices, used by `dev` filesystem */
     TYPE_STR,        /* string-based files (with data inside handle), handled by `pseudo_*`
                       * functions */
@@ -57,28 +57,8 @@ enum shim_file_type {
     FILE_TTY,
 };
 
-struct shim_file_data {
-    struct shim_lock lock;
-    struct atomic_int version;
-    bool queried;
-    enum shim_file_type type;
-    struct atomic_int size;
-    struct shim_qstr host_uri;
-    unsigned long atime;
-    unsigned long mtime;
-    unsigned long ctime;
-    unsigned long nlink;
-};
-
-struct shim_file_handle {
-    unsigned int version;
-    struct shim_file_data* data;
-
-    enum shim_file_type type;
-    file_off_t size;
-    file_off_t marker;
-
-    struct sync_handle* sync;
+struct shim_chroot_handle {
+    file_off_t pos;
 };
 
 #define FILE_HANDLE_DATA(hdl)  ((hdl)->info.file.data)
@@ -220,6 +200,14 @@ struct shim_handle {
     struct shim_fs* fs;
     struct shim_dentry* dentry;
 
+    /*
+     * Inode associated with this handle. Currently optional, and only for the use of underlying
+     * filesystem (see `shim_inode` in `shim_fs.h`). Eventually, should replace `dentry` fields.
+     *
+     * This field does not change, so reading it does not require holding `lock`.
+     */
+    struct shim_inode* inode;
+
     /* If this handle is registered for any epoll handle, this list contains
      * a shim_epoll_item object in correspondence with the epoll handle. */
     LISTP_TYPE(shim_epoll_item) epolls;
@@ -238,17 +226,17 @@ struct shim_handle {
     /* Type-specific fields: when accessing, ensure that `type` field is appropriate first (at least
      * by using assert()) */
     union {
-        struct shim_file_handle file;    /* TYPE_FILE */
-        /* (no data) */                  /* TYPE_DEV */
-        struct shim_str_handle str;      /* TYPE_STR */
-        /* (no data) */                  /* TYPE_PSEUDO */
-        struct shim_tmpfs_handle tmpfs;  /* TYPE_TMPFS */
+        struct shim_chroot_handle chroot; /* TYPE_CHROOT */
+        /* (no data) */                   /* TYPE_DEV */
+        struct shim_str_handle str;       /* TYPE_STR */
+        /* (no data) */                   /* TYPE_PSEUDO */
+        struct shim_tmpfs_handle tmpfs;   /* TYPE_TMPFS */
 
-        struct shim_pipe_handle pipe;    /* TYPE_PIPE */
-        struct shim_sock_handle sock;    /* TYPE_SOCK */
+        struct shim_pipe_handle pipe;     /* TYPE_PIPE */
+        struct shim_sock_handle sock;     /* TYPE_SOCK */
 
-        struct shim_epoll_handle epoll;  /* TYPE_EPOLL */
-        /* (no data) */                  /* TYPE_EVENTFD */
+        struct shim_epoll_handle epoll;   /* TYPE_EPOLL */
+        /* (no data) */                   /* TYPE_EVENTFD */
     } info;
 
     struct shim_dir_handle dir_info;
