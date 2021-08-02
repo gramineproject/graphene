@@ -620,12 +620,14 @@ sgx_ocall:
 	# init_enclave has been called by pal_linux_main. So during early init
 	# nothing should use features not covered by fxrstor, like AVX.
 
-	movq %rdi, %r10
-	leaq g_xsave_reset_state(%rip), %rdi
-	leaq 1f(%rip), %r11
-	jmp __restore_xregs
+	cmpl $0, g_xsave_enabled(%rip)
+	jne 1f
+	fxrstor64 g_xsave_reset_state(%rip)
+	jmp 2f
 1:
-	movq %r10, %rdi
+	mov $0xffffffff, %eax
+	mov %eax, %edx
+	xrstor64 g_xsave_reset_state(%rip)
 2:
 
 	# %rax is argument to EEXIT
