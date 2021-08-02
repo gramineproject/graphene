@@ -5,9 +5,8 @@ set -ex
 # Set default PAL to Linux-SGX
 if [ -z "$GSC_PAL" ] || [ "$GSC_PAL" == "Linux-SGX" ]
 then
-    GSC_PAL=Linux-SGX
     graphene-sgx-get-token -output /entrypoint.token -sig /entrypoint.sig
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init /entrypoint {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
+    graphene-sgx /entrypoint {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
 else
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init /entrypoint {{binary_arguments}} "${@}"
+    graphene-direct /entrypoint {{binary_arguments}} "${@}"
 fi

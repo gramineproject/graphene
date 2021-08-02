@@ -10,10 +10,9 @@ ENV LANGUAGE en_US.UTF-8
 COPY gsc-signer-key.pem /gsc-signer-key.pem
 
 RUN graphene-sgx-sign \
-        -libpal /graphene/Runtime/libpal-Linux-SGX.so \
-        -key /gsc-signer-key.pem \
-        -manifest /entrypoint.manifest \
-        -output /entrypoint.manifest.sgx
+        --key /gsc-signer-key.pem \
+        --manifest /entrypoint.manifest \
+        --output /entrypoint.manifest.sgx
 
 # This trick removes all temporary files from the previous commands (including gsc-signer-key.pem)
 FROM {{image}}
@@ -21,4 +20,3 @@ FROM {{image}}
 COPY --from=unsigned_image /*.sig /
 COPY --from=unsigned_image /*.sgx /
 
-RUN rm /graphene/python/graphene-sgx-sign /graphene/python/graphenelibos/sgx_sign.py

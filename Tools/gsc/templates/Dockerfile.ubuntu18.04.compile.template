@@ -10,12 +10,12 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
         git \
         libcurl4-openssl-dev \
         libprotobuf-c-dev \
+        meson \
         protobuf-c-compiler \
         python3 \
         python3-pip \
         python3-protobuf \
         wget \
-        meson \
     && python3 -B -m pip install toml>=0.10
 
 RUN git clone {{Graphene.Repository}} /graphene
@@ -36,17 +36,7 @@ ENV ISGX_DRIVER_PATH ""
 
 RUN cd /graphene \
     && make -s -j WERROR=1 SGX=1 {% if debug %} DEBUG=1 {% endif %} \
-    && meson build --prefix="/graphene/meson_build_output" --buildtype=release -Ddirect=disabled -Dsgx=enabled \
-    && ninja -C build \
-    && ninja -C build install
-
-{% if linux %}
-RUN cd /graphene \
     && make -s -j WERROR=1 {% if debug %} DEBUG=1 {% endif %} \
-    && meson build --prefix="/graphene/meson_build_output" --buildtype=release -Ddirect=enabled -Dsgx=disabled \
+    && meson build --prefix="/graphene/meson_build_output" --buildtype=release -Ddirect=enabled -Dsgx=enabled \
     && ninja -C build \
     && ninja -C build install
-{% endif %}
-
-# Translate runtime symlinks to files
-RUN for f in $(find /graphene/Runtime -type l); do cp --remove-destination $(realpath $f) $f; done
