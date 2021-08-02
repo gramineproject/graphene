@@ -695,42 +695,6 @@ out:
 int init_trusted_files(void) {
     int ret;
 
-    /* read loader.preload string from manifest and register its files as trusted */
-    char* preload_str = NULL;
-    ret = toml_string_in(g_pal_state.manifest_root, "loader.preload", &preload_str);
-    if (ret < 0) {
-        log_error("Cannot parse \'loader.preload\' "
-                  "(the value must be put in double quotes!)");
-        return -PAL_ERROR_INVAL;
-    }
-
-    if (preload_str) {
-        int npreload = 0;
-        char key[20];
-        const char* start;
-        const char* end;
-        size_t len = strlen(preload_str);
-
-        for (start = preload_str; start < preload_str + len; start = end + 1) {
-            for (end = start; end < preload_str + len && *end && *end != ','; end++)
-                ;
-            if (end > start) {
-                char uri[end - start + 1];
-                memcpy(uri, start, end - start);
-                uri[end - start] = 0;
-                snprintf(key, 20, "preload%d", npreload++);
-
-                ret = init_trusted_file(key, uri);
-                if (ret < 0) {
-                    free(preload_str);
-                    return ret;
-                }
-            }
-        }
-
-        free(preload_str);
-    }
-
     /* read sgx.trusted_files entries from manifest and register them */
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
