@@ -17,7 +17,7 @@
 void* g_enclave_base;
 void* g_enclave_top;
 
-static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates);
+static int register_file(const char* uri, const char* checksum_str, bool check_duplicates);
 
 bool sgx_is_completely_within_enclave(const void* addr, size_t size) {
     if ((uintptr_t)addr > UINTPTR_MAX - size) {
@@ -326,7 +326,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint
     }
 
     if (create) {
-        ret = register_trusted_file(uri, NULL, /*check_duplicates=*/true);
+        ret = register_file(uri, NULL, /*check_duplicates=*/true);
         goto out_free;
     }
 
@@ -554,7 +554,7 @@ failed:
     return ret;
 }
 
-static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates) {
+static int register_file(const char* uri, const char* checksum_str, bool check_duplicates) {
     int ret;
 
     size_t uri_len = strlen(uri);
@@ -638,120 +638,144 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
     return 0;
 }
 
-static int init_trusted_file(const char* key, const char* uri) {
+static int normalize_and_register_file(const char* uri, const char* checksum_str) {
     int ret;
-    char* normpath = NULL;
 
-    /* read sgx.trusted_checksum.<key> entry from manifest */
-    char* fullkey = alloc_concat3("sgx.trusted_checksum.\"", -1, key, -1, "\"", -1);
-    if (!fullkey)
-        return -PAL_ERROR_NOMEM;
-
-    /* NOTE: sgx.trusted_checksum entries are actually SHA-256 hashes, so the better name would be
-     * sgx.trusted_hash but we don't want to break old manifests so we keep the legacy name */
-    char* trusted_checksum_str = NULL;
-    ret = toml_string_in(g_pal_state.manifest_root, fullkey, &trusted_checksum_str);
-    if (ret < 0) {
-        log_error("Cannot parse '%s'", fullkey);
-        ret = -PAL_ERROR_INVAL;
-        goto out;
-    }
-    if (!trusted_checksum_str) {
-        log_error("Missing '%s' entry", fullkey);
-        ret = -PAL_ERROR_INVAL;
-        goto out;
-    }
-
-    /* Normalize the uri */
-    const size_t normpath_size = URI_MAX;
-    normpath = malloc(normpath_size);
-    if (!normpath) {
+    const size_t norm_uri_size = URI_MAX;
+    char* norm_uri = malloc(norm_uri_size);
+    if (!norm_uri) {
         ret = -PAL_ERROR_NOMEM;
         goto out;
     }
-    (void)strcpy_static(normpath, URI_PREFIX_FILE, normpath_size);
+
+    memcpy(norm_uri, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN + 1);
 
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
-        log_error("Invalid URI [%s]: Trusted files must start with 'file:'", uri);
+        log_error("Invalid URI [%s]: Trusted/allowed files must start with 'file:'", uri);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
-    size_t len = normpath_size - strlen(normpath);
-    ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
+
+    size_t len = norm_uri_size - strlen(norm_uri);
+    ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, norm_uri + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
-        log_error("Path (%s) normalization failed: %s", uri + URI_PREFIX_FILE_LEN,
-                  pal_strerror(ret));
+        log_error("Path (%s) normalization failed: %s", uri, pal_strerror(ret));
         goto out;
     }
 
-    ret = register_trusted_file(normpath, trusted_checksum_str, /*check_duplicates=*/false);
+    ret = register_file(norm_uri, checksum_str, /*check_duplicates=*/false);
 out:
-    free(normpath);
-    free(trusted_checksum_str);
-    free(fullkey);
+    free(norm_uri);
     return ret;
 }
 
-int init_trusted_files(void) {
+static int init_trusted_files_from_toml_table(void) {
     int ret;
 
-    /* read sgx.trusted_files entries from manifest and register them */
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
-        goto no_trusted;
+        return -PAL_ERROR_NOTDEFINED;
 
     toml_table_t* toml_trusted_files = toml_table_in(manifest_sgx, "trusted_files");
     if (!toml_trusted_files)
-        goto no_trusted;
+        return -PAL_ERROR_NOTDEFINED;
 
     ssize_t toml_trusted_files_cnt = toml_table_nkval(toml_trusted_files);
-    if (toml_trusted_files_cnt <= 0)
-        goto no_trusted;
+    if (toml_trusted_files_cnt < 0)
+        return -PAL_ERROR_DENIED;
+    if (toml_trusted_files_cnt == 0)
+        return -PAL_ERROR_NOTDEFINED;
+
+    char* toml_trusted_file_str     = NULL;
+    char* toml_trusted_checksum_key = NULL;
+    char* toml_trusted_checksum_str = NULL;
 
     for (ssize_t i = 0; i < toml_trusted_files_cnt; i++) {
+        /* read sgx.trusted_file.<key> entry from manifest */
         const char* toml_trusted_file_key = toml_key_in(toml_trusted_files, i);
         assert(toml_trusted_file_key);
         toml_raw_t toml_trusted_file_raw = toml_raw_in(toml_trusted_files, toml_trusted_file_key);
         assert(toml_trusted_file_raw);
 
-        char* toml_trusted_file_str = NULL;
         ret = toml_rtos(toml_trusted_file_raw, &toml_trusted_file_str);
         if (ret < 0) {
             log_error("Invalid trusted file in manifest: \'%s\'", toml_trusted_file_key);
             continue;
         }
 
-        ret = init_trusted_file(toml_trusted_file_key, toml_trusted_file_str);
-        if (ret < 0) {
-            free(toml_trusted_file_str);
-            return ret;
+        /* read corresponding sgx.trusted_checksum.<key> entry from manifest */
+        toml_trusted_checksum_key = alloc_concat3("sgx.trusted_checksum.\"", -1,
+                                                  toml_trusted_file_key, -1, "\"", -1);
+        if (!toml_trusted_checksum_key) {
+            ret = -PAL_ERROR_NOMEM;
+            goto out;
         }
 
+        /* sgx.trusted_checksum entries are actually SHA-256 hashes, so the better name would be
+         * sgx.trusted_hash but we don't want to break old manifests so we keep the legacy name */
+        ret = toml_string_in(g_pal_state.manifest_root, toml_trusted_checksum_key,
+                             &toml_trusted_checksum_str);
+        if (ret < 0) {
+            log_error("Cannot parse '%s'", toml_trusted_checksum_key);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        if (!toml_trusted_checksum_str) {
+            log_error("Missing '%s' entry", toml_trusted_checksum_key);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+
+        ret = normalize_and_register_file(toml_trusted_file_str, toml_trusted_checksum_str);
+        if (ret < 0)
+            goto out;
+
         free(toml_trusted_file_str);
+        free(toml_trusted_checksum_key);
+        free(toml_trusted_checksum_str);
+        toml_trusted_file_str     = NULL;
+        toml_trusted_checksum_key = NULL;
+        toml_trusted_checksum_str = NULL;
     }
 
-no_trusted:
-    ret = 0;
-    char* norm_path = NULL;
+#if 0  // TODO: enable this when we implement TOML-array syntax
+    log_warning("Detected the deprecated TOML-table syntax for 'sgx.trusted_files'. Consider "
+                "switching to the new TOML-array syntax: 'sgx.trusted_files = [\"file1\", ..]'");
+#endif
 
-    /* read sgx.allowed_files entries from manifest and register them */
+    ret = 0;
+out:
+    free(toml_trusted_file_str);
+    free(toml_trusted_checksum_key);
+    free(toml_trusted_checksum_str);
+    return ret;
+}
+
+static int init_trusted_files_from_toml_array(void) {
+    /* stub, not yet implemented */
+    return -PAL_ERROR_NOTDEFINED;
+}
+
+static int init_allowed_files_from_toml_table(void) {
+    int ret;
+
+    toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
-        goto no_allowed;
+        return -PAL_ERROR_NOTDEFINED;
 
     toml_table_t* toml_allowed_files = toml_table_in(manifest_sgx, "allowed_files");
     if (!toml_allowed_files)
-        goto no_allowed;
+        return -PAL_ERROR_NOTDEFINED;
 
     ssize_t toml_allowed_files_cnt = toml_table_nkval(toml_allowed_files);
-    if (toml_allowed_files_cnt <= 0)
-        goto no_allowed;
+    if (toml_allowed_files_cnt < 0)
+        return -PAL_ERROR_DENIED;
+    if (toml_allowed_files_cnt == 0)
+        return -PAL_ERROR_NOTDEFINED;
 
-    const size_t norm_path_size = URI_MAX;
-    norm_path = malloc(norm_path_size);
-    if (!norm_path) {
-        ret = -PAL_ERROR_NOMEM;
-        goto no_allowed;
-    }
+    char* toml_allowed_file_str = NULL;
 
     for (ssize_t i = 0; i < toml_allowed_files_cnt; i++) {
         const char* toml_allowed_file_key = toml_key_in(toml_allowed_files, i);
@@ -759,44 +783,78 @@ no_trusted:
         toml_raw_t toml_allowed_file_raw = toml_raw_in(toml_allowed_files, toml_allowed_file_key);
         assert(toml_allowed_file_raw);
 
-        char* toml_allowed_file_str = NULL;
         ret = toml_rtos(toml_allowed_file_raw, &toml_allowed_file_str);
         if (ret < 0) {
             log_error("Invalid allowed file in manifest: \'%s\'", toml_allowed_file_key);
             continue;
         }
 
-        if (!strstartswith(toml_allowed_file_str, URI_PREFIX_FILE)) {
-            log_error("Invalid URI [%s]: Allowed files must start with 'file:'",
-                      toml_allowed_file_str);
-            free(toml_allowed_file_str);
-            ret = -PAL_ERROR_INVAL;
-            goto no_allowed;
-        }
-        assert(norm_path_size > URI_PREFIX_FILE_LEN);
-        memcpy(norm_path, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
+        ret = normalize_and_register_file(toml_allowed_file_str, /*checksum_str=*/NULL);
+        if (ret < 0)
+            goto out;
 
-        size_t norm_path_len = norm_path_size - URI_PREFIX_FILE_LEN;
-
-        ret = get_norm_path(toml_allowed_file_str + URI_PREFIX_FILE_LEN,
-                            norm_path + URI_PREFIX_FILE_LEN, &norm_path_len);
-
-        if (ret < 0) {
-            log_error("Path (%s) normalization failed: %s",
-                      toml_allowed_file_str + URI_PREFIX_FILE_LEN, pal_strerror(ret));
-            free(toml_allowed_file_str);
-            goto no_allowed;
-        }
         free(toml_allowed_file_str);
-
-        register_trusted_file(norm_path, NULL, /*check_duplicates=*/false);
+        toml_allowed_file_str = NULL;
     }
 
-    ret = 0;
+#if 0  // TODO: enable this when we implement TOML-array syntax
+    log_warning("Detected the deprecated TOML-table syntax for 'sgx.allowed_files'. Consider "
+                "switching to the new TOML-array syntax: 'sgx.allowed_files = [\"file1\", ..]'");
+#endif
 
-no_allowed:
-    free(norm_path);
+    ret = 0;
+out:
+    free(toml_allowed_file_str);
     return ret;
+}
+
+static int init_allowed_files_from_toml_array(void) {
+    /* stub, not yet implemented */
+    return -PAL_ERROR_NOTDEFINED;
+}
+
+int init_trusted_files(void) {
+    int ret;
+
+    /* first try legacy manifest syntax with TOML tables, i.e. `sgx.trusted_files.key = "file"` */
+    ret = init_trusted_files_from_toml_table();
+    if (ret == -PAL_ERROR_NOTDEFINED) {
+        /* try new manifest syntax with TOML arrays, i.e. `sgx.trusted_files = ["file1", ..]` */
+        ret = init_trusted_files_from_toml_array();
+        if (ret == -PAL_ERROR_NOTDEFINED) {
+            /* no trusted files were found, perfectly valid case */
+            return 0;
+        }
+    }
+
+    if (ret < 0) {
+        log_error("Reading trusted files from the manifest failed: %s", pal_strerror(ret));
+        return ret;
+    }
+
+    return 0;
+}
+
+int init_allowed_files(void) {
+    int ret;
+
+    /* first try legacy manifest syntax with TOML tables, i.e. `sgx.allowed_files.key = "file"` */
+    ret = init_allowed_files_from_toml_table();
+    if (ret == -PAL_ERROR_NOTDEFINED) {
+        /* try new manifest syntax with TOML arrays, i.e. `sgx.allowed_files = ["file1", ..]` */
+        ret = init_allowed_files_from_toml_array();
+        if (ret == -PAL_ERROR_NOTDEFINED) {
+            /* no allowed files were found, perfectly valid case */
+            return 0;
+        }
+    }
+
+    if (ret < 0) {
+        log_error("Reading allowed files from the manifest failed: %s", pal_strerror(ret));
+        return ret;
+    }
+
+    return 0;
 }
 
 int init_file_check_policy(void) {

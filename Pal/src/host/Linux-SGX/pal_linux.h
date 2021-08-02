@@ -51,6 +51,9 @@ int init_child_process(PAL_HANDLE* parent, uint64_t* instance_id_ptr);
 
 #ifdef IN_ENCLAVE
 
+int init_enclave(void);
+void init_untrusted_slab_mgr(void);
+
 extern const size_t g_page_size;
 extern size_t g_pal_internal_mem_size;
 
@@ -69,13 +72,6 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START ((void*)(&__data_start))
 #define DATA_END   ((void*)(&__data_end))
 
-typedef struct {
-    uint8_t bytes[32];
-} sgx_file_hash_t;
-typedef struct {
-    uint8_t bytes[16];
-} sgx_chunk_hash_t;
-
 extern int g_xsave_enabled;
 extern uint64_t g_xsave_features;
 extern uint32_t g_xsave_size;
@@ -91,12 +87,26 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
                          PAL_XREGS_STATE* xregs_state);
 void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
 
-int init_trusted_files(void);
 void init_cpuid(void);
 
 bool is_tsc_usable(void);
 uint64_t get_tsc_hz(void);
 void init_tsc(void);
+
+enum {
+    FILE_CHECK_POLICY_STRICT,
+    FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG,
+};
+
+int init_file_check_policy(void);
+int get_file_check_policy(void);
+
+typedef struct {
+    uint8_t bytes[32];
+} sgx_file_hash_t;
+typedef struct {
+    uint8_t bytes[16];
+} sgx_chunk_hash_t;
 
 /*!
  * \brief check if the file to be opened is trusted or allowed, according to the manifest
@@ -111,15 +121,6 @@ void init_tsc(void);
  */
 int load_trusted_file(PAL_HANDLE file, sgx_chunk_hash_t** chunk_hashes_ptr, uint64_t* size_ptr,
                       int create, void** umem);
-
-enum {
-    FILE_CHECK_POLICY_STRICT = 0,
-    FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG,
-};
-
-int init_file_check_policy(void);
-
-int get_file_check_policy(void);
 
 /*!
  * \brief Copy and check file contents from untrusted outside buffer to in-enclave buffer
@@ -148,10 +149,8 @@ int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* ume
                                  off_t aligned_offset, off_t aligned_end, off_t offset, off_t end,
                                  sgx_chunk_hash_t* chunk_hashes, size_t file_size);
 
-int register_trusted_child(const char* uri, const char* mr_enclave_str);
-
-int init_enclave(void);
-void init_untrusted_slab_mgr(void);
+int init_allowed_files(void);
+int init_trusted_files(void);
 
 /* Used to track map buffers for protected files */
 DEFINE_LIST(pf_map);

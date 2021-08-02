@@ -708,13 +708,18 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         ocall_exit(1, true);
     }
 
-    if ((ret = init_trusted_files()) < 0) {
-        log_error("Failed to load the checksums of trusted files: %d", ret);
+    if ((ret = init_file_check_policy()) < 0) {
+        log_error("Failed to load the file check policy: %d", ret);
         ocall_exit(1, true);
     }
 
-    if ((ret = init_file_check_policy()) < 0) {
-        log_error("Failed to load the file check policy: %d", ret);
+    if ((ret = init_allowed_files()) < 0) {
+        log_error("Failed to initialize allowed files: %d", ret);
+        ocall_exit(1, true);
+    }
+
+    if ((ret = init_trusted_files()) < 0) {
+        log_error("Failed to initialize trusted files: %d", ret);
         ocall_exit(1, true);
     }
 
