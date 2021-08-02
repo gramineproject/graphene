@@ -111,8 +111,8 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
         if (start_addr >= end_addr)
             INIT_FAIL(PAL_ERROR_NOMEM, "no user memory available");
 
-        void* mem = (void*)ARCH_MMAP(start_addr, g_pal_state.alloc_align, PROT_NONE,
-                                     MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        void* mem = (void*)DO_SYSCALL(mmap, start_addr, g_pal_state.alloc_align, PROT_NONE,
+                                      MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
         if (!IS_PTR_ERR(mem)) {
             DO_SYSCALL(munmap, mem, g_pal_state.alloc_align);
             if (mem == start_addr)
@@ -293,9 +293,9 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'loader.pal_internal_mem_size'");
     }
 
-    void* internal_mem_addr = (void*)ARCH_MMAP(NULL, g_pal_internal_mem_size,
-                                               PROT_READ | PROT_WRITE,
-                                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    void* internal_mem_addr = (void*)DO_SYSCALL(mmap, NULL, g_pal_internal_mem_size,
+                                                PROT_READ | PROT_WRITE,
+                                                MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (IS_PTR_ERR(internal_mem_addr)) {
         INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate PAL internal memory pool");
     }

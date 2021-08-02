@@ -47,31 +47,6 @@ extern struct pal_linux_state {
     long int (*vdso_clock_gettime)(long int clk, struct timespec* tp);
 } g_linux_state;
 
-#ifdef __i386__
-#define ARCH_MMAP(addr, len, prot, flags, fd, offset) \
-    ({                                                \
-        struct mmap_arg_struct {                      \
-            unsigned long addr;                       \
-            unsigned long len;                        \
-            unsigned long prot;                       \
-            unsigned long flags;                      \
-            unsigned long fd;                         \
-            unsigned long offset;                     \
-        } args = {                                    \
-            .addr   = (unsigned long)(addr),          \
-            .len    = (unsigned long)(len),           \
-            .prot   = (unsigned long)(prot),          \
-            .flags  = (unsigned long)(flags),         \
-            .fd     = (unsigned long)(fd),            \
-            .offset = (unsigned long)(offset),        \
-        };                                            \
-        DO_SYSCALL(mmap, &args);                      \
-    })
-#else
-#define ARCH_MMAP(addr, len, prot, flags, fd, offset) \
-    DO_SYSCALL(mmap, addr, len, prot, flags, fd, offset)
-#endif
-
 #define DEFAULT_BACKLOG 2048
 
 /* PAL main function */

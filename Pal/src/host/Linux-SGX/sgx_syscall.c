@@ -10,6 +10,8 @@
 #include "sgx_syscall.h"
 #include "sgx_tls.h"
 
+/* `offsetof` is evaluated at compile time, which happens only after the preprocessor is run, so it
+ * cannot be used in `XSTRINGIFY()`, hence we have to use an immediate value. */
 #define PAL_TCB_URTS_LAST_ASYNC_EVENT_OFFSET 0x58
 static_assert(offsetof(PAL_TCB_URTS, last_async_event) == PAL_TCB_URTS_LAST_ASYNC_EVENT_OFFSET,
               "error");

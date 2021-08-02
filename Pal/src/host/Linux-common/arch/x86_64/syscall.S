@@ -3,10 +3,8 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
-/* Oh boy. */
 #define __ASSEMBLY__
 #include <asm/unistd.h>
-#include <linux/sched.h>
 
 .global do_syscall
 .type do_syscall, @function
@@ -79,8 +77,8 @@ clone:
 vfork:
     .cfi_startproc
     pop %rdx
+    .cfi_register %rip, %rdx
     mov $__NR_vfork, %eax
     syscall
-    push %rdx
-    ret
+    jmp *%rdx
     .cfi_endproc

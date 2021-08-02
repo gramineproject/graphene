@@ -155,10 +155,10 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     prot = PAL_PROT_TO_LINUX(prot);
 
     /* The memory will always be allocated with flag MAP_PRIVATE and MAP_FILE */
-    mem = (void*)ARCH_MMAP(mem, size, prot, flags, fd, offset);
+    mem = (void*)DO_SYSCALL(mmap, mem, size, prot, flags, fd, offset);
 
     if (IS_PTR_ERR(mem))
-        return PTR_TO_ERR(mem);
+        return unix_to_pal_error(PTR_TO_ERR(mem));
 
     *addr = mem;
     return 0;

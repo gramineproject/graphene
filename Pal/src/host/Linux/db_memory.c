@@ -67,7 +67,7 @@ int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
     prot = PAL_PROT_TO_LINUX(prot);
 
     flags |= MAP_ANONYMOUS | MAP_FIXED;
-    addr = (void*)ARCH_MMAP(addr, size, prot, flags, -1, 0);
+    addr = (void*)DO_SYSCALL(mmap, addr, size, prot, flags, -1, 0);
 
     if (IS_PTR_ERR(addr)) {
         /* note that we don't undo operations on `g_pal_internal_mem_used` in case of internal-PAL
