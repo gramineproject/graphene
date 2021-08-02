@@ -18,18 +18,6 @@
 
 #include "api.h"
 
-/* Function for scrubbing sensitive memory buffers.
- * memset() can be optimized away and memset_s() is not available in PAL.
- * FIXME: this implementation is inefficient (and used in perf-critical functions),
- * replace with a better one.
- * TODO: is this really needed? Intel's implementation uses similar function as "defense in depth".
- */
-static void erase_memory(void* buffer, size_t size) {
-    volatile unsigned char* p = buffer;
-    while (size--)
-        *p++ = 0;
-}
-
 /* Host callbacks */
 static pf_read_f     g_cb_read     = NULL;
 static pf_write_f    g_cb_write    = NULL;

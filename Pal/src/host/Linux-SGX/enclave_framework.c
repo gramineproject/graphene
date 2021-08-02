@@ -172,7 +172,7 @@ int sgx_verify_report(sgx_report_t* report) {
                 (uint8_t*)&check_mac, sizeof(check_mac));
 
     // Clear the report key for security
-    memset(&report_key, 0, sizeof(report_key));
+    erase_memory(&report_key, sizeof(report_key));
 
     log_debug("Verify report:\n");
     print_report(report);
@@ -983,14 +983,14 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key, uint8_t* my_ha
     ret = 0;
 out:
     if (ret < 0) {
-        memset(key, 0, sizeof(*key)); /* scrub session key on failure */
+        erase_memory(key, sizeof(*key)); /* scrub session key on failure */
         log_error("Key Exchange failed: %d\n", ret);
     }
 
     /* scrub all temporary buffers */
-    memset(&secret, 0, sizeof(secret));
-    memset(&my_public, 0, sizeof(my_public));
-    memset(&peer_public, 0, sizeof(peer_public));
+    erase_memory(&secret, sizeof(secret));
+    erase_memory(&my_public, sizeof(my_public));
+    erase_memory(&peer_public, sizeof(peer_public));
     lib_DhFinal(&context);
 
     return ret;
