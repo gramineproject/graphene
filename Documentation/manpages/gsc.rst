@@ -260,15 +260,16 @@ follows three main stages and produces an image named ``gsc-<image-name>``.
    via the configuration file).  It then prepares image-specific variables such
    as the executable path and the library path, and scans the entire image to
    generate a list of trusted files.  GSC excludes files and paths starting with
-   :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys`,
-   :file:`/etc/mtab`, and :file:`/etc/rc`, since checksums are required which
-   either don't exist or may vary across different deployment machines. GSC
-   combines these variables and list of trusted files into a new manifest file.
-   In a last step the entrypoint is changed to launch the :file:`apploader.sh`
-   script which generates an Intel SGX token and starts the :program:`graphene-sgx`
-   loader. Note that the generated image (``gsc-<image-name>-unsigned``) cannot
-   successfully load an Intel SGX enclave, since essential files and the
-   signature of the enclave are still missing (see next stage).
+   :file:`/boot`, :file:`/dev`, :file:`.dockerenv`, :file:`.dockerinit`,
+   :file:`/etc/mtab`, :file:`/etc/rc`, :file:`/proc`, :file:`/sys`, and
+   :file:`/var`, since checksums are required which either don't exist or may
+   vary across different deployment machines. GSC combines these variables and
+   list of trusted files into a new manifest file. In a last step the entrypoint
+   is changed to launch the :file:`apploader.sh` script which generates an Intel
+   SGX token and starts the :program:`graphene-sgx` loader. Note that the
+   generated image (``gsc-<image-name>-unsigned``) cannot successfully load an
+   Intel SGX enclave, since essential files and the signature of the enclave are
+   still missing (see next stage).
 
 #. **Signing the Intel SGX enclave.** The third stage uses Graphene's signer
    tool to generate SIGSTRUCT files for SGX enclave initialization. This tool
@@ -320,13 +321,13 @@ in :file:`config.yaml.template`.
 
 .. describe:: SGXDriver.Repository
 
-   Source repository of the Intel SGX driver. Default value:
-   `https://github.com/intel/linux-sgx-driver.git
-   <https://github.com/intel/linux-sgx-driver.git>`__.
+   Source repository of the Intel SGX driver. Default value: ""
+   (Considering DCAP in-kernel driver)
 
 .. describe:: SGXDriver.Branch
 
-   Use this branch of the repository. Default value: sgx_driver_1.9.
+   Use this branch of the repository. Default value: ""
+   (Considering DCAP in-kernel driver)
 
 Run graphenized Docker images
 =============================
@@ -504,11 +505,11 @@ files may be added to the manifest.
 Access to files in excluded paths
 ---------------------------------
 
-The manifest generation excludes all files and paths starting with
-:file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys`,
-:file:`/etc/mtab`, and :file:`/etc/rc` from the list of trusted files. If your
-application relies on some files in these directories, you must manually add them
-to the manifest::
+The manifest generation excludes all files and paths starting with :file:`/boot`
+, :file:`/dev`, :file:`.dockerenv`, :file:`.dockerinit`, :file:`/etc/mtab`,
+:file:`/etc/rc`, :file:`/proc`, :file:`/sys`, and :file:`/var` from the list of
+trusted files. If your application relies on some files in these directories,
+you must manually add them to the manifest::
 
    sgx.trusted_files.[identifier] = "[URI]"
    or
