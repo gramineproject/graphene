@@ -149,6 +149,10 @@ struct shim_dentry {
     /* Filesystem-specific data. Protected by `lock`. */
     void* data;
 
+    /* Inode associated with this dentry. Currently optional, and only for the use of underlying
+     * filesystem (see `shim_inode` below). Protected by `lock`. */
+    struct shim_inode* inode;
+
     /* File lock information, stored only in the main process. Protected by `lock`. See
      * `shim_fs_lock.c`. */
     struct fs_lock* fs_lock;
@@ -157,6 +161,44 @@ struct shim_dentry {
      * main process, to prevent unnecessary IPC calls on handle close. Protected by `lock`. See
      * `shim_fs_lock.c`. */
     bool maybe_has_fs_locks;
+
+    struct shim_lock lock;
+    REFTYPE ref_count;
+};
+
+/*
+ * Describes a single file in Graphene filesystem.
+ *
+ * The migration to inodes is underway. Currently, the underlying filesystems may use fields in this
+ * structure, but should also write to corresponding fields in dentry.
+ *
+ * The fields in this structure are protected by `lock`, with the exception of fields that do not
+ * change (`type`, `mount`, `fs`).
+ */
+struct shim_inode {
+    /* File type: S_IFREG, S_IFDIR, S_IFLNK etc. Does not change. */
+    mode_t type;
+
+    /* File permissions: PERM_rwxrwxrwx, etc. */
+    mode_t perm;
+
+    /* File size */
+    file_off_t size;
+
+    /* Create/modify/access time */
+    time_t ctime;
+    time_t mtime;
+    time_t atime;
+
+    /* Mounted filesystem this inode belongs to. Does not change. */
+    struct shim_mount* mount;
+
+    /* Filesystem to use for operations on this file: this is usually `mount->fs`, but can be
+     * different in case of special files (such as named pipes or sockets). */
+    struct shim_fs* fs;
+
+    /* Filesystem specific data. TODO: not checkpointed yet. */
+    void* data;
 
     struct shim_lock lock;
     REFTYPE ref_count;
@@ -221,6 +263,9 @@ struct shim_d_ops {
      * stops, returning the same error code.
      */
     int (*readdir)(struct shim_dentry* dent, readdir_callback_t callback, void* arg);
+
+    /* Deallocate internal data from an inode */
+    int (*iput)(struct shim_inode* inode);
 };
 
 /*
@@ -522,6 +567,9 @@ void get_dentry(struct shim_dentry* dent);
 /* Decrement the reference count on dent */
 void put_dentry(struct shim_dentry* dent);
 
+void lock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2);
+void unlock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2);
+
 /*!
  * \brief Get the dentry one level up
  *
@@ -646,6 +694,21 @@ bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent);
 
 /* XXX: Future work: current dcache never shrinks. Would be nice to be able to do something like LRU
  * under space pressure, although for a single app, this may be over-kill. */
+
+/*!
+ * \brief Allocaate and initialize a new inode
+ *
+ * \param mount the mount the inode is under
+ * \param type inode type (S_IFREG, S_IFDIR, etc.)
+ * \param perm inode permissions (PERM_rwxrwxrwx, etc.)
+ *
+ * This function will initialize the following fields: `mount`, `fs` (to `mount->fs`), `type`, and
+ * `perm`. The reference count will be initialized to 1.
+ */
+struct shim_inode* get_new_inode(struct shim_mount* mount, mode_t type, mode_t perm);
+
+void get_inode(struct shim_inode* inode);
+void put_inode(struct shim_inode* inode);
 
 /*
  * Hashing utilities for paths.

@@ -8,6 +8,7 @@
 #include <asm/ioctls.h>
 
 #include "pal.h"
+#include "stat.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_process.h"
@@ -37,7 +38,7 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
     int ret;
     switch (cmd) {
         case TIOCGPGRP:
-            if (hdl->type != TYPE_FILE || hdl->info.file.type != FILE_TTY) {
+            if (!(hdl->inode && hdl->inode->type == S_IFCHR)) {
                 ret = -ENOTTY;
                 break;
             }

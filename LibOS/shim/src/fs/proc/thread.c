@@ -272,7 +272,7 @@ int proc_thread_fd_list_names(struct shim_dentry* parent, readdir_callback_t cal
 static char* describe_handle(struct shim_handle* hdl) {
     const char* str;
     switch (hdl->type) {
-        case TYPE_FILE:    str = "file:[?]";    break;
+        case TYPE_CHROOT:  str = "chroot:[?]";  break;
         case TYPE_DEV:     str = "dev:[?]";     break;
         case TYPE_STR:     str = "str:[?]";     break;
         case TYPE_PSEUDO:  str = "pseudo:[?]";  break;

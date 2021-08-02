@@ -354,6 +354,72 @@ int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size) {
     return dentry_path(dent, /*relative=*/true, path, size);
 }
 
+void lock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2) {
+    assert(dent1 != dent2);
+    if ((uintptr_t)dent1 < (uintptr_t)dent2) {
+        lock(&dent1->lock);
+        lock(&dent2->lock);
+    } else {
+        lock(&dent2->lock);
+        lock(&dent1->lock);
+    }
+}
+
+void unlock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2) {
+    assert(dent1 != dent2);
+    if ((uintptr_t)dent1 < (uintptr_t)dent2) {
+        unlock(&dent2->lock);
+        unlock(&dent1->lock);
+    } else {
+        unlock(&dent1->lock);
+        unlock(&dent2->lock);
+    }
+}
+
+struct shim_inode* get_new_inode(struct shim_mount* mount, mode_t type, mode_t perm) {
+    struct shim_inode* inode = malloc(sizeof(*inode));
+    if (!inode)
+        return NULL;
+
+    if (!create_lock(&inode->lock)) {
+        free(inode);
+        return NULL;
+    }
+
+    inode->type = type;
+    inode->perm = perm;
+    inode->size = 0;
+    inode->ctime = 0;
+    inode->mtime = 0;
+    inode->atime = 0;
+
+    inode->mount = mount;
+    get_mount(mount);
+    inode->fs = mount->fs;
+
+    REF_SET(inode->ref_count, 1);
+    return inode;
+}
+
+void get_inode(struct shim_inode* inode) {
+    REF_INC(inode->ref_count);
+}
+
+void put_inode(struct shim_inode* inode) {
+    if (REF_DEC(inode->ref_count) == 0) {
+        if (inode->fs->d_ops->iput) {
+            int ret = inode->fs->d_ops->iput(inode);
+            if (ret < 0)
+                log_warning("iput() on inode failed: %d", ret);
+        }
+
+        put_mount(inode->mount);
+
+        destroy_lock(&inode->lock);
+        free(inode);
+    }
+}
+
 static int dump_dentry_write_all(const char* str, size_t size, void* arg) {
     __UNUSED(arg);
     log_always("%.*s", (int)size, str);
@@ -516,6 +582,9 @@ BEGIN_CP_FUNC(dentry) {
         if (dent->attached_mount)
             DO_CP_MEMBER(mount, dent, new_dent, attached_mount);
 
+        if (dent->inode)
+            DO_CP_MEMBER(inode, dent, new_dent, inode);
+
         unlock(&dent->lock);
         ADD_CP_FUNC_ENTRY(off);
     } else {
@@ -538,6 +607,7 @@ BEGIN_RS_FUNC(dentry) {
     CP_REBASE(dent->fs);
     CP_REBASE(dent->parent);
     CP_REBASE(dent->attached_mount);
+    CP_REBASE(dent->inode);
 
     if (!create_lock(&dent->lock)) {
         return -ENOMEM;
@@ -559,5 +629,56 @@ BEGIN_RS_FUNC(dentry) {
     if (dent->attached_mount) {
         get_mount(dent->attached_mount);
     }
+
+    if (dent->inode) {
+        get_inode(dent->inode);
+    }
 }
 END_RS_FUNC(dentry)
+
+BEGIN_CP_FUNC(inode) {
+    __UNUSED(size);
+    assert(size == sizeof(struct shim_inode));
+
+    struct shim_inode* inode = obj;
+    struct shim_inode* new_inode = NULL;
+
+    size_t off = GET_FROM_CP_MAP(obj);
+
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_inode));
+        ADD_TO_CP_MAP(obj, off);
+        new_inode = (struct shim_inode*)(base + off);
+
+        lock(&inode->lock);
+        memcpy(new_inode, inode, sizeof(*inode));
+        unlock(&inode->lock);
+
+        DO_CP_MEMBER(mount, inode, new_inode, mount);
+        DO_CP_MEMBER(fs, inode, new_inode, fs);
+
+        REF_SET(new_inode->ref_count, 0);
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
+        new_inode = (struct shim_inode*)(base + off);
+    }
+
+    if (objp)
+        *objp = (void*)new_inode;
+}
+END_CP_FUNC(inode)
+
+BEGIN_RS_FUNC(inode) {
+    struct shim_inode* inode = (void*)(base + GET_CP_FUNC_ENTRY());
+    __UNUSED(offset);
+
+    CP_REBASE(inode->mount);
+    CP_REBASE(inode->fs);
+
+    get_mount(inode->mount);
+
+    if (!create_lock(&inode->lock)) {
+        return -ENOMEM;
+    }
+}
+END_RS_FUNC(inode)
