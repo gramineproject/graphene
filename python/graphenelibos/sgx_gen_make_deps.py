@@ -4,8 +4,10 @@
 # Copyright (C) 2021 Intel Corporation
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 
-from pathlib import Path
-from . import _sgx_utility
+# Generator of Makefile dependency files (`.d`): the final Graphene manifest.sgx file depends on
+# all trusted-files listed in the manifest, the libpal.so library, and the signer key.
+
+# This is Makefile-specific and will be removed after the complete transition to Meson.
 
 class DependGenerator:
 

@@ -6,29 +6,24 @@
 
 import struct
 import hashlib
-from pathlib import Path
-from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
-from . import _sgx_utility as util
-from . import _sgx_memory as memory
+from . import (
+    _offsets as offs,
+    sgx_get_enclave_mem_areas as memory,
+    sgx_utils as util
+    )
+
+# Generating the final SGX measurement of the enclave (MRENCLAVE) based on the manifest,
+# enclave runtime, designated binary and its trusted dependencies.
 
 ZERO_PAGE = bytes(offs.PAGESIZE)
 
-# Populate Enclave Memory
-
-PAGEINFO_R = 0x1
-PAGEINFO_W = 0x2
-PAGEINFO_X = 0x4
-PAGEINFO_TCS = 0x100
-PAGEINFO_REG = 0x200
-
 class EnclaveMeasurement:
-    def __init__(self, manifest, output_file, libpal_file):
+    def __init__(self, manifest, libpal_file):
         self.manifest = manifest
-        self.output_file = output_file
         self.libpal_file = libpal_file
         self.mrenclave = hashlib.sha256()
         self.attr = self.manifest.get_sgx_attr()
-        self.enclave_base, self.enclave_heap_min = self.manifest.get_enclave_info(self.attr)
+        self.enclave_base, self.enclave_heap_min = self.manifest.get_enclave_addresses(self.attr)
 
     def do_ecreate(self, size):
         data = struct.pack('<8sLQ44s', b'ECREATE', offs.SSA_FRAME_SIZE // offs.PAGESIZE, size, b'')
@@ -59,16 +54,16 @@ class EnclaveMeasurement:
                 self.do_eextend(addr - self.enclave_base + i, content[i:i + 256])
 
     def print_area(self, addr, size, flags, desc, measured):
-        if flags & PAGEINFO_REG:
+        if flags & util.PAGEINFO_REG:
             type_ = 'REG'
-        if flags & PAGEINFO_TCS:
+        if flags & util.PAGEINFO_TCS:
             type_ = 'TCS'
         prot = ['-', '-', '-']
-        if flags & PAGEINFO_R:
+        if flags & util.PAGEINFO_R:
             prot[0] = 'R'
-        if flags & PAGEINFO_W:
+        if flags & util.PAGEINFO_W:
             prot[1] = 'W'
-        if flags & PAGEINFO_X:
+        if flags & util.PAGEINFO_X:
             prot[2] = 'X'
         prot = ''.join(prot)
 
@@ -132,13 +127,13 @@ class EnclaveMeasurement:
                     for (offset, addr, filesize, memsize, prot) in loadcmds:
                         flags = area.flags
                         if prot & 4:
-                            flags = flags | PAGEINFO_R
+                            flags = flags | util.PAGEINFO_R
                         if prot & 2:
-                            flags = flags | PAGEINFO_W
+                            flags = flags | util.PAGEINFO_W
                         if prot & 1:
-                            flags = flags | PAGEINFO_X
+                            flags = flags | util.PAGEINFO_X
 
-                        if flags & PAGEINFO_X:
+                        if flags & util.PAGEINFO_X:
                             desc = 'code'
                         else:
                             desc = 'data'
@@ -157,34 +152,18 @@ class EnclaveMeasurement:
                 self.print_area(area.addr, area.size, area.flags, area.desc,
                            area.measure)
 
-        return self.mrenclave.digest()
+        mrenclave_digest = self.mrenclave.digest()
+        print('Memory:')
+        print('Measurement:')
+        print(f'    {mrenclave_digest.hex()}')
+        return mrenclave_digest
 
     def measure_enclave(self):
-        # pylint: disable=too-many-statements,too-many-branches,too-many-locals
-
-        self.manifest.get_client_spid()
-
-        self.manifest.attach_trusted_file_hashs()
-
-        enclave = memory.EnclaveMemory(self.manifest, self.libpal_file)
-
-        # Populate memory areas
-        enclave.init_memory_areas()
-
-        self.manifest.output_manifest(self.output_file)
-
-        enclave.load_manifest_file(self.output_file)
-
-        enclave.populate_memory_areas()
-
-        print('Memory:')
-        # Generate measurement
-        self.mrenclave_final = self.generate_measurement(enclave)
-        print('Measurement:')
-        print(f'    {self.mrenclave_final.hex()}')
+        enclave_memory = memory.EnclaveMemory(self.manifest, self.libpal_file)
+        enclave_memory.init_memory_areas()
+        enclave_memory.add_manifest_to_memory_areas()
+        enclave_memory.populate_memory_areas()
+        self.mrenclave_final = self.generate_measurement(enclave_memory)
 
     def get_mrenclave_final(self):
         return self.mrenclave_final
-
-    def get_attr(self):
-        return self.attr

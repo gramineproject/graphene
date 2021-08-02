@@ -8,11 +8,13 @@ import datetime
 import toml
 import struct
 from pathlib import Path
-from . import _CONFIG_PKGLIBDIR
-from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
-from . import _sgx_utility as util
+from . import (
+    _CONFIG_PKGLIBDIR,
+    _offsets as offs,
+    sgx_utils as util
+    )
 
-# Default / Architectural Options
+# Loading the manifest file, modifying it, and extracting options from it.
 
 ARCHITECTURE = 'amd64'
 
@@ -21,8 +23,9 @@ DEFAULT_THREAD_NUM = 4
 
 class Manifest:
 
-    def __init__(self, manifest_file):
+    def __init__(self, manifest_file, sgx_outfile):
         self.manifest_file = manifest_file
+        self.sgx_outfile = sgx_outfile
         self.load()
         self.set_defaults()
         self.attr = None
@@ -31,7 +34,7 @@ class Manifest:
         try:
             self.manifest = toml.load(self.manifest_file)
         except toml.TomlDecodeError as exc:
-            raise ManifestError(f'Parsing {self.manifest_file} as TOML file failed: {exc}')
+            raise util.ManifestError(f'Parsing {self.manifest_file} as TOML file failed: {exc}')
 
     def set_defaults(self):
         # set defaults to simplify lookup code (otherwise we'd need to check keys existence each time)
@@ -55,7 +58,6 @@ class Manifest:
 
         loader = self.manifest.setdefault('loader', {})
         loader.setdefault('preload', '')
-
 
     def collect_trusted_files(self, check_exist=True, do_hash=True):
         targets = {}
@@ -82,17 +84,6 @@ class Manifest:
                 targets[key] = uri, target, hash_
 
         return targets
-
-    def get_manifest(self):
-        return self.manifest
-
-    def get_trusted_fileset(self):
-        return self.trusted_fileset
-
-    def output_manifest(self, filename):
-        with open(filename, 'w', encoding='UTF-8') as file:
-            file.write('# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n')
-            toml.dump(self.manifest, file)
 
     def get_enclave_attributes(self):
         sgx_flags = {
@@ -146,6 +137,7 @@ class Manifest:
     def get_sgx_attr(self):
         if self.attr is not None:
             return self.attr
+
         # Get attributes from manifest
         attr = {}
 
@@ -174,7 +166,7 @@ class Manifest:
         self.attr = attr
         return self.attr
 
-    def get_client_spid(self):
+    def get_sgx_ra_attr(self):
         spid, linkable = None, False
         manifest_sgx = self.manifest['sgx']
         if manifest_sgx['remote_attestation']:
@@ -187,7 +179,7 @@ class Manifest:
                 print(f'    EPID (spid = {spid}, linkable = {linkable})')
         return spid, linkable
 
-    def get_enclave_info(self, attr):
+    def get_enclave_addresses(self, attr):
         manifest_sgx = self.manifest['sgx']
         if manifest_sgx['nonpie_binary']:
             enclave_base = offs.DEFAULT_ENCLAVE_BASE
@@ -197,9 +189,8 @@ class Manifest:
             enclave_heap_min = enclave_base
         return enclave_base, enclave_heap_min
 
-    def attach_trusted_file_hashs(self):
+    def append_trusted_files_and_hashes(self):
         manifest_sgx = self.manifest['sgx']
-        # Get trusted hashes and measurements
 
         # Use `list()` to ensure non-laziness (`manifest_sgx` is a part of `manifest`, and we'll be
         # changing it while iterating).
@@ -209,3 +200,16 @@ class Manifest:
             uri, _, hash_ = val
             manifest_sgx['trusted_files'][key] = uri
             manifest_sgx['trusted_checksum'][key] = hash_
+
+    def gen_manifest_sgx_file(self):
+        self.append_trusted_files_and_hashes()
+        with open(self.sgx_outfile, 'w', encoding='UTF-8') as file:
+            file.write('# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n')
+            toml.dump(self.manifest, file)
+
+    def get_manifest_sgx(self):
+        with open(self.sgx_outfile, 'rb') as file:
+            manifest_data = file.read()
+        manifest_data += b'\0' # in-memory manifest needs NULL-termination
+        return manifest_data
+

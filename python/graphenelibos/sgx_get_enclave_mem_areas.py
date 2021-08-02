@@ -6,14 +6,13 @@
 
 import struct
 from pathlib import Path
-from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
-from . import _sgx_utility as util
+from . import (
+    _offsets as offs,
+    sgx_utils as util
+    )
 
-PAGEINFO_R = 0x1
-PAGEINFO_W = 0x2
-PAGEINFO_X = 0x4
-PAGEINFO_TCS = 0x100
-PAGEINFO_REG = 0x200
+# Collect memory areas that constitute the enclave. Used to generate the final SGX measurement
+# MRENCLAVE) in `sgx_get_enclave_mem_areas.py`.
 
 class MemoryArea:
     # pylint: disable=too-few-public-methods,too-many-instance-attributes
@@ -53,30 +52,29 @@ class EnclaveMemory:
         self.attr = self.manifest.get_sgx_attr()
         self.libpal_file = libpal_file
         self.areas = []
-        self.enclave_base, self.enclave_heap_min = self.manifest.get_enclave_info(self.attr)
+        self.enclave_base, self.enclave_heap_min = self.manifest.get_enclave_addresses(self.attr)
 
     def init_memory_areas(self):
         self.areas.append(
             MemoryArea('ssa',
                        size=self.attr['thread_num'] * offs.SSA_FRAME_SIZE * offs.SSA_FRAME_NUM,
-                       flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
+                       flags=util.PAGEINFO_R | util.PAGEINFO_W | util.PAGEINFO_REG))
         self.areas.append(MemoryArea('tcs', size=self.attr['thread_num'] * offs.TCS_SIZE,
-                                flags=PAGEINFO_TCS))
+                                flags=util.PAGEINFO_TCS))
         self.areas.append(MemoryArea('tls', size=self.attr['thread_num'] * offs.PAGESIZE,
-                                flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
+                                flags=util.PAGEINFO_R | util.PAGEINFO_W | util.PAGEINFO_REG))
 
         for _ in range(self.attr['thread_num']):
             self.areas.append(MemoryArea('stack', size=offs.ENCLAVE_STACK_SIZE,
-                                    flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
+                                    flags=util.PAGEINFO_R | util.PAGEINFO_W | util.PAGEINFO_REG))
         for _ in range(self.attr['thread_num']):
             self.areas.append(MemoryArea('sig_stack', size=offs.ENCLAVE_SIG_STACK_SIZE,
-                                    flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
+                                    flags=util.PAGEINFO_R | util.PAGEINFO_W | util.PAGEINFO_REG))
 
-        self.areas.append(MemoryArea('pal', elf_filename=self.libpal_file, flags=PAGEINFO_REG))
+        self.areas.append(MemoryArea('pal', elf_filename=self.libpal_file, flags=util.PAGEINFO_REG))
 
     def find_areas(self, desc):
         return [area for area in self.areas if area.desc == desc]
-
 
     def find_area(self, desc, allow_none=False):
         matching = self.find_areas(desc)
@@ -88,7 +86,6 @@ class EnclaveMemory:
             raise KeyError(f'Could not find exactly one MemoryArea {desc!r}')
 
         return matching[0]
-
 
     def gen_area_content(self):
         # pylint: disable=too-many-locals
@@ -150,7 +147,6 @@ class EnclaveMemory:
         tcs_area.content = tcs_data
         tls_area.content = tls_data
 
-
     def populate_memory_areas(self):
         last_populated_addr = self.enclave_base + self.attr['enclave_size']
 
@@ -167,14 +163,14 @@ class EnclaveMemory:
         for area in self.areas:
             addr = area.addr + area.size
             if addr < last_populated_addr:
-                flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
+                flags = util.PAGEINFO_R | util.PAGEINFO_W | util.PAGEINFO_X | util.PAGEINFO_REG
                 free_areas.append(
                     MemoryArea('free', addr=addr, size=last_populated_addr - addr,
                                flags=flags, measure=False))
                 last_populated_addr = area.addr
 
         if last_populated_addr > self.enclave_heap_min:
-            flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
+            flags = util.PAGEINFO_R | util.PAGEINFO_W | util.PAGEINFO_X | util.PAGEINFO_REG
             free_areas.append(
                 MemoryArea('free', addr=self.enclave_heap_min,
                            size=last_populated_addr - self.enclave_heap_min, flags=flags,
@@ -184,24 +180,13 @@ class EnclaveMemory:
 
         self.areas += free_areas
 
-    def load_manifest_file(self, manifest_file):
-        with open(manifest_file, 'rb') as file:
-            manifest_data = file.read()
-        manifest_data += b'\0' # in-memory manifest needs NULL-termination
+    def add_manifest_to_memory_areas(self):
+        manifest_data = self.manifest.get_manifest_sgx()
 
         self.areas = [
             MemoryArea('manifest', content=manifest_data, size=len(manifest_data),
-                       flags=PAGEINFO_R | PAGEINFO_REG)
+                       flags=util.PAGEINFO_R | util.PAGEINFO_REG)
             ] + self.areas
-
-    def get_memory_areas(self):
-        return self.areas
-
-    def get_enclave_base(self):
-        return self.enclave_base
-
-    def get_attr(self):
-        return self.attr
 
     def get_areas(self):
         return self.areas

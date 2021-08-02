@@ -6,12 +6,14 @@
 
 import os
 import argparse
-from . import _CONFIG_PKGLIBDIR
-from . import _sgx_manifest as manifest
-from . import _sgx_depend as depend
-from . import _sgx_measure as measure
-from . import _sgx_sign as sign
-from . import _sgx_utility as util
+from . import (
+    _CONFIG_PKGLIBDIR,
+    sgx_finalize_manifest as manifest,
+    sgx_gen_make_deps as depend,
+    sgx_gen_sigstruct as sign,
+    sgx_measure_enclave as measure,
+    sgx_utils as util
+    )
 
 # pylint: enable=invalid-name
 
@@ -61,26 +63,25 @@ def main(args=None):
     if args is None:
         return 1
 
-    sigfile = util.get_sigfile_name(args['output'])
+    output_manifest = args['output']
+    sigfile = util.get_sigfile_name(output_manifest)
 
-    manifest_ = manifest.Manifest(args['manifest'])
+    input_manifest = manifest.Manifest(args['manifest'], output_manifest)
 
     if args.get('depend'):
-        depend_generator = depend.DependGenerator(manifest_,
-                                           args['libpal'],
-                                           args['key'],
-                                           sigfile)
-        depend_generator.generate()
-        return depend_generator.write(args['output'])
+        dg = depend.DependGenerator(input_manifest, args['libpal'], args['key'], sigfile)
+        dg.generate()
+        dg.write(output_manifest)
+        return 0
 
-    sgx_measurement = measure.EnclaveMeasurement(manifest_,
-                                     args['output'],
-                                     args['libpal'])
-    sgx_measurement.measure_enclave();
+    sgx_measurement = measure.EnclaveMeasurement(input_manifest, args['libpal'])
+    input_manifest.get_sgx_ra_attr()
+    input_manifest.gen_manifest_sgx_file()
+    sgx_measurement.measure_enclave()
 
-    sgx_sign = sign.EnclaveSign(sgx_measurement.get_attr(),
+    sgx_sign = sign.EnclaveSign(input_manifest.get_sgx_attr(),
                                 sgx_measurement.get_mrenclave_final())
-    sgx_sign.gen_sigstruct();
-    sgx_sign.gen_signature(args['key']);
-
-    return sgx_sign.write(sigfile)
+    sgx_sign.gen_sigstruct()
+    sgx_sign.gen_signature(args['key'])
+    sgx_sign.write(sigfile)
+    return 0

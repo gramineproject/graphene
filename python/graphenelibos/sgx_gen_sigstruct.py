@@ -8,6 +8,10 @@ import struct
 import subprocess
 from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
 
+# Generate final SIGSTRUCT based on enclave attributes and MRENCLAVE.
+# TODO: This uses one-step signing process (SIGSTRUCT is signed on the same machine where it was
+#       generated). Need to update to the two-step signing process.
+
 class EnclaveSign:
 
     def __init__(self, attr, mrenclave_final):
@@ -38,15 +42,15 @@ class EnclaveSign:
             'isv_svn': (offs.SGX_ARCH_ENCLAVE_CSS_ISV_SVN, '<H', self.attr['isv_svn']),
         }
 
-        self.sign_buffer = bytearray(128 + 128)
+        self.sigstruct_buf_to_sign = bytearray(128 + 128)
 
         for field in self.fields.values():
             if field[0] >= offs.SGX_ARCH_ENCLAVE_CSS_MISC_SELECT:
-                struct.pack_into(field[1], self.sign_buffer,
+                struct.pack_into(field[1], self.sigstruct_buf_to_sign,
                                  field[0] - offs.SGX_ARCH_ENCLAVE_CSS_MISC_SELECT + 128,
                                  *field[2:])
             else:
-                struct.pack_into(field[1], self.sign_buffer, field[0], *field[2:])
+                struct.pack_into(field[1], self.sigstruct_buf_to_sign, field[0], *field[2:])
 
     def gen_signature(self, keyfile):
         proc = subprocess.Popen(
@@ -59,7 +63,7 @@ class EnclaveSign:
         proc = subprocess.Popen(
             ['openssl', 'sha256', '-binary', '-sign', keyfile],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        signature, _ = proc.communicate(self.sign_buffer)
+        signature, _ = proc.communicate(self.sigstruct_buf_to_sign)
         signature = signature[::-1]
 
         modulus_int = int.from_bytes(modulus, byteorder='little')
@@ -82,14 +86,12 @@ class EnclaveSign:
             'q2': (offs.SGX_ARCH_ENCLAVE_CSS_Q2, '384s', q2),
         })
 
-        self.signature_buffer = bytearray(offs.SGX_ARCH_ENCLAVE_CSS_SIZE)
+        self.sigstruct_buf_final = bytearray(offs.SGX_ARCH_ENCLAVE_CSS_SIZE)
 
         for field in self.fields.values():
-            struct.pack_into(field[1], self.signature_buffer, field[0], *field[2:])
-
+            struct.pack_into(field[1], self.sigstruct_buf_final, field[0], *field[2:])
 
     def write(self, sigfile):
-        # Generate sigstruct
         with open(sigfile, 'wb') as file:
-            file.write(self.signature_buffer)
+            file.write(self.sigstruct_buf_final)
         return 0

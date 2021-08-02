@@ -11,10 +11,14 @@ from pathlib import Path
 from sys import stderr
 from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
 
+PAGEINFO_R = 0x1
+PAGEINFO_W = 0x2
+PAGEINFO_X = 0x4
+PAGEINFO_TCS = 0x100
+PAGEINFO_REG = 0x200
+
 class ManifestError(Exception):
     pass
-
-# Generate Checksums / Measurement
 
 def resolve_uri(uri, check_exist=True):
     if not uri.startswith('file:'):
@@ -24,24 +28,20 @@ def resolve_uri(uri, check_exist=True):
         raise ManifestError(f'Cannot resolve {uri} or the file does not exist.')
     return str(path)
 
-
 def sha256(data):
     sha = hashlib.sha256()
     sha.update(data)
     return sha.digest()
 
-
 def get_hash(filename):
     with open(filename, 'rb') as file:
         return sha256(file.read())
-
 
 # TODO: this function should be deleted after we start using TOML lists instead of key-values for
 # trusted files.
 def path_to_key(path):
     # anything which is unique to the path should do the work
     return sha256(path.encode()).hex()
-
 
 def walk_dir(path):
     return sorted(filter(Path.is_file, path.rglob('*')))
@@ -61,10 +61,8 @@ def roundup(addr):
         return addr + (offs.PAGESIZE - remaining)
     return addr
 
-
 def rounddown(addr):
     return addr - addr % offs.PAGESIZE
-
 
 def parse_size(value):
     scale = 1
