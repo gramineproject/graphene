@@ -509,6 +509,9 @@ void put_handle(struct shim_handle* hdl) {
         if (hdl->dentry)
             put_dentry(hdl->dentry);
 
+        if (hdl->inode)
+            put_inode(hdl->inode);
+
         destroy_handle(hdl);
     }
 }
@@ -723,6 +726,10 @@ BEGIN_CP_FUNC(handle) {
             DO_CP_MEMBER(dentry, hdl, new_hdl, dentry);
         }
 
+        if (hdl->inode) {
+            DO_CP_MEMBER(inode, hdl, new_hdl, inode);
+        }
+
         if (new_hdl->pal_handle) {
             struct shim_palhdl_entry* entry;
             DO_CP(palhdl, hdl->pal_handle, &entry);
@@ -733,10 +740,6 @@ BEGIN_CP_FUNC(handle) {
         INIT_LISTP(&new_hdl->epolls);
 
         switch (hdl->type) {
-            case TYPE_FILE:
-                if (hdl->info.file.sync)
-                    DO_CP(sync_handle, hdl->info.file.sync, &new_hdl->info.file.sync);
-                break;
             case TYPE_EPOLL:
                 /* `new_hdl->info.epoll.fds_count` stays the same - copied above. */
                 DO_CP(epoll_item, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
@@ -769,6 +772,7 @@ BEGIN_RS_FUNC(handle) {
 
     CP_REBASE(hdl->fs);
     CP_REBASE(hdl->dentry);
+    CP_REBASE(hdl->inode);
     CP_REBASE(hdl->epolls);
 
     if (!create_lock(&hdl->lock)) {
@@ -779,10 +783,11 @@ BEGIN_RS_FUNC(handle) {
         get_dentry(hdl->dentry);
     }
 
+    if (hdl->inode) {
+        get_inode(hdl->inode);
+    }
+
     switch (hdl->type) {
-        case TYPE_FILE:
-            CP_REBASE(hdl->info.file.sync);
-            break;
         case TYPE_EPOLL: {
             int ret = create_event(&hdl->info.epoll.event);
             if (ret < 0) {

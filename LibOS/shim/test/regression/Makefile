@@ -73,7 +73,7 @@ c_executables = \
 	pselect \
 	pthread_set_get_affinity \
 	readdir \
-	rename \
+	rename_unlink \
 	run_test \
 	sched \
 	sched_set_get_affinity \

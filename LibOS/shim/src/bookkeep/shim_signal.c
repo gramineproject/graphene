@@ -359,10 +359,13 @@ static void memfault_upcall(bool is_in_pal, PAL_NUM addr, PAL_CONTEXT* context) 
             internal_fault("Internal memory fault with VMA", addr, context);
         }
         struct shim_handle* file = vma_info.file;
-        if (file && file->type == TYPE_FILE) {
+        if (file && file->type == TYPE_CHROOT) {
             /* If the mapping exceeds end of a file then return a SIGBUS. */
-            uintptr_t eof_in_vma = (uintptr_t)vma_info.addr
-                                   + (file->info.file.size - vma_info.file_offset);
+            lock(&file->inode->lock);
+            file_off_t size = file->inode->size;
+            unlock(&file->inode->lock);
+
+            uintptr_t eof_in_vma = (uintptr_t)vma_info.addr + (size - vma_info.file_offset);
             if (addr > eof_in_vma) {
                 info.si_signo = SIGBUS;
                 info.si_code = BUS_ADRERR;

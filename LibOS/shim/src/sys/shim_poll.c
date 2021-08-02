@@ -102,7 +102,7 @@ static long _shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
             continue;
         }
 
-        if (hdl->type == TYPE_FILE || hdl->type == TYPE_DEV || hdl->type == TYPE_STR ||
+        if (hdl->type == TYPE_CHROOT || hdl->type == TYPE_DEV || hdl->type == TYPE_STR ||
                 hdl->type == TYPE_TMPFS) {
             /* Files, devs and strings are special cases: their poll is emulated at LibOS level; do
              * not include them in handles-to-poll array but instead use handle-specific

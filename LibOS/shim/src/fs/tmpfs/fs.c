@@ -213,30 +213,6 @@ static int tmpfs_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
     return 0;
 }
 
-/* Lock two dentries for the purposes of rename operation.
- * TODO: This should be probably done by the syscall handler, not here. */
-static void lock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2) {
-    assert(dent1 != dent2);
-    if ((uintptr_t)dent1 < (uintptr_t)dent2) {
-        lock(&dent1->lock);
-        lock(&dent2->lock);
-    } else {
-        lock(&dent2->lock);
-        lock(&dent1->lock);
-    }
-}
-
-static void unlock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2) {
-    assert(dent1 != dent2);
-    if ((uintptr_t)dent1 < (uintptr_t)dent2) {
-        unlock(&dent2->lock);
-        unlock(&dent1->lock);
-    } else {
-        unlock(&dent1->lock);
-        unlock(&dent2->lock);
-    }
-}
-
 static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
     uint64_t time_us;
     if (DkSystemTimeQuery(&time_us) < 0)
@@ -263,8 +239,9 @@ static int tmpfs_rename(struct shim_dentry* old, struct shim_dentry* new) {
     return 0;
 }
 
-static int tmpfs_chmod(struct shim_dentry* dent, mode_t mode) {
-    dent->perm = mode & ~S_IFMT;
+static int tmpfs_chmod(struct shim_dentry* dent, mode_t perm) {
+    __UNUSED(dent);
+    __UNUSED(perm);
     return 0;
 }
 

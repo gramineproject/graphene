@@ -149,6 +149,10 @@ struct shim_dentry {
     /* Filesystem-specific data. Protected by `lock`. */
     void* data;
 
+    /* Inode associated with this dentry. Currently optional, and only for the use of underlying
+     * filesystem (see `shim_inode` below). Protected by `lock`. */
+    struct shim_inode* inode;
+
     /* File lock information, stored only in the main process. Protected by `lock`. See
      * `shim_fs_lock.c`. */
     struct fs_lock* fs_lock;
@@ -157,6 +161,41 @@ struct shim_dentry {
      * main process, to prevent unnecessary IPC calls on handle close. Protected by `lock`. See
      * `shim_fs_lock.c`. */
     bool maybe_has_fs_locks;
+
+    struct shim_lock lock;
+    REFTYPE ref_count;
+};
+
+/*
+ * Describes a single file in Graphene filesystem.
+ *
+ * The migration to inodes is underway. Currently, the underlying filesystems may use fields in this
+ * structure, but should also write to corresponding fields in dentry.
+ *
+ * The fields in this structure are protected by `lock`, with the exception of fields that do not
+ * change (`type`, `mount`, `fs`).
+ */
+struct shim_inode {
+    /* File type: S_IFREG, S_IFDIR, S_IFLNK etc. Does not change. */
+    mode_t type;
+
+    /* File permissions: PERM_rwxrwxrwx, etc. */
+    mode_t perm;
+
+    /* File size */
+    file_off_t size;
+
+    /* Create/modify/access time */
+    time_t ctime;
+    time_t mtime;
+    time_t atime;
+
+    /* Mounted filesystem this inode belongs to. Does not change. */
+    struct shim_mount* mount;
+
+    /* Filesystem to use for operations on this file: this is usually `mount->fs`, but can be
+     * different in case of special files (such as named pipes or sockets). */
+    struct shim_fs* fs;
 
     struct shim_lock lock;
     REFTYPE ref_count;
@@ -199,7 +238,7 @@ struct shim_d_ops {
     int (*set_link)(struct shim_dentry* dent, const char* link);
 
     /* change the mode or owner of a file; the caller has to update dentry */
-    int (*chmod)(struct shim_dentry* dent, mode_t mode);
+    int (*chmod)(struct shim_dentry* dent, mode_t perm);
     int (*chown)(struct shim_dentry* dent, int uid, int gid);
 
     /* change the name of a dentry */
@@ -522,6 +561,9 @@ void get_dentry(struct shim_dentry* dent);
 /* Decrement the reference count on dent */
 void put_dentry(struct shim_dentry* dent);
 
+void lock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2);
+void unlock_two_dentries(struct shim_dentry* dent1, struct shim_dentry* dent2);
+
 /*!
  * \brief Get the dentry one level up
  *
@@ -577,6 +619,9 @@ void dentry_gc(struct shim_dentry* dent);
  *
  * An absolute path is a combination of all names up to the global root (not including the root,
  * which by convention has an empty name), separated by `/`, and beginning with `/`.
+ *
+ * TODO: It would be more natural to use a `len` parameter instead (for length without null
+ * terminator).
  */
 int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size);
 
@@ -594,6 +639,9 @@ int dentry_abs_path(struct shim_dentry* dent, char** path, size_t* size);
  *
  * A relative path is a combination of all names up to the root of the dentry's filesystem (not
  * including the root), separated by `/`. A relative path never begins with `/`.
+ *
+ * TODO: It would be more natural to use a `len` parameter instead (for length without null
+ * terminator).
  */
 int dentry_rel_path(struct shim_dentry* dent, char** path, size_t* size);
 
@@ -646,6 +694,18 @@ bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent);
 
 /* XXX: Future work: current dcache never shrinks. Would be nice to be able to do something like LRU
  * under space pressure, although for a single app, this may be over-kill. */
+
+/*!
+ * \brief Allocate and initialize a new inode
+ *
+ * \param mount the mount the inode is under
+ * \param type inode type (S_IFREG, S_IFDIR, etc.)
+ * \param perm inode permissions (PERM_rwxrwxrwx, etc.)
+ */
+struct shim_inode* get_new_inode(struct shim_mount* mount, mode_t type, mode_t perm);
+
+void get_inode(struct shim_inode* inode);
+void put_inode(struct shim_inode* inode);
 
 /*
  * Hashing utilities for paths.
