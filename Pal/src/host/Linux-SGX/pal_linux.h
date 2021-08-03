@@ -98,7 +98,7 @@ uint64_t get_tsc_hz(void);
 void init_tsc(void);
 
 enum {
-    FILE_CHECK_POLICY_STRICT = 0,
+    FILE_CHECK_POLICY_STRICT,
     FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG,
 };
 
