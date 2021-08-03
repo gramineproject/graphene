@@ -92,6 +92,12 @@ Running sample applications
 We prepared and tested several applications to demonstrate Graphene and
 Graphene-SGX usability. These applications can be found in the :file:`Examples`
 folder in the repository, each containing a short README with instructions how
-to test it. We recommend starting with simpler, thoroughly documented examples
-like Memcached and Redis, to understand manifest options and features of
-Graphene.
+to test it. We recommend starting with a simpler, thoroughly documented example
+of Redis, to understand manifest options and features of Graphene.
+
+Please note that these sample applications are tested on Ubuntu 18.04 and 20.04.
+Most of these applications are also known to run correctly on
+Fedora/RHEL/CentOS, but with caveats. One caveat is that Makefiles should be
+invoked with ``ARCH_LIBDIR=/lib64 make``. Another caveat is that applications
+that rely on specific versions/builds of Glibc may break (our GCC example is
+known to work only on Ubuntu).
