@@ -104,6 +104,10 @@ long shim_do_creat(const char* path, mode_t mode) {
 }
 
 long shim_do_openat(int dfd, const char* filename, int flags, int mode) {
+    if (flags & O_PATH) {
+        return -EINVAL;
+    }
+
     if (!is_user_string_readable(filename))
         return -EFAULT;
 
