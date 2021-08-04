@@ -155,8 +155,19 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     dummy_tcb_for_stack_protector.common.self = &dummy_tcb_for_stack_protector.common;
     pal_tcb_set_stack_canary(&dummy_tcb_for_stack_protector.common, STACK_PROTECTOR_CANARY_DEFAULT);
     ret = pal_set_tcb(&dummy_tcb_for_stack_protector.common);
-    if (ret < 0)
-        INIT_FAIL(unix_to_pal_error(-ret), "pal_set_tcb() failed");
+    if (ret < 0) {
+        /* We failed to install a TCB (and haven't applied relocations yet), so no other code will
+         * work anyway */
+        DO_SYSCALL(exit_group, PAL_ERROR_DENIED);
+        die_or_inf_loop();
+    }
+
+    /* Relocate PAL itself (note that this is required to run `log_error`) */
+    g_pal_map.l_addr = elf_machine_load_address();
+    g_pal_map.l_name = "libpal.so"; // to be overriden later
+    elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
+                         g_pal_map.l_addr);
+    ELF_DYNAMIC_RELOCATE(&g_pal_map);
 
     uint64_t start_time;
     ret = _DkSystemTimeQuery(&start_time);
@@ -175,18 +186,14 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     if (argc < 4)
         print_usage_and_exit(argv[0]);  // may be NULL!
 
+    /* Now that we have `argv`, set name for PAL map */
+    g_pal_map.l_name = argv[0];
+
     // Are we the first in this Graphene's namespace?
     bool first_process = !strcmp(argv[2], "init");
     if (!first_process && strcmp(argv[2], "child")) {
         print_usage_and_exit(argv[0]);
     }
-
-    g_pal_map.l_addr = elf_machine_load_address();
-    g_pal_map.l_name = argv[0];
-    elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
-                         g_pal_map.l_addr);
-
-    ELF_DYNAMIC_RELOCATE(&g_pal_map);
 
     g_linux_state.host_environ = envp;
 

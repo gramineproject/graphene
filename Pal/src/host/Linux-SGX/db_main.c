@@ -520,6 +520,14 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* Our arguments are coming directly from the urts. We are responsible to check them. */
     int ret;
 
+    /* Relocate PAL itself (note that this is required to run `log_error`) */
+    g_pal_map.l_addr = elf_machine_load_address();
+    g_pal_map.l_name = "libpal.so"; // to be overriden later
+    elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
+                         g_pal_map.l_addr);
+
+    ELF_DYNAMIC_RELOCATE(&g_pal_map);
+
     uint64_t start_time;
     ret = _DkSystemTimeQuery(&start_time);
     if (ret < 0) {
@@ -558,13 +566,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     libpal_path[libpal_uri_len] = '\0';
 
-    /* relocate PAL itself */
-    g_pal_map.l_addr = elf_machine_load_address();
+    /* Now that we have `libpal_path`, set name for PAL map */
     g_pal_map.l_name = libpal_path;
-    elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
-                         g_pal_map.l_addr);
-
-    ELF_DYNAMIC_RELOCATE(&g_pal_map);
 
     /*
      * We can't verify the following arguments from the urts. So we copy
