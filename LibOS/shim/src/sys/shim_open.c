@@ -7,6 +7,7 @@
  */
 
 #define _POSIX_C_SOURCE 200809L  /* for SSIZE_MAX */
+#define O_PATH_FLAGS (O_DIRECTORY | O_NOFOLLOW | O_PATH | O_CLOEXEC)
 
 #include <dirent.h>
 #include <errno.h>
@@ -49,6 +50,10 @@ long shim_do_read(int fd, void* buf, size_t count) {
     if (!hdl)
         return -EBADF;
 
+    if (hdl->flags & O_PATH ) {
+        return -EBADF;
+    }
+
     /* sockets may read from LibOS buffer due to MSG_PEEK, so need to call socket-specific recv */
     if (hdl->type == TYPE_SOCK) {
         put_handle(hdl);
@@ -87,6 +92,10 @@ long shim_do_write(int fd, const void* buf, size_t count) {
     if (!hdl)
         return -EBADF;
 
+    if (hdl->flags & O_PATH) {
+        return -EBADF;
+    }
+
     ssize_t ret = do_handle_write(hdl, buf, count);
     put_handle(hdl);
     if (ret == -EINTR) {
@@ -104,6 +113,10 @@ long shim_do_creat(const char* path, mode_t mode) {
 }
 
 long shim_do_openat(int dfd, const char* filename, int flags, int mode) {
+    if (flags & O_PATH) {
+        flags &= O_PATH_FLAGS;
+    }
+
     if (!is_user_string_readable(filename))
         return -EFAULT;
 
