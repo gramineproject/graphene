@@ -119,8 +119,8 @@ static long sgx_ocall_open(void* pms) {
 static long sgx_ocall_close(void* pms) {
     ms_ocall_close_t* ms = (ms_ocall_close_t*)pms;
     ODEBUG(OCALL_CLOSE, ms);
-    DO_SYSCALL(close, ms->ms_fd);
-    return 0;
+    /* Callers cannot retry close on `-EINTR`, so we do not call `DO_SYSCALL_INTERRUPTIBLE`. */
+    return DO_SYSCALL(close, ms->ms_fd);
 }
 
 static long sgx_ocall_read(void* pms) {
