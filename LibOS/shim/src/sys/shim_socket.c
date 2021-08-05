@@ -465,16 +465,31 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     }
 
     if (sock->domain == AF_UNIX) {
-        if (addrlen != sizeof(struct sockaddr_un))
-            goto out;
-
-        struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
-        char* spath               = saddr->sun_path;
-        struct shim_dentry* dent  = NULL;
-
-        if ((ret = path_lookupat(/*start=*/NULL, spath, LOOKUP_NO_FOLLOW | LOOKUP_CREATE, &dent)) < 0) {
+        if (addrlen < offsetof(struct sockaddr_un, sun_path) + 1 ||
+                addrlen > sizeof(struct sockaddr_un)) {
+            /* address length of the UNIX domain socket is typically calculated as
+             * `offsetof(struct sockaddr_un, sun_path) + strlen(sun_path) + 1`, see `man unix` */
             goto out;
         }
+
+        struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
+        if (saddr->sun_path[0] == '\0') {
+            /* currently abstract UNIX domain sockets are not supported */
+            ret = -EOPNOTSUPP;
+            goto out;
+        }
+
+        size_t sun_path_size = addrlen - offsetof(struct sockaddr_un, sun_path);
+        if (strnlen(saddr->sun_path, sun_path_size) == sun_path_size) {
+            /* user-supplied UNIX domain name is not a NULL-terminating string */
+            goto out;
+        }
+
+        struct shim_dentry* dent = NULL;
+        ret = path_lookupat(/*start=*/NULL, saddr->sun_path, LOOKUP_NO_FOLLOW | LOOKUP_CREATE,
+                            &dent);
+        if (ret < 0)
+            goto out;
 
         if (!(dent->state & DENTRY_NEGATIVE)) {
             ret = -EADDRINUSE;
@@ -517,7 +532,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (sock->domain == AF_UNIX) {
         struct shim_dentry* dent = sock->addr.un.dentry;
 
-        dent->state ^= DENTRY_NEGATIVE;
+        dent->state &= ~DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID;
         dent->fs   = &socket_builtin_fs;
         dent->type = S_IFSOCK;
@@ -733,16 +748,31 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     }
 
     if (sock->domain == AF_UNIX) {
-        if (addrlen != sizeof(struct sockaddr_un))
-            goto out;
-
-        struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
-        char* spath               = saddr->sun_path;
-        struct shim_dentry* dent  = NULL;
-
-        if ((ret = path_lookupat(/*start=*/NULL, spath, LOOKUP_CREATE | LOOKUP_FOLLOW, &dent)) < 0) {
+        if (addrlen < offsetof(struct sockaddr_un, sun_path) + 1 ||
+                addrlen > sizeof(struct sockaddr_un)) {
+            /* address length of the UNIX domain socket is typically calculated as
+             * `offsetof(struct sockaddr_un, sun_path) + strlen(sun_path) + 1`, see `man unix` */
             goto out;
         }
+
+        struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
+        if (saddr->sun_path[0] == '\0') {
+            /* currently abstract UNIX domain sockets are not supported */
+            ret = -EOPNOTSUPP;
+            goto out;
+        }
+
+        size_t sun_path_size = addrlen - offsetof(struct sockaddr_un, sun_path);
+        if (strnlen(saddr->sun_path, sun_path_size) == sun_path_size) {
+            /* user-supplied UNIX domain name is not a NULL-terminating string */
+            goto out;
+        }
+
+        struct shim_dentry* dent = NULL;
+        ret = path_lookupat(/*start=*/NULL, saddr->sun_path, LOOKUP_FOLLOW | LOOKUP_CREATE,
+                            &dent);
+        if (ret < 0)
+            goto out;
 
         if (!(dent->state & DENTRY_NEGATIVE) && dent->type != S_IFSOCK) {
             ret = -ECONNREFUSED;
@@ -793,7 +823,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (sock->domain == AF_UNIX) {
         struct shim_dentry* dent = sock->addr.un.dentry;
         lock(&dent->lock);
-        dent->state ^= DENTRY_NEGATIVE;
+        dent->state &= ~DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID;
         dent->fs   = &socket_builtin_fs;
         dent->type = S_IFSOCK;
