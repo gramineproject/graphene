@@ -322,12 +322,12 @@ in :file:`config.yaml.template`.
 .. describe:: SGXDriver.Repository
 
    Source repository of the Intel SGX driver. Default value: ""
-   (Considering DCAP in-kernel driver)
+   (DCAP in-kernel driver)
 
 .. describe:: SGXDriver.Branch
 
    Use this branch of the repository. Default value: ""
-   (Considering DCAP in-kernel driver)
+   (DCAP in-kernel driver)
 
 Run graphenized Docker images
 =============================
@@ -386,7 +386,7 @@ Example
 
 The :file:`test` folder in :file:`Tools/gsc` describes how to graphenize Docker
 images and test them with sample inputs. The samples include Ubuntu-based Docker
-images of Bash, Python, Node.js, Numpy, Pytorch, and few more.
+images of Bash, Python, Node.js, Numpy, Pytorch, and a few more.
 
 .. warning::
    All test images rely on insecure arguments to be able to set test-specific

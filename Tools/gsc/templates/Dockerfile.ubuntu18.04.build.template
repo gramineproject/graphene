@@ -32,6 +32,8 @@ ENV LANGUAGE en_US.UTF-8
 # Copy Graphene runtime and signer tools to /graphene/meson_build_output
 RUN mkdir -p /graphene/Tools \
     && mkdir -p /graphene/meson_build_output
+
+# TODO: remove this copy after argv_serializer becomes a part of Meson build
 COPY --from=graphene /graphene/Tools/argv_serializer /graphene/Tools
 COPY --from=graphene /graphene/meson_build_output /graphene/meson_build_output
 

@@ -37,6 +37,8 @@ ENV ISGX_DRIVER_PATH ""
 RUN cd /graphene \
     && make -s -j WERROR=1 SGX=1 {% if debug %} DEBUG=1 {% endif %} \
     && make -s -j WERROR=1 {% if debug %} DEBUG=1 {% endif %} \
-    && meson build --prefix="/graphene/meson_build_output" --buildtype=release -Ddirect=enabled -Dsgx=enabled \
+    && meson build --prefix="/graphene/meson_build_output" \
+       --buildtype={% if debug %}debug{% else %}release{% endif %} \
+       -Ddirect=enabled -Dsgx=enabled \
     && ninja -C build \
     && ninja -C build install
