@@ -203,8 +203,12 @@ int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int f
     } while (retval == -EINTR);
 
     if (retval < 0) {
+        if (retval != -EACCES && retval != -EAGAIN && retval != -EBADF && retval != -EINVAL &&
+                retval != -ENFILE && retval != -ENODEV && retval != -ENOMEM && retval != -EPERM) {
+            retval = -EPERM;
+        }
         sgx_reset_ustack(old_ustack);
-        return IS_UNIX_ERR(retval) ? retval : -EPERM;
+        return retval;
     }
 
     void* returned_addr = READ_ONCE(ms->ms_addr);
@@ -247,8 +251,9 @@ int ocall_munmap_untrusted(const void* addr, size_t size) {
         retval = sgx_exitless_ocall(OCALL_MUNMAP_UNTRUSTED, ms);
     } while (retval == -EINTR);
 
-    if (retval < 0 && !IS_UNIX_ERR(retval))
+    if (retval < 0 && retval != -EINVAL) {
         retval = -EPERM;
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -343,6 +348,11 @@ int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4])
         retval = sgx_ocall(OCALL_CPUID, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0) {
+        log_error("OCALL_CPUID returned an error (impossible on benign host)");
+        _DkProcessExit(1);
+    }
+
     if (!retval) {
         values[0] = READ_ONCE(ms->ms_values[0]);
         values[1] = READ_ONCE(ms->ms_values[1]);
@@ -379,6 +389,14 @@ int ocall_open(const char* pathname, int flags, unsigned short mode) {
         retval = sgx_exitless_ocall(OCALL_OPEN, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EACCES && retval != -EEXIST && retval != -EINVAL &&
+            retval != -EISDIR && retval != -ELOOP && retval != -EMFILE &&
+            retval != -ENAMETOOLONG && retval != -ENFILE && retval != -ENODEV &&
+            retval != -ENOENT && retval != -ENOMEM && retval != -ENOTDIR && retval != -EROFS &&
+            retval != -EWOULDBLOCK) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -402,6 +420,10 @@ int ocall_close(int fd) {
     do {
         retval = sgx_exitless_ocall(OCALL_CLOSE, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EBADF && retval != -EIO) {
+        retval = -EPERM;
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -441,6 +463,11 @@ ssize_t ocall_read(int fd, void* buf, size_t count) {
     WRITE_ONCE(ms->ms_buf, ms_buf);
 
     retval = sgx_exitless_ocall(OCALL_READ, ms);
+
+    if (retval < 0 && retval != -EAGAIN && retval != -EWOULDBLOCK && retval != -EBADF &&
+            retval != -EINTR && retval != -EINVAL && retval != -EIO && retval != -EISDIR) {
+        retval = -EPERM;
+    }
 
     if (retval > 0) {
         if ((size_t)retval > count) {
@@ -507,6 +534,12 @@ ssize_t ocall_write(int fd, const void* buf, size_t count) {
 
     retval = sgx_exitless_ocall(OCALL_WRITE, ms);
 
+    if (retval < 0 && retval != -EAGAIN && retval != -EWOULDBLOCK && retval != -EBADF &&
+            retval != -EFBIG && retval != -EINTR && retval != -EINVAL && retval != -EIO &&
+            retval != -ENOSPC && retval != -EPIPE) {
+        retval = -EPERM;
+    }
+
     if (retval > 0 && (size_t)retval > count) {
         retval = -EPERM;
         goto out;
@@ -554,6 +587,13 @@ ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
     WRITE_ONCE(ms->ms_buf, ms_buf);
 
     retval = sgx_exitless_ocall(OCALL_PREAD, ms);
+
+    if (retval < 0 && retval != -EAGAIN && retval != -EWOULDBLOCK && retval != -EBADF &&
+            retval != -EINTR && retval != -EINVAL && retval != -EIO && retval != -EISDIR &&
+            retval != -ENXIO && retval != -EOVERFLOW && retval != -ESPIPE) {
+        retval = -EPERM;
+    }
+
     if (retval > 0) {
         if ((size_t)retval > count) {
             retval = -EPERM;
@@ -618,6 +658,14 @@ ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset) {
     WRITE_ONCE(ms->ms_buf, ms_buf);
 
     retval = sgx_exitless_ocall(OCALL_PWRITE, ms);
+
+    if (retval < 0 && retval != -EAGAIN && retval != -EWOULDBLOCK && retval != -EBADF &&
+            retval != -EFBIG && retval != -EINTR && retval != -EINVAL && retval != -EIO &&
+            retval != -ENOSPC && retval != -ENXIO && retval != -EOVERFLOW && retval != -EPIPE &&
+            retval != -ESPIPE) {
+        retval = -EPERM;
+    }
+
     if (retval > 0 && (size_t)retval > count) {
         retval = -EPERM;
         goto out;
@@ -647,6 +695,12 @@ int ocall_fstat(int fd, struct stat* buf) {
         retval = sgx_exitless_ocall(OCALL_FSTAT, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EACCES && retval != -EBADF && retval != -ELOOP &&
+            retval != -ENAMETOOLONG && retval != -ENOENT && retval != -ENOMEM &&
+            retval != -ENOTDIR) {
+        retval = -EPERM;
+    }
+
     if (!retval) {
         memcpy(buf, &ms->ms_stat, sizeof(struct stat));
     }
@@ -672,6 +726,10 @@ int ocall_fionread(int fd) {
         retval = sgx_exitless_ocall(OCALL_FIONREAD, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EBADF && retval != -EINVAL && retval != -ENOTTY) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -694,10 +752,16 @@ int ocall_fsetnonblock(int fd, int nonblocking) {
         retval = sgx_exitless_ocall(OCALL_FSETNONBLOCK, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EACCES && retval != -EAGAIN && retval != -EBADF &&
+            retval != -EINVAL && retval != -EPERM) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
 
+/* TODO: Unneeded OCALL? Graphene doesn't have a notion of permissions currently. */
 int ocall_fchmod(int fd, unsigned short mode) {
     int retval = 0;
     ms_ocall_fchmod_t* ms;
@@ -715,6 +779,12 @@ int ocall_fchmod(int fd, unsigned short mode) {
     do {
         retval = sgx_exitless_ocall(OCALL_FCHMOD, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EACCES && retval != -EIO && retval != -ELOOP &&
+            retval != -ENAMETOOLONG && retval != -ENOENT && retval != -ENOMEM &&
+            retval != -ENOTDIR && retval != -EPERM && retval != -EROFS) {
+        retval = -EPERM;
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -737,6 +807,10 @@ int ocall_fsync(int fd) {
         retval = sgx_exitless_ocall(OCALL_FSYNC, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EBADF && retval != -EIO && retval != -EINVAL && retval != -EROFS) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -758,6 +832,11 @@ int ocall_ftruncate(int fd, uint64_t length) {
     do {
         retval = sgx_exitless_ocall(OCALL_FTRUNCATE, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EBADF && retval != -EINVAL && retval != -EPERM &&
+            retval != -EROFS) {
+        retval = -EPERM;
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -787,6 +866,13 @@ int ocall_mkdir(const char* pathname, unsigned short mode) {
         retval = sgx_exitless_ocall(OCALL_MKDIR, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EACCES && retval != -EEXIST && retval != -EINVAL &&
+            retval != -ELOOP && retval != -EMLINK && retval != -ENAMETOOLONG &&
+            retval != -ENOENT && retval != -ENOMEM && retval != -ENOSPC && retval != -ENOTDIR &&
+            retval != -EPERM && retval != -EROFS) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -814,6 +900,11 @@ int ocall_getdents(int fd, struct linux_dirent64* dirp, size_t dirp_size) {
     do {
         retval = sgx_exitless_ocall(OCALL_GETDENTS, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EBADF && retval != -EINVAL && retval != -ENOENT &&
+            retval != -ENOTDIR) {
+        retval = -EPERM;
+    }
 
     if (retval > 0) {
         size_t size = (size_t)retval;
@@ -853,6 +944,11 @@ int ocall_resume_thread(void* tcs) {
     do {
         retval = sgx_exitless_ocall(OCALL_RESUME_THREAD, tcs);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EINVAL && retval != -EPERM && retval != -ESRCH) {
+        retval = -EPERM;
+    }
+
     return retval;
 }
 
@@ -866,6 +962,12 @@ int ocall_clone_thread(void) {
          * enclave thread (and NOT signal mask of the RPC thread) */
         retval = sgx_ocall(OCALL_CLONE_THREAD, dummy);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -ENOMEM && retval != -EAGAIN && retval != -EINVAL &&
+            retval != -EPERM) {
+        retval = -EPERM;
+    }
+
     return retval;
 }
 
@@ -896,6 +998,15 @@ int ocall_create_process(size_t nargs, const char** args, int* stream_fd) {
         /* FIXME: if there was an EINTR, there may be an untrusted process left over */
         retval = sgx_exitless_ocall(OCALL_CREATE_PROCESS, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EAGAIN && retval != -EWOULDBLOCK && retval != -EBADF &&
+            retval != -EFBIG && retval != -EINVAL && retval != -EIO && retval != -ENOSPC &&
+            retval != -EPIPE && retval != -ENOMEM && retval != -EACCES && retval != -EISDIR &&
+            retval != -ELOOP && retval != -EMFILE && retval != -ENAMETOOLONG &&
+            retval != -ENFILE && retval != -ENOENT && retval != -ENOEXEC && retval != -ENOTDIR &&
+            retval != -EPERM) {
+        retval = -EPERM;
+    }
 
     if (!retval) {
         if (stream_fd)
@@ -940,6 +1051,12 @@ int ocall_futex(uint32_t* futex, int op, int val, uint64_t* timeout_us) {
         retval = sgx_exitless_ocall(OCALL_FUTEX, ms);
     }
 
+    if (retval < 0 && retval != -EACCES && retval != -EAGAIN && retval != -EDEADLK &&
+            retval != -EINTR && retval != -EINVAL && retval != -ENFILE && retval != -ENOMEM &&
+            retval != -ENOSYS && retval != -EPERM && retval != -ESRCH && retval != -ETIMEDOUT) {
+        retval = -EPERM;
+    }
+
     if (timeout_us) {
         uint64_t remaining_time = READ_ONCE(ms->ms_timeout_us);
         if (retval == -ETIMEDOUT) {
@@ -974,6 +1091,11 @@ int ocall_socketpair(int domain, int type, int protocol, int sockfds[2]) {
     do {
         retval = sgx_exitless_ocall(OCALL_SOCKETPAIR, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EAFNOSUPPORT && retval != -EMFILE && retval != -ENFILE &&
+            retval != -EOPNOTSUPP && retval != -EPROTONOSUPPORT) {
+        retval = -EPERM;
+    }
 
     if (!retval) {
         sockfds[0] = READ_ONCE(ms->ms_sockfds[0]);
@@ -1012,6 +1134,14 @@ int ocall_listen(int domain, int type, int protocol, int ipv6_v6only, struct soc
     do {
         retval = sgx_exitless_ocall(OCALL_LISTEN, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EACCES && retval != -EINVAL && retval != -EMFILE &&
+            retval != -ENFILE && retval != -ENOMEM && retval != -ENOBUFS && retval != -EBADF &&
+            retval != -ENOPROTOOPT && retval != -ENOTSOCK && retval != -EADDRINUSE &&
+            retval != -EADDRNOTAVAIL && retval != -ELOOP && retval != -ENAMETOOLONG &&
+            retval != -ENOENT && retval != -ENOTDIR && retval != -EROFS && retval != -EOPNOTSUPP) {
+        retval = -EPERM;
+    }
 
     if (retval >= 0) {
         if (addr && len) {
@@ -1054,6 +1184,13 @@ int ocall_accept(int sockfd, struct sockaddr* addr, size_t* addrlen, struct sock
     WRITE_ONCE(ms->ms_addr, untrusted_addr);
 
     retval = sgx_exitless_ocall(OCALL_ACCEPT, ms);
+
+    if (retval < 0 && retval != -EAGAIN && retval != -EWOULDBLOCK && retval != -EBADF &&
+            retval != -ECONNABORTED && retval != -EINTR && retval != -EINVAL && retval != -EMFILE &&
+            retval != -ENFILE && retval != -ENOMEM && retval != -ENOBUFS && retval != -ENOTSOCK &&
+            retval != -EPROTO && retval != -EPERM && retval != -ENOPROTOOPT) {
+        retval = -EPERM;
+    }
 
     if (retval >= 0) {
         if (addr && len) {
@@ -1104,6 +1241,18 @@ int ocall_connect(int domain, int type, int protocol, int ipv6_v6only, const str
     WRITE_ONCE(ms->ms_bind_addr, untrusted_bind_addr);
 
     retval = sgx_exitless_ocall(OCALL_CONNECT, ms);
+
+    if (retval < 0 && retval != -EACCES && retval != -EINVAL && retval != -EMFILE &&
+            retval != -ENFILE && retval != -ENOMEM && retval != -ENOBUFS && retval != -EBADF &&
+            retval != -ENOPROTOOPT && retval != -ENOTSOCK && retval != -EADDRINUSE &&
+            retval != -EADDRNOTAVAIL && retval != -ELOOP && retval != -ENAMETOOLONG &&
+            retval != -ENOENT && retval != -ENOTDIR && retval != -EROFS && retval != -EOPNOTSUPP &&
+            retval != -EPERM && retval != -EAFNOSUPPORT && retval != -EAGAIN &&
+            retval != -EALREADY && retval != -ECONNREFUSED && retval != -EINPROGRESS &&
+            retval != -EINTR && retval != -EISCONN && retval != -ENETUNREACH &&
+            retval != -EPROTOTYPE && retval != -ETIMEDOUT) {
+        retval = -EPERM;
+    }
 
     if (retval >= 0) {
         if (bind_addr && bind_len) {
@@ -1173,6 +1322,12 @@ ssize_t ocall_recv(int sockfd, void* buf, size_t count, struct sockaddr* addr, s
     WRITE_ONCE(ms->ms_controllen, controllen);
 
     retval = sgx_exitless_ocall(OCALL_RECV, ms);
+
+    if (retval < 0 && retval != -EAGAIN && retval != -EWOULDBLOCK && retval != -EBADF &&
+            retval != -ECONNREFUSED && retval != -EINTR && retval != -EINVAL && retval != -ENOMEM &&
+            retval != -ENOTCONN && retval != -ENOTSOCK) {
+        retval = -EPERM;
+    }
 
     if (retval >= 0) {
         if ((size_t)retval > count) {
@@ -1267,6 +1422,15 @@ ssize_t ocall_send(int sockfd, const void* buf, size_t count, const struct socka
     WRITE_ONCE(ms->ms_controllen, controllen);
 
     retval = sgx_exitless_ocall(OCALL_SEND, ms);
+
+    if (retval < 0 && retval != -EACCES && retval != -EAGAIN && retval != -EWOULDBLOCK &&
+            retval != -EALREADY && retval != -EBADF && retval != -ECONNRESET &&
+            retval != -EINTR && retval != -EINVAL && retval != -EISCONN && retval != -EMSGSIZE &&
+            retval != -ENOMEM && retval != -ENOBUFS && retval != -ENOTCONN && retval != -ENOTSOCK &&
+            retval != -EOPNOTSUPP && retval != -EPIPE) {
+        retval = -EPERM;
+    }
+
     if (retval > 0 && (size_t)retval > count) {
         retval = -EPERM;
         goto out;
@@ -1310,6 +1474,11 @@ int ocall_setsockopt(int sockfd, int level, int optname, const void* optval, siz
         retval = sgx_exitless_ocall(OCALL_SETSOCKOPT, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EBADF && retval != -EINVAL && retval != -ENOPROTOOPT &&
+            retval != -ENOTSOCK) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -1332,6 +1501,11 @@ int ocall_shutdown(int sockfd, int how) {
         retval = sgx_exitless_ocall(OCALL_SHUTDOWN, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EBADF && retval != -EINVAL && retval != -ENOTCONN &&
+            retval != -ENOTSOCK) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -1353,6 +1527,10 @@ int ocall_gettime(uint64_t* microsec_ptr) {
     do {
         retval = sgx_exitless_ocall(OCALL_GETTIME, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EINVAL && retval != -EPERM) {
+        retval = -EPERM;
+    }
 
     if (!retval) {
         uint64_t microsec = READ_ONCE(ms->ms_microsec);
@@ -1407,6 +1585,11 @@ int ocall_poll(struct pollfd* fds, size_t nfds, int64_t timeout_us) {
     WRITE_ONCE(ms->ms_fds, untrusted_fds);
 
     retval = sgx_exitless_ocall(OCALL_POLL, ms);
+
+    if (retval < 0 && retval != -EINTR && retval != -EINVAL && retval != -ENOMEM) {
+        retval = -EPERM;
+    }
+
     if (retval >= 0) {
         if ((size_t)retval > nfds) {
             retval = -EPERM;
@@ -1449,6 +1632,14 @@ int ocall_rename(const char* oldpath, const char* newpath) {
         retval = sgx_exitless_ocall(OCALL_RENAME, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EACCES && retval != -EBUSY && retval != -EINVAL &&
+            retval != -EISDIR && retval != -ELOOP && retval != -EMLINK &&
+            retval != -ENAMETOOLONG && retval != -ENOENT && retval != -ENOMEM &&
+            retval != -ENOTDIR && retval != -ENOTEMPTY && retval != -EEXIST && retval != -EPERM &&
+            retval != -EROFS) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -1475,6 +1666,13 @@ int ocall_delete(const char* pathname) {
     do {
         retval = sgx_exitless_ocall(OCALL_DELETE, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EACCES && retval != -EBUSY && retval != -EIO &&
+            retval != -EISDIR && retval != -ELOOP && retval != -ENAMETOOLONG &&
+            retval != -ENOENT && retval != -ENOMEM && retval != -ENOTDIR && retval != -EPERM &&
+            retval != -EROFS && retval != -EINVAL && retval != -ENOTEMPTY) {
+        retval = -EPERM;
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -1561,6 +1759,11 @@ int ocall_eventfd(unsigned int initval, int flags) {
         retval = sgx_exitless_ocall(OCALL_EVENTFD, ms);
     } while (retval == -EINTR);
 
+    if (retval < 0 && retval != -EINVAL && retval != -EMFILE && retval != -ENFILE &&
+            retval != -ENODEV && retval != -ENOMEM) {
+        retval = -EPERM;
+    }
+
     sgx_reset_ustack(old_ustack);
     return retval;
 }
@@ -1593,6 +1796,13 @@ int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* r
     do {
         retval = sgx_exitless_ocall(OCALL_GET_QUOTE, ms);
     } while (retval == -EINTR);
+
+    if (retval < 0 && retval != -EACCES && retval != -EINVAL && retval != -ENOMEM &&
+            retval != -EPERM && retval != -EAGAIN && retval != -ECONNREFUSED) {
+        /* GET_QUOTE OCALL may return many error codes, but we sanitize all error codes except the
+         * above (most important ones) because PAL/LibOS logic doesn't care about specific errors */
+        retval = -EPERM;
+    }
 
     if (retval >= 0) {
         ms_ocall_get_quote_t ms_copied;
@@ -1661,8 +1871,9 @@ int ocall_sched_setaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
         retval = sgx_exitless_ocall(OCALL_SCHED_SETAFFINITY, ms);
     } while (retval == -EINTR);
 
-    if (retval < 0 && !IS_UNIX_ERR(retval))
+    if (retval < 0 && retval != -EINVAL && retval != -EPERM && retval != -ESRCH) {
         retval = -EPERM;
+    }
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -1710,8 +1921,9 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
         retval = sgx_exitless_ocall(OCALL_SCHED_GETAFFINITY, ms);
     } while (retval == -EINTR);
 
-    if (retval < 0 && !IS_UNIX_ERR(retval))
+    if (retval < 0 && retval != -EINVAL && retval != -EPERM && retval != -ESRCH) {
         retval = -EPERM;
+    }
 
     if (retval > 0 && !sgx_copy_to_enclave(cpu_mask, cpumask_size, untrusted_cpu_mask, retval))
         retval = -EPERM;
