@@ -49,7 +49,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     thread_sigaction_reset_on_execve();
 
-    remove_loaded_libraries();
+    remove_loaded_elf_objects();
     clean_link_map_list();
 
     reset_brk();
@@ -84,19 +84,23 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     get_handle(exec);
     unlock(&g_process.fs_lock);
 
-    if ((ret = load_elf_object(exec)) < 0)
+    struct link_map* exec_map;
+    if ((ret = load_elf_object(exec, &exec_map)) < 0)
         goto error;
 
-    if ((ret = init_brk_from_executable(exec)) < 0)
+    if ((ret = init_brk_from_executable(exec_map)) < 0)
         goto error;
 
-    load_elf_interp(exec);
+    if ((ret = load_elf_interp(exec_map)) < 0)
+        goto error;
 
     cur_thread->robust_list = NULL;
 
+    /* We are done with using this handle. */
+    put_handle(exec);
+
     log_debug("execve: start execution");
-    /* Passing ownership of `exec` to `execute_elf_object`. */
-    execute_elf_object(exec, arg.new_argp, arg.new_auxv);
+    execute_elf_object(exec_map, arg.new_argp, arg.new_auxv);
     /* NOTREACHED */
 
 error:

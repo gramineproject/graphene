@@ -114,7 +114,7 @@ static BEGIN_MIGRATION_DEF(fork, struct shim_process* process_description,
     DEFINE_MIGRATE(thread, thread_description, sizeof(*thread_description));
     DEFINE_MIGRATE(migratable, NULL, 0);
     DEFINE_MIGRATE(brk, NULL, 0);
-    DEFINE_MIGRATE(loaded_libraries, NULL, 0);
+    DEFINE_MIGRATE(loaded_elf_objects, NULL, 0);
 #ifdef DEBUG
     DEFINE_MIGRATE(gdb_map, NULL, 0);
 #endif

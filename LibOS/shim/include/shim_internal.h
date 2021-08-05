@@ -342,11 +342,8 @@ extern void* __load_address_end;
 
 extern const char** migrated_envp;
 
-struct shim_handle;
-int init_brk_from_executable(struct shim_handle* exec);
 int init_brk_region(void* brk_region, size_t data_segment_size);
 void reset_brk(void);
-int init_loader(void);
 int init_rlimit(void);
 
 bool is_user_memory_readable(const void* addr, size_t size);
@@ -357,6 +354,8 @@ uint64_t get_rlimit_cur(int resource);
 void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
+
+struct shim_handle;
 
 void _update_epolls(struct shim_handle* handle);
 void delete_from_epoll_handles(struct shim_handle* handle);

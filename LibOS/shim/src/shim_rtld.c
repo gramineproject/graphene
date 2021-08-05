@@ -38,10 +38,7 @@
 #include "shim_vma.h"
 
 /*
- * Structure describing a loaded shared object. The `l_next' and `l_prev' members form a chain of
- * all the shared objects loaded at startup.
- *
- * Originally based on glibc link_map structure.
+ * Structure describing a loaded ELF object. Originally based on glibc link_map structure.
  */
 struct link_map {
     /* Base address shared object is loaded at. */
@@ -49,10 +46,6 @@ struct link_map {
 
     /* Object identifier: file path, or PAL URI if path is unavailable. */
     const char* l_name;
-
-    /* Chain of loaded objects. */
-    struct link_map* l_next;
-    struct link_map* l_prev;
 
     /* Pointer to program header table. */
     ElfW(Phdr)* l_phdr;
@@ -107,8 +100,8 @@ struct loadcmd {
     int prot;
 };
 
-static struct link_map* loaded_libraries = NULL;
-static struct link_map* interp_map = NULL;
+static struct link_map* g_exec_map = NULL;
+static struct link_map* g_interp_map = NULL;
 
 static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, file_off_t offset);
 
@@ -311,7 +304,7 @@ static int execute_loadcmd(const struct loadcmd* c, ElfW(Addr) load_addr,
     return 0;
 }
 
-static struct link_map* __map_elf_object(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
+static struct link_map* map_elf_object(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
     ElfW(Phdr)* phdr = NULL;
     ElfW(Addr) interp_libname_vaddr = 0;
     struct loadcmd* loadcmds = NULL;
@@ -474,51 +467,12 @@ err:
     return NULL;
 }
 
-static inline struct link_map* __search_map_by_name(const char* name) {
-    struct link_map* l = loaded_libraries;
-    size_t len = strlen(name);
-
-    while (l) {
-        if (l->l_name && !memcmp(l->l_name, name, len + 1))
-            break;
-        l = l->l_next;
-    }
-
-    return l;
-}
-
-static inline struct link_map* __search_map_by_handle(struct shim_handle* file) {
-    struct link_map* l = loaded_libraries;
-
-    while (l) {
-        if (l->l_file == file)
-            break;
-        l = l->l_next;
-    }
-
-    return l;
-}
-
-static int __remove_elf_object(struct link_map* l) {
-    if (l->l_prev)
-        l->l_prev->l_next = l->l_next;
-    if (l->l_next)
-        l->l_next->l_prev = l->l_prev;
-
+static void remove_elf_object(struct link_map* l) {
     remove_r_debug((void*)l->l_addr);
-
-    if (loaded_libraries == l)
-        loaded_libraries = l->l_next;
-
-    if (interp_map == l)
-        interp_map = NULL;
-
     free(l);
-
-    return 0;
 }
 
-static int __check_elf_header(ElfW(Ehdr)* ehdr) {
+static int check_elf_header(ElfW(Ehdr)* ehdr) {
     const char* errstring __attribute__((unused));
 
 #if __ELF_NATIVE_CLASS == 32
@@ -612,12 +566,12 @@ static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, 
     return 0;
 }
 
-static int __load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
+static int load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
     int ret = read_file_fragment(file, ehdr, sizeof(*ehdr), /*offset=*/0);
     if (ret < 0)
         return ret;
 
-    ret = __check_elf_header(ehdr);
+    ret = check_elf_header(ehdr);
     if (ret < 0)
         return ret;
 
@@ -631,172 +585,121 @@ int check_elf_object(struct shim_handle* file) {
     if (ret < 0)
         return ret;
 
-    return __check_elf_header(&ehdr);
+    return check_elf_header(&ehdr);
 }
 
-static int __load_elf_object(struct shim_handle* file);
-
-int load_elf_object(struct shim_handle* file) {
-    if (!file)
-        return -EINVAL;
-
-    log_debug("loading \"%s\"", file ? qstrgetstr(&file->uri) : "(unknown)");
-
-    return __load_elf_object(file);
-}
-
-static void add_link_map(struct link_map* map) {
-    struct link_map* prev   = NULL;
-    struct link_map** pprev = &loaded_libraries;
-    struct link_map* next   = loaded_libraries;
-
-    while (next) {
-        prev  = next;
-        pprev = &next->l_next;
-        next  = next->l_next;
-    }
-
-    *pprev      = map;
-    map->l_prev = prev;
-    map->l_next = NULL;
-}
-
-static void replace_link_map(struct link_map* new, struct link_map* old) {
-    new->l_next = old->l_next;
-    new->l_prev = old->l_prev;
-
-    if (old->l_next)
-        old->l_next->l_prev = new;
-    if (old->l_prev)
-        old->l_prev->l_next = new;
-
-    if (loaded_libraries == old)
-        loaded_libraries = new;
-}
-
-static int __load_elf_object(struct shim_handle* file) {
+int load_elf_object(struct shim_handle* file, struct link_map** out_map) {
     int ret;
 
+    assert(file);
+    log_debug("loading \"%s\"", file ? qstrgetstr(&file->uri) : "(unknown)");
+
     ElfW(Ehdr) ehdr;
-    if ((ret = __load_elf_header(file, &ehdr)) < 0)
+    if ((ret = load_elf_header(file, &ehdr)) < 0)
         return ret;
 
-    struct link_map* map = __map_elf_object(file, &ehdr);
+    struct link_map* map = map_elf_object(file, &ehdr);
 
     if (!map)
         return -EINVAL;
 
-    if (file) {
-        get_handle(file);
-        map->l_file = file;
-    }
-
-    add_link_map(map);
+    get_handle(file);
+    map->l_file = file;
 
     if (map->l_file && !qstrempty(&map->l_file->uri)) {
         append_r_debug(qstrgetstr(&map->l_file->uri), (void*)map->l_addr);
     }
 
-    return ret;
+    *out_map = map;
+    return 0;
 }
 
-struct sym_val {
-    ElfW(Sym)* s;
-    struct link_map* m;
-};
-
-static bool __need_interp(struct link_map* exec_map) {
+static bool need_interp(struct link_map* exec_map) {
     return exec_map->l_interp_libname != NULL;
 }
 
-extern const char** library_paths;
+extern const char** g_library_paths;
 
-static int __load_interp_object(struct link_map* exec_map) {
-    const char* interp_name = exec_map->l_interp_libname;
-    size_t len = strlen(interp_name);
-    const char* filename = interp_name + len - 1;
-    while (filename > interp_name && *filename != '/') {
-        filename--;
+static int find_interp(const char* interp_name, struct shim_dentry** out_dent) {
+    size_t interp_name_len = strlen(interp_name);
+    const char* filename = interp_name;
+    size_t filename_len = interp_name_len;
+
+    for (size_t i = 0; i < interp_name_len; i++) {
+        if (interp_name[i] == '/') {
+            filename = interp_name + i + 1;
+            filename_len = interp_name_len - i - 1;
+        }
     }
-    if (*filename == '/')
-        filename++;
-    len -= filename - interp_name;
 
     const char* default_paths[] = {"/lib", "/lib64", NULL};
-    const char** paths          = library_paths ?: default_paths;
-    char interp_path[STR_SIZE];
+    const char** paths          = g_library_paths ?: default_paths;
 
-    for (const char** p = paths; *p; p++) {
-        size_t plen = strlen(*p);
-        memcpy(interp_path, *p, plen);
-        interp_path[plen] = '/';
-        memcpy(interp_path + plen + 1, filename, len + 1);
-
-        log_debug("searching for interpreter: %s", interp_path);
-
-        struct shim_dentry* dent = NULL;
-        int ret = 0;
-
-        if ((ret = path_lookupat(/*start=*/NULL, interp_path, LOOKUP_FOLLOW, &dent)) < 0 ||
-            dent->state & DENTRY_NEGATIVE)
-            continue;
-
-        struct shim_fs* fs = dent->fs;
-        get_dentry(dent);
-
-        if (!fs->d_ops->open) {
-            ret = -EACCES;
-        err:
-            put_dentry(dent);
-            return ret;
+    for (const char** path = paths; *path; path++) {
+        size_t path_len = strlen(*path);
+        char* interp_path = alloc_concat3(*path, path_len, "/", 1, filename, filename_len);
+        if (!interp_path) {
+            log_warning("%s: couldn't allocate path: %s/%s", __func__, *path, filename);
+            return -ENOMEM;
         }
 
-        struct shim_handle* interp = NULL;
-
-        if (!(interp = get_new_handle())) {
-            ret = -ENOMEM;
-            goto err;
+        log_debug("%s: searching for interpreter: %s", __func__, interp_path);
+        struct shim_dentry* dent;
+        int ret = path_lookupat(/*start=*/NULL, interp_path, LOOKUP_FOLLOW, &dent);
+        if (ret == 0) {
+            *out_dent = dent;
+            return 0;
         }
-
-        interp->fs = fs;
-        interp->flags = O_RDONLY;
-        interp->acc_mode = MAY_READ;
-
-        if ((ret = fs->d_ops->open(interp, dent, O_RDONLY)) < 0) {
-            put_handle(interp);
-            goto err;
-        }
-
-        if (!(ret = __load_elf_object(interp)))
-            interp_map = __search_map_by_handle(interp);
-
-        put_handle(interp);
-        return ret;
     }
 
     return -ENOENT;
 }
 
-int load_elf_interp(struct shim_handle* exec) {
-    struct link_map* exec_map = __search_map_by_handle(exec);
+static int load_interp_object(struct link_map* exec_map) {
+    assert(!g_interp_map);
 
-    if (exec_map && !interp_map && __need_interp(exec_map))
-        __load_interp_object(exec_map);
+    struct shim_dentry* dent;
+    int ret;
+
+    ret = find_interp(exec_map->l_interp_libname, &dent);
+    if (ret < 0)
+        return ret;
+
+    struct shim_handle* hdl = get_new_handle();
+    if (!hdl) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    ret = dentry_open(hdl, dent, O_RDONLY);
+    if (ret < 0)
+        goto out;
+
+    ret = load_elf_object(hdl, &g_interp_map);
+
+out:
+    if (hdl)
+        put_handle(hdl);
+    put_dentry(dent);
+    return ret;
+}
+
+int load_elf_interp(struct link_map* exec_map) {
+    if (!g_interp_map && need_interp(exec_map))
+        return load_interp_object(exec_map);
 
     return 0;
 }
 
-int remove_loaded_libraries(void) {
-    struct link_map* map = loaded_libraries;
-    struct link_map* next_map = map->l_next;
-    while (map) {
-        __remove_elf_object(map);
-
-        map      = next_map;
-        next_map = map ? map->l_next : NULL;
+void remove_loaded_elf_objects(void) {
+    if (g_exec_map) {
+        remove_elf_object(g_exec_map);
+        g_exec_map = NULL;
     }
-
-    return 0;
+    if (g_interp_map) {
+        remove_elf_object(g_interp_map);
+        g_interp_map = NULL;
+    }
 }
 
 /*
@@ -841,7 +744,7 @@ static int vdso_map_init(void) {
     return 0;
 }
 
-int init_loader(void) {
+int init_elf_objects(void) {
     int ret = 0;
 
     lock(&g_process.fs_lock);
@@ -853,10 +756,11 @@ int init_loader(void) {
     if (!exec)
         return 0;
 
-    struct link_map* exec_map = __search_map_by_handle(exec);
+    if (!g_exec_map) {
+        /* Child processes should have received `g_exec_map` from parent */
+        assert(!g_pal_control->parent_process);
 
-    if (!exec_map) {
-        ret = load_elf_object(exec);
+        ret = load_elf_object(exec, &g_exec_map);
         if (ret < 0) {
             // TODO: Actually verify that the non-PIE-ness was the real cause of loading failure.
             char* path = NULL;
@@ -869,15 +773,13 @@ int init_loader(void) {
             free(path);
             goto out;
         }
-
-        exec_map = __search_map_by_handle(exec);
     }
 
-    ret = init_brk_from_executable(exec);
+    ret = init_brk_from_executable(g_exec_map);
     if (ret < 0)
         goto out;
 
-    if (!interp_map && __need_interp(exec_map) && (ret = __load_interp_object(exec_map)) < 0)
+    if (!g_interp_map && need_interp(g_exec_map) && (ret = load_interp_object(g_exec_map)) < 0)
         goto out;
 
     ret = 0;
@@ -886,11 +788,7 @@ out:
     return ret;
 }
 
-int init_brk_from_executable(struct shim_handle* exec) {
-    struct link_map* exec_map = __search_map_by_handle(exec);
-    if (!exec_map) {
-        return -EINVAL;
-    }
+int init_brk_from_executable(struct link_map* exec_map) {
     return init_brk_region((void*)ALLOC_ALIGN_UP(exec_map->l_map_end),
                            exec_map->l_data_segment_size);
 }
@@ -914,15 +812,20 @@ int register_library(const char* name, unsigned long load_address) {
     return 0;
 }
 
-noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
+noreturn void execute_elf_object(struct link_map* exec_map, void* argp, ElfW(auxv_t)* auxp) {
+    if (exec_map) {
+        /* If a new map is provided, it means we have cleared the existing one by calling
+         * `remove_loaded_elf_objects`. This happens during `execve`. */
+        assert(!g_exec_map);
+        g_exec_map = exec_map;
+    }
+    assert(g_exec_map);
+
     int ret = vdso_map_init();
     if (ret < 0) {
         log_error("Could not initialize vDSO (error code = %d)", ret);
         process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
     }
-
-    struct link_map* exec_map = __search_map_by_handle(exec);
-    assert(exec_map);
 
     /* at this point, stack looks like this:
      *
@@ -945,15 +848,15 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
 
     static_assert(REQUIRED_ELF_AUXV >= 8, "not enough space on stack for auxv");
     auxp[0].a_type     = AT_PHDR;
-    auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val))exec_map->l_phdr;
+    auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val))g_exec_map->l_phdr;
     auxp[1].a_type     = AT_PHNUM;
-    auxp[1].a_un.a_val = exec_map->l_phnum;
+    auxp[1].a_un.a_val = g_exec_map->l_phnum;
     auxp[2].a_type     = AT_PAGESZ;
     auxp[2].a_un.a_val = ALLOC_ALIGNMENT;
     auxp[3].a_type     = AT_ENTRY;
-    auxp[3].a_un.a_val = exec_map->l_entry;
+    auxp[3].a_un.a_val = g_exec_map->l_entry;
     auxp[4].a_type     = AT_BASE;
-    auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
+    auxp[4].a_un.a_val = g_interp_map ? g_interp_map->l_addr : 0;
     auxp[5].a_type     = AT_RANDOM;
     auxp[5].a_un.a_val = 0; /* filled later */
     if (vdso_addr) {
@@ -979,17 +882,14 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     }
     auxp[5].a_un.a_val = random;
 
-    ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
-
-    /* We are done with using this handle. */
-    put_handle(exec);
+    ElfW(Addr) entry = g_interp_map ? g_interp_map->l_entry : g_exec_map->l_entry;
 
     CALL_ELF_ENTRY(entry, argp);
 
     die_or_inf_loop();
 }
 
-BEGIN_CP_FUNC(library) {
+BEGIN_CP_FUNC(elf_object) {
     __UNUSED(size);
     assert(size == sizeof(struct link_map));
 
@@ -1004,9 +904,6 @@ BEGIN_CP_FUNC(library) {
 
         new_map = (struct link_map*)(base + off);
         memcpy(new_map, map, sizeof(struct link_map));
-
-        new_map->l_prev   = NULL;
-        new_map->l_next   = NULL;
 
         if (map->l_file)
             DO_CP_MEMBER(handle, map, new_map, l_file);
@@ -1026,58 +923,51 @@ BEGIN_CP_FUNC(library) {
     if (objp)
         *objp = (void*)new_map;
 }
-END_CP_FUNC(library)
+END_CP_FUNC(elf_object)
 
-BEGIN_RS_FUNC(library) {
+BEGIN_RS_FUNC(elf_object) {
     __UNUSED(offset);
     struct link_map* map = (void*)(base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(map->l_name);
     CP_REBASE(map->l_file);
-
-    struct link_map* old_map = __search_map_by_name(map->l_name);
-
-    if (old_map)
-        remove_r_debug((void*)old_map->l_addr);
-
-    if (old_map)
-        replace_link_map(map, old_map);
-    else
-        add_link_map(map);
-
     DEBUG_RS("base=0x%08lx,name=%s", map->l_addr, map->l_name);
 }
-END_RS_FUNC(library)
+END_RS_FUNC(elf_object)
 
-BEGIN_CP_FUNC(loaded_libraries) {
+BEGIN_CP_FUNC(loaded_elf_objects) {
     __UNUSED(obj);
     __UNUSED(size);
     __UNUSED(objp);
-    struct link_map* map = loaded_libraries;
+    struct link_map* new_exec_map = NULL;
     struct link_map* new_interp_map = NULL;
-    while (map) {
-        struct link_map* new_map = NULL;
+    if (g_exec_map)
+        DO_CP(elf_object, g_exec_map, &new_exec_map);
+    if (g_interp_map)
+        DO_CP(elf_object, g_interp_map, &new_interp_map);
 
-        DO_CP(library, map, &new_map);
+    size_t off = ADD_CP_OFFSET(2 * sizeof(struct link_map*));
+    struct link_map** maps = (void*)(base + off);
+    maps[0] = new_exec_map;
+    maps[1] = new_interp_map;
 
-        if (map == interp_map)
-            new_interp_map = new_map;
-
-        map = map->l_next;
-    }
-
-    ADD_CP_FUNC_ENTRY((uintptr_t)new_interp_map);
+    ADD_CP_FUNC_ENTRY(off);
 }
-END_CP_FUNC(loaded_libraries)
+END_CP_FUNC(loaded_elf_objects)
 
-BEGIN_RS_FUNC(loaded_libraries) {
+BEGIN_RS_FUNC(loaded_elf_objects) {
     __UNUSED(base);
     __UNUSED(offset);
-    interp_map = (void*)GET_CP_FUNC_ENTRY();
+    struct link_map** maps = (void*)(base + GET_CP_FUNC_ENTRY());
 
-    if (interp_map) {
-        CP_REBASE(interp_map);
-        DEBUG_RS("%s as interp", interp_map->l_name);
-    }
+    assert(!g_exec_map);
+    g_exec_map = maps[0];
+    if (g_exec_map)
+        CP_REBASE(g_exec_map);
+
+    assert(!g_interp_map);
+    g_interp_map = maps[1];
+    if (g_interp_map)
+        CP_REBASE(g_interp_map);
 }
-END_RS_FUNC(loaded_libraries)
+END_RS_FUNC(loaded_elf_objects)

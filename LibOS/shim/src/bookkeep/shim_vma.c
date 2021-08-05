@@ -700,6 +700,11 @@ int bkeep_munmap(void* addr, size_t length, bool is_internal, void** tmp_vma_ptr
         free_vma(vma2);
     }
 
+    /*
+     * TODO: We call `remove_r_debug()` on the assumption that `addr` might be the beginning of a
+     * loaded ELF object. However, `remove_r_debug()` assumes that `addr` is the load base, while
+     * the first mapping of an ELF object might begin later than its load base.
+     */
     remove_r_debug(addr);
     return ret;
 }

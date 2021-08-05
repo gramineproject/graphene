@@ -141,11 +141,14 @@ void free(void* mem);
 void* malloc_copy(const void* mem, size_t size);
 
 /* ELF binary loading */
+struct link_map;
+int init_elf_objects(void);
 int check_elf_object(struct shim_handle* file);
-int load_elf_object(struct shim_handle* file);
-int load_elf_interp(struct shim_handle* exec);
-noreturn void execute_elf_object(struct shim_handle* exec, void* argp, elf_auxv_t* auxp);
-int remove_loaded_libraries(void);
+int load_elf_object(struct shim_handle* file, struct link_map** out_map);
+int load_elf_interp(struct link_map* exec_map);
+noreturn void execute_elf_object(struct link_map* exec_map, void* argp, elf_auxv_t* auxp);
+void remove_loaded_elf_objects(void);
+int init_brk_from_executable(struct link_map* exec_map);
 
 /* gdb debugging support */
 int init_r_debug(void);
