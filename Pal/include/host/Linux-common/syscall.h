@@ -27,7 +27,7 @@ long vfork(void) __attribute__((returns_twice));
     PICK_SYSCALL_MACRO(name, ##args, 6, 5, 4, 3, 2, 1, 0)(__NR_##name, ##args)
 
 #define IS_PTR_ERR(val) ((unsigned long)(val) >= -4095UL)
-#define PTR_TO_ERR(val) ((long)val)
+#define PTR_TO_ERR(val) ((long)(val))
 #define IS_UNIX_ERR(val) ((val) >= -133 /* EHWPOISON */ && (val) <= -1 /* EPERM */)
 
 #endif // SYSCALL_H_

@@ -178,17 +178,17 @@ static long sgx_ocall_fsetnonblock(void* pms) {
     int flags;
     ODEBUG(OCALL_FSETNONBLOCK, ms);
 
-    ret = DO_SYSCALL_INTERRUPTIBLE(fcntl, ms->ms_fd, F_GETFL);
+    ret = DO_SYSCALL(fcntl, ms->ms_fd, F_GETFL);
     if (ret < 0)
         return ret;
 
     flags = ret;
     if (ms->ms_nonblocking) {
         if (!(flags & O_NONBLOCK))
-            ret = DO_SYSCALL_INTERRUPTIBLE(fcntl, ms->ms_fd, F_SETFL, flags | O_NONBLOCK);
+            ret = DO_SYSCALL(fcntl, ms->ms_fd, F_SETFL, flags | O_NONBLOCK);
     } else {
         if (flags & O_NONBLOCK)
-            ret = DO_SYSCALL_INTERRUPTIBLE(fcntl, ms->ms_fd, F_SETFL, flags & ~O_NONBLOCK);
+            ret = DO_SYSCALL(fcntl, ms->ms_fd, F_SETFL, flags & ~O_NONBLOCK);
     }
 
     return ret;
