@@ -238,8 +238,10 @@ long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
     if (!fs->fs_ops->read)
         goto out;
 
-    if (hdl->is_dir)
+    if (hdl->is_dir) {
+        ret = -EISDIR;
         goto out;
+    }
 
     int offset = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
     if (offset < 0) {
@@ -288,8 +290,10 @@ long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
     if (!fs->fs_ops->write)
         goto out;
 
-    if (hdl->is_dir)
+    if (hdl->is_dir) {
+        ret = -EISDIR;
         goto out;
+    }
 
     int offset = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
     if (offset < 0) {

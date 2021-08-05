@@ -34,6 +34,11 @@ long shim_do_readv(unsigned long fd, const struct iovec* vec, unsigned long vlen
 
     int ret = 0;
 
+    if (hdl->is_dir) {
+        ret = -EISDIR;
+        goto out;
+    }
+
     if (!(hdl->acc_mode & MAY_READ) || !hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->read) {
         ret = -EACCES;
         goto out;
@@ -96,6 +101,11 @@ long shim_do_writev(unsigned long fd, const struct iovec* vec, unsigned long vle
         return -EBADF;
 
     int ret = 0;
+
+    if (hdl->is_dir) {
+        ret = -EISDIR;
+        goto out;
+    }
 
     if (!(hdl->acc_mode & MAY_WRITE) || !hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->write) {
         ret = -EACCES;
