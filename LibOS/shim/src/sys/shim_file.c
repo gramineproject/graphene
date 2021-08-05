@@ -186,10 +186,6 @@ long shim_do_fchmod(int fd, mode_t mode) {
     if (!hdl)
         return -EBADF;
 
-    if (hdl->flags && O_PATH) {
-        return -EBADF;
-    }
-
     /* This isn't documented, but that's what Linux does. */
     mode &= 07777;
 
@@ -251,10 +247,6 @@ long shim_do_fchown(int fd, uid_t uid, gid_t gid) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
-
-    if (hdl->flags & O_PATH) {
-        return -EBADF;
-    }
 
     /* XXX: do nothing now */
     return 0;
