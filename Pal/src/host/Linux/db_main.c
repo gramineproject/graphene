@@ -158,7 +158,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     if (ret < 0) {
         /* We failed to install a TCB (and haven't applied relocations yet), so no other code will
          * work anyway */
-        int exitcode = unix_to_pal_error(-ret);
+        int exitcode = -ret;
         INLINE_SYSCALL(exit_group, 1, exitcode);
         die_or_inf_loop();
     }

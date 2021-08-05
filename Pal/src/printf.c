@@ -6,6 +6,12 @@
 #include "pal.h"
 #include "pal_internal.h"
 
+/*
+ * NOTE: The logging subsystem cannot be used during early PAL startup, because the pointers in the
+ * `log_level_to_prefix` array need to be relocated first. If that becomes an issue (that is, if we
+ * want to use logging before or during relocation), this array can be converted to a switch.
+ */
+
 /* NOTE: We could add "pal" prefix to the below strings for more fine-grained log info */
 static const char* log_level_to_prefix[] = {
     [LOG_LEVEL_NONE]    = "",
