@@ -7,6 +7,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,8 +48,10 @@ static int server_dummy_socket(void) {
 
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path, "dummy", sizeof(address.sun_path));
+    socklen_t minimal_address_size = offsetof(struct sockaddr_un, sun_path) +
+                                     strlen(address.sun_path) + 1;
 
-    if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    if (bind(create_socket, (struct sockaddr*)&address, minimal_address_size) < 0) {
         perror("bind");
         close(create_socket);
         exit(1);
