@@ -478,6 +478,9 @@ out:
 }
 
 long shim_do_chroot(const char* filename) {
+    if (!is_user_string_readable(filename))
+        return -EFAULT;
+
     int ret = 0;
     struct shim_dentry* dent = NULL;
     if ((ret = path_lookupat(/*start=*/NULL, filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &dent)) < 0)
