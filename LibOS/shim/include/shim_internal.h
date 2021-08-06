@@ -344,7 +344,6 @@ extern const char** migrated_envp;
 
 int init_brk_region(void* brk_region, size_t data_segment_size);
 void reset_brk(void);
-int init_loader(void);
 int init_rlimit(void);
 
 bool is_user_memory_readable(const void* addr, size_t size);
