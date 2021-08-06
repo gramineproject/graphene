@@ -19,6 +19,7 @@
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
 #include "sgx_log.h"
+#include "sgx_process.h"
 #include "sgx_tls.h"
 
 extern char* g_pal_loader_path;
