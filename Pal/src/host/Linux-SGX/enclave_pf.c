@@ -424,22 +424,21 @@ out:
     return ret;
 }
 
-/* Read PF paths from manifest and register them */
-static int register_protected_files(void) {
+static int register_protected_files_from_toml_table(void) {
     int ret;
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
-        return 0;
+        return -PAL_ERROR_NOTDEFINED;
 
     toml_table_t* toml_pfs = toml_table_in(manifest_sgx, "protected_files");
     if (!toml_pfs)
-        return 0;
+        return -PAL_ERROR_NOTDEFINED;
 
     ssize_t toml_pfs_cnt = toml_table_nkval(toml_pfs);
-    if (toml_pfs_cnt <= 0) {
-        /* no PF entries found in the manifest */
-        return 0;
-    }
+    if (toml_pfs_cnt < 0)
+        return -PAL_ERROR_DENIED;
+    if (toml_pfs_cnt == 0)
+        return -PAL_ERROR_NOTDEFINED;
 
     for (ssize_t i = 0; i < toml_pfs_cnt; i++) {
         const char* toml_pf_key = toml_key_in(toml_pfs, i);
@@ -450,7 +449,7 @@ static int register_protected_files(void) {
         char* toml_pf_value = NULL;
         ret = toml_rtos(toml_pf_value_raw, &toml_pf_value);
         if (ret < 0) {
-            log_error("Invalid PF entry in manifest: \'%s\'", toml_pf_key);
+            log_error("Invalid protected file in manifest: \'%s\'", toml_pf_key);
             continue;
         }
 
@@ -463,12 +462,76 @@ static int register_protected_files(void) {
         free(toml_pf_value);
     }
 
+    log_error("Detected deprecated syntax. Consider switching to new syntax: 'sgx.protected_files "
+              "= [\"file1\", ..]'.");
+    return 0;
+}
+
+static int register_protected_files_from_toml_array(void) {
+    int ret;
+    toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
+    if (!manifest_sgx)
+        return -PAL_ERROR_NOTDEFINED;
+
+    toml_array_t* toml_pfs = toml_array_in(manifest_sgx, "protected_files");
+    if (!toml_pfs)
+        return -PAL_ERROR_NOTDEFINED;
+
+    ssize_t toml_pfs_cnt = toml_array_nelem(toml_pfs);
+    if (toml_pfs_cnt < 0)
+        return -PAL_ERROR_DENIED;
+    if (toml_pfs_cnt == 0)
+        return -PAL_ERROR_NOTDEFINED;
+
+    for (ssize_t i = 0; i < toml_pfs_cnt; i++) {
+        toml_raw_t toml_pf_value_raw = toml_raw_at(toml_pfs, i);
+        assert(toml_pf_value_raw);
+
+        char* toml_pf_value = NULL;
+        ret = toml_rtos(toml_pf_value_raw, &toml_pf_value);
+        if (ret < 0) {
+            log_error("Invalid protected file in manifest at index %ld", i);
+            continue;
+        }
+
+        if (!strstartswith(toml_pf_value, URI_PREFIX_FILE)) {
+            log_error("Invalid URI [%s]: URIs of protected files must start with \'"
+                      URI_PREFIX_FILE "\'\n", toml_pf_value);
+        } else {
+            register_protected_path(toml_pf_value, NULL);
+        }
+        free(toml_pf_value);
+    }
+
+    return 0;
+}
+
+static int register_protected_files(void) {
+    int ret;
+
+    /* first try legacy manifest syntax with TOML tables, i.e. `sgx.protected_files.key = "file"` */
+    ret = register_protected_files_from_toml_table();
+    if (ret == -PAL_ERROR_NOTDEFINED) {
+        /* try new manifest syntax with TOML arrays, i.e. `sgx.protected_files = ["file1", ..]` */
+        ret = register_protected_files_from_toml_array();
+        if (ret == -PAL_ERROR_NOTDEFINED) {
+            /* no allowed files were found, perfectly valid case */
+            return 0;
+        }
+    }
+
+    if (ret < 0) {
+        log_error("Reading allowed files from the manifest failed: %s", pal_strerror(ret));
+        return ret;
+    }
+
     pf_lock();
     log_debug("Registered %u protected directories and %u protected files",
               HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
     pf_unlock();
     return 0;
 }
+
 
 /* Initialize the PF library, register PFs from the manifest */
 int init_protected_files(void) {
