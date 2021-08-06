@@ -349,7 +349,8 @@ int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4])
     } while (retval == -EINTR);
 
     if (retval < 0) {
-        retval = -EPERM; /* CPUID OCALL is not supposed to fail, but if it does, sanitize error */
+        log_error("OCALL_CPUID returned an error (impossible on benign host)");
+        _DkProcessExit(1);
     }
 
     if (!retval) {
@@ -1705,7 +1706,8 @@ int ocall_debug_map_add(const char* name, void* addr) {
     } while (retval == -EINTR);
 
     if (retval < 0) {
-        retval = -EPERM; /* DEBUG OCALLs are not supposed to fail, but if they do, sanitize error */
+        log_error("OCALL_DEBUG_MAP_ADD returned an error (impossible on benign host)");
+        _DkProcessExit(1);
     }
 
     sgx_reset_ustack(old_ustack);
@@ -1737,7 +1739,8 @@ int ocall_debug_map_remove(void* addr) {
     } while (retval == -EINTR);
 
     if (retval < 0) {
-        retval = -EPERM; /* DEBUG OCALLs are not supposed to fail, but if they do, sanitize error */
+        log_error("OCALL_DEBUG_MAP_REMOVE returned an error (impossible on benign host)");
+        _DkProcessExit(1);
     }
 
     sgx_reset_ustack(old_ustack);
