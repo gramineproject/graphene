@@ -74,18 +74,19 @@ OMP_NUM_THREADS=36 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 taskset -c 
 ``python3`` in the above command.
 
 ## Notes on optimal performance
-- Above commands are for a 36 core system. Please set the following options accordingly for optimal
-  performance:
-    - Assuming that X is the number of cores per socket, set `OMP_NUM_THREADS=X`,
-      `intra_op_parallelism_threads=X` for BERT and `num_intra_threads=X` for ResNet50.
-    - Specify the whole range of cores available on one of the sockets in `taskset`.
-    - If hyperthreading is enabled: use ``KMP_AFFINITY=granularity=fine,verbose,compact,1,0``
-    - If hyperthreading is disabled: use ``KMP_AFFINITY=granularity=fine,verbose,compact``
-    - Note that `OMP_NUM_THREADS` sets the maximum number of threads to
-      use for OpenMP parallel regions, and `KMP_AFFINITY` binds OpenMP threads
-      to physical processing units.
-    - The options `batch-size`, `warmup-steps` and `steps` can be varied for ResNet50 sample.
-    - To get the number of cores per socket, do ``lscpu | grep 'Core(s) per socket'``.
+Above commands are for a 36 core system. Please set the following options accordingly for optimal
+performance:
+
+- Assuming that X is the number of cores per socket, set `OMP_NUM_THREADS=X`,
+  `intra_op_parallelism_threads=X` for BERT and `num_intra_threads=X` for ResNet50.
+- Specify the whole range of cores available on one of the sockets in `taskset`.
+- If hyperthreading is enabled: use ``KMP_AFFINITY=granularity=fine,verbose,compact,1,0``
+- If hyperthreading is disabled: use ``KMP_AFFINITY=granularity=fine,verbose,compact``
+- Note that `OMP_NUM_THREADS` sets the maximum number of threads to
+  use for OpenMP parallel regions, and `KMP_AFFINITY` binds OpenMP threads
+  to physical processing units.
+- The options `batch-size`, `warmup-steps` and `steps` can be varied for ResNet50 sample.
+- To get the number of cores per socket, do ``lscpu | grep 'Core(s) per socket'``.
 
 ## Performance considerations
 - Linux systems have CPU frequency scaling governor that helps the system to scale the CPU frequency
