@@ -46,7 +46,7 @@ pip. GSC requires Python 3.6 or later.
 
 .. code-block:: sh
 
-   sudo apt install docker.io python3 python3-pip
+   sudo apt-get install docker.io python3 python3-pip
    pip3 install docker jinja2 toml pyyaml
 
 SGX software stack
