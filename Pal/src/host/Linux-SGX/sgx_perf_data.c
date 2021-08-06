@@ -31,6 +31,7 @@
 #include <asm/perf_regs.h>
 #include <assert.h>
 #include <linux/perf_event.h>
+#include <stdio.h>
 
 #include "perm.h"
 #include "sgx_internal.h"

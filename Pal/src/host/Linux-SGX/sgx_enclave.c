@@ -7,6 +7,7 @@
 #include <asm/ioctls.h>
 #include <asm/mman.h>
 #include <asm/socket.h>
+#include <limits.h>
 #include <linux/fs.h>
 #include <linux/futex.h>
 #include <linux/in.h>
@@ -25,8 +26,11 @@
 #include "rpc_queue.h"
 #include "sgx_internal.h"
 #include "sgx_log.h"
+#include "sgx_process.h"
 #include "sgx_tls.h"
 #include "sigset.h"
+
+#define DEFAULT_BACKLOG 2048
 
 #define ODEBUG(code, ms) \
     do {                 \

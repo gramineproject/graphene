@@ -1,11 +1,13 @@
 #ifndef _LINUX_UTILS_H
 #define _LINUX_UTILS_H
 
-#include <linux/time.h>
+#define _GNU_SOURCE
+
 #include <linux/un.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
+#include <time.h>
 
 double get_bogomips_from_cpuinfo_buf(const char* buf);
 double sanitize_bogomips_value(double);
