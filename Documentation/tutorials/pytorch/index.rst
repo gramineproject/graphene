@@ -91,7 +91,7 @@ Prerequisites
 
   Please install the following dependencies::
 
-      sudo apt install libnss-mdns libnss-myhostname
+      sudo apt-get install libnss-mdns libnss-myhostname
 
 - PyTorch (Python3). PyTorch is a framework for machine learning based on
   Python. Please `install PyTorch <https://pytorch.org/get-started/locally/>`__

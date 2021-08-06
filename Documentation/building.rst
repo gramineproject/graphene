@@ -36,18 +36,12 @@ Common dependencies
 
 Run the following command on Ubuntu to install dependencies::
 
-    sudo apt-get install -y \
-        build-essential \
-        autoconf \
-        bison \
-        gawk \
-        meson \
-        python3-click \
-        python3-jinja2
+    sudo apt-get install -y autoconf bison build-essential gawk meson \
+        python3 python3-click python3-jinja2 wget
 
 For GDB support and to run all tests locally you also need to install::
 
-    sudo apt-get install -y python3-pyelftools python3-pytest libunwind8
+    sudo apt-get install -y libunwind8 python3-pyelftools python3-pytest
 
 Dependencies for SGX
 ^^^^^^^^^^^^^^^^^^^^
@@ -67,12 +61,8 @@ running, and Intel SGX SDK/PSW/DCAP must be installed.
 """"""""""""""""""""
 Run the following commands on Ubuntu to install SGX-related dependencies::
 
-    sudo apt-get install -y \
-        libcurl4-openssl-dev \
-        libprotobuf-c-dev \
-        protobuf-c-compiler \
-        python3-pip \
-        python3-protobuf
+    sudo apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev \
+        protobuf-c-compiler python3-pip python3-protobuf
     python3 -m pip install toml>=0.10
 
 2. Upgrade to the Linux kernel patched with FSGSBASE
@@ -164,9 +154,9 @@ and EINITTOKENs (``.token`` files).
 
 Then install Graphene (recall that "direct" means non-SGX version)::
 
-   meson build --buildtype=release -Ddirect=enabled -Dsgx=enabled
-   ninja -C build
-   sudo ninja -C build install
+   meson setup build/ --buildtype=release -Ddirect=enabled -Dsgx=enabled
+   ninja -C build/
+   sudo ninja -C build/ install
 
 Set ``-Ddirect=`` and ``-Dsgx=`` options to ``enabled`` or ``disabled``
 according to whether you built the corresponding PAL (the snippet assumes you
@@ -196,14 +186,14 @@ Additional build options
   (e.g. for profiling).
 
 - To build with ``-Werror``, run :command:`make WERROR=1` and
-  :command:`meson build --werror`.
+  :command:`meson --werror`.
 
 - To specify custom mirrors for downloading the Glibc source, use :command:`make
   GLIBC_MIRRORS=...`.
 
 - To install into some other place than :file:`/usr/local`, use
-  :command:`meson build --prefix=<prefix>`. Note that you then need to include
-  the :file:`<prefix>/bin` directory in ``$PATH`` and
+  :command:`meson --prefix=<prefix>`. Note that you then need to include the
+  :file:`<prefix>/bin` directory in ``$PATH`` and
   :file:`<prefix>/lib/python<version>/site-packages` in ``$PYTHONPATH``.
 
 
