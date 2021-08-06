@@ -445,7 +445,7 @@ noreturn void* shim_init(int argc, void* args) {
     elf_auxv_t* new_auxv;
     RUN_INIT(init_stack, argv, envp, &new_argp, &new_auxv);
 
-    RUN_INIT(init_loader);
+    RUN_INIT(init_elf_objects);
     RUN_INIT(init_signal_handling);
     RUN_INIT(init_ipc_worker);
 
@@ -500,6 +500,7 @@ noreturn void* shim_init(int argc, void* args) {
     /* At this point, the exec map has been either copied from checkpoint, or initialized in
      * `init_loader`. */
     execute_elf_object(/*exec_map=*/NULL, new_argp, new_auxv);
+    /* UNREACHABLE */
 }
 
 static int get_256b_random_hex_string(char* buf, size_t size) {

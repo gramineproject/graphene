@@ -49,7 +49,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     thread_sigaction_reset_on_execve();
 
-    remove_loaded_libraries();
+    remove_loaded_elf_objects();
     clean_link_map_list();
 
     reset_brk();
