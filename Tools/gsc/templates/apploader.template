@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 set -ex
+# Include meson build output directory in $PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(find /graphene/meson_build_output/lib -type d  -path '*/site-packages')"
 
 # Set default PAL to Linux-SGX
 if [ -z "$GSC_PAL" ] || [ "$GSC_PAL" == "Linux-SGX" ]

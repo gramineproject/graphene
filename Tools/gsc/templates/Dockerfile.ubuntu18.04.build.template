@@ -51,9 +51,8 @@ RUN /graphene/Tools/argv_serializer {{binary}} {{binary_arguments}} "{{"\" \"".j
 RUN cd / \
     && which {{binary}} | xargs ln -s || true
 
-# Include meson build output directory in $PATH and $PYTHONPATH
+# Include meson build output directory in $PATH
 ENV PATH = "${PATH}:/graphene/meson_build_output/bin"
-ENV PYTHONPATH = "${PYTHONPATH}:/graphene/meson_build_output/lib/python3.6/site-packages/"
 
 # Mark apploader.sh executable, finalize manifest, and remove intermediate scripts
 RUN chmod u+x /apploader.sh \
