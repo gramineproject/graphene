@@ -9,7 +9,16 @@
 
 #include "api.h"
 #include "assert.h"
+
+/*
+ * XXX this ifdef is because there is no mbedtls linked in untrusted PAL; this should be fixed by
+ * cleaning up this header which has become a rubbish bin for everything that didn't have a better
+ * place
+ */
+#ifdef IN_ENCLAVE
 #include "crypto.h"
+#endif /* IN_ENCLAVE */
+
 #include "enclave_ocalls.h"
 #include "linux_types.h"
 #include "log.h"
@@ -37,8 +46,6 @@ extern struct pal_linux_state {
     /* enclave */
     const char* runtime_dir;
 } g_linux_state;
-
-#define DEFAULT_BACKLOG 2048
 
 #define ACCESS_R 4
 #define ACCESS_W 2
@@ -285,10 +292,6 @@ int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len, bool
 int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len,
                          bool is_blocking);
 int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* olen);
-
-#else /* IN_ENCLAVE */
-
-int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const char* manifest);
 
 #endif /* IN_ENCLAVE */
 

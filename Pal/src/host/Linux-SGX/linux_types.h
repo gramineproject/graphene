@@ -4,8 +4,6 @@
 #include <linux/posix_types.h> /* needed for __kernel_off_t */
 #include <linux/socket.h>
 #include <linux/time.h>
-#define __timespec_defined
-#undef __USE_POSIX199309
 #include <asm/fcntl.h>
 #include <asm/posix_types.h>
 #include <asm/stat.h>
