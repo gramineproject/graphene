@@ -529,14 +529,14 @@ static int check_elf_header(ElfW(Ehdr)* ehdr) {
 
     /* check if phentsize match the size of ElfW(Phdr) */
     if (ehdr->e_phentsize != sizeof(ElfW(Phdr))) {
-        errstring = "ELF file's phentsize not the expected size";
+        errstring = "ELF file's phentsize has unexpected size";
         goto verify_failed;
     }
 
     return 0;
 
 verify_failed:
-    log_debug("load runtime object: %s", errstring);
+    log_debug("loading ELF file failed: %s", errstring);
     return -EINVAL;
 }
 
@@ -567,41 +567,56 @@ static int read_file_fragment(struct shim_handle* file, void* buf, size_t size, 
 }
 
 static int load_elf_header(struct shim_handle* file, ElfW(Ehdr)* ehdr) {
+    const char* errstring = NULL;
     int ret = read_file_fragment(file, ehdr, sizeof(*ehdr), /*offset=*/0);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) {
+        errstring = "Failed to read ELF header from %s";
+        goto err;
+    }
 
     ret = check_elf_header(ehdr);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) {
+        errstring = "%s is not an ELF executable. Please note that Graphene doesn't support "
+                    "executing scripts as executables.";
+        goto err;
+    }
 
     return 0;
+err:;
+    char* path = NULL;
+    if (file->dentry) {
+        // This may fail, but we are already inside a more serious error handler.
+        dentry_abs_path(file->dentry, &path, /*size=*/NULL);
+    }
+    log_error(errstring, path ? path : "(unknown)");
+    free(path);
+    return ret;
 }
 
 int check_elf_object(struct shim_handle* file) {
     ElfW(Ehdr) ehdr;
-
-    int ret = read_file_fragment(file, &ehdr, sizeof(ehdr), /*offset=*/0);
-    if (ret < 0)
-        return ret;
-
-    return check_elf_header(&ehdr);
+    return load_elf_header(file, &ehdr);
 }
 
 int load_elf_object(struct shim_handle* file, struct link_map** out_map) {
     int ret;
+    const char* fname = file ? qstrgetstr(&file->uri) : "(unknown)";
 
     assert(file);
-    log_debug("loading \"%s\"", file ? qstrgetstr(&file->uri) : "(unknown)");
+    log_debug("loading \"%s\"", fname);
 
     ElfW(Ehdr) ehdr;
     if ((ret = load_elf_header(file, &ehdr)) < 0)
         return ret;
 
     struct link_map* map = map_elf_object(file, &ehdr);
-
-    if (!map)
+    if (!map) {
+        log_error("Failed to map %s. This may be caused by the binary being non-PIE, in which "
+                  "case Graphene requires a specially-crafted memory layout. You can enable it "
+                  "by adding 'sgx.nonpie_binary = true' to the manifest.",
+                  fname);
         return -EINVAL;
+    }
 
     get_handle(file);
     map->l_file = file;
@@ -761,18 +776,8 @@ int init_elf_objects(void) {
         assert(!g_pal_control->parent_process);
 
         ret = load_elf_object(exec, &g_exec_map);
-        if (ret < 0) {
-            // TODO: Actually verify that the non-PIE-ness was the real cause of loading failure.
-            char* path = NULL;
-            if (exec->dentry)
-                dentry_abs_path(exec->dentry, &path, /*size=*/NULL);
-            log_error("Failed to load %s. This may be caused by the binary being non-PIE, in which "
-                      "case Graphene requires a specially-crafted memory layout. You can enable it "
-                      "by adding 'sgx.nonpie_binary = true' to the manifest.",
-                      path ? path : "(unknown)");
-            free(path);
+        if (ret < 0)
             goto out;
-        }
     }
 
     ret = init_brk_from_executable(g_exec_map);

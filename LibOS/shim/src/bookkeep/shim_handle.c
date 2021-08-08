@@ -130,7 +130,7 @@ static int init_exec_handle(void) {
 
     ret = open_executable(hdl, exec_path);
     if (ret < 0) {
-        log_error("init_exec_handle: error opening executable: %d", ret);
+        log_error("Error opening executable %s: %d", exec_path, ret);
         goto out;
     }
 
