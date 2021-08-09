@@ -25,10 +25,11 @@ Prerequisites
 
 Update and install the required packages for Graphene::
 
-   sudo apt update
-   sudo apt install -y \
-       build-essential autoconf gawk bison wget python3 libcurl4-openssl-dev \
-       python3-protobuf libprotobuf-c-dev protobuf-c-compiler python3-pip meson
+   sudo apt-get update
+   sudo apt-get install -y autoconf bison build-essential gawk \
+       libcurl4-openssl-dev libprotobuf-c-dev meson protobuf-c-compiler \
+       python3 python3-click python3-jinja2 python3-pip python3-protobuf \
+       wget
    python3 -m pip install toml>=0.10
 
 Graphene requires the kernel to support FSGSBASE x86 instructions. Older Azure
@@ -37,7 +38,7 @@ be updated.
 
 To be able to run all tests also install::
 
-    sudo apt install -y libunwind8
+    sudo apt-get install -y libunwind8 python3-pyelftools python3-pytest
 
 Building
 ^^^^^^^^
@@ -54,9 +55,9 @@ Building
 #. Build Graphene::
 
        make ISGX_DRIVER_PATH=/usr/src/linux-headers-`uname -r`/arch/x86/ SGX=1
-       meson build --buildtype=release -Dsgx=enabled -Ddirect=disabled
-       ninja -C build
-       sudo ninja -C build install
+       meson setup build/ --buildtype=release -Dsgx=enabled -Ddirect=disabled
+       ninja -C build/
+       sudo ninja -C build/ install
 
 #. Build and run :program:`helloworld`::
 

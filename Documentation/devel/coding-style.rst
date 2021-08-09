@@ -20,7 +20,7 @@ Usage: (assuming you've configured your build into ``build`` directory)
 
 .. code-block:: sh
 
-   ninja -C build clang-format
+   ninja -C build/ clang-format
 
 This :command:`make` target **reformats all source files in-place**, so we
 recommend you first commit them (or add to `git index

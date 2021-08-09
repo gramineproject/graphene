@@ -12,13 +12,13 @@ Quick start without SGX support
 
 #. Build Graphene::
 
-      sudo apt-get install -y build-essential autoconf bison gawk meson \
+      sudo apt-get install -y autoconf bison build-essential gawk meson \
           python3 python3-click python3-jinja2 wget
       cd graphene
       make
-      meson build --buildtype=release -Ddirect=enabled -Dsgx=disabled
-      ninja -C build
-      sudo ninja -C build install
+      meson setup build/ --buildtype=release -Ddirect=enabled -Dsgx=disabled
+      ninja -C build/
+      sudo ninja -C build/ install
 
 #. Build and run :program:`helloworld`::
 
@@ -54,16 +54,16 @@ descriptions in :doc:`building`.
 
 #. Build Graphene and Graphene-SGX::
 
-      sudo apt-get install -y build-essential autoconf bison gawk meson \
-          python3 python3-click python3-jinja2 wget
-      sudo apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev \
-          protobuf-c-compiler python3-pip python3-protobuf
+      sudo apt-get install -y autoconf bison build-essential gawk \
+          libcurl4-openssl-dev libprotobuf-c-dev meson protobuf-c-compiler \
+          python3 python3-click python3-jinja2 python3-pip python3-protobuf \
+          wget
       python3 -m pip install toml>=0.10
       make
       make ISGX_DRIVER_PATH="" SGX=1                  # this assumes Linux 5.11+
-      meson build --buildtype=release -Ddirect=enabled -Dsgx=enabled
-      ninja -C build
-      sudo ninja -C build install
+      meson setup build/ --buildtype=release -Ddirect=enabled -Dsgx=enabled
+      ninja -C build/
+      sudo ninja -C build/ install
 
 #. Set ``vm.mmap_min_addr=0`` in the system (*only required for the legacy SGX
    driver and not needed for newer DCAP/in-kernel drivers*)::
@@ -88,10 +88,11 @@ Troubleshooting
   can not be found, you might need to edit your configuration files so that
   ``/usr/local/bin`` is in your path (in ``PATH`` environment variable).
 
-- If you invoked ``meson build`` once, the next invocation of this command will
+- If you invoked ``meson setup`` once, the next invocation of this command will
   *not* have any effect. Instead, to change the build configuration, use ``meson
-  configure``. For example, if you built with ``meson build -Dsgx=disabled``
-  first and now want to enable SGX, type ``meson configure build -Dsgx=enabled``.
+  configure``. For example, if you built with ``meson setup build/
+  -Dsgx=disabled`` first and now want to enable SGX, type ``meson configure
+  build/ -Dsgx=enabled``.
 
 Running sample applications
 ---------------------------
