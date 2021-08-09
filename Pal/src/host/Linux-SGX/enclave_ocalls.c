@@ -1705,11 +1705,6 @@ int ocall_debug_map_add(const char* name, void* addr) {
         retval = sgx_exitless_ocall(OCALL_DEBUG_MAP_ADD, ms);
     } while (retval == -EINTR);
 
-    if (retval < 0) {
-        log_error("OCALL_DEBUG_MAP_ADD returned an error (impossible on benign host)");
-        _DkProcessExit(1);
-    }
-
     sgx_reset_ustack(old_ustack);
 #else
     __UNUSED(name);
@@ -1737,11 +1732,6 @@ int ocall_debug_map_remove(void* addr) {
     do {
         retval = sgx_exitless_ocall(OCALL_DEBUG_MAP_REMOVE, ms);
     } while (retval == -EINTR);
-
-    if (retval < 0) {
-        log_error("OCALL_DEBUG_MAP_REMOVE returned an error (impossible on benign host)");
-        _DkProcessExit(1);
-    }
 
     sgx_reset_ustack(old_ustack);
 #else
