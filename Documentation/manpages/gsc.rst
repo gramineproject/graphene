@@ -322,12 +322,12 @@ in :file:`config.yaml.template`.
 .. describe:: SGXDriver.Repository
 
    Source repository of the Intel SGX driver. Default value: ""
-   (DCAP in-kernel driver)
+   (In-kernel driver)
 
 .. describe:: SGXDriver.Branch
 
    Use this branch of the repository. Default value: ""
-   (DCAP in-kernel driver)
+   (In-kernel driver)
 
 Run graphenized Docker images
 =============================

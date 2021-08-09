@@ -2,7 +2,7 @@
 
 set -ex
 
-# Include meson build output directory in $PYTHONPATH, needed by graphene-sgx-get-token
+# Include Meson build output directory in $PYTHONPATH, needed by graphene-sgx-get-token
 export PYTHONPATH="${PYTHONPATH}:$(find /graphene/meson_build_output/lib -type d  -path '*/site-packages')"
 
 # Set default PAL to Linux-SGX
