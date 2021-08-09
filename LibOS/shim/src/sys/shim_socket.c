@@ -465,7 +465,8 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     }
 
     if (sock->domain == AF_UNIX) {
-        if (addrlen > sizeof(struct sockaddr_un)) {
+        if (addrlen < offsetof(struct sockaddr_un, sun_path) + 1 ||
+                addrlen > sizeof(struct sockaddr_un)) {
             /* address length of the UNIX domain socket is typically calculated as
              * `offsetof(struct sockaddr_un, sun_path) + strlen(sun_path) + 1`, see `man unix` */
             goto out;
