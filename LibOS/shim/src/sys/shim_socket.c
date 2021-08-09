@@ -475,6 +475,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
         struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
         if (saddr->sun_path[0] == '\0') {
             /* currently do not support abstract UNIX domain sockets */
+            ret = -EOPNOTSUPP;
             goto out;
         }
 
@@ -757,6 +758,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
         struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
         if (saddr->sun_path[0] == '\0') {
             /* currently do not support abstract UNIX domain sockets */
+            ret = -EOPNOTSUPP;
             goto out;
         }
 
