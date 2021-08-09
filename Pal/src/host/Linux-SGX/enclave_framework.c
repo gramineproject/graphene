@@ -686,11 +686,15 @@ static int init_trusted_files_from_toml_table(void) {
     if (toml_trusted_files_cnt == 0)
         return -PAL_ERROR_NOTDEFINED;
 
-    char* toml_trusted_file_str     = NULL;
-    char* toml_trusted_checksum_key = NULL;
-    char* toml_trusted_checksum_str = NULL;
+    char* toml_trusted_file_str;
+    char* toml_trusted_checksum_key;
+    char* toml_trusted_checksum_str;
 
     for (ssize_t i = 0; i < toml_trusted_files_cnt; i++) {
+        toml_trusted_file_str     = NULL;
+        toml_trusted_checksum_key = NULL;
+        toml_trusted_checksum_str = NULL;
+
         /* read sgx.trusted_file.<key> entry from manifest */
         const char* toml_trusted_file_key = toml_key_in(toml_trusted_files, i);
         assert(toml_trusted_file_key);
@@ -708,7 +712,7 @@ static int init_trusted_files_from_toml_table(void) {
                                                   toml_trusted_file_key, -1, "\"", -1);
         if (!toml_trusted_checksum_key) {
             ret = -PAL_ERROR_NOMEM;
-            goto out;
+            goto fail;
         }
 
         /* sgx.trusted_checksum entries are actually SHA-256 hashes, so the better name would be
@@ -718,26 +722,23 @@ static int init_trusted_files_from_toml_table(void) {
         if (ret < 0) {
             log_error("Cannot parse '%s'", toml_trusted_checksum_key);
             ret = -PAL_ERROR_INVAL;
-            goto out;
+            goto fail;
         }
 
         if (!toml_trusted_checksum_str) {
             log_error("Missing '%s' entry", toml_trusted_checksum_key);
             ret = -PAL_ERROR_INVAL;
-            goto out;
+            goto fail;
         }
 
 
         ret = normalize_and_register_file(toml_trusted_file_str, toml_trusted_checksum_str);
         if (ret < 0)
-            goto out;
+            goto fail;
 
         free(toml_trusted_file_str);
         free(toml_trusted_checksum_key);
         free(toml_trusted_checksum_str);
-        toml_trusted_file_str     = NULL;
-        toml_trusted_checksum_key = NULL;
-        toml_trusted_checksum_str = NULL;
     }
 
 #if 0  // TODO: enable this when we implement TOML-array syntax
@@ -745,8 +746,9 @@ static int init_trusted_files_from_toml_table(void) {
                 "switching to the new TOML-array syntax: 'sgx.trusted_files = [\"file1\", ..]'");
 #endif
 
-    ret = 0;
-out:
+    return 0;
+
+fail:
     free(toml_trusted_file_str);
     free(toml_trusted_checksum_key);
     free(toml_trusted_checksum_str);
@@ -775,9 +777,11 @@ static int init_allowed_files_from_toml_table(void) {
     if (toml_allowed_files_cnt == 0)
         return -PAL_ERROR_NOTDEFINED;
 
-    char* toml_allowed_file_str = NULL;
+    char* toml_allowed_file_str;
 
     for (ssize_t i = 0; i < toml_allowed_files_cnt; i++) {
+        toml_allowed_file_str = NULL;
+
         const char* toml_allowed_file_key = toml_key_in(toml_allowed_files, i);
         assert(toml_allowed_file_key);
         toml_raw_t toml_allowed_file_raw = toml_raw_in(toml_allowed_files, toml_allowed_file_key);
@@ -791,10 +795,9 @@ static int init_allowed_files_from_toml_table(void) {
 
         ret = normalize_and_register_file(toml_allowed_file_str, /*checksum_str=*/NULL);
         if (ret < 0)
-            goto out;
+            goto fail;
 
         free(toml_allowed_file_str);
-        toml_allowed_file_str = NULL;
     }
 
 #if 0  // TODO: enable this when we implement TOML-array syntax
@@ -802,8 +805,9 @@ static int init_allowed_files_from_toml_table(void) {
                 "switching to the new TOML-array syntax: 'sgx.allowed_files = [\"file1\", ..]'");
 #endif
 
-    ret = 0;
-out:
+    return 0;
+
+fail:
     free(toml_allowed_file_str);
     return ret;
 }
