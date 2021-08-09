@@ -19,6 +19,8 @@
 #include "ecall_types.h"
 #include "elf/elf.h"
 #include "enclave_pages.h"
+#include "enclave_pf.h"
+#include "enclave_tf.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"

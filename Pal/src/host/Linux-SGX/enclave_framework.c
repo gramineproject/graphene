@@ -3,6 +3,7 @@
 #include "api.h"
 #include "crypto.h"
 #include "enclave_pages.h"
+#include "enclave_tf.h"
 #include "hex.h"
 #include "list.h"
 #include "pal_error.h"

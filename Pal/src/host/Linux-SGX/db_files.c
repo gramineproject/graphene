@@ -9,8 +9,11 @@
 #include <asm/stat.h>
 #include <linux/fs.h>
 #include <linux/types.h>
+#include <sys/types.h>
 
 #include "api.h"
+#include "enclave_pf.h"
+#include "enclave_tf.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -106,6 +109,8 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
 
     if (pf) {
+        pf_lock();
+
         bool pf_create = (create & PAL_CREATE_ALWAYS) || (create & PAL_CREATE_TRY);
 
         pf_file_mode_t pf_mode = 0;
@@ -120,19 +125,19 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             log_error("file_open(%s): disallowing concurrent writable handle on protected file.\n",
                       hdl->file.realpath);
             ret = -PAL_ERROR_DENIED;
-            goto fail;
+            goto fail_pf_unlock;
         }
 
         fd = ocall_open(uri, flags, share);
         if (fd < 0) {
             ret = unix_to_pal_error(fd);
-            goto fail;
+            goto fail_pf_unlock;
         }
 
         ret = ocall_fstat(fd, &st);
         if (ret < 0) {
             ret = unix_to_pal_error(ret);
-            goto fail;
+            goto fail_pf_unlock;
         }
 
         hdl->file.fd = fd;
@@ -143,7 +148,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         if (!pf) {
             log_error("load_protected_file(%s, %d) failed.\n", hdl->file.realpath, hdl->file.fd);
             ret = -PAL_ERROR_DENIED;
-            goto fail;
+            goto fail_pf_unlock;
         }
 
         if (pf_mode & PF_FILE_MODE_WRITE) {
@@ -151,15 +156,17 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         }
 
         pf->refcount++;
+        pf_unlock();
+
         *handle = hdl;
         return 0;
     }
 
     assert(tf); /* at this point, we want to open a trusted or allowed file */
 
-    if (create && !tf->allowed) {
+    if ((create & PAL_CREATE_ALWAYS || create & PAL_CREATE_TRY) && !tf->allowed) {
         log_error("file_open(%s): disallowing create/write/append on trusted file.\n",
-                hdl->file.realpath);
+                  hdl->file.realpath);
         ret = -PAL_ERROR_DENIED;
         goto fail;
     }
@@ -197,6 +204,8 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     *handle = hdl;
     return 0;
 
+fail_pf_unlock:
+    pf_unlock();
 fail:
     if (pf && pf->context && pf->refcount == 0)
         unload_protected_file(pf);
@@ -326,8 +335,10 @@ static int pf_file_close(struct protected_file* pf, PAL_HANDLE handle) {
 
     pf->refcount--;
 
+    pf_lock();
     if (pf->writable_fd == fd)
         pf->writable_fd = -1;
+    pf_unlock();
 
     if (pf->refcount == 0)
         return unload_protected_file(pf);

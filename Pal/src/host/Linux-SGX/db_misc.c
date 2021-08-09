@@ -11,6 +11,7 @@
 
 #include "api.h"
 #include "cpu.h"
+#include "enclave_pf.h"
 #include "gsgx.h"
 #include "hex.h"
 #include "linux_utils.h"
