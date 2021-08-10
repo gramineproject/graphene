@@ -1,0 +1,20 @@
+loader.preload = "file:{{ graphene.libos }}"
+loader.argv0_override = "bootstrap"
+libos.entrypoint = "bootstrap"
+
+loader.env.LD_LIBRARY_PATH = "/lib"
+
+loader.env.A = { passthrough = true }
+loader.env.B = { value = "OVERWRITTEN_VALUE" }
+loader.env.C = { passthrough = false }
+
+# loader.env.E = { passthrough = true, value = "THIS_IS_INCORRECT_SYNTAX" }
+
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
+
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.bootstrap = "file:bootstrap"
+
+sgx.nonpie_binary = true
