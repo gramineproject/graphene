@@ -35,6 +35,6 @@ if sgx
         'sgx_get_token.py',
         'sgx_measure_enclave.py',
         'sgx_sign.py',
-        'sgx_utils.py',       
+        'sgx_utils.py',
     ], install_dir: python3_pkgdir)
 endif

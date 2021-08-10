@@ -8,9 +8,9 @@ import datetime
 import toml
 import struct
 from pathlib import Path
+from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
 from . import (
     _CONFIG_PKGLIBDIR,
-    _offsets as offs,
     sgx_utils as util
     )
 

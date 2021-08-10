@@ -6,8 +6,8 @@
 
 import struct
 import hashlib
+from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
 from . import (
-    _offsets as offs,
     sgx_get_enclave_mem_areas as memory,
     sgx_utils as util
     )
@@ -110,6 +110,7 @@ class EnclaveMeasurement:
 
     def generate_measurement(self, enclave):
         # pylint: disable=too-many-statements,too-many-branches,too-many-locals
+        print('Memory:')
 
         self.do_ecreate(self.attr['enclave_size'])
 
@@ -153,7 +154,6 @@ class EnclaveMeasurement:
                            area.measure)
 
         mrenclave_digest = self.mrenclave.digest()
-        print('Memory:')
         print('Measurement:')
         print(f'    {mrenclave_digest.hex()}')
         return mrenclave_digest

@@ -12,7 +12,7 @@ from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
 # TODO: This uses one-step signing process (SIGSTRUCT is signed on the same machine where it was
 #       generated). Need to update to the two-step signing process.
 
-class EnclaveSign:
+class EnclaveSigstruct:
 
     def __init__(self, attr, mrenclave_final):
         self.attr = attr

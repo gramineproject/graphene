@@ -6,13 +6,11 @@
 
 import struct
 from pathlib import Path
-from . import (
-    _offsets as offs,
-    sgx_utils as util
-    )
+from . import _offsets as offs # pylint: disable=import-error,no-name-in-module
+from . import sgx_utils as util
 
 # Collect memory areas that constitute the enclave. Used to generate the final SGX measurement
-# MRENCLAVE) in `sgx_get_enclave_mem_areas.py`.
+# (MRENCLAVE) in `sgx_get_enclave_mem_areas.py`.
 
 class MemoryArea:
     # pylint: disable=too-few-public-methods,too-many-instance-attributes

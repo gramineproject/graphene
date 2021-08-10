@@ -75,13 +75,13 @@ def main(args=None):
         return 0
 
     sgx_measurement = measure.EnclaveMeasurement(input_manifest, args['libpal'])
-    input_manifest.get_sgx_ra_attr()
+    input_manifest.get_sgx_ra_attr()  # currently only to print info on SGX Remote Attestation
     input_manifest.gen_manifest_sgx_file()
     sgx_measurement.measure_enclave()
 
-    sgx_sign = sign.EnclaveSign(input_manifest.get_sgx_attr(),
+    sgx_sigstruct = sign.EnclaveSigstruct(input_manifest.get_sgx_attr(),
                                 sgx_measurement.get_mrenclave_final())
-    sgx_sign.gen_sigstruct()
-    sgx_sign.gen_signature(args['key'])
-    sgx_sign.write(sigfile)
+    sgx_sigstruct.gen_sigstruct()
+    sgx_sigstruct.gen_signature(args['key'])
+    sgx_sigstruct.write(sigfile)
     return 0
