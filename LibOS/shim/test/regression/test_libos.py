@@ -88,15 +88,33 @@ class TC_01_Bootstrap(RegressionTestCase):
         finally:
             os.remove('env_test_input')
 
+    def test_105_env_passthrough(self):
+        host_envs = {
+            'A': 'THIS_WILL_BE_PASSED',
+            'B': 'THIS_WILL_BE_OVERWRITTEN',
+            'C': 'THIS_SHOULDNT_BE_PASSED',
+            'D': 'THIS_SHOULDNT_BE_PASSED_TOO',
+        }
+        manifest_envs = {'LD_LIBRARY_PATH': '/lib'}
+        stdout, _ = self.run_binary(['env_passthrough'], env=host_envs)
+        self.assertIn('# of envs: %d\n' % (len(host_envs) - 2 + len(manifest_envs)), stdout)
+
+        # We don't enforce any specific order of envs, so we skip checking the index.
+        self.assertIn('] = LD_LIBRARY_PATH=/lib\n', stdout)
+        self.assertIn('] = A=THIS_WILL_BE_PASSED\n', stdout)
+        self.assertIn('] = B=OVERWRITTEN_VALUE\n', stdout)
+        self.assertNotIn('] = C=THIS_SHOULDNT_BE_PASSED\n', stdout)
+        self.assertNotIn('] = D=THIS_SHOULDNT_BE_PASSED_TOO\n', stdout)
+
     @unittest.skipUnless(HAS_SGX,
         'This test is only meaningful on SGX PAL because only SGX catches raw '
         'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
         'Linux PAL, then we should allow this test on Linux PAL as well.')
-    def test_105_basic_bootstrapping_static(self):
+    def test_106_basic_bootstrapping_static(self):
         stdout, _ = self.run_binary(['bootstrap_static'])
         self.assertIn('Hello world (bootstrap_static)!', stdout)
 
-    def test_106_basic_bootstrapping_pie(self):
+    def test_107_basic_bootstrapping_pie(self):
         stdout, _ = self.run_binary(['bootstrap_pie'])
         self.assertIn('User program started', stdout)
         self.assertIn('Local Address in Executable: 0x', stdout)

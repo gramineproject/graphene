@@ -156,10 +156,19 @@ both of the following options:
 ::
 
    loader.env.[ENVIRON] = "[VALUE]"
+   or
+   loader.env.[ENVIRON] = { value = "[VALUE]" }
+   or
+   loader.env.[ENVIRON] = { passthrough = [true|false] }
+
    loader.env_src_file = "file:file_with_serialized_envs"
 
-``loader.env.[ENVIRON]`` adds/overwrites a single environment variable and can
-be used multiple times to specify more than one variable.
+``loader.env.[ENVIRON]`` adds/overwrites/passes a single environment variable
+and can be used multiple times to specify more than one variable. To
+add/overwrite the environment variable, specify a TOML string (``"[VALUE]"``) or
+a TOML table with the key-value pair ``{ value = "[VALUE]" }``. To pass the
+environment variable from the host, specify a TOML table with the key-value pair
+``{ passthrough = true }``.
 
 ``loader.env_src_file`` allows to specify a URI to a file containing serialized
 environment, which can be generated using :file:`Tools/argv_serializer`. This
@@ -174,7 +183,18 @@ provided at runtime from an external (trusted) source.
    variables.
 
 If the same variable is set in both, then ``loader.env.[ENVIRON]`` takes
-precedence.
+precedence. It is prohibited to specify both ``value`` and ``passthrough`` keys
+for the same environment variable. ``passthrough = false`` doesn't have any
+effect and is only specified here for completeness. If manifest option
+``insecure__use_host_env`` is specified, then ``passthrough`` manifest options
+have no effect (they are "consumed" by ``insecure__use_host_env``).
+
+.. note ::
+   It is tempting to try to passthrough all environment variables using
+   ``insecure__use_host_env`` and then disallow some of them using ``passthrough
+   = false``. However, this deny list approach is intentionally prohibited.
+   Graphene completely ignores any ``passthrough`` manifest options when it
+   notices ``insecure__use_host_env``.
 
 Disabling ASLR
 ^^^^^^^^^^^^^^
