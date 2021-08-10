@@ -474,7 +474,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
 
         struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
         if (saddr->sun_path[0] == '\0') {
-            /* currently do not support abstract UNIX domain sockets */
+            /* currently abstract UNIX domain sockets are not supported */
             ret = -EOPNOTSUPP;
             goto out;
         }
@@ -757,7 +757,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
 
         struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
         if (saddr->sun_path[0] == '\0') {
-            /* currently do not support abstract UNIX domain sockets */
+            /* currently abstract UNIX domain sockets are not supported */
             ret = -EOPNOTSUPP;
             goto out;
         }
@@ -769,7 +769,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
         }
 
         struct shim_dentry* dent = NULL;
-        ret = path_lookupat(/*start=*/NULL, saddr->sun_path, LOOKUP_NO_FOLLOW | LOOKUP_CREATE,
+        ret = path_lookupat(/*start=*/NULL, saddr->sun_path, LOOKUP_FOLLOW | LOOKUP_CREATE,
                             &dent);
         if (ret < 0)
             goto out;
