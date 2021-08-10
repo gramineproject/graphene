@@ -532,7 +532,7 @@ long shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (sock->domain == AF_UNIX) {
         struct shim_dentry* dent = sock->addr.un.dentry;
 
-        dent->state ^= DENTRY_NEGATIVE;
+        dent->state &= ~DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID;
         dent->fs   = &socket_builtin_fs;
         dent->type = S_IFSOCK;
@@ -823,7 +823,7 @@ long shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     if (sock->domain == AF_UNIX) {
         struct shim_dentry* dent = sock->addr.un.dentry;
         lock(&dent->lock);
-        dent->state ^= DENTRY_NEGATIVE;
+        dent->state &= ~DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID;
         dent->fs   = &socket_builtin_fs;
         dent->type = S_IFSOCK;
