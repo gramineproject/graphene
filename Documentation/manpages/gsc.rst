@@ -322,12 +322,12 @@ in :file:`config.yaml.template`.
 .. describe:: SGXDriver.Repository
 
    Source repository of the Intel SGX driver. Default value: ""
-   (In-kernel driver)
+   (in-kernel driver)
 
 .. describe:: SGXDriver.Branch
 
    Use this branch of the repository. Default value: ""
-   (In-kernel driver)
+   (in-kernel driver)
 
 Run graphenized Docker images
 =============================
