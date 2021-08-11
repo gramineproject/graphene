@@ -8,7 +8,7 @@ RUN apt-get update && \
     curl \
     git \
     wget \
-    python3.6 \
+    python3 \
     python3-pip \
     numactl \
     gnupg \
@@ -56,4 +56,4 @@ ENV LD_LIBRARY_PATH = "${LD_LIBRARY_PATH}:/opt/intel/openvino_2021/deployment_to
 
 RUN echo "source /opt/intel/openvino_2021/bin/setupvars.sh" | tee -a /root/.bashrc
 
-CMD ["/bin/bash"]
+ENTRYPOINT ["./benchmark_app"]
