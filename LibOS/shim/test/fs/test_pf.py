@@ -20,8 +20,8 @@ class TC_50_ProtectedFiles(test_fs.TC_00_FileSystem):
     def setUpClass(cls):
         super().setUpClass()
 
-        cls.PF_CRYPT = 'bin/pf_crypt'
-        cls.PF_TAMPER = 'bin/pf_tamper'
+        cls.PF_CRYPT = 'graphene-sgx-pf-crypt'
+        cls.PF_TAMPER = 'graphene-sgx-pf-tamper'
         cls.WRAP_KEY = os.path.join(cls.TEST_DIR, 'wrap-key')
         # CONST_WRAP_KEY must match the one in manifest
         cls.CONST_WRAP_KEY = [0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88,
@@ -40,11 +40,11 @@ class TC_50_ProtectedFiles(test_fs.TC_00_FileSystem):
             cmd = [cls.PF_CRYPT, 'encrypt', '-w', cls.WRAP_KEY, '-i', cls.INPUT_FILES[i], '-o',
                    cls.ENCRYPTED_FILES[i]]
 
-            cls.run_native_binary(cmd, libpath=os.path.join(os.getcwd(), 'lib'))
+            cls.run_native_binary(cmd)
 
     def __pf_crypt(self, args):
         args.insert(0, self.PF_CRYPT)
-        return self.run_native_binary(args, libpath=os.path.join(os.getcwd(), 'lib'))
+        return self.run_native_binary(args)
 
     def __set_default_key(self):
         with open(self.WRAP_KEY, 'wb') as file:
@@ -193,7 +193,7 @@ class TC_50_ProtectedFiles(test_fs.TC_00_FileSystem):
 
     def __corrupt_file(self, input_path, output_path):
         cmd = [self.PF_TAMPER, '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
-        return self.run_native_binary(cmd, libpath=os.path.join(os.getcwd(), 'lib'))
+        return self.run_native_binary(cmd)
 
     # invalid/corrupted files
     def test_500_invalid(self):

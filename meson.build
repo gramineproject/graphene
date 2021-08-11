@@ -3,27 +3,22 @@
 #
 
 project(
-    'graphene', 'c',
+    'graphene',
+    'c', 'cpp',
     version: '1.2-rc1',
     license: 'LGPLv3+',
 
-    # DISTRO            EOL         meson_version
-    # xenial            2021.04     0.29
-    # xenial-backports  2021.04     0.40
-    # bionic            2023.04     0.45
-    # buster            2022        0.49
-    # buster-backports  2022        0.52
-    # focal             2025.04     0.53
-    #
-    # https://wiki.ubuntu.com/Releases
-    # https://wiki.debian.org/DebianReleases#Production_Releases
-    meson_version: '>=0.45',
+    meson_version: '>=0.55',
 
     default_options: [
         'c_std=c11',
+        'cpp_std=c++14',
         'werror=true',
     ],
 )
+
+# we need this subdir() early, because we need scripts defined there for setting up global vars
+subdir('Scripts')
 
 prefix = get_option('prefix')
 pkglibdir = join_paths(get_option('libdir'), meson.project_name())
@@ -33,6 +28,7 @@ direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
 skeleton = get_option('skeleton') == 'enabled'
 
+dcap = get_option('dcap') == 'enabled'
 ubsan = get_option('ubsan') == 'enabled'
 
 cc = meson.get_compiler('c')
@@ -41,6 +37,9 @@ objcopy = find_program('objcopy')
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
 python3 = python3mod.find_python()
+python3_platlib = run_command(
+    python3, get_python_platlib_prog, get_option('prefix')).stdout()
+python3_pkgdir = join_paths(python3_platlib, 'graphenelibos')
 
 add_project_arguments(
     '-Wa,--noexecstack',
@@ -62,8 +61,6 @@ add_project_arguments(
 if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
     add_project_arguments('-DDEBUG', language: 'c')
 endif
-
-subdir('Scripts')
 
 #
 # Common checks and flags
@@ -102,6 +99,34 @@ if ubsan
         '-fno-sanitize-recover=undefined',
         '-DUBSAN',
     ]
+endif
+
+#
+# Dependencies
+#
+
+if sgx
+    threads_dep = dependency('threads')
+
+    mbedtls_proj = subproject('mbedtls-mbedtls-2.26.0')
+    mbedtls_dep = mbedtls_proj.get_variable('mbedtls_dep')
+
+    libcurl_dep = dependency('libcurl', version: '>=7.58.0')
+
+    cjson_dep = dependency('cjson', required: false)
+    if not cjson_dep.found()
+        # on Debian < 11 .pc file is not installed and dependency() fails, so we fallback to
+        # cc.find_library()
+        cjson_dep = cc.find_library('cjson', required: false)
+    endif
+    if not cjson_dep.found()
+        # Ubuntu 18.04 does not have cjson at all
+        cjson_dep = subproject('cJSON-1.7.12').get_variable('cjson_dep')
+    endif
+
+    if dcap
+        sgx_dcap_quoteverify_dep = cc.find_library('sgx_dcap_quoteverify')
+    endif
 endif
 
 #

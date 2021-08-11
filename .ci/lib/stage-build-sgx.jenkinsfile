@@ -45,13 +45,27 @@ stage('build') {
         archiveArtifacts 'build/meson-logs/**/*'
     }
 
-    env.GRAPHENE_PKGLIBDIR = sh(returnStdout: true, script: '''
-    meson introspect build/ --buildoptions \
-    | jq -r '(map(select(.name == "prefix")) + map(select(.name == "libdir"))) | map(.value) | join("/")'
-    ''').trim() + '/graphene'
+    // Absolute path to libdir, as configured by Meson.
+    // For our current builds this should be "$WORKSPACE/usr/lib/x86_64-linux-gnu":
+    // --prefix is set from $PREFIX above (see config-docker.jenkinsfile) and should be "$WORKSPACE/usr";
+    // --libdir is distro-dependent, but on Debian and derivatives it's "lib/x86_64-linux-gnu"
+    libdir = sh(returnStdout: true, script: '''
+        meson introspect build/ --buildoptions \
+        | jq -r '(map(select(.name == "prefix")) + map(select(.name == "libdir"))) | map(.value) | join("/")'
+    ''').trim()
 
-    sh 'rm -rf build'
+    env.GRAPHENE_PKGLIBDIR = libdir + '/graphene'
+
+    // In CI we install to non-standard --prefix (see above). This makes sure the libraries are
+    // available anyway (e.g. graphene-sgx-pf-crypt needs libsgx_util.so).
+    env.PKG_CONFIG_PATH = libdir + '/pkgconfig'
+
+    // this variable is used in manifests to optionally add libdirs; we do need this, because we
+    // don't install into /usr as discussed above
+    env.GRAPHENE_LIBRARY_PATH = libdir
 
     // prevent cheating and testing from repo
+    sh 'rm -rf build'
+    sh 'git clean -Xf subprojects'
     sh 'make ${MAKEOPTS} -C Runtime clean'
 }

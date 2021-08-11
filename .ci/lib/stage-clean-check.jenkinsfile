@@ -40,6 +40,13 @@ stage('clean-check') {
         rm -rf /tmp/*.clean-check.clean/python/graphenelibos/__pycache__
         rm -rf python/graphenelibos/__pycache__
 
+        # on Ubuntu 18.04, git clean -Xf fails to remove packagecache directory itselg
+        rm -rf \
+            /tmp/*.clean-check.clean/subprojects/*-* \
+            /tmp/*.clean-check.clean/subprojects/packagecache \
+            subprojects/*-* \
+            subprojects/packagecache
+
         ./Scripts/clean-check
     '''
 }

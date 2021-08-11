@@ -1,5 +1,6 @@
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+GRAPHENE_PKGLIBDIR ?= /usr/lib/x86_64-linux-gnu/graphene # this is debian/ubuntu specific
 
 ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
@@ -20,13 +21,13 @@ endif
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/.mbedtls_built server.manifest.sgx server.sig server.token client
+app: mbedtls/.mbedtls_configured server.manifest.sgx server.sig server.token client
 
 .PHONY: epid
-epid: libs/.epid_libs_copied client_epid.manifest.sgx client_epid.sig client_epid.token
+epid: client_epid.manifest.sgx client_epid.sig client_epid.token
 
 .PHONY: dcap
-dcap: libs/.dcap_libs_copied client_dcap.manifest.sgx client_dcap.sig client_dcap.token
+dcap: client_dcap.manifest.sgx client_dcap.sig client_dcap.token
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
@@ -54,60 +55,19 @@ mbedtls/.mbedtls_downloaded: $(MBEDTLS_SRC)
 
 .SECONDARY: mbedtls/.mbedtls_configured
 mbedtls/.mbedtls_configured: mbedtls/.mbedtls_downloaded
-	mkdir -p mbedtls/install
 	cd mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C MBEDTLS_ERROR_C
-	touch $@
-
-.SECONDARY: mbedtls/.mbedtls_built
-mbedtls/.mbedtls_built: mbedtls/.mbedtls_configured
-	$(MAKE) -C mbedtls SHARED=1 DESTDIR=install install .
 	touch $@
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -I./mbedtls/install/include
-# These flags are *NOT* for production, setting rpath is here only to simplify the test setup.
-LFLAGS += -Wl,-rpath-link,./libs/ -L./libs/ -ldl -lmbedcrypto -lmbedtls -lmbedx509
+CFLAGS += -I./mbedtls/include $(shell pkg-config --cflags mbedtls_graphene)
+LFLAGS += -ldl $(shell pkg-config --libs mbedtls_graphene)
 
-server: src/server.c libs/.mbedtls_libs_copied
+server: src/server.c mbedtls/.mbedtls_configured
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
-client: src/client.c libs/.mbedtls_libs_copied
+client: src/client.c mbedtls/.mbedtls_configured
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
-
-########################### COPIES FOR CONVENIENCE ############################
-
-.SECONDARY: libs/.mbedtls_libs_copied
-libs/.mbedtls_libs_copied: mbedtls/.mbedtls_built
-	mkdir -p libs
-
-	cd libs                                        && \
-	cp ../mbedtls/install/lib/libmbedcrypto.so.* . && \
-	ln -s libmbedcrypto.so.* libmbedcrypto.so      && \
-	cp ../mbedtls/install/lib/libmbedtls.so.* .    && \
-	ln -s libmbedtls.so.* libmbedtls.so            && \
-	cp ../mbedtls/install/lib/libmbedx509.so.* .   && \
-	ln -s libmbedx509.so.* libmbedx509.so
-
-	touch $@
-
-.SECONDARY: libs/.epid_libs_copied
-libs/.epid_libs_copied:
-	mkdir -p libs
-	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/common/libsgx_util.so libs/
-	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_attest.so libs/
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_verify_epid.so libs/
-	touch $@
-
-.SECONDARY: libs/.dcap_libs_copied
-libs/.dcap_libs_copied:
-	mkdir -p libs
-	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/common/libsgx_util.so libs/
-	cp -f $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_attest.so libs/
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_verify_dcap.so libs/
-	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls/libra_tls_verify_dcap_graphene.so libs/
-	touch $@
-
 
 ############################### SERVER MANIFEST ###############################
 
@@ -119,7 +79,7 @@ server.manifest: server.manifest.template
 		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
 		$< > $@
 
-server.manifest.sgx: server.manifest server mbedtls/.mbedtls_built libs/.epid_libs_copied
+server.manifest.sgx: server.manifest server
 	@test -s $(SGX_SIGNER_KEY) || \
 	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
@@ -140,7 +100,7 @@ client_dcap.manifest: client.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< >$@
 
-client_dcap.manifest.sgx: client_dcap.manifest client mbedtls/.mbedtls_built libs/.dcap_libs_copied
+client_dcap.manifest.sgx: client_dcap.manifest client
 	@test -s $(SGX_SIGNER_KEY) || \
 	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
@@ -161,7 +121,7 @@ client_epid.manifest: client.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< >$@
 
-client_epid.manifest.sgx: client_epid.manifest client libs/.epid_libs_copied
+client_epid.manifest.sgx: client_epid.manifest client
 	@test -s $(SGX_SIGNER_KEY) || \
 	    { echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
@@ -178,9 +138,8 @@ client_epid.token: client_epid.sig
 
 .PHONY: check_epid
 check_epid: app epid
-	graphene-sgx server epid >/dev/null & SERVER_ID=$$!; \
+	graphene-sgx server epid & SERVER_ID=$$!; \
 	sleep 30; \
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid > OUTPUT; \
 	./client epid 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
@@ -194,7 +153,6 @@ check_epid: app epid
 check_epid_fail: app epid
 	graphene-sgx server epid dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client epid && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
@@ -202,7 +160,6 @@ check_epid_fail: app epid
 check_dcap: app dcap
 	graphene-sgx server dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap > OUTPUT; \
 	./client dcap 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
@@ -216,7 +173,6 @@ check_dcap: app dcap
 check_dcap_fail: app dcap
 	graphene-sgx server dcap dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./libs; \
 	./client dcap && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
@@ -225,7 +181,7 @@ check_dcap_fail: app dcap
 .PHONY: clean
 clean:
 	$(RM) -r \
-		*.token *.sig *.manifest.sgx *.manifest server client *.so *.so.* OUTPUT libs/
+		*.token *.sig *.manifest.sgx *.manifest server client *.so *.so.* OUTPUT
 
 .PHONY: distclean
 distclean: clean
