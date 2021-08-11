@@ -1,12 +1,4 @@
 stage('test') {
-    sh '''
-        if test -n "$SGX"
-        then
-            make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/tools install \
-                PREFIX=../../../../../../LibOS/shim/test/fs
-        fi
-    '''
-
     timeout(time: 15, unit: 'MINUTES') {
         try {
             sh '''

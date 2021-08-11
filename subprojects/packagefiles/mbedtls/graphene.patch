@@ -1,0 +1,107 @@
+# A similar fix will be merged to a future version of mbedTLS, please track
+# progress via issue https://github.com/ARMmbed/mbedtls/issues/3141.
+
+diff --git a/library/ssl_tls.c b/library/ssl_tls.c
+index e367fbd9c..e9524f66b 100644
+--- a/library/ssl_tls.c
++++ b/library/ssl_tls.c
+@@ -6235,12 +6235,14 @@ int mbedtls_ssl_context_save( mbedtls_ssl_context *ssl,
+         MBEDTLS_SSL_DEBUG_MSG( 1, ( "There is pending outgoing data" ) );
+         return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+     }
++#if 0
+     /* Protocol must be DLTS, not TLS */
+     if( ssl->conf->transport != MBEDTLS_SSL_TRANSPORT_DATAGRAM )
+     {
+         MBEDTLS_SSL_DEBUG_MSG( 1, ( "Only DTLS is supported" ) );
+         return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+     }
++#endif
+     /* Version must be 1.2 */
+     if( ssl->major_ver != MBEDTLS_SSL_MAJOR_VERSION_3 )
+     {
+@@ -6409,6 +6411,16 @@ int mbedtls_ssl_context_save( mbedtls_ssl_context *ssl,
+     }
+ #endif /* MBEDTLS_SSL_ALPN */
+ 
++    if( ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_STREAM )
++    {
++        used += 8;
++        if( used <= buf_len )
++        {
++            memcpy( p, ssl->in_ctr, 8 );
++            p += 8;
++        }
++    }
++
+     /*
+      * Done
+      */
+@@ -6419,7 +6431,19 @@ int mbedtls_ssl_context_save( mbedtls_ssl_context *ssl,
+ 
+     MBEDTLS_SSL_DEBUG_BUF( 4, "saved context", buf, used );
+ 
++#if 0
++    /* At the moment of fork (when we call this function to serialize the TLS
++     * context and send to the child), we don't know (1) whether the child
++     * process will use it at all -- maybe both TLS endpoints will be used by
++     * the parent process, and (2) which TLS endpoint will be closed and which
++     * endpoint will be used. Thus, we must not reset the session since it may
++     * be continued to be used.
++     * Currently we are relying on the application to be "sane" and not use
++     * the same endpoint in two different processes. */
+     return( mbedtls_ssl_session_reset_int( ssl, 0 ) );
++#else
++    return( 0 );
++#endif
+ }
+ 
+ /*
+@@ -6475,7 +6499,10 @@ static int ssl_context_load( mbedtls_ssl_context *ssl,
+      * We can't check that the config matches the initial one, but we can at
+      * least check it matches the requirements for serializing.
+      */
++#if 0
+     if( ssl->conf->transport != MBEDTLS_SSL_TRANSPORT_DATAGRAM ||
++#else
++    if(
+         ssl->conf->max_major_ver < MBEDTLS_SSL_MAJOR_VERSION_3 ||
+         ssl->conf->min_major_ver > MBEDTLS_SSL_MAJOR_VERSION_3 ||
+         ssl->conf->max_minor_ver < MBEDTLS_SSL_MINOR_VERSION_3 ||
+@@ -6487,6 +6514,7 @@ static int ssl_context_load( mbedtls_ssl_context *ssl,
+     {
+         return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+     }
++#endif
+ 
+     MBEDTLS_SSL_DEBUG_BUF( 4, "context to load", buf, len );
+ 
+@@ -6706,6 +6734,15 @@ static int ssl_context_load( mbedtls_ssl_context *ssl,
+     ssl->in_epoch = 1;
+ #endif
+ 
++    if( ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_STREAM )
++    {
++        if( (size_t)( end - p ) < 8 )
++            return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
++
++        memcpy( ssl->in_ctr, p, 8 );
++        p += 8;
++    }
++
+     /* mbedtls_ssl_reset() leaves the handshake sub-structure allocated,
+      * which we don't want - otherwise we'd end up freeing the wrong transform
+      * by calling mbedtls_ssl_handshake_wrapup_free_hs_transform()
+diff --git a/include/mbedtls/config.h b/include/mbedtls/config.h
+index d370dbff5..b0b3f02ef 100644
+--- a/include/mbedtls/config.h
++++ b/include/mbedtls/config.h
+@@ -2620,7 +2620,7 @@
+  * Requires: MBEDTLS_AES_C or MBEDTLS_DES_C
+  *
+  */
+-//#define MBEDTLS_CMAC_C
++#define MBEDTLS_CMAC_C
+ 
+ /**
+  * \def MBEDTLS_CTR_DRBG_C

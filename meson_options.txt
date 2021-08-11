@@ -5,3 +5,6 @@ option('sgx', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build and install graphene-sgx (aka Linux-SGX)')
 option('skeleton', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build skeleton PAL')
+
+option('dcap', type: 'combo', choices: ['disabled', 'enabled'],
+    description: 'Build additional utilities linked against DCAP library')

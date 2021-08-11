@@ -3,6 +3,8 @@
  *                         Rafal Wojdyla <omeg@invisiblethingslab.com>
  */
 
+#define _GNU_SOURCE
+
 #include "attestation.h"
 
 #include <assert.h>
@@ -14,7 +16,13 @@
 #include <mbedtls/md.h>
 #include <mbedtls/pk.h>
 
-#include "cJSON.h"
+#ifdef HAVE_INTERNAL_CJSON
+/* here we -I the cJSON's repo root, which directly contain the header */
+#include <cJSON.h>
+#else
+#include <cjson/cJSON.h>
+#endif
+
 #include "sgx_arch.h"
 #include "sgx_attest.h"
 #include "util.h"

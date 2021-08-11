@@ -3,6 +3,8 @@
  *                    Rafal Wojdyla <omeg@invisiblethingslab.com>
  */
 
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -133,20 +135,20 @@ static int sigrl(struct ias_context_t* ias, const char* gid_str, const char* sig
 }
 
 int main(int argc, char* argv[]) {
-    int option          = 0;
-    char* mode          = NULL;
-    char* quote_path    = NULL;
-    char* api_key       = NULL;
-    char* nonce         = NULL;
-    char* report_path   = NULL;
-    char* sig_path      = NULL;
-    char* cert_path     = NULL;
-    char* advisory_path = NULL;
-    char* gid           = NULL;
-    char* sigrl_path    = NULL;
-    char* report_url    = IAS_URL_REPORT;
-    char* sigrl_url     = IAS_URL_SIGRL;
-    endianness_t endian = ENDIAN_LSB;
+    int option              = 0;
+    char* mode              = NULL;
+    char* quote_path        = NULL;
+    char* api_key           = NULL;
+    char* nonce             = NULL;
+    char* report_path       = NULL;
+    char* sig_path          = NULL;
+    char* cert_path         = NULL;
+    char* advisory_path     = NULL;
+    char* gid               = NULL;
+    char* sigrl_path        = NULL;
+    const char* report_url  = IAS_URL_REPORT;
+    const char* sigrl_url   = IAS_URL_SIGRL;
+    endianness_t endian     = ENDIAN_LSB;
 
     // parse command line
     while (true) {
