@@ -332,12 +332,12 @@ static int pf_file_close(struct protected_file* pf, PAL_HANDLE handle) {
         return -PAL_ERROR_INVAL;
     }
 
-    pf->refcount--;
-
     pf_lock();
     if (pf->writable_fd == fd)
         pf->writable_fd = -1;
     pf_unlock();
+
+    pf->refcount--;
 
     if (pf->refcount == 0)
         return unload_protected_file(pf);
