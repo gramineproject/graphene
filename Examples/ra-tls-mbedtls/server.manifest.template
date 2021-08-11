@@ -4,7 +4,7 @@ loader.preload = "file:{{ graphene.libos }}"
 libos.entrypoint = "server"
 loader.log_level = "{{ log_level }}"
 
-loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu:/libs"
+loader.env.LD_LIBRARY_PATH = "/lib:/lib/x86_64-linux-gnu"
 
 loader.insecure__use_cmdline_argv = true
 
@@ -15,8 +15,12 @@ fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
 fs.mount.lib2.type = "chroot"
-fs.mount.lib2.path = "/lib/x86_64-linux-gnu"
-fs.mount.lib2.uri = "file:/lib/x86_64-linux-gnu"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
+
+fs.mount.lib3.type = "chroot"
+fs.mount.lib3.path = "/usr{{ arch_libdir }}"
+fs.mount.lib3.uri = "file:/usr{{ arch_libdir }}"
 
 fs.mount.etc.type = "chroot"
 fs.mount.etc.path = "/etc"
@@ -29,8 +33,7 @@ sgx.ra_client_linkable = {{ ra_client_linkable }}
 sgx.trusted_files.server = "file:server"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
-sgx.trusted_files.libs = "file:./libs/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr{{ arch_libdir }}/"
 
 sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
 sgx.allowed_files.ethers = "file:/etc/ethers"

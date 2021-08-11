@@ -9,10 +9,6 @@ init_py = configure_file(
     configuration: conf,
 )
 
-python3_platlib = run_command(
-    python3, get_python_platlib_prog, get_option('prefix')).stdout()
-python3_pkgdir = join_paths(python3_platlib, 'graphenelibos')
-
 install_data([
     init_py,
     'manifest.py',
