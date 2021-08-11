@@ -6,5 +6,7 @@ option('sgx', type: 'combo', choices: ['disabled', 'enabled'],
 option('skeleton', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build skeleton PAL')
 
+option('dcap', type: 'combo', choices: ['disabled', 'enabled'],
+    description: 'Build additional utilities linked against DCAP library')
 option('ubsan', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Enable undefined behavior sanitizer')

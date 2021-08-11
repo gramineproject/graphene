@@ -22,7 +22,7 @@
         fprintf(stderr, "uthash error: %s\n", msg);  \
         exit(-1);                                    \
     } while(0)
-#include "uthash.h"
+#include <uthash.h>
 #endif
 
 DEFINE_LIST(_lruc_list_node);
