@@ -36,9 +36,9 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libxrender1 \
     libxxf86vm1 \
     linux-headers-4.15.0-20-generic \
-    meson \
     net-tools \
     netcat-openbsd \
+    ninja-build \
     pkg-config \
     protobuf-c-compiler \
     pylint3 \
@@ -59,16 +59,18 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     shellcheck \
     sqlite3 \
     texinfo \
+    uthash-dev \
     wget \
     zlib1g \
     zlib1g-dev
 
-RUN python3 -m pip install \
+RUN python3 -m pip install -U \
     asv \
     recommonmark \
     'Sphinx==1.8' \
     sphinx_rtd_theme \
-    toml>=0.10
+    'toml>=0.10' \
+    'meson<0.56'
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN groupadd -r leeroy -g 1001 && useradd -u 1001 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \

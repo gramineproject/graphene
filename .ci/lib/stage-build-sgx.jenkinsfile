@@ -39,12 +39,17 @@ stage('build') {
         archiveArtifacts 'build/meson-logs/**/*'
     }
 
-    env.GRAPHENE_PKGLIBDIR = sh(returnStdout: true, script: '''
-    meson introspect build/ --buildoptions \
-    | jq -r '(map(select(.name == "prefix")) + map(select(.name == "libdir"))) | map(.value) | join("/")'
-    ''').trim() + '/graphene'
+    libdir = sh(returnStdout: true, script: '''
+        meson introspect build/ --buildoptions \
+        | jq -r '(map(select(.name == "prefix")) + map(select(.name == "libdir"))) | map(.value) | join("/")'
+    ''').trim()
+
+    env.GRAPHENE_PKGLIBDIR = libdir + '/graphene'
+    env.LD_LIBRARY_PATH = libdir
+    env.LIBRARY_PATH = libdir
 
     sh 'rm -rf build'
+    sh 'git clean -Xf subprojects'
 
     // prevent cheating and testing from repo
     sh 'make ${MAKEOPTS} -C Runtime clean'

@@ -3,7 +3,8 @@
 #
 
 project(
-    'graphene', 'c',
+    'graphene',
+    'c', 'cpp',
     version: '1.2-rc1',
     license: 'LGPLv3+',
 
@@ -21,9 +22,12 @@ project(
 
     default_options: [
         'c_std=c11',
+        'cpp_std=c++14',
         'werror=true',
     ],
 )
+
+subdir('Scripts')
 
 prefix = get_option('prefix')
 pkglibdir = join_paths(get_option('libdir'), meson.project_name())
@@ -32,6 +36,8 @@ pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
 skeleton = get_option('skeleton') == 'enabled'
+
+dcap = get_option('dcap') == 'enabled'
 
 cc = meson.get_compiler('c')
 objcopy = find_program('objcopy')
@@ -50,6 +56,8 @@ add_project_arguments(
     '-Wstrict-prototypes',
     '-Wwrite-strings',
 
+    '-Wno-sign-compare', #TODO
+
     cc.get_supported_arguments(
         '-Wtrampolines',
         '-Wnull-dereference',
@@ -60,8 +68,6 @@ add_project_arguments(
 if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
     add_project_arguments('-DDEBUG', language: 'c')
 endif
-
-subdir('Scripts')
 
 #
 # Common checks and flags
@@ -85,6 +91,37 @@ endif
 
 if not cc.has_multi_arguments(cflags_custom_stack_protector)
     cflags_custom_stack_protector = '-fno-stack-protector'
+endif
+
+#
+# Dependencies
+#
+
+if sgx
+    threads_dep = dependency('threads')
+
+    # this one is bizarre, will be compiled in different ways: one for LibOS, one for PAL
+    mbedtls_proj = subproject('mbedtls-mbedtls-2.26.0')
+    mbedtls_dep = mbedtls_proj.get_variable('mbedtls_dep')
+    mbedtls_install_dir = mbedtls_proj.get_variable('mbedtls_install_dir') # for install_rpath
+#   mbedtls_pal_dep = mbedtls_proj.get_variable('mbedtls_pal_dep')
+
+    libcurl_dep = dependency('libcurl', version: '>=7.58.0')
+
+    cjson_dep = dependency('cjson', required: false)
+    if not cjson_dep.found()
+        # on Debian < 11 .pc is not installed and dependency() fails, so we fallback to
+        # cc.find_library()
+        cjson_dep = cc.find_library('cjson', required: false)
+    endif
+    if not cjson_dep.found()
+        # Ubuntu 18.04 does not have cjson at all
+        cjson_dep = subproject('cJSON-1.7.12').get_variable('cjson_dep')
+    endif
+
+    if dcap
+        sgx_dcap_quoteverify_dep = cc.find_library('sgx_dcap_quoteverify')
+    endif
 endif
 
 #
