@@ -99,7 +99,7 @@ $(urts-objs): CFLAGS += $(call cc-option, -fstack-protector-strong)
 endif
 
 .PHONY: all
-all: gsgx.h $(host_files) tools
+all: gsgx.h $(host_files)
 
 libpal-Linux-SGX.a: $(enclave-objs) $(enclave-asm-objs)
 	$(call cmd,ar_a_o)
@@ -160,10 +160,6 @@ endif
 
 include ../../../../Scripts/Makefile.rules
 
-.PHONY: tools
-tools:
-	$(MAKE) -C tools
-
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += gdb_integration/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
@@ -177,11 +173,9 @@ clean_:
 
 .PHONY: clean
 clean: clean_
-	$(MAKE) -C tools $@
 
 .PHONY: distclean
 distclean: clean_
-	$(MAKE) -C tools $@
 
 .PHONY: test
 test:
