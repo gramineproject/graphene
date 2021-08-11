@@ -2,8 +2,6 @@
 
 This directory contains an example for running a HelloWorld Java example in Graphene,
 including the Makefile and a template for generating the manifest.
-The application is tested on Ubuntu 18.04 with both normal Linux and SGX platforms.
-This example is tested with openjdk11.
 
 # Generating the manifest
 

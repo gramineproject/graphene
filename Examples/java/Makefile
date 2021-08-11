@@ -1,17 +1,6 @@
-# Use one of the following commands to build the manifest for Java:
-#
-# - make                Building for Linux
-# - make DEBUG=1        Building for Linux (with Graphene debug output)
-# - make SGX=1          Building for SGX
-# - make SGX=1 DEBUG=1  Building for SGX (with Graphene debug output)
-#
-# Use `make clean` to remove Graphene-generated files.
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
-include ../../Scripts/Makefile.configs
-
-# Relative path to Graphene root
-GRAPHENEDIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -33,6 +22,8 @@ java.manifest: java.manifest.template
 		$< >$@
 
 java.manifest.sgx: java.manifest
+	 @test -s $(SGX_SIGNER_KEY) || \
+		{ echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
 		--manifest $< \
