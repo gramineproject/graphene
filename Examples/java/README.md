@@ -3,8 +3,6 @@
 This directory contains an example for running a HelloWorld Java example in Graphene,
 including the Makefile and a template for generating the manifest.
 
-# Generating the manifest
-
 ## Installing prerequisites
 
 For generating the manifest and running the HelloWorld Java example, run the
