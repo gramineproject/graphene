@@ -46,10 +46,10 @@ static int chroot_mount(const char* uri, void** mount_data) {
     mode_t default_type;
     if (strstartswith(uri, URI_PREFIX_FILE)) {
         default_type = S_IFREG;
-        root = uri + strlen(URI_PREFIX_FILE);
+        root = uri + static_strlen(URI_PREFIX_FILE);
     } else if (strstartswith(uri, URI_PREFIX_DEV)) {
         default_type = S_IFCHR;
-        root = uri + strlen(URI_PREFIX_DEV);
+        root = uri + static_strlen(URI_PREFIX_DEV);
     } else {
         return -EINVAL;
     }
@@ -85,20 +85,23 @@ static int chroot_dentry_uri(struct shim_dentry* dent, mode_t type, char** out_u
     int ret;
 
     const char* prefix;
+    size_t prefix_len;
     switch (type) {
         case S_IFREG:
             prefix = URI_PREFIX_FILE;
+            prefix_len = static_strlen(URI_PREFIX_FILE);
             break;
         case S_IFDIR:
             prefix = URI_PREFIX_DIR;
+            prefix_len = static_strlen(URI_PREFIX_DIR);
             break;
         case S_IFCHR:
             prefix = URI_PREFIX_DEV;
+            prefix_len = static_strlen(URI_PREFIX_DEV);
             break;
         default:
             BUG();
     }
-    size_t prefix_len = strlen(prefix);
 
     char* rel_path;
     size_t rel_path_size;
