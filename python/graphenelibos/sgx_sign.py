@@ -421,6 +421,7 @@ def populate_memory_areas(attr, areas, enclave_base, enclave_heap_min):
 
     return areas + free_areas
 
+# why is this running from end to start?!?
 def generate_measurement(enclave_base, attr, areas):
     # pylint: disable=too-many-statements,too-many-branches,too-many-locals
 

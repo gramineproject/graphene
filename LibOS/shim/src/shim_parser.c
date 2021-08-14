@@ -26,6 +26,7 @@
 #include "shim_table.h"
 #include "shim_tcb.h"
 #include "shim_thread.h"
+#include "shim_types.h"
 #include "shim_utils.h"
 #include "shim_vma.h"
 #include "stat.h"
@@ -36,13 +37,14 @@ static void parse_access_mode(struct print_buf*, va_list*);
 static void parse_clone_flags(struct print_buf*, va_list*);
 static void parse_mmap_prot(struct print_buf*, va_list*);
 static void parse_mmap_flags(struct print_buf*, va_list*);
+static void parse_mremap_flags(struct print_buf*, va_list*);
 static void parse_exec_args(struct print_buf*, va_list*);
 static void parse_exec_envp(struct print_buf*, va_list*);
 static void parse_pipe_fds(struct print_buf*, va_list*);
 static void parse_signum(struct print_buf*, va_list*);
 static void parse_sigmask(struct print_buf*, va_list*);
 static void parse_sigprocmask_how(struct print_buf*, va_list*);
-static void parse_madvise_behavior(struct print_buf*, va_list* ap);
+static void parse_madvise_behavior(struct print_buf*, va_list*);
 static void parse_timespec(struct print_buf*, va_list*);
 static void parse_sockaddr(struct print_buf*, va_list*);
 static void parse_domain(struct print_buf*, va_list*);
@@ -56,11 +58,11 @@ static void parse_wait_options(struct print_buf*, va_list*);
 static void parse_waitid_which(struct print_buf*, va_list*);
 static void parse_getrandom_flags(struct print_buf*, va_list*);
 
-static void parse_string_arg(struct print_buf*, va_list* ap);
-static void parse_pointer_arg(struct print_buf*, va_list* ap);
-static void parse_long_arg(struct print_buf*, va_list* ap);
-static void parse_integer_arg(struct print_buf*, va_list* ap);
-static void parse_pointer_ret(struct print_buf*, va_list* ap);
+static void parse_string_arg(struct print_buf*, va_list*);
+static void parse_pointer_arg(struct print_buf*, va_list*);
+static void parse_long_arg(struct print_buf*, va_list*);
+static void parse_integer_arg(struct print_buf*, va_list*);
+static void parse_pointer_ret(struct print_buf*, va_list*);
 
 struct parser_table {
     /* True if this syscall can block (in such case debug info will be printed both before and after
@@ -119,7 +121,8 @@ struct parser_table {
     [__NR_select] = {.slow = true, .name = "select", .parser = {parse_long_arg, parse_integer_arg,
                      parse_pointer_arg, parse_pointer_arg, parse_pointer_arg, parse_pointer_arg}},
     [__NR_sched_yield] = {.slow = false, .name = "sched_yield", .parser = {parse_long_arg}},
-    [__NR_mremap] = {.slow = false, .name = "mremap", .parser = {NULL}},
+    [__NR_mremap] = {.slow = false, .name = "mremap", .parser = {parse_long_arg, parse_pointer_arg,
+                     parse_long_arg, parse_long_arg, parse_mremap_flags, parse_pointer_arg}},
     [__NR_msync] = {.slow = false, .name = "msync", .parser = {NULL}},
     [__NR_mincore] = {.slow = false, .name = "mincore", .parser = {parse_long_arg,
                       parse_pointer_arg, parse_pointer_arg, parse_pointer_arg}},
@@ -891,6 +894,32 @@ static void parse_mmap_flags(struct print_buf* buf, va_list* ap) {
 
     if (flags)
         buf_printf(buf, "|0x%x", flags);
+}
+
+static void parse_mremap_flags(struct print_buf* buf, va_list* ap) {
+    unsigned long flags = va_arg(*ap, unsigned long);
+    bool first = true;
+
+    #define PARSE_FLAG(flag)        \
+        if (flags & (flag)) {       \
+            if (first)              \
+                first = false;      \
+            else                    \
+                buf_puts(buf, "|"); \
+            buf_puts(buf, #flag);   \
+            flags &= ~(flag);       \
+        }
+
+    PARSE_FLAG(MREMAP_MAYMOVE);
+    PARSE_FLAG(MREMAP_FIXED);
+    PARSE_FLAG(MREMAP_DONTUNMAP);
+
+    if (flags) {
+        if (!first)
+            buf_printf(buf, "|");
+        buf_printf(buf, "0x%lx", flags);
+    }
+    #undef PARSE_FLAG
 }
 
 static void parse_exec_args(struct print_buf* buf, va_list* ap) {

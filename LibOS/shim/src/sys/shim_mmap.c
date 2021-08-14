@@ -1,16 +1,14 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University
- * Copyright (C) 2020 Invisible Things Lab
- * Copyright (C) 2020 Intel Corporation
- *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
- */
-
-/*
- * Implementation of system calls "mmap", "munmap" and "mprotect".
+/* Copyright (C) 2014      Stony Brook University
+ * Copyright (C) 2020-2021 Invisible Things Lab
+ *                         Michał Kowalczyk <mkow@invisiblethingslab.com>
+ * Copyright (C) 2020      Intel Corporation
+ *                         Michał Kowalczyk <mkow@invisiblethingslab.com>
  */
 
 #include <errno.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <sys/mman.h>
 
 #include "pal.h"
@@ -295,9 +293,8 @@ long shim_do_munmap(void* addr, size_t length) {
     return 0;
 }
 
-/* This emulation of mincore() always tells that pages are _NOT_ in RAM
- * pessimistically due to lack of a good way to know it.
- * Possibly it may cause performance(or other) issue due to this lying.
+/* This emulation of mincore() always tells that pages are _NOT_ in RAM, due to lack of a good way
+ * to know it. This lying may cause performance (or other) issues.
  */
 long shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (!IS_ALLOC_ALIGNED_PTR(addr))
@@ -450,4 +447,55 @@ long shim_do_msync(unsigned long start, size_t len_orig, int flags) {
 
     /* `MS_ASYNC` is a no-op on Linux. */
     return 0;
+}
+
+// shim_mremap(0x56a6b000, 0x1000, 0x2000, MREMAP_MAYMOVE, 0x0) = -38
+long shim_do_mremap(unsigned long addr, unsigned long old_size, unsigned long new_size,
+                    unsigned long flags, unsigned long new_addr) {
+    if (flags & ~(MREMAP_MAYMOVE | MREMAP_FIXED | MREMAP_DONTUNMAP))
+        return -EINVAL;
+
+    bool may_move = flags & MREMAP_MAYMOVE;
+    bool remap_fixed = flags & MREMAP_FIXED;
+    bool dont_unmap = flags & MREMAP_DONTUNMAP;
+
+    if (remap_fixed && !may_move)
+        return -EINVAL;
+
+    if (dont_unmap && (!may_move || new_size != old_size))
+        return -EINVAL;
+
+    if (!IS_ALLOC_ALIGNED(addr))
+        return -EINVAL;
+
+    old_size = ALLOC_ALIGN_UP(old_size);
+    new_size = ALLOC_ALIGN_UP(new_size);
+
+    if (!new_size)
+        return -EINVAL;
+
+    if (dont_unmap)
+        // Not implemented currently.
+        return -ENOSYS;
+
+    // if (remap_fixed) {
+    //     assert(may_move);
+
+    // } else {
+    //     // Try to extend the region
+    // }
+
+    // TEST
+    assert(!new_addr);
+    new_addr = (long)shim_do_mmap(0, new_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if ((long)new_addr < 0)
+        return new_addr;
+    memcpy((void*)new_addr, (void*)addr, MIN(old_size, new_size));
+    long ret = shim_do_munmap((void*)addr, old_size);
+    if (ret < 0)
+        return ret;
+
+    // TODO: check success and fail if !may_move
+
+    return new_addr;
 }
