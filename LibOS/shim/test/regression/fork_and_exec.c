@@ -1,4 +1,6 @@
-#define _XOPEN_SOURCE 700
+#define _GNU_SOURCE
+#include <assert.h>
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +10,23 @@
 
 int main(int argc, const char** argv, const char** envp) {
     pid_t child_pid;
+
+    char c = 0;
+    ssize_t x = read(0, &c, 1);
+    if (x < 0) {
+        err(1, "stdin read failed");
+    } else if (x != 1) {
+        assert(x == 0);
+        errx(1, "unexpected eof on stdin");
+    }
+    assert(c == 'a');
+    x = read(0, &c, 1);
+    if (x < 0) {
+        err(1, "stdin 2nd read failed");
+    }
+    if (x != 0) {
+        errx(1, "stdin read succeeded unexpectedly");
+    }
 
     /* duplicate STDOUT into newfd and pass it as exec_victim argument
      * (it will be inherited by exec_victim) */

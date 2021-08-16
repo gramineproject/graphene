@@ -165,6 +165,49 @@ int init_handle(void) {
     return 0;
 }
 
+static int init_default_handle(struct shim_handle_map* handle_map, int fd, const char* manifest_key,
+                               bool write) {
+    assert(locked(&handle_map->lock));
+
+    struct shim_handle* hdl = get_new_handle();
+    if (!hdl) {
+        return -ENOMEM;
+    }
+
+    char* path = NULL;
+    int ret = toml_string_in(g_manifest_root, manifest_key, &path);
+    if (ret < 0) {
+        log_error("Cannot parse '%s'", manifest_key);
+        put_handle(hdl);
+        return -EINVAL;
+    }
+    if (path) {
+        if (strstartswith(path, URI_PREFIX_FILE)) {
+            log_error("'%s' must be an in-Graphene fs path", manifest_key);
+            put_handle(hdl);
+            free(path);
+            return -EINVAL;
+        }
+        int flags = write ? O_WRONLY | O_CREAT : O_RDONLY;
+        ret = open_namei(hdl, /*start=*/NULL, path, flags, /*mode=*/0600, /*found=*/NULL);
+        free(path);
+        if (ret < 0) {
+            log_error("%s: cannot open '%s': %d", __func__, path, ret);
+            put_handle(hdl);
+            return ret;
+        }
+    } else {
+        if ((ret = init_tty_handle(hdl, write)) < 0) {
+            put_handle(hdl);
+            return ret;
+        }
+    }
+
+    __init_handle(&handle_map->map[fd], /*fd=*/fd, hdl, /*flags=*/0);
+    put_handle(hdl);
+    return 0;
+}
+
 int init_important_handles(void) {
     int ret;
     struct shim_thread* thread = get_cur_thread();
@@ -195,46 +238,33 @@ int init_important_handles(void) {
         }
     }
 
+    assert(g_manifest_root);
+
     /* initialize stdin */
     if (!HANDLE_ALLOCATED(handle_map->map[0])) {
-        struct shim_handle* stdin_hdl = get_new_handle();
-        if (!stdin_hdl) {
+        ret = init_default_handle(handle_map, /*fd=*/0, "libos.redirect.stdin", /*write=*/false);
+        if (ret < 0) {
             unlock(&handle_map->lock);
-            return -ENOMEM;
-        }
-
-        if ((ret = init_tty_handle(stdin_hdl, /*write=*/false)) < 0) {
-            unlock(&handle_map->lock);
-            put_handle(stdin_hdl);
             return ret;
         }
-
-        __init_handle(&handle_map->map[0], /*fd=*/0, stdin_hdl, /*flags=*/0);
-        put_handle(stdin_hdl);
     }
 
     /* initialize stdout */
     if (!HANDLE_ALLOCATED(handle_map->map[1])) {
-        struct shim_handle* stdout_hdl = get_new_handle();
-        if (!stdout_hdl) {
+        ret = init_default_handle(handle_map, /*fd=*/1, "libos.redirect.stdout", /*write=*/true);
+        if (ret < 0) {
             unlock(&handle_map->lock);
-            return -ENOMEM;
-        }
-
-        if ((ret = init_tty_handle(stdout_hdl, /*write=*/true)) < 0) {
-            unlock(&handle_map->lock);
-            put_handle(stdout_hdl);
             return ret;
         }
-
-        __init_handle(&handle_map->map[1], /*fd=*/1, stdout_hdl, /*flags=*/0);
-        put_handle(stdout_hdl);
     }
 
-    /* initialize stderr as duplicate of stdout */
+    /* initialize stderr */
     if (!HANDLE_ALLOCATED(handle_map->map[2])) {
-        struct shim_handle* stdout_hdl = handle_map->map[1]->handle;
-        __init_handle(&handle_map->map[2], /*fd=*/2, stdout_hdl, /*flags=*/0);
+        ret = init_default_handle(handle_map, /*fd=*/2, "libos.redirect.stderr", /*write=*/true);
+        if (ret < 0) {
+            unlock(&handle_map->lock);
+            return ret;
+        }
     }
 
     if (handle_map->fd_top == FD_NULL || handle_map->fd_top < 2)
