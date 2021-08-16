@@ -127,7 +127,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         paths = ['fork_and_exec.stdin', 'fork_and_exec.stdout', 'fork_and_exec.stderr']
         for path in paths:
             if os.path.exists(path):
-               os.remove(path)
+                os.remove(path)
         with open(paths[0], 'wb') as f:
             f.write(b'a')
 
@@ -140,7 +140,7 @@ class TC_01_Bootstrap(RegressionTestCase):
 
         for path in paths:
             if os.path.exists(path):
-               os.remove(path)
+                os.remove(path)
 
         self.assertIn(b'child exited with status: 0', file_stdout)
         self.assertIn(b'test completed successfully', file_stdout)
