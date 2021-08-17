@@ -13,12 +13,12 @@
  * verification in future reads, to avoid re-verifying the whole file again or the need of caching
  * file contents.
  *
- * Perhaps confusingly, but `struct trusted_file` describes not only "sgx.trusted_files" but also
+ * Perhaps confusingly, `struct trusted_file` describes not only "sgx.trusted_files" but also
  * "sgx.allowed_files". For allowed files, `allowed = true`, `chunk_hashes = NULL`, and `uri` can be
- * not only a file but also a directory. TODO: Perhaps split "allowed_files" in a separate file.
+ * not only a file but also a directory. TODO: Perhaps split "allowed_files" into a separate struct?
  */
 
-/* TODO: Move trusted/allowed files implementation in separate file `enclave_tf.c` */
+/* TODO: Move trusted/allowed files implementation into a separate file (`enclave_tf.c`?) */
 
 #ifndef ENCLAVE_TF_H_
 #define ENCLAVE_TF_H_
@@ -53,7 +53,7 @@ struct trusted_file {
     LIST_TYPE(trusted_file) list;
     uint64_t size;
     bool allowed;
-    sgx_file_hash_t file_hash;      /* hash over the whole file, must be the same as in manifest */
+    sgx_file_hash_t file_hash;      /* hash over the whole file, retrieved from the manifest */
     sgx_chunk_hash_t* chunk_hashes; /* array of hashes over separate file chunks */
     size_t uri_len;
     char uri[]; /* must be NULL-terminated */
@@ -74,15 +74,15 @@ struct trusted_file* get_trusted_or_allowed_file(const char* path);
  * \param tf                trusted file struct corresponding to this file
  * \param file              file handle to be opened
  * \param create            whether this file is newly created
- * \param chunk_hashes_ptr  array of hashes over file chunks
- * \param size_ptr          returns size of opened file
- * \param umem              untrusted memory address at which the file is loaded
+ * \param out_chunk_hashes  array of hashes over file chunks
+ * \param out_size          returns size of opened file
+ * \param out_umem          untrusted memory address at which the file was loaded
  *
  * \return 0 on success, negative error code on failure
  */
-int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, int create,
-                                 sgx_chunk_hash_t** chunk_hashes_ptr, uint64_t* size_ptr,
-                                 void** umem);
+int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, bool create,
+                                 sgx_chunk_hash_t** out_chunk_hashes, uint64_t* out_size,
+                                 void** out_umem);
 
 /*!
  * \brief Copy and check file contents from untrusted outside buffer to in-enclave buffer
@@ -98,14 +98,6 @@ int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, int c
  * \param file_size       total size of the file
  *
  * \return 0 on success, negative error code on failure
- *
- * If needed, regions at either the beginning or the end of the copied regions are copied into a
- * scratch buffer to avoid a TOCTTOU race. This is done to avoid the following TOCTTOU race
- * condition with the untrusted host as an adversary:
- *       *  Adversary: put good contents in buffer
- *       *  Enclave: buffer check passes
- *       *  Adversary: put bad contents in buffer
- *       *  Enclave: copies in bad buffer contents
  */
 int copy_and_verify_trusted_file(const char* path, uint8_t* buf, const void* umem,
                                  off_t aligned_offset, off_t aligned_end, off_t offset, off_t end,

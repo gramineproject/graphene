@@ -31,22 +31,23 @@
  * GBs in size, and a pread OCALL could fail with -ENOMEM, so we cap to reasonably small size) */
 #define MAX_READ_SIZE (PRESET_PAGESIZE * 1024 * 32)
 
-static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
-                     int create, int options) {
+static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int pal_access,
+                     int pal_share, int pal_create, int pal_options) {
     int ret;
     int fd = -1;
     PAL_HANDLE hdl = NULL;
+    bool do_create = (pal_create & PAL_CREATE_ALWAYS) || (pal_create & PAL_CREATE_TRY);
 
     struct stat st;
-    int flags = PAL_ACCESS_TO_LINUX_OPEN(access) |
-                PAL_CREATE_TO_LINUX_OPEN(create) |
-                PAL_OPTION_TO_LINUX_OPEN(options);
+    int flags = PAL_ACCESS_TO_LINUX_OPEN(pal_access) |
+                PAL_CREATE_TO_LINUX_OPEN(pal_create) |
+                PAL_OPTION_TO_LINUX_OPEN(pal_options);
 
     if (strcmp(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
     /* normalize uri into normpath */
-    size_t normpath_size = URI_MAX;
+    size_t normpath_size = strlen(uri) + 1;
     char* normpath = malloc(normpath_size);
     if (!normpath)
         return -PAL_ERROR_NOMEM;
@@ -59,7 +60,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
 
     /* create file PAL handle with path string placed at the end of this handle object */
-    hdl = calloc(1, HANDLE_SIZE(file) + normpath_size + 1);
+    hdl = calloc(1, HANDLE_SIZE(file) + normpath_size);
     if (!hdl) {
         free(normpath);
         return -PAL_ERROR_NOMEM;
@@ -68,7 +69,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
 
-    memcpy((char*)hdl + HANDLE_SIZE(file), normpath, normpath_size + 1);
+    memcpy((char*)hdl + HANDLE_SIZE(file), normpath, normpath_size);
     hdl->file.realpath = (PAL_STR)hdl + HANDLE_SIZE(file);
 
     free(normpath); /* was copied into the file PAL handle object, not needed anymore */
@@ -88,7 +89,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         log_always("Allowing access to unknown file '%s' due to file_check_policy settings.",
                    hdl->file.realpath);
 
-        fd = ocall_open(uri, flags, share);
+        fd = ocall_open(uri, flags, pal_share);
         if (fd < 0) {
             ret = unix_to_pal_error(fd);
             goto fail;
@@ -111,12 +112,10 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (pf) {
         pf_lock();
 
-        bool pf_create = (create & PAL_CREATE_ALWAYS) || (create & PAL_CREATE_TRY);
-
         pf_file_mode_t pf_mode = 0;
-        if ((access & PAL_ACCESS_RDWR) == PAL_ACCESS_RDWR)
+        if (pal_access & PAL_ACCESS_RDWR)
             pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
-        else if ((access & PAL_ACCESS_WRONLY) == PAL_ACCESS_WRONLY)
+        else if (pal_access & PAL_ACCESS_WRONLY)
             pf_mode = PF_FILE_MODE_WRITE;
         else
             pf_mode = PF_FILE_MODE_READ;
@@ -128,7 +127,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             goto fail_pf_unlock;
         }
 
-        fd = ocall_open(uri, flags, share);
+        fd = ocall_open(uri, flags, pal_share);
         if (fd < 0) {
             ret = unix_to_pal_error(fd);
             goto fail_pf_unlock;
@@ -144,7 +143,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         hdl->file.seekable = !S_ISFIFO(st.st_mode);
 
         pf = load_protected_file(hdl->file.realpath, (int*)&hdl->file.fd, st.st_size, pf_mode,
-                                 pf_create, pf);
+                                 do_create, pf);
         if (!pf) {
             log_warning("load_protected_file(%s, %d) failed", hdl->file.realpath, hdl->file.fd);
             ret = -PAL_ERROR_DENIED;
@@ -164,13 +163,15 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     assert(tf); /* at this point, we want to open a trusted or allowed file */
 
-    if ((create & PAL_CREATE_ALWAYS || create & PAL_CREATE_TRY) && !tf->allowed) {
-        log_error("Disallowing create/write/append of trusted file '%s'", hdl->file.realpath);
+    if (!tf->allowed && (do_create
+                         || (pal_access & PAL_ACCESS_RDWR)
+                         || (pal_access & PAL_ACCESS_WRONLY))) {
+        log_error("Disallowing create/write/append to a trusted file '%s'", hdl->file.realpath);
         ret = -PAL_ERROR_DENIED;
         goto fail;
     }
 
-    fd = ocall_open(uri, flags, share);
+    fd = ocall_open(uri, flags, pal_share);
     if (fd < 0) {
         ret = unix_to_pal_error(fd);
         goto fail;
@@ -189,7 +190,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     sgx_chunk_hash_t* chunk_hashes;
     uint64_t total;
     void* umem;
-    ret = load_trusted_or_allowed_file(tf, hdl, create, &chunk_hashes, &total, &umem);
+    ret = load_trusted_or_allowed_file(tf, hdl, do_create, &chunk_hashes, &total, &umem);
     if (ret < 0) {
         log_warning("load_trusted_or_allowed_file(%s, %d) failed", hdl->file.realpath,
                     hdl->file.fd);
@@ -703,13 +704,13 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     file_attrcopy(attr, &stat_buf);
 
-    size_t len = URI_MAX;
-    path = malloc(len);
+    size_t path_size = strlen(uri) + 1;
+    path = malloc(path_size);
     if (!path) {
         ret = -PAL_ERROR_NOMEM;
         goto out;
     }
-    ret = get_norm_path(uri, path, &len);
+    ret = get_norm_path(uri, path, &path_size);
     if (ret < 0) {
         log_warning("Could not normalize path (%s): %s", uri, pal_strerror(ret));
         goto out;

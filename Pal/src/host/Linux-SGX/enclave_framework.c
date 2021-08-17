@@ -197,15 +197,19 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf, const char* 
     size_t tf_path_len  = tf->uri_len - URI_PREFIX_FILE_LEN;
 
     if (tf_path_len > path_len || memcmp(tf_path, path, tf_path_len)) {
-        /* tf path is not prefix of `path` */
+        /* tf path is not a prefix of `path` */
         return false;
     }
     if (tf_path_len == path_len) {
         /* Both are equal */
         return true;
     }
-    if (tf_path[tf_path_len - 1] == '/' || path[tf_path_len] == '/') {
-        /* tf path is a subpath of `path` */
+    if (tf_path[tf_path_len - 1] == '/') {
+        /* tf path is a subpath of `path` (with slash), e.g. "foo/" and "foo/bar" */
+        return true;
+    }
+    if (path[tf_path_len] == '/') {
+        /* tf path is a subpath of `path` (without slash), e.g. "foo" and "foo/bar" */
         return true;
     }
     return false;
@@ -242,14 +246,14 @@ struct trusted_file* get_trusted_or_allowed_file(const char* path) {
     return tf;
 }
 
-int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, int create,
-                                 sgx_chunk_hash_t** chunk_hashes_ptr, uint64_t* size_ptr,
-                                 void** umem) {
+int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, bool create,
+                                 sgx_chunk_hash_t** out_chunk_hashes, uint64_t* out_size,
+                                 void** out_umem) {
     int ret;
 
-    *chunk_hashes_ptr = NULL;
-    *size_ptr = 0;
-    *umem = NULL;
+    *out_chunk_hashes = NULL;
+    *out_size = 0;
+    *out_umem = NULL;
 
     if (create) {
         assert(tf->allowed);
@@ -284,12 +288,12 @@ int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, int c
 
     /* mmap the whole trusted file in untrusted memory for future reads/writes; it is
      * caller's responsibility to unmap those areas after use */
-    *size_ptr = tf->size;
-    if (*size_ptr) {
-        ret = ocall_mmap_untrusted(umem, tf->size, PROT_READ, MAP_SHARED, file->file.fd,
+    *out_size = tf->size;
+    if (*out_size) {
+        ret = ocall_mmap_untrusted(out_umem, tf->size, PROT_READ, MAP_SHARED, file->file.fd,
                                    /*offset=*/0);
         if (ret < 0) {
-            *umem = NULL;
+            *out_umem = NULL;
             ret = unix_to_pal_error(ret);
             goto fail;
         }
@@ -297,7 +301,7 @@ int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, int c
 
     spinlock_lock(&g_trusted_file_lock);
     if (tf->chunk_hashes) {
-        *chunk_hashes_ptr = tf->chunk_hashes;
+        *out_chunk_hashes = tf->chunk_hashes;
         spinlock_unlock(&g_trusted_file_lock);
         return 0;
     }
@@ -335,7 +339,7 @@ int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, int c
             goto fail;
 
         /* to prevent TOCTOU attacks, copy file contents into the enclave before hashing */
-        memcpy(tmp_chunk, *umem + offset, chunk_size);
+        memcpy(tmp_chunk, *out_umem + offset, chunk_size);
 
         ret = lib_SHA256Update(&file_sha, tmp_chunk, chunk_size);
         if (ret < 0)
@@ -367,23 +371,23 @@ int load_trusted_or_allowed_file(struct trusted_file* tf, PAL_HANDLE file, int c
 
     spinlock_lock(&g_trusted_file_lock);
     if (tf->chunk_hashes) {
-        *chunk_hashes_ptr = tf->chunk_hashes;
+        *out_chunk_hashes = tf->chunk_hashes;
         spinlock_unlock(&g_trusted_file_lock);
         free(chunk_hashes);
         free(tmp_chunk);
         return 0;
     }
     tf->chunk_hashes = chunk_hashes;
-    *chunk_hashes_ptr = chunk_hashes;
+    *out_chunk_hashes = chunk_hashes;
     spinlock_unlock(&g_trusted_file_lock);
 
     free(tmp_chunk);
     return 0;
 
 fail:
-    if (*umem) {
-        assert(*size_ptr > 0);
-        ocall_munmap_untrusted(*umem, *size_ptr);
+    if (*out_umem) {
+        assert(*out_size > 0);
+        ocall_munmap_untrusted(*out_umem, *out_size);
     }
     free(chunk_hashes);
     free(tmp_chunk);
@@ -564,23 +568,20 @@ static int register_file(const char* uri, const char* checksum_str, bool check_d
 static int normalize_and_register_file(const char* uri, const char* checksum_str) {
     int ret;
 
-    const size_t norm_uri_size = URI_MAX;
-    char* norm_uri = malloc(norm_uri_size);
-    if (!norm_uri) {
-        ret = -PAL_ERROR_NOMEM;
-        goto out;
-    }
-
-    memcpy(norm_uri, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN + 1);
-
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
         log_error("Invalid URI [%s]: Trusted/allowed files must start with 'file:'", uri);
-        ret = -PAL_ERROR_INVAL;
-        goto out;
+        return -PAL_ERROR_INVAL;
     }
 
-    size_t len = norm_uri_size - strlen(norm_uri);
-    ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, norm_uri + URI_PREFIX_FILE_LEN, &len);
+    const size_t norm_uri_size = URI_PREFIX_FILE_LEN + strlen(uri) + 1;
+    char* norm_uri = malloc(norm_uri_size);
+    if (!norm_uri) {
+        return -PAL_ERROR_NOMEM;
+    }
+
+    memcpy(norm_uri, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
+    size_t norm_path_size = norm_uri_size - URI_PREFIX_FILE_LEN;
+    ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, norm_uri + URI_PREFIX_FILE_LEN, &norm_path_size);
     if (ret < 0) {
         log_error("Path (%s) normalization failed: %s", uri, pal_strerror(ret));
         goto out;

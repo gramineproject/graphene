@@ -294,21 +294,32 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
             if os.path.exists('nonexisting_testfile'):
                 self.fail('test created a file unexpectedly')
 
-    def test_003_allow_all_but_log_unknown(self):
+    def test_003_strict_fail_write(self):
+        try:
+            # writing to trusted files should not be possible
+            self.run_binary(['file_check_policy_strict', 'write', 'trusted_testfile'])
+            self.fail('expected to return nonzero')
+        except subprocess.CalledProcessError as e:
+            self.assertEqual(e.returncode, 2)
+            stderr = e.stderr.decode()
+            self.assertIn('Disallowing create/write/append to a trusted file \'trusted_testfile\'',
+                          stderr)
+
+    def test_004_allow_all_but_log_unknown(self):
         stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log', 'read',
                                           'unknown_testfile'])
         self.assertIn('Allowing access to unknown file \'unknown_testfile\' due to '
                       'file_check_policy settings.', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
-    def test_004_allow_all_but_log_trusted(self):
+    def test_005_allow_all_but_log_trusted(self):
         stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log', 'read',
                                           'trusted_testfile'])
         self.assertNotIn('Allowing access to unknown file \'trusted_testfile\' due to '
                          'file_check_policy settings.', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
-    def test_005_allow_all_but_log_trusted_create_fail(self):
+    def test_006_allow_all_but_log_trusted_create_fail(self):
         try:
             # this fails because modifying trusted files is prohibited
             self.run_binary(['file_check_policy_allow_all_but_log', 'append', 'trusted_testfile'])
@@ -316,10 +327,10 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
         except subprocess.CalledProcessError as e:
             self.assertEqual(e.returncode, 2)
             stderr = e.stderr.decode()
-            self.assertIn('Disallowing create/write/append of trusted file \'trusted_testfile\'',
+            self.assertIn('Disallowing create/write/append to a trusted file \'trusted_testfile\'',
                           stderr)
 
-    def test_006_allow_all_but_log_unknown_create(self):
+    def test_007_allow_all_but_log_unknown_create(self):
         if os.path.exists('nonexisting_testfile'):
             os.remove('nonexisting_testfile')
         try:
