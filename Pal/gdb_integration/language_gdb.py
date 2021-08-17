@@ -11,8 +11,9 @@
 # will fail with a syntax error if the binary debugged is written in Rust, but only if the signal
 # arrived while executing Rust code.
 
-import gdb # pylint: disable=import-error
 import re
+
+import gdb # pylint: disable=import-error
 
 _g_languages = []
 
