@@ -12,12 +12,9 @@
 # arrived while executing Rust code.
 
 import gdb # pylint: disable=import-error
+import re
 
 _g_languages = []
-
-def cut_between(src, before, after):
-    start = src.index(before) + len(before)
-    return src[start:src.index(after, start)]
 
 
 class PushLanguage(gdb.Command):
@@ -30,10 +27,10 @@ class PushLanguage(gdb.Command):
         self.dont_repeat()
 
         lang_str = gdb.execute('show language', to_string=True).strip()
-        lang_str = cut_between(lang_str, 'The current source language is "', '"')
-        if ';' in lang_str:  # for things like 'auto; currently c'
-            lang_str = lang_str[:lang_str.index(';')]
-        _g_languages.append(lang_str)
+        # ';' is for things like: "auto; currently c"
+        m = re.match(r'The current source language is "(.*?)[";]', lang_str)
+        assert m, 'Unexpected output from \'show language\': ' + lang_str
+        _g_languages.append(m.group(1))
 
         gdb.execute('set language ' + arg)
 
