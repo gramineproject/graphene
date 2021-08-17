@@ -159,6 +159,7 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
 
     int nloadcmds = 0;
     bool has_holes = false;
+    ElfW(Addr) mapend_prev = 0;
 
     /* The struct is initialized to zero so this is not necessary:
        l->l_ld = 0;
@@ -203,8 +204,10 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
 
                 /* Determine whether there is a gap between the last segment
                    and this one.  */
-                if (nloadcmds > 1 && c[-1].mapend != c->mapstart)
+                if (nloadcmds > 1 && mapend_prev != c->mapstart)
                     has_holes = true;
+
+                mapend_prev = c->mapend;
 
                 /* Optimize a common case.  */
                 c->prot = 0;
