@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: LGPL-3.0-or-later */
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # Copyright (C) 2020 Intel Corporation
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 
@@ -8,6 +8,7 @@ import gdb  # pylint: disable=import-error
 
 def main():
     for filename in [
+            'common/language_gdb.py',
             'common/pagination_gdb.py',
             'common/debug_map_gdb.py',
             'common/graphene.gdb',

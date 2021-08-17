@@ -1,9 +1,15 @@
-# SPDX-License-Identifier: LGPL-3.0-or-later */
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright (C) 2021 Invisible Things Lab
+#                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 # Copyright (C) 2021 Intel Corporation
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 #                    Paweł Marczewski <pawel@invisiblethingslab.com>
 
 # Graphene GDB configuration (Linux-SGX specific).
+
+# Without this GDB would interpret all the expressions below depending on the app code where it just
+# happened to stop.
+push-language c
 
 # Prevent the preloaded sgx_gdb.so from being preloaded to the debuggee.
 set env LD_PRELOAD=
@@ -26,6 +32,8 @@ condition $bpnum *(uint16_t*)$rip == 0xa20f || *(uint16_t*)$rip == 0x310f
 commands
     silent
 
+    push-language c
+
     # If we don't disable pagination then successive prints from this handler (even despite it's
     # called for different events) will stop and prompt the user for continuation, which is really
     # annoying.
@@ -39,5 +47,8 @@ commands
     end
 
     pop-pagination
+    pop-language
     continue
 end
+
+pop-language

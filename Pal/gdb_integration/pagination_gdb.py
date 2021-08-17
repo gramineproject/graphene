@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LGPL-3.0-or-later */
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # Copyright (C) 2020 Intel Corporation
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 #                    Paweł Marczewski <pawel@invisiblethingslab.com>
@@ -16,7 +16,7 @@ class PushPagination(gdb.Command):
     """Temporarily change pagination and save the old state"""
 
     def __init__(self):
-        super().__init__("push-pagination", gdb.COMMAND_USER)
+        super().__init__('push-pagination', gdb.COMMAND_USER)
 
     def invoke(self, arg, _from_tty):
         self.dont_repeat()
@@ -34,7 +34,7 @@ class PopPagination(gdb.Command):
     """Recover pagination state saved by PushPagination"""
 
     def __init__(self):
-        super().__init__("pop-pagination", gdb.COMMAND_USER)
+        super().__init__('pop-pagination', gdb.COMMAND_USER)
 
     def invoke(self, arg, _from_tty):
         self.dont_repeat()
@@ -49,5 +49,5 @@ def main():
     PopPagination()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
