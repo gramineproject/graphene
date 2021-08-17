@@ -240,35 +240,28 @@ int init_important_handles(void) {
 
     assert(g_manifest_root);
 
-    /* initialize stdin */
-    if (!HANDLE_ALLOCATED(handle_map->map[0])) {
-        ret = init_default_handle(handle_map, /*fd=*/0, "libos.redirect.stdin", /*write=*/false);
+    if (!g_pal_control->parent_process) {
+        ret = init_default_handle(handle_map, /*fd=*/0, "libos.redirect_fd.stdin", /*write=*/false);
         if (ret < 0) {
             unlock(&handle_map->lock);
             return ret;
         }
-    }
 
-    /* initialize stdout */
-    if (!HANDLE_ALLOCATED(handle_map->map[1])) {
-        ret = init_default_handle(handle_map, /*fd=*/1, "libos.redirect.stdout", /*write=*/true);
+        ret = init_default_handle(handle_map, /*fd=*/1, "libos.redirect_fd.stdout", /*write=*/true);
         if (ret < 0) {
             unlock(&handle_map->lock);
             return ret;
         }
-    }
 
-    /* initialize stderr */
-    if (!HANDLE_ALLOCATED(handle_map->map[2])) {
-        ret = init_default_handle(handle_map, /*fd=*/2, "libos.redirect.stderr", /*write=*/true);
+        ret = init_default_handle(handle_map, /*fd=*/2, "libos.redirect_fd.stderr", /*write=*/true);
         if (ret < 0) {
             unlock(&handle_map->lock);
             return ret;
         }
-    }
 
-    if (handle_map->fd_top == FD_NULL || handle_map->fd_top < 2)
-        handle_map->fd_top = 2;
+        if (handle_map->fd_top == FD_NULL || handle_map->fd_top < 2)
+            handle_map->fd_top = 2;
+    }
 
     unlock(&handle_map->lock);
 

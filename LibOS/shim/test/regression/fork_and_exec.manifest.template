@@ -19,13 +19,9 @@ fs.mount.bin.type = "chroot"
 fs.mount.bin.path = "/bin"
 fs.mount.bin.uri = "file:/bin"
 
-fs.mount.stdin.type = "chroot"
-fs.mount.stdin.path = "fork_and_exec.stdin"
-fs.mount.stdin.uri = "file:fork_and_exec.stdin"
-
-libos.redirect.stdin = "fork_and_exec.stdin"
-libos.redirect.stdout = "fork_and_exec.stdout"
-libos.redirect.stderr = "fork_and_exec.stderr"
+libos.redirect_fd.stdin = "fork_and_exec.stdin"
+libos.redirect_fd.stdout = "fork_and_exec.stdout"
+libos.redirect_fd.stderr = "fork_and_exec.stderr"
 
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
 sgx.trusted_files.libgcc_s = "file:{{ arch_libdir }}/libgcc_s.so.1"

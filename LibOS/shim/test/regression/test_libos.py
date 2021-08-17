@@ -111,11 +111,7 @@ class TC_01_Bootstrap(RegressionTestCase):
     def test_200_exec(self):
         stdout, _ = self.run_binary(['exec'])
 
-        # 2 page child binary
-        self.assertIn(
-            '0' * 89 + ' ' +
-            ('0' * 93 + ' ') * 15,
-            stdout)
+        self.assertIn('Hello World (./exec_victim)!', stdout)
 
     def test_201_exec_same(self):
         args = ['arg_#%d' % i for i in range(50)]
@@ -131,7 +127,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         with open(paths[0], 'wb') as f:
             f.write(b'a')
 
-        _, _ = self.run_binary(['fork_and_exec'], timeout=60)
+        stdout, _ = self.run_binary(['fork_and_exec'], timeout=60)
 
         with open(paths[1], 'rb') as f:
             file_stdout = f.read()
@@ -142,9 +138,11 @@ class TC_01_Bootstrap(RegressionTestCase):
             if os.path.exists(path):
                 os.remove(path)
 
+        self.assertIn(b'Hello World (./exec_victim)!', file_stdout)
         self.assertIn(b'child exited with status: 0', file_stdout)
         self.assertIn(b'test completed successfully', file_stdout)
         self.assertEqual(b'', file_stderr)
+        self.assertEqual(b'', stdout)
 
     def test_203_vfork_and_exec(self):
         stdout, _ = self.run_binary(['vfork_and_exec'], timeout=60)
