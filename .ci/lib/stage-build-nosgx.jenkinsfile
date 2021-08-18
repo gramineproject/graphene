@@ -4,6 +4,11 @@ stage('build') {
         make ${MAKEOPTS} -C Pal/src PAL_HOST=Skeleton
     '''
 
+    env.MESON_OPTIONS = ''
+    if (env.UBSAN == '1') {
+        env.MESON_OPTIONS += '-Dubsan=enabled'
+    }
+
     try {
         sh '''
             meson setup build/ \
@@ -11,7 +16,8 @@ stage('build') {
                 --buildtype="$BUILDTYPE" \
                 -Dskeleton=enabled \
                 -Ddirect=enabled \
-                -Dsgx=disabled
+                -Dsgx=disabled \
+                $MESON_OPTIONS
             ninja -vC build/
             ninja -vC build/ install
         '''
