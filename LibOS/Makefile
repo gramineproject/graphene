@@ -19,7 +19,7 @@ GNU_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 #
 # Override CC, CXX, AS in case we're compiling the rest of the project with clang.
 # ------------------------------------------------------------------------------------------------
-GLIBC_VERSION ?= 2.33
+GLIBC_VERSION ?= 2.34
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
 GLIBC_HASH = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
 SHIM_DIR = shim
@@ -99,6 +99,9 @@ GLIBC_PATCHES_2.31 = \
 
 GLIBC_PATCHES_2.33 = \
 	glibc-patches/hp-timing-2.33.patch
+
+GLIBC_PATCHES_2.34 = \
+	glibc-patches/hp-timing-2.34.patch
 
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
