@@ -27,7 +27,11 @@ int ipc_posix_lock_set(const char* path, struct posix_lock* pl, bool wait) {
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_MSG_POSIX_LOCK_SET, total_msg_size);
     memcpy(msg->data, &msgin, sizeof(msgin));
-    memcpy(((struct shim_ipc_posix_lock*)&msg->data)->path, path, path_len + 1);
+
+    /* Copy path after message (`msg->data` is unaligned, so we have to compute the offset
+     * manually) */
+    char* path_ptr = (char*)&msg->data + offsetof(struct shim_ipc_posix_lock, path);
+    memcpy(path_ptr, path, path_len + 1);
 
     void* data;
     int ret = ipc_send_msg_and_get_response(g_process_ipc_ids.leader_vmid, msg, &data);
@@ -63,7 +67,11 @@ int ipc_posix_lock_get(const char* path, struct posix_lock* pl, struct posix_loc
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_MSG_POSIX_LOCK_GET, total_msg_size);
     memcpy(msg->data, &msgin, sizeof(msgin));
-    memcpy(((struct shim_ipc_posix_lock*)&msg->data)->path, path, path_len + 1);
+
+    /* Copy path after message (`msg->data` is unaligned, so we have to compute the offset
+     * manually) */
+    char* path_ptr = (char*)&msg->data + offsetof(struct shim_ipc_posix_lock, path);
+    memcpy(path_ptr, path, path_len + 1);
 
     void* data;
     int ret = ipc_send_msg_and_get_response(g_process_ipc_ids.leader_vmid, msg, &data);
