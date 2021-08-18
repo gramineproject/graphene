@@ -22,6 +22,16 @@ then
     exit 1
 fi
 
+if [ -z "$I_AM_AWARE_OF_CONSEQUENCES_AND_I_WONT_SUBMIT_GRAPHENE_REPORTS_WITH_THIS_ENABLED" ] && \
+    [ "$(id -u 2>/dev/null)" == "0" ]
+then
+    if tail /proc/kallsyms 2>/dev/null | grep -q ffff
+    then
+        echo "Please don't run Graphene as root!" >&2
+        exit 1
+    fi
+fi
+
 PAL_CMD=@PAL_CMD@
 LIBPAL_PATH=@LIBPAL_PATH@
 HOST_PAL_PATH=@HOST_PAL_PATH@
