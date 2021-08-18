@@ -162,17 +162,22 @@ unsigned long _DkMemoryAvailableQuota(void) {
 
 /* Expects `line` to be in the same format as "/proc/self/maps" entries, i.e. starting with
  * "hexadecimalnumber-hexadecimalnumber", e.g. "1fe3-87cc ...". */
-static void parse_line(const char* line, uintptr_t* start_ptr, uintptr_t* end_ptr) {
-    char* next = NULL;
-    *start_ptr = (uintptr_t)strtol(line, &next, 16);
-    assert(next && next[0] == '-');
-    *end_ptr = (uintptr_t)strtol(next + 1, NULL, 16);
+static int parse_line(const char* line, uintptr_t* start_ptr, uintptr_t* end_ptr) {
+    const char* next = NULL;
+    unsigned long val;
 
-#define TEST(x) assert((uintptr_t)(x) == (uintptr_t)strtol(#x, NULL, 16))
-    /* If this assert fails that probably means `strtol` implementation has changed and the two
-     * above need to be changed to `strtoul` (which we do not implement at the moment). */
-    TEST(0xffff000011112222ul); // arbitrary number which is negative when cast to long
-#undef TEST
+    if (str_to_ulong(line, 16, &val, &next) < 0)
+        return -PAL_ERROR_INVAL;
+    *start_ptr = val;
+
+    assert(next);
+    if (next[0] != '-')
+        return -PAL_ERROR_INVAL;
+
+    if (str_to_ulong(next + 1, 16, &val, &next) < 0)
+        return -PAL_ERROR_INVAL;
+    *end_ptr = val;
+    return 0;
 }
 
 /* This function is very fragile w.r.t. "/proc/self/maps" file format. */
@@ -212,9 +217,13 @@ int get_vdso_and_vvar_ranges(uintptr_t* vdso_start, uintptr_t* vdso_end, uintptr
         *line_end = '\0';
 
         if (!memcmp(vdso_str, line_end - vdso_str_len, vdso_str_len)) {
-            parse_line(buf, vdso_start, vdso_end);
+            ret = parse_line(buf, vdso_start, vdso_end);
+            if (ret < 0)
+                goto out;
         } else if (!memcmp(vvar_str, line_end - vvar_str_len, vvar_str_len)) {
-            parse_line(buf, vvar_start, vvar_end);
+            ret = parse_line(buf, vvar_start, vvar_end);
+            if (ret < 0)
+                goto out;
         }
 
         size_t new_size = 0;

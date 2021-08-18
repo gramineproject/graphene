@@ -20,9 +20,7 @@ A number of files taken from other C libraries:
  ** Pal/include/elf/elf.h
  ** Pal/include/sysdeps/generic/ldsodefs.h
  ** common/src/network/hton.c
- ** common/src/string/atoi.c
  ** common/src/string/strchr.c
- ** common/src/string/strlen.c
  ** Pal/src/dynamic_link.h, do-rel.h, dl-machine-x86_64.h
  ** Pal/include/arch/x86_64/Linux/ - whole directory - for signal API definitions
  ** We also build a patched glibc
