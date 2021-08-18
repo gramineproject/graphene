@@ -25,6 +25,9 @@ static void __attribute_unused elf_dynamic_do_rel(struct link_map* l, ElfW(Addr)
     if (!l->l_info[DT_SYMTAB])
         return;
 
+    if (relsize == 0)
+        return;
+
     ElfW(Rel)* r = (void*)reladdr, *end = (void*)(reladdr + relsize);
     ElfW(Sym)* symtab    = (void*)D_PTR(l->l_info[DT_SYMTAB]);
     ElfW(Word) nrelative = l->l_info[RELCOUNT_IDX] ? l->l_info[RELCOUNT_IDX]->d_un.d_val : 0;
