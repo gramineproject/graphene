@@ -1,7 +1,7 @@
 cflags_pal_common = [
     cflags_custom_stack_protector,
     '-DIN_PAL',
-]
+] + cflags_sanitizers
 
 pal_common_sources = files(
     'db_events.c',

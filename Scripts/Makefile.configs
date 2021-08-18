@@ -46,6 +46,7 @@ ARCH_LONG := $(SYS)
 
 DEBUG ?=
 OPTIMIZE ?= $(if $(DEBUG),,1)
+UBSAN ?=
 
 ifeq ($(DEBUGOPT),1)
 DEBUG = 1
@@ -54,6 +55,7 @@ endif
 
 export DEBUG
 export OPTIMIZE
+export UBSAN
 
 CFLAGS += -Wall -std=c11 -Wmissing-prototypes
 CXXFLAGS += -Wall -std=c++14
@@ -75,6 +77,12 @@ endif
 ifeq ($(WERROR),1)
 CFLAGS += -Werror
 CXXFLAGS += -Werror
+endif
+
+CFLAGS_SANITIZERS =
+
+ifeq ($(UBSAN),1)
+CFLAGS_SANITIZERS += -fsanitize=undefined -fno-sanitize-recover=undefined -DUBSAN
 endif
 
 MAKEFILE_CONFIGS_INCLUDED = y

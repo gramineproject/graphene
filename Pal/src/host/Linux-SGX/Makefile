@@ -19,6 +19,8 @@ CFLAGS += \
 # Silence Clang - it complains but does support it.
 CFLAGS += $(call cc-option,-Wno-gnu-alignof-expression)
 
+CFLAGS += $(CFLAGS_SANITIZERS)
+
 ASFLAGS += \
 	-I. \
 	-I../.. \

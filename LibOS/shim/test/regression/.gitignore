@@ -87,6 +87,7 @@
 /rdtsc
 /readdir
 /rename
+/run_test
 /sched
 /sched_set_get_affinity
 /select

@@ -24,7 +24,7 @@ struct shim_tcb {
 
     /* Function pointers for patched code calling into Graphene. */
     void*               syscalldb;
-    void*               register_library;
+    void*               handle_call;
 
     struct shim_thread* tp;
     void*               libos_stack_bottom;
@@ -41,15 +41,15 @@ static_assert(
     "SHIM_SYSCALLDB_OFFSET must match");
 
 static_assert(
-    offsetof(PAL_TCB, libos_tcb) + offsetof(shim_tcb_t, register_library) ==
-        SHIM_REGISTER_LIBRARY_OFFSET,
-    "SHIM_REGISTER_LIBRARY_OFFSET must match");
+    offsetof(PAL_TCB, libos_tcb) + offsetof(shim_tcb_t, handle_call) ==
+        SHIM_CALL_OFFSET,
+    "SHIM_CALL_OFFSET must match");
 
 static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
     shim_tcb->canary = SHIM_TCB_CANARY;
     shim_tcb->self = shim_tcb;
     shim_tcb->syscalldb = &syscalldb;
-    shim_tcb->register_library = &register_library;
+    shim_tcb->handle_call = &handle_call;
     shim_tcb->context.syscall_nr = -1;
     shim_tcb->vma_cache = NULL;
 }
