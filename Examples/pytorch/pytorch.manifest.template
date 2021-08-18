@@ -42,8 +42,8 @@ fs.mount.pip.path = "{{ env.HOME }}/.local/lib"
 fs.mount.pip.uri = "file:{{ env.HOME }}/.local/lib"
 
 sgx.nonpie_binary = true
-sgx.enclave_size = "4G"
-sgx.thread_num = 128
+sgx.enclave_size = "16G"
+sgx.thread_num = 256
 
 sgx.trusted_files.python = "file:{{ entrypoint }}"
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
@@ -53,7 +53,7 @@ sgx.trusted_files.python_dir = "file:{{ python.stdlib }}/"
 sgx.trusted_files.dist = "file:{{ python.distlib }}/"
 sgx.trusted_files.home_lib = "file:{{ env.HOME }}/.local/lib/"
 sgx.trusted_files.python_local_lib = "file:{{
-    python.get_path('stdlib', vars={'prefix': '/usr/local'}) }}"
+    python.get_path('stdlib', vars={'installed_base': '/usr/local'}) }}"
 
 sgx.trusted_files.script = "file:pytorchexample.py"
 sgx.trusted_files.classes = "file:classes.txt"
@@ -78,6 +78,7 @@ sgx.allowed_files.hosts = "file:/etc/hosts"
 sgx.allowed_files.gaiconf = "file:/etc/gai.conf"
 sgx.allowed_files.resolv = "file:/etc/resolv.conf"
 sgx.allowed_files.fstab = "file:/etc/fstab"
+sgx.allowed_files.result = "file:result.txt"
 
 # Graphene optionally provides patched OpenMP runtime library that runs faster
 # inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment
