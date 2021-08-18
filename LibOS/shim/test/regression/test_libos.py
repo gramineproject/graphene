@@ -19,6 +19,17 @@ class TC_00_Unittests(RegressionTestCase):
 
         self.assertIn('Test successful!', stdout)
 
+    def test_010_shim_run_test(self):
+        stdout, _ = self.run_binary(['run_test', 'pass'])
+        self.assertIn('shim_run_test("pass") = 0', stdout)
+
+    @unittest.skipUnless(os.environ.get('UBSAN') == '1', 'test only enabled with UBSAN=1')
+    def test_020_ubsan(self):
+        stdout, stderr = self.run_binary(['run_test', 'undefined'], expect_fail=True)
+        self.assertNotIn('run_test("undefined") =', stdout,
+                         'Graphene should abort before returning to application')
+        self.assertIn('ubsan: overflow', stderr)
+
 class TC_01_Bootstrap(RegressionTestCase):
     def test_001_helloworld(self):
         stdout, _ = self.run_binary(['helloworld'])

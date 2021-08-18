@@ -16,7 +16,11 @@
 
 /* Offsets for GS register at which entry vectors can be found */
 #define SHIM_SYSCALLDB_OFFSET         32
-#define SHIM_REGISTER_LIBRARY_OFFSET  40
+#define SHIM_CALL_OFFSET              40
+
+/* Custom call numbers */
+#define SHIM_CALL_REGISTER_LIBRARY    1
+#define SHIM_CALL_RUN_TEST            2
 
 #ifdef __ASSEMBLER__
 
@@ -42,14 +46,25 @@ __asm__(
 #undef SHIM_XSTR
 #undef SHIM_STR
 
-static inline int shim_register_library(const char* name, unsigned long load_address) {
-    int (*register_library)(const char*, unsigned long);
+static inline int shim_call(int number, unsigned long arg1, unsigned long arg2, unsigned long arg3,
+                            unsigned long arg4) {
+    long (*handle_call)(int number, unsigned long arg1, unsigned long arg2, unsigned long arg3,
+                        unsigned long arg4);
     __asm__("movq %%gs:%c1, %0"
-            : "=r"(register_library)
-            : "i"(SHIM_REGISTER_LIBRARY_OFFSET)
+            : "=r"(handle_call)
+            : "i"(SHIM_CALL_OFFSET)
             : "memory");
-    return register_library(name, load_address);
+    return handle_call(number, arg1, arg2, arg3, arg4);
 }
+
+static inline int shim_register_library(const char* name, unsigned long load_address) {
+    return shim_call(SHIM_CALL_REGISTER_LIBRARY, (unsigned long)name, load_address, 0, 0);
+}
+
+static inline int shim_run_test(const char* test_name) {
+    return shim_call(SHIM_CALL_RUN_TEST, (unsigned long)test_name, 0, 0, 0);
+}
+
 
 #endif /* __ASSEMBLER__ */
 

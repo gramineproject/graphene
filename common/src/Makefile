@@ -13,6 +13,8 @@ CFLAGS += -fPIC -fno-builtin -Wextra
 #        e.g. PAL regression tests (in particular, avl_tree_test.c)
 CFLAGS += -fno-stack-protector
 
+CFLAGS += $(CFLAGS_SANITIZERS)
+
 CRYPTO_PROVIDER ?= mbedtls
 
 # Select which crypto adapter you want to use here. This has to match the #define in crypto.h.
@@ -101,7 +103,8 @@ objs += \
 	string/strstr.o \
 	string/toml_utils.o \
 	string/utils.o \
-	toml.o
+	toml.o \
+	ubsan.o
 
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o): crypto/mbedtls/library/aes.c
 
