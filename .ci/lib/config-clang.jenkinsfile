@@ -1,3 +1,4 @@
 env.CC = "clang"
 env.CXX = "clang++"
 env.AS = "clang"
+env.ARCH_LIBDIR = "/lib/x86_64-linux-gnu"
