@@ -422,7 +422,7 @@ bool is_user_string_readable(const char* addr) {
         return true;
     }
 
-    const char* next_page_addr = ALIGN_UP_PTR(addr + 1, PAGE_SIZE);
+    const char* next_page_addr = (const char*)ALIGN_UP((uintptr_t)addr + 1, PAGE_SIZE);
     assert(next_page_addr != addr);
 
     /* `next_page_addr` could wrap around which by itself might not be an error, let `access_ok`
