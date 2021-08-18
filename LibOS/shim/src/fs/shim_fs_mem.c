@@ -7,8 +7,11 @@
 #include "shim_fs.h"
 #include "shim_fs_mem.h"
 
-#define OVERFLOWS_FILE_OFF_T(n) __builtin_add_overflow_p((n), 0, (file_off_t)0)
-#define OVERFLOWS_SIZE_T(n) __builtin_add_overflow_p((n), 0, (size_t)0)
+#define OVERFLOWS(type, val)                        \
+    ({                                              \
+        type __dummy;                               \
+        __builtin_add_overflow((val), 0, &__dummy); \
+    })
 
 static int mem_file_resize(struct shim_mem_file* mem, size_t buf_size) {
     char* buf = malloc(buf_size);
@@ -23,7 +26,7 @@ static int mem_file_resize(struct shim_mem_file* mem, size_t buf_size) {
 }
 
 void mem_file_init(struct shim_mem_file* mem, char* data, size_t size) {
-    assert(!OVERFLOWS_FILE_OFF_T(size));
+    assert(!OVERFLOWS(file_off_t, size));
 
     mem->buf = data;
     mem->buf_size = size;
@@ -55,7 +58,7 @@ ssize_t mem_file_write(struct shim_mem_file* mem, file_off_t pos_start, const vo
     if (__builtin_add_overflow(pos_start, size, &pos_end))
         return -EFBIG;
 
-    if (OVERFLOWS_SIZE_T(pos_end))
+    if (OVERFLOWS(size_t, pos_end))
         return -EFBIG;
 
     if (size > 0) {
@@ -81,7 +84,7 @@ ssize_t mem_file_write(struct shim_mem_file* mem, file_off_t pos_start, const vo
 int mem_file_truncate(struct shim_mem_file* mem, file_off_t size) {
     assert(size >= 0);
 
-    if (OVERFLOWS_SIZE_T(size))
+    if (OVERFLOWS(size_t, size))
         return -EFBIG;
 
     int ret = mem_file_resize(mem, size);
