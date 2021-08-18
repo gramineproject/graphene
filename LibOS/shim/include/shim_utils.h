@@ -149,6 +149,7 @@ int load_elf_interp(struct link_map* exec_map);
 noreturn void execute_elf_object(struct link_map* exec_map, void* argp, elf_auxv_t* auxp);
 void remove_loaded_elf_objects(void);
 int init_brk_from_executable(struct link_map* exec_map);
+int register_library(const char* name, unsigned long load_address);
 
 /* gdb debugging support */
 int init_r_debug(void);

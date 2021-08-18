@@ -52,6 +52,7 @@ libos_sources = files(
     'ipc/shim_ipc_vmid.c',
     'ipc/shim_ipc_worker.c',
     'shim_async.c',
+    'shim_call.c',
     'shim_checkpoint.c',
     'shim_debug.c',
     'shim_init.c',
@@ -134,7 +135,10 @@ shared_library('sysdb',
     vdso_data_o,
     libos_asm_offsets_h,
 
-    c_args: cflags_libos,
+    c_args: [
+        cflags_libos,
+        cflags_sanitizers,
+    ],
     link_args: [
         '-nostdlib',
         '-Wl,-zcombreloc',

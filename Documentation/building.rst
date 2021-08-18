@@ -177,13 +177,28 @@ Additional build options
   --buildtype=debug`. This adds debug symbols in all Graphene components, builds
   them without optimizations, and enables detailed debug logs in Graphene.
 
+  .. warning::
+     Debug builds are not suitable for production.
+
 - To create a debug build that does not disable optimizations, run
   :command:`make DEBUGOPT=1` and :command:`meson --buildtype=debugoptimized`.
 
-  *Note:* this is generally *not* recommended, because optimized builds lose
-  some debugging information, and may cause GDB to display confusing tracebacks
-  or garbage data. You should use ``DEBUGOPT=1`` only if you have a good reason
-  (e.g. for profiling).
+  .. warning::
+     Debug builds are not suitable for production.
+
+  .. note::
+     This is generally *not* recommended, because optimized builds lose some
+     debugging information, and may cause GDB to display confusing tracebacks or
+     garbage data. You should use ``DEBUGOPT=1`` only if you have a good reason
+     (e.g. for profiling).
+
+- To compile with undefined behavior sanitization (UBSan), run :command:`make
+  UBSAN=1` and :command:`meson -Dubsan=enabled`. This causes Graphene to abort
+  when undefined behavior is detected (and display information about source
+  line). UBSan can be enabled for both debug and non-debug builds.
+
+  .. warning::
+     UBSan builds (even non-debug) are not suitable for production.
 
 - To build with ``-Werror``, run :command:`make WERROR=1` and
   :command:`meson --werror`.

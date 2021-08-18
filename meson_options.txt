@@ -5,3 +5,6 @@ option('sgx', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build and install graphene-sgx (aka Linux-SGX)')
 option('skeleton', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build skeleton PAL')
+
+option('ubsan', type: 'combo', choices: ['disabled', 'enabled'],
+    description: 'Enable undefined behavior sanitizer')

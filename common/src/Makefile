@@ -13,6 +13,8 @@ CFLAGS += -fPIC -fno-builtin -Wextra
 #        e.g. PAL regression tests (in particular, avl_tree_test.c)
 CFLAGS += -fno-stack-protector
 
+CFLAGS += $(CFLAGS_SANITIZERS)
+
 CRYPTO_PROVIDER ?= mbedtls
 
 # Select which crypto adapter you want to use here. This has to match the #define in crypto.h.
@@ -46,6 +48,15 @@ crypto_mbedtls_library_objs += \
 endif
 
 objs += $(crypto_mbedtls_library_objs)
+
+# Compile mbedtls without UBSan. UBSan makes the code much slower, and consumes a lot of stack:
+# `mbedtls_internal_sha256_process` (as compiled by clang) takes up over 20 KB, overflowing LibOS
+# stack.
+ifeq ($(UBSAN),1)
+$(crypto_mbedtls_library_objs): CFLAGS += -fno-sanitize=undefined
+$(addprefix $(target),$(crypto_mbedtls_library_objs)): CFLAGS += -fno-sanitize=undefined
+endif
+
 endif
 
 MBEDTLS_VERSION ?= 2.26.0
@@ -102,6 +113,10 @@ objs += \
 	string/toml_utils.o \
 	string/utils.o \
 	toml.o
+
+ifeq ($(UBSAN),1)
+objs += ubsan.o
+endif
 
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o): crypto/mbedtls/library/aes.c
 

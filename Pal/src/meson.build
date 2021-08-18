@@ -1,5 +1,6 @@
 cflags_pal_common = [
     cflags_custom_stack_protector,
+    cflags_sanitizers,
     '-DIN_PAL',
 ]
 
