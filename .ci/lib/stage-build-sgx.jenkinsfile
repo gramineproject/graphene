@@ -25,13 +25,19 @@ stage('build') {
         make ${MAKEOPTS} ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver
     '''
 
+    env.MESON_OPTIONS = ''
+    if (env.UBSAN == '1') {
+        env.MESON_OPTIONS += ' -Dubsan=enabled'
+    }
+
     try {
         sh '''
             meson setup build/ \
                 --prefix="$PREFIX" \
                 --buildtype="$BUILDTYPE" \
                 -Ddirect=disabled \
-                -Dsgx=enabled
+                -Dsgx=enabled \
+                $MESON_OPTIONS
             ninja -vC build/
             ninja -vC build/ install
         '''
