@@ -33,6 +33,8 @@ direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
 skeleton = get_option('skeleton') == 'enabled'
 
+ubsan = get_option('ubsan') == 'enabled'
+
 cc = meson.get_compiler('c')
 objcopy = find_program('objcopy')
 
@@ -85,6 +87,11 @@ endif
 
 if not cc.has_multi_arguments(cflags_custom_stack_protector)
     cflags_custom_stack_protector = '-fno-stack-protector'
+endif
+
+cflags_sanitizers = []
+if ubsan
+    cflags_sanitizers += [ '-fsanitize=undefined', '-fno-sanitize-recover=undefined', '-DUBSAN' ]
 endif
 
 #
