@@ -143,7 +143,6 @@ CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
 CFLAGS-gettimeofday += -pthread
 CFLAGS-multi_pthread = -pthread
-CFLAGS-openmp = -fopenmp
 CFLAGS-proc_common = -pthread
 CFLAGS-pthread_set_get_affinity += -pthread
 CFLAGS-run_test += -iquote ../../include -iquote ../../include/arch/$(ARCH)
@@ -158,6 +157,12 @@ LDLIBS-attestation += ../../../../common/src/crypto/mbedtls/install/lib/libmbedc
 
 CFLAGS-fp_multithread += -pthread -fno-builtin  # see comment in the test's source
 LDLIBS-fp_multithread += -lm
+
+ifeq ($(findstring clang,$(CC)),clang)
+CFLAGS-openmp = -fopenmp=libgomp
+else
+CFLAGS-openmp = -fopenmp
+endif
 
 proc_common: proc_common.o dump.o
 	$(call cmd,cmulti)
