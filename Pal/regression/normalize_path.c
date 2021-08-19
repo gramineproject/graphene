@@ -55,7 +55,7 @@ static int run_test(void) {
         }
 
         if (size != strlen(buf) + 1) {
-            print_err(func_name, i, "returned wrong size: %zu\n", size);
+            print_err(func_name, i, "returned wrong size: %lu\n", size);
             return 1;
         }
 

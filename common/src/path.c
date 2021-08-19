@@ -159,7 +159,7 @@ int get_base_name(const char* path, char* buf, size_t* inout_size) {
     memcpy(buf, path, result);
     buf[result] = '\0';
 
-    *inout_size = result;
+    *inout_size = result + 1;
 
     return 0;
 }
