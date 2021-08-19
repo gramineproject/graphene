@@ -54,21 +54,22 @@ confidence=
 
 enable=*
 disable=
-    bad-option-value,  # for compatibility between different pylint versions
     bad-continuation,
+    bad-option-value,  # for compatibility between different pylint versions
     c-extension-no-member,
+    fixme,
+    invalid-name,
     missing-docstring,
     missing-function-docstring,
     missing-module-docstring,
-    invalid-name,
-    fixme,
+    no-self-use,
     raise-missing-from,
-    too-many-instance-attributes,
-    too-many-branches,
-    too-many-statements,
     too-few-public-methods,
+    too-many-branches,
+    too-many-instance-attributes,
+    too-many-lines,
     too-many-public-methods,
-    no-self-use
+    too-many-statements
 
 
 [REPORTS]

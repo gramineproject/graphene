@@ -573,7 +573,7 @@ static int normalize_and_register_file(const char* uri, const char* checksum_str
         return -PAL_ERROR_INVAL;
     }
 
-    const size_t norm_uri_size = URI_PREFIX_FILE_LEN + strlen(uri) + 1;
+    const size_t norm_uri_size = strlen(uri) + 1;
     char* norm_uri = malloc(norm_uri_size);
     if (!norm_uri) {
         return -PAL_ERROR_NOMEM;
