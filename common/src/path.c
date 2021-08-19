@@ -49,16 +49,16 @@ static inline bool find_prev_slash_offset(const char* path, size_t* offset) {
 }
 
 /*
- * Before calling this function *size_ptr should hold the size of buf.
+ * Before calling this function *inout_size should hold the size of buf.
  * After returning it holds number of bytes actually written to it (including the ending '\0'). This
  * number is never greater than the size of the input path.
  */
-int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
-    assert(path && buf && size_ptr);
+int get_norm_path(const char* path, char* buf, size_t* inout_size) {
+    assert(path && buf && inout_size);
     size_t path_size = strlen(path) + 1;
     __UNUSED(path_size);  // used only for an assert at the end
 
-    size_t size = *size_ptr;
+    size_t size = *inout_size;
     if (!size) {
         return -PAL_ERROR_INVAL;
     }
@@ -130,8 +130,8 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
 
     buf[offset] = '\0';
 
-    *size_ptr = ret_size + offset + 1;
-    assert(*size_ptr <= path_size);
+    *inout_size = ret_size + offset + 1;
+    assert(*inout_size <= path_size);
 
     return 0;
 }
