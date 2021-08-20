@@ -25,6 +25,7 @@
 #include "rpc_queue.h"
 #include "sgx_internal.h"
 #include "sgx_log.h"
+#include "sgx_process.h"
 #include "sgx_tls.h"
 #include "sigset.h"
 
