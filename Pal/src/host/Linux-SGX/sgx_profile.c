@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <linux/fs.h>
 #include <linux/limits.h>
 #include <stddef.h>
 

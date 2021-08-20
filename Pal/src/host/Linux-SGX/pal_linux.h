@@ -9,7 +9,16 @@
 
 #include "api.h"
 #include "assert.h"
+
+/*
+ * XXX this ifdef is because there is no mbedtls linked in untrusted PAL; this should be fixed by
+ * cleaning up this header which has become a rubbish bin for everything that didn't have a better
+ * place
+ */
+#ifdef IN_ENCLAVE
 #include "crypto.h"
+#endif /* IN_ENCLAVE */
+
 #include "enclave_ocalls.h"
 #include "linux_types.h"
 #include "log.h"
@@ -36,8 +45,6 @@ extern struct pal_linux_state {
     /* enclave */
     const char* runtime_dir;
 } g_linux_state;
-
-#define DEFAULT_BACKLOG 2048
 
 #define ACCESS_R 4
 #define ACCESS_W 2
