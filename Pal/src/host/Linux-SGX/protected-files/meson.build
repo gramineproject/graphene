@@ -9,10 +9,6 @@ protected_files_dep = declare_dependency(
         'protected_files_internal.h',
     ],
 
-    compile_args: [
-        '-Wno-null-dereference', # TODO fails on 18.04 in lru_cache.c
-    ],
-
     include_directories: [
         include_directories('.'),
         common_inc,

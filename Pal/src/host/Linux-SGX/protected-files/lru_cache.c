@@ -138,7 +138,7 @@ void* lruc_get_first(lruc_context_t* lruc) {
     lruc->current = LISTP_FIRST_ENTRY(&lruc->list, /*unused*/ 0, list);
     lruc_map_node_t* mn = get_map_node(lruc, lruc->current->key);
     assert(mn != NULL);
-    return mn->data;
+    return mn ? mn->data : NULL;
 }
 
 void* lruc_get_next(lruc_context_t* lruc) {
@@ -151,7 +151,7 @@ void* lruc_get_next(lruc_context_t* lruc) {
 
     lruc_map_node_t* mn = get_map_node(lruc, lruc->current->key);
     assert(mn != NULL);
-    return mn->data;
+    return mn ? mn->data : NULL;
 }
 
 void* lruc_get_last(lruc_context_t* lruc) {
@@ -161,7 +161,7 @@ void* lruc_get_last(lruc_context_t* lruc) {
     lruc_list_node_t* ln = LISTP_LAST_ENTRY(&lruc->list, /*unused*/ 0, list);
     lruc_map_node_t* mn = get_map_node(lruc, ln->key);
     assert(mn != NULL);
-    return mn->data;
+    return mn ? mn->data : NULL;
 }
 
 void lruc_remove_last(lruc_context_t* lruc) {
@@ -172,7 +172,8 @@ void lruc_remove_last(lruc_context_t* lruc) {
     LISTP_DEL(ln, &lruc->list, list);
     lruc_map_node_t* mn = get_map_node(lruc, ln->key);
     assert(mn != NULL);
-    HASH_DEL(lruc->map, mn);
+    if (mn)
+        HASH_DEL(lruc->map, mn);
     free(ln);
     free(mn);
 }
