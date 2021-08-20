@@ -1,22 +1,20 @@
 #ifndef LINUX_TYPES_H
 #define LINUX_TYPES_H
 
-#include <linux/posix_types.h> /* needed for __kernel_off_t */
-#include <linux/socket.h>
-#include <linux/time.h>
-#define __timespec_defined
-#undef __USE_POSIX199309
 #include <asm/fcntl.h>
 #include <asm/posix_types.h>
 #include <asm/stat.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/socket.h>
+#include <linux/time.h>
 #include <linux/uio.h>
 #include <stdint.h>
 
 #include "sigset.h"
 
 typedef __kernel_off_t off_t;
+typedef __kernel_pid_t pid_t;
 
 #ifndef size_t
 typedef __kernel_size_t size_t;

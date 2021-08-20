@@ -3,15 +3,13 @@
 
 #include "ecall_types.h"
 #include "generated-offsets-build.h"
+#include "gsgx.h"
 #include "ocall_types.h"
 #include "pal.h"
-#include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 #include "sgx_arch.h"
 #include "sgx_tls.h"
-
-#include "gsgx.h"
 
 __attribute__((__used__)) static void dummy(void) {
     /* defines in sgx_arch.h */
