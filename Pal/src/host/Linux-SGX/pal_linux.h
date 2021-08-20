@@ -161,10 +161,6 @@ int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t le
                          bool is_blocking);
 int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* olen);
 
-#else /* IN_ENCLAVE */
-
-int sgx_create_process(size_t nargs, const char** args, int* stream_fd, const char* manifest);
-
 #endif /* IN_ENCLAVE */
 
 #endif /* PAL_LINUX_H */
