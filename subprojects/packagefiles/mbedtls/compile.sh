@@ -3,8 +3,6 @@
 set -x
 set -e
 
-pwd >&2
-
 CURRENT_SOURCE_DIR="$1"
 CURRENT_BUILD_DIR="$2"
 PRIVATE_DIR="$3"

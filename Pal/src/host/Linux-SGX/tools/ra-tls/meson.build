@@ -12,7 +12,7 @@ libra_tls_attest = shared_library('ra_tls_attest',
         mbedtls_dep,
     ],
     install: true,
-    install_rpath: join_paths(prefix / mbedtls_install_dir),
+    install_rpath: join_paths(prefix, mbedtls_install_dir),
 )
 
 libra_tls_verify_epid = shared_library('ra_tls_verify_epid',
@@ -27,7 +27,7 @@ libra_tls_verify_epid = shared_library('ra_tls_verify_epid',
         mbedtls_dep,
     ],
     install: true,
-    install_rpath: join_paths(prefix / mbedtls_install_dir),
+    install_rpath: join_paths(prefix, mbedtls_install_dir),
 )
 
 libsecret_prov_attest = shared_library('secret_prov_attest',
@@ -43,7 +43,7 @@ libsecret_prov_attest = shared_library('secret_prov_attest',
         mbedtls_dep,
     ],
     install: true,
-    install_rpath: join_paths(prefix / mbedtls_install_dir),
+    install_rpath: join_paths(prefix, mbedtls_install_dir),
 )
 
 libsecret_prov_verify_epid = shared_library('secret_prov_verify_epid',
@@ -62,7 +62,7 @@ libsecret_prov_verify_epid = shared_library('secret_prov_verify_epid',
         mbedtls_dep,
     ],
     install: true,
-    install_rpath: join_paths(prefix / mbedtls_install_dir),
+    install_rpath: join_paths(prefix, mbedtls_install_dir),
 )
 
 if dcap
@@ -78,7 +78,7 @@ if dcap
             mbedtls_dep,
         ],
         install: true,
-        install_rpath: join_paths(prefix / mbedtls_install_dir),
+        install_rpath: join_paths(prefix, mbedtls_install_dir),
     )
 
     libra_tls_verify_dcap_graphene = shared_library('ra_tls_verify_dcap_graphene',
@@ -94,7 +94,7 @@ if dcap
             mbedtls_dep,
         ],
         install: true,
-        install_rpath: join_paths(prefix / mbedtls_install_dir),
+        install_rpath: join_paths(prefix, mbedtls_install_dir),
     )
 
     libsecret_prov_verify_dcap = shared_library('secret_prov_verify_dcap',
@@ -113,6 +113,6 @@ if dcap
             mbedtls_dep,
         ],
         install: true,
-        install_rpath: join_paths(prefix / mbedtls_install_dir),
+        install_rpath: join_paths(prefix, mbedtls_install_dir),
     )
 endif
