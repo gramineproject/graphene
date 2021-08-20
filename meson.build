@@ -56,8 +56,6 @@ add_project_arguments(
     '-Wstrict-prototypes',
     '-Wwrite-strings',
 
-    '-Wno-sign-compare', #TODO
-
     cc.get_supported_arguments(
         '-Wtrampolines',
         '-Wnull-dereference',
