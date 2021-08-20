@@ -60,7 +60,10 @@ static int init_from_env(char** ptr, const char* env_name, const char* default_v
         if (!default_val)
             return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
 
-        *ptr = (char*)default_val;
+        *ptr = strdup(default_val);
+        if (!*ptr)
+            return MBEDTLS_ERR_X509_ALLOC_FAILED;
+
         return 0;
     }
 
