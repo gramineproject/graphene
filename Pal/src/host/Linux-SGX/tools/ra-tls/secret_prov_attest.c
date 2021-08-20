@@ -335,7 +335,7 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
             if (fd < 0)
                 return;
 
-            ssize_t total_written = 0;
+            size_t total_written = 0;
             while (total_written < secret_len) {
                 ssize_t written = write(fd, secret + total_written, secret_len - total_written);
                 if (written > 0) {
