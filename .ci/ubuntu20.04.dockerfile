@@ -70,7 +70,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 RUN python3 -m pip install -U \
     asv \
-    'meson<0.56'
+    'meson>=0.55,<0.56'
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN \

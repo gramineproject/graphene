@@ -39,6 +39,10 @@ stage('build') {
         archiveArtifacts 'build/meson-logs/**/*'
     }
 
+    // Absolute path to libdir, as configured by Meson.
+    // For our current builds this should be "$WORKSPACE/usr/lib/x86_64-linux-gnu":
+    // --prefix is set from $PREFIX above (see config-docker.jenkinsfile) and should be "$WORKSPACE/usr";
+    // --libdir is distro-dependent, but on Debian and derivatives it's "lib/x86_64-linux-gnu"
     libdir = sh(returnStdout: true, script: '''
         meson introspect build/ --buildoptions \
         | jq -r '(map(select(.name == "prefix")) + map(select(.name == "libdir"))) | map(.value) | join("/")'
@@ -48,9 +52,8 @@ stage('build') {
     env.LD_LIBRARY_PATH = libdir
     env.LIBRARY_PATH = libdir
 
+    // prevent cheating and testing from repo
     sh 'rm -rf build'
     sh 'git clean -Xf subprojects'
-
-    // prevent cheating and testing from repo
     sh 'make ${MAKEOPTS} -C Runtime clean'
 }
