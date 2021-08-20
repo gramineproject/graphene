@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# TODO Debug/Release
-
 set -x
 set -e
 
