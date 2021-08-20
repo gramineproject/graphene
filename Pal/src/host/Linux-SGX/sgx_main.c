@@ -12,7 +12,7 @@
  * errors.
  */
 #include "pal_internal-arch.h"
-#include "pal_linux.h"
+#include "pal_linux_defs.h"
 #include "pal_linux_error.h"
 #include "pal_rtld.h"
 #include "hex.h"
