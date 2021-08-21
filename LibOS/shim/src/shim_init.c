@@ -292,7 +292,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     ret = toml_sizestring_in(g_manifest_root, "sys.stack.size", get_rlimit_cur(RLIMIT_STACK),
                              &stack_size);
     if (ret < 0) {
-        log_error("Cannot parse \'sys.stack.size\' (the value must be put in double quotes!)");
+        log_error("Cannot parse 'sys.stack.size'");
         return -EINVAL;
     }
 

@@ -623,7 +623,7 @@ static int init_trusted_files_from_toml_table(void) {
 
         ret = toml_rtos(toml_trusted_file_raw, &toml_trusted_file_str);
         if (ret < 0) {
-            log_error("Invalid trusted file in manifest: \'%s\'", toml_trusted_file_key);
+            log_error("Invalid trusted file in manifest: '%s'", toml_trusted_file_key);
             continue;
         }
 
@@ -709,7 +709,7 @@ static int init_allowed_files_from_toml_table(void) {
 
         ret = toml_rtos(toml_allowed_file_raw, &toml_allowed_file_str);
         if (ret < 0) {
-            log_error("Invalid allowed file in manifest: \'%s\'", toml_allowed_file_key);
+            log_error("Invalid allowed file in manifest: '%s'", toml_allowed_file_key);
             continue;
         }
 
@@ -788,8 +788,7 @@ int init_file_check_policy(void) {
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.file_check_policy",
                          &file_check_policy_str);
     if (ret < 0) {
-        log_error("Cannot parse \'sgx.file_check_policy\' "
-                  "(the value must be put in double quotes!)");
+        log_error("Cannot parse 'sgx.file_check_policy'");
         return -PAL_ERROR_INVAL;
     }
 
@@ -801,7 +800,7 @@ int init_file_check_policy(void) {
     } else if (!strcmp(file_check_policy_str, "allow_all_but_log")) {
         set_file_check_policy(FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG);
     } else {
-        log_error("Unknown value for \'sgx.file_check_policy\' "
+        log_error("Unknown value for 'sgx.file_check_policy' "
                   "(allowed: `strict`, `allow_all_but_log`)'");
         free(file_check_policy_str);
         return -PAL_ERROR_INVAL;

@@ -491,7 +491,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     char* ra_client_spid_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.ra_client_spid", &ra_client_spid_str);
     if (ret < 0) {
-        log_error("Cannot parse \'sgx.ra_client_spid\' (the value must be put in double quotes!)");
+        log_error("Cannot parse 'sgx.ra_client_spid'");
         return -PAL_ERROR_INVAL;
     }
 
@@ -505,7 +505,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         is_epid = true;
 
         if (strlen(ra_client_spid_str) != sizeof(sgx_spid_t) * 2) {
-            log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s",
+            log_error("Malformed 'sgx.ra_client_spid' value in the manifest: %s",
                       ra_client_spid_str);
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
@@ -514,7 +514,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         for (size_t i = 0; i < strlen(ra_client_spid_str); i++) {
             int8_t val = hex2dec(ra_client_spid_str[i]);
             if (val < 0) {
-                log_error("Malformed \'sgx.ra_client_spid\' value in the manifest: %s",
+                log_error("Malformed 'sgx.ra_client_spid' value in the manifest: %s",
                           ra_client_spid_str);
                 free(ra_client_spid_str);
                 return -PAL_ERROR_INVAL;
@@ -526,7 +526,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
         ret = toml_bool_in(g_pal_state.manifest_root, "sgx.ra_client_linkable",
                            /*defaultval=*/false, &linkable);
         if (ret < 0) {
-            log_error("Cannot parse \'sgx.ra_client_linkable\' (the value must be `true` or "
+            log_error("Cannot parse 'sgx.ra_client_linkable' (the value must be `true` or "
                       "`false`)");
             free(ra_client_spid_str);
             return -PAL_ERROR_INVAL;
