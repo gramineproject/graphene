@@ -239,12 +239,10 @@ int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
         _DkProcessExit(exitcode);                                                                \
     } while (0)
 
-#define INIT_FAIL_MANIFEST(exitcode, reason)                                                     \
-    do {                                                                                         \
-        log_error("PAL failed at parsing the manifest: %s\n"                                     \
-                  "  Graphene switched to the TOML format recently, please update the manifest\n"\
-                  "  (in particular, string values must be put in double quotes)", reason);      \
-        _DkProcessExit(exitcode);                                                                \
+#define INIT_FAIL_MANIFEST(exitcode, reason)                           \
+    do {                                                               \
+        log_error("PAL failed at parsing the manifest: %s", reason);   \
+        _DkProcessExit(exitcode);                                      \
     } while (0)
 
 /* Loading ELF binaries */

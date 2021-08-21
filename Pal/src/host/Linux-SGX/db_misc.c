@@ -490,7 +490,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     char* ra_client_spid_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.ra_client_spid", &ra_client_spid_str);
     if (ret < 0) {
-        log_error("Cannot parse \'sgx.ra_client_spid\' (the value must be put in double quotes!)");
+        log_error("Cannot parse \'sgx.ra_client_spid\'");
         return -PAL_ERROR_INVAL;
     }
 

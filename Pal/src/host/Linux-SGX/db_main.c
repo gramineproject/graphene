@@ -680,9 +680,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     char errbuf[256];
     toml_table_t* manifest_root = toml_parse(manifest_addr, errbuf, sizeof(errbuf));
     if (!manifest_root) {
-        log_error("PAL failed at parsing the manifest: %s\n"
-                  "  Graphene switched to the TOML format recently, please update the manifest\n"
-                  "  (in particular, string values must be put in double quotes)", errbuf);
+        log_error("PAL failed at parsing the manifest: %s", errbuf);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_state.raw_manifest_data = manifest_addr;
@@ -703,8 +701,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",
                              /*defaultval=*/0, &g_pal_internal_mem_size);
     if (ret < 0) {
-        log_error("Cannot parse \'loader.pal_internal_mem_size\' "
-                  "(the value must be put in double quotes!)");
+        log_error("Cannot parse \'loader.pal_internal_mem_size\'");
         ocall_exit(1, true);
     }
 

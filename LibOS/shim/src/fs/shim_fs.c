@@ -96,14 +96,14 @@ static int __mount_root(void) {
 
     ret = toml_string_in(g_manifest_root, "fs.root.type", &fs_root_type);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.root.type' (the value must be put in double quotes!)");
+        log_error("Cannot parse 'fs.root.type'");
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_string_in(g_manifest_root, "fs.root.uri", &fs_root_uri);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.root.uri' (the value must be put in double quotes!)");
+        log_error("Cannot parse 'fs.root.uri'");
         ret = -EINVAL;
         goto out;
     }
@@ -189,21 +189,21 @@ static int __mount_one_other(toml_table_t* mount) {
 
     ret = toml_rtos(mount_type_raw, &mount_type);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.mount.%s.type' (the value must be put in double quotes!)", key);
+        log_error("Cannot parse 'fs.mount.%s.type'", key);
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_rtos(mount_path_raw, &mount_path);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.mount.%s.path' (the value must be put in double quotes!)", key);
+        log_error("Cannot parse 'fs.mount.%s.path'", key);
         ret = -EINVAL;
         goto out;
     }
 
     ret = toml_rtos(mount_uri_raw, &mount_uri);
     if (ret < 0) {
-        log_error("Cannot parse 'fs.mount.%s.uri' (the value must be put in double quotes!)", key);
+        log_error("Cannot parse 'fs.mount.%s.uri'", key);
         ret = -EINVAL;
         goto out;
     }
@@ -350,7 +350,7 @@ int init_mount(void) {
     char* fs_start_dir = NULL;
     ret = toml_string_in(g_manifest_root, "fs.start_dir", &fs_start_dir);
     if (ret < 0) {
-        log_error("Can't parse 'fs.start_dir' (note that the value must be put in double quotes)!");
+        log_error("Can't parse 'fs.start_dir'");
         return ret;
     }
 

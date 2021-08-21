@@ -864,8 +864,7 @@ int init_file_check_policy(void) {
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.file_check_policy",
                          &file_check_policy_str);
     if (ret < 0) {
-        log_error("Cannot parse \'sgx.file_check_policy\' "
-                  "(the value must be put in double quotes!)");
+        log_error("Cannot parse \'sgx.file_check_policy\'");
         return -PAL_ERROR_INVAL;
     }
 
