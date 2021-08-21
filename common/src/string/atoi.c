@@ -152,20 +152,34 @@ long int atol(const char* str) {
     return value;
 }
 
-/* Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long. Returns -1 if
- * cannot parse the size, e.g. if the suffix is wrong. */
-int64_t parse_size_str(const char* str) {
-    char* endptr = NULL;
-    long size = strtol(str, &endptr, 0);
+int parse_size_str(const char* str, uint64_t* out_val) {
+    const char* endptr = NULL;
+    unsigned long size;
+    int ret = str_to_ulong(str, 10, &size, &endptr);
+    if (ret < 0)
+        return -1;
 
-    if (endptr[0] == 'G' || endptr[0] == 'g')
-        size *= 1024 * 1024 * 1024;
-    else if (endptr[0] == 'M' || endptr[0] == 'm')
-        size *= 1024 * 1024;
-    else if (endptr[0] == 'K' || endptr[0] == 'k')
-        size *= 1024;
-    else if (endptr[0] != '\0')
-        size = -1; /* wrong suffix */
+    unsigned long unit = 1;
+    if (*endptr == 'G' || *endptr == 'g') {
+        unit = 1024 * 1024 * 1024;
+        endptr++;
+    } else if (*endptr == 'M' || *endptr == 'm') {
+        unit = 1024 * 1024;
+        endptr++;
+    } else if (*endptr == 'K' || *endptr == 'k') {
+        unit = 1024;
+        endptr++;
+    }
 
-    return size;
+    if (__builtin_mul_overflow(size, unit, &size))
+        return -1;
+
+    if (*endptr != '\0')
+        return -1; /* garbage found after the size string */
+
+    if (OVERFLOWS(__typeof__(*out_val), size))
+        return -1;
+
+    *out_val = size;
+    return 0;
 }

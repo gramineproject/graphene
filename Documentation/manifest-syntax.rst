@@ -220,7 +220,7 @@ Graphene loudly fails with "out of PAL memory" error. To run huge workloads,
 increase this limit by setting this option to e.g. ``64M`` (this would result in
 a total of 128MB used by Graphene for internal metadata). Note that this limit
 is included in ``sgx.enclave_size``, so if your enclave size is e.g. 512MB and
-you specify ``loader.pal_internal_mem_size = "64MB"``, then your application is
+you specify ``loader.pal_internal_mem_size = "64M"``, then your application is
 left with 384MB of usable memory.
 
 Stack size
