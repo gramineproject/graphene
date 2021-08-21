@@ -150,8 +150,10 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
 
     size_t hdlsz = handle_size(handle);
     void* buffer = malloc(hdlsz + dsz1 + dsz2);
-    if (!buffer)
-        return -PAL_ERROR_NOMEM;
+    if (!buffer) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
 
     /* copy into buffer all handle fields and then serialized fields */
     memcpy(buffer, handle, hdlsz);
@@ -159,11 +161,13 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
         memcpy(buffer + hdlsz, d1, dsz1);
     if (dsz2)
         memcpy(buffer + hdlsz + dsz1, d2, dsz2);
-
+out:
     if (free_d1)
         free((void*)d1);
     if (free_d2)
         free((void*)d2);
+    if (ret < 0)
+        return ret;
 
     *data = buffer;
     return hdlsz + dsz1 + dsz2;

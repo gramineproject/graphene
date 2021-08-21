@@ -180,7 +180,10 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** a
     *manifest_out = manifest;
     ret = 0;
 out:
-    if (ret < 0)
+    if (ret < 0) {
+        free(application_path);
         free(manifest);
+    }
+
     return ret;
 }
