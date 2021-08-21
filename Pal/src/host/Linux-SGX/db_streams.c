@@ -160,7 +160,6 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
         memcpy(buffer + hdlsz, d1, dsz1);
     if (dsz2)
         memcpy(buffer + hdlsz + dsz1, d2, dsz2);
-
 out:
     if (free_d1)
         free((void*)d1);
@@ -168,6 +167,7 @@ out:
         free((void*)d2);
     if (ret < 0)
         return ret;
+
     *data = buffer;
     return hdlsz + dsz1 + dsz2;
 }
