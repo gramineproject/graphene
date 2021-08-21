@@ -585,10 +585,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     char errbuf[256];
     manifest_root = toml_parse(manifest, errbuf, sizeof(errbuf));
     if (!manifest_root) {
-        log_error(
-            "PAL failed at parsing the manifest: %s\n"
-            "  Graphene switched to the TOML format recently, please update the manifest\n"
-            "  (in particular, string values must be put in double quotes)", errbuf);
+        log_error("PAL failed at parsing the manifest: %s", errbuf);
         ret = -EINVAL;
         goto out;
     }
@@ -596,7 +593,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
     ret = toml_sizestring_in(manifest_root, "sgx.enclave_size", /*defaultval=*/0,
                              &enclave_info->size);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.enclave_size' (the value must be put in double quotes!)");
+        log_error("Cannot parse 'sgx.enclave_size'");
         ret = -EINVAL;
         goto out;
     }
@@ -702,7 +699,7 @@ static int parse_loader_config(char* manifest, struct pal_enclave* enclave_info)
 
     ret = toml_string_in(manifest_root, "sgx.ra_client_spid", &sgx_ra_client_spid_str);
     if (ret < 0) {
-        log_error("Cannot parse 'sgx.ra_client_spid' (the value must be put in double quotes!)");
+        log_error("Cannot parse 'sgx.ra_client_spid'");
         ret = -EINVAL;
         goto out;
     }

@@ -48,7 +48,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     ret = toml_sizestring_in(g_manifest_root, "sys.brk.max_size", DEFAULT_BRK_MAX_SIZE,
                              &brk_max_size);
     if (ret < 0) {
-        log_error("Cannot parse \'sys.brk.max_size\' (the value must be put in double quotes!)");
+        log_error("Cannot parse 'sys.brk.max_size'");
         return -EINVAL;
     }
 
