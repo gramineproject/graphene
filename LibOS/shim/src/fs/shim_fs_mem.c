@@ -7,12 +7,6 @@
 #include "shim_fs.h"
 #include "shim_fs_mem.h"
 
-#define OVERFLOWS(type, val)                        \
-    ({                                              \
-        type __dummy;                               \
-        __builtin_add_overflow((val), 0, &__dummy); \
-    })
-
 static int mem_file_resize(struct shim_mem_file* mem, size_t buf_size) {
     char* buf = malloc(buf_size);
     if (!buf)

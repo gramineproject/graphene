@@ -65,6 +65,12 @@ typedef ptrdiff_t ssize_t;
 #define SATURATED_P_SUB(ptr_a, b, limit) \
     ((__typeof__(ptr_a))SATURATED_SUB((uintptr_t)(ptr_a), (uintptr_t)(b), (uintptr_t)(limit)))
 
+#define OVERFLOWS(type, val)                        \
+    ({                                              \
+        type __dummy;                               \
+        __builtin_add_overflow((val), 0, &__dummy); \
+    })
+
 #define IS_POWER_OF_2(x)          \
     ({                            \
         assert((x) != 0);         \
@@ -336,16 +342,16 @@ int get_norm_path(const char* path, char* buf, size_t* inout_size);
 int get_base_name(const char* path, char* buf, size_t* inout_size);
 
 /*!
- * \brief Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long.
+ * \brief Parse a size (number with optional "G"/"M"/"K" suffix) into an uint64_t.
  *
  * \param str A string containing a non-negative number. The string may end with "G"/"g" suffix
  *            denoting value in GBs, "M"/"m" for MBs, or "K"/"k" for KBs.
+ * \param[out] out_val Parsed size (in bytes).
  *
- * By default the number should be decimal, but if it starts with 0x it is parsed as hexadecimal
- * and if it otherwise starts with 0, it is parsed as octal. Function returns -1 if string cannot
- * be parsed into a size (e.g., suffix is wrong).
+ * The number should be decimal. Returns -1 if string cannot be parsed into a size
+ * (e.g., suffix is wrong).
  */
-int64_t parse_size_str(const char* str);
+int parse_size_str(const char* str, uint64_t* out_val);
 
 /*!
  * \brief Check if a key was specified in TOML manifest.

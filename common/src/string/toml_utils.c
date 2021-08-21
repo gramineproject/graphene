@@ -127,12 +127,13 @@ int toml_sizestring_in(const toml_table_t* root, const char* key, uint64_t defau
     }
     assert(str);
 
-    int64_t ret = parse_size_str(str);
+    uint64_t size;
+    int ret = parse_size_str(str, &size);
     free(str);
 
     if (ret < 0)
         return -1;
 
-    *retval = (uint64_t)ret;
+    *retval = size;
     return 0;
 }
