@@ -134,14 +134,19 @@ int64_t parse_size_str(const char* str) {
     char* endptr = NULL;
     long size = strtol(str, &endptr, 0);
 
-    if (endptr[0] == 'G' || endptr[0] == 'g')
+    if (*endptr == 'G' || *endptr == 'g') {
         size *= 1024 * 1024 * 1024;
-    else if (endptr[0] == 'M' || endptr[0] == 'm')
+        endptr++;
+    } else if (*endptr == 'M' || *endptr == 'm') {
         size *= 1024 * 1024;
-    else if (endptr[0] == 'K' || endptr[0] == 'k')
+        endptr++;
+    } else if (*endptr == 'K' || *endptr == 'k') {
         size *= 1024;
-    else if (endptr[0] != '\0')
-        size = -1; /* wrong suffix */
+        endptr++;
+    }
+
+    if (*endptr != '\0')
+        size = -1; /* garbage found after the size string */
 
     return size;
 }
