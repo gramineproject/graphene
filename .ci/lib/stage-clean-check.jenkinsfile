@@ -40,7 +40,7 @@ stage('clean-check') {
         rm -rf /tmp/*.clean-check.clean/python/graphenelibos/__pycache__
         rm -rf python/graphenelibos/__pycache__
 
-        # on bionic, git clean -Xf fails
+        # on Ubuntu 18.04, git clean -Xf fails
         rm -rf \
             /tmp/*.clean-check.clean/subprojects/*-* \
             /tmp/*.clean-check.clean/subprojects/packagecache \
