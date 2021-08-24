@@ -14,6 +14,112 @@
 #include "shim_fs_pseudo.h"
 #include "stat.h"
 
+int sys_convert_int_to_str(uint64_t val, uint64_t size_mult, char* str, int max_len) {
+    int ret = 0;
+    switch (size_mult) {
+        case MULTIPLIER_KB:
+            ret = snprintf(str, max_len, "%luK", val);
+            break;
+        case MULTIPLIER_MB:
+            ret = snprintf(str, max_len, "%luM", val);
+            break;
+        case MULTIPLIER_GB:
+            ret = snprintf(str, max_len, "%luG", val);
+            break;
+        default:
+            ret = snprintf(str, max_len, "%lu", val);
+            break;
+    }
+    return ret;
+}
+
+int sys_convert_range_to_str(const PAL_RES_RANGE_INFO* res_range_info, char* str, int max_len,
+                             const char* sep) {
+    if (res_range_info->range_count > INT64_MAX)
+        return -EINVAL;
+
+    int64_t range_cnt = (int64_t)res_range_info->range_count;
+    int offset = 0;
+    for (int64_t i = 0; i < range_cnt; i++) {
+        if (max_len - offset < 0)
+            return -ENOMEM;
+
+        int ret;
+        char end_str[PAL_SYSFS_BUF_FILESZ] = {'\0'};
+        if (res_range_info->ranges[i].end == UINT64_MAX) {
+            ret = snprintf(end_str, sizeof(end_str), "%s", "");
+        } else {
+            ret = snprintf(end_str, sizeof(end_str), "-%lu", res_range_info->ranges[i].end);
+        }
+
+        if (ret < 0)
+            return ret;
+
+        ret = snprintf(str + offset, max_len - offset, "%lu%s%s", res_range_info->ranges[i].start,
+                       end_str, (i + 1 == range_cnt) ? "\0" : sep);
+        if (ret < 0)
+            return ret;
+        offset += ret;
+    }
+    return 0;
+}
+
+int sys_convert_range_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_info, char* str,
+                                        int max_len) {
+    if (g_pal_control->topo_info.possible_logical_cores.resource_count > INT64_MAX)
+        return -1;
+    int ret = 0;
+
+    /* Extract cpumask from the ranges */
+    int64_t possible_cores =  g_pal_control->topo_info.possible_logical_cores.resource_count;
+    int64_t num_cpumask = BITS_TO_INTS(possible_cores);
+    unsigned int* bitmap = (unsigned int*)calloc(num_cpumask, sizeof(unsigned int));
+    if (!bitmap)
+        return -ENOMEM;
+
+    if (res_range_info->range_count > INT64_MAX)
+        return -EINVAL;
+
+    for (int64_t i = 0; i < (int64_t)res_range_info->range_count; i++) {
+        uint64_t start = res_range_info->ranges[i].start;
+        uint64_t end = res_range_info->ranges[i].end;
+        if (end == UINT64_MAX)
+            end = start;
+        if (start > INT64_MAX || end > INT64_MAX)
+            return -EINVAL;
+        for (int64_t j = (int64_t)start; j <= (int64_t)end; j++) {
+            int64_t index = j / (sizeof(int) * BITS_IN_BYTE);
+            if (index >= num_cpumask) {
+                ret = -EINVAL;
+                goto out;
+            }
+            bitmap[index] |= 1U << (j % (sizeof(int) * BITS_IN_BYTE));
+        }
+    }
+
+    /* Convert cpumask to strings */
+    int offset = 0;
+    for (int64_t j = num_cpumask - 1; j >= 0; j-- ) {
+        if (max_len - offset < 0) {
+            ret = -ENOMEM;
+            goto out;
+        }
+        int ret = snprintf(str + offset, max_len - offset, "%x%x%x%x%x%x%x%x%s",
+                           (bitmap[j] & 0xf0000000) >> 28, (bitmap[j] & 0xf000000) >> 24,
+                           (bitmap[j] & 0xf00000) >> 20, (bitmap[j] & 0xf0000) >> 16,
+                           (bitmap[j] & 0xf000) >> 12, (bitmap[j] & 0xf00) >> 8,
+                           (bitmap[j] & 0xf0) >> 4, (bitmap[j] & 0xf), (j == 0) ? "\0" : ",");
+        if (ret < 0)
+            goto out;
+        offset += ret;
+    }
+    ret = 0;
+
+out:
+    free(bitmap);
+    return ret;
+}
+
 static int sys_resource(struct shim_dentry* parent, const char* name, unsigned int* out_num,
                         readdir_callback_t callback, void* arg) {
     const char* parent_name = parent->name;
@@ -22,10 +128,10 @@ static int sys_resource(struct shim_dentry* parent, const char* name, unsigned i
     const char* prefix;
 
     if (strcmp(parent_name, "node") == 0) {
-        pal_total = g_pal_control->topo_info.num_online_nodes;
+        pal_total = g_pal_control->topo_info.nodes.resource_count;
         prefix = "node";
     } else if (strcmp(parent_name, "cpu") == 0) {
-        pal_total = g_pal_control->cpu_info.online_logical_cores;
+        pal_total = g_pal_control->topo_info.online_logical_cores.resource_count;
         prefix = "cpu";
     } else if (strcmp(parent_name, "cache") == 0) {
         pal_total = g_pal_control->topo_info.num_cache_index;
