@@ -113,7 +113,8 @@ int proc_cpuinfo_load(struct shim_dentry* dent, char** out_data, size_t* out_siz
         size += ret;                                                  \
     } while (0)
 
-    for (size_t n = 0; n < g_pal_control->cpu_info.online_logical_cores; n++) {
+    uint64_t online_logical_cores = g_pal_control->topo_info.online_logical_cores.resource_count;
+    for (uint64_t n = 0; n < online_logical_cores; n++) {
         /* Below strings must match exactly the strings retrieved from /proc/cpuinfo
          * (see Linux's arch/x86/kernel/cpu/proc.c) */
         ADD_INFO("processor\t: %lu\n", n);
@@ -122,9 +123,9 @@ int proc_cpuinfo_load(struct shim_dentry* dent, char** out_data, size_t* out_siz
         ADD_INFO("model\t\t: %lu\n", g_pal_control->cpu_info.cpu_model);
         ADD_INFO("model name\t: %s\n", g_pal_control->cpu_info.cpu_brand);
         ADD_INFO("stepping\t: %lu\n", g_pal_control->cpu_info.cpu_stepping);
-        ADD_INFO("physical id\t: %d\n", g_pal_control->cpu_info.cpu_socket[n]);
+        ADD_INFO("physical id\t: %d\n", g_pal_control->topo_info.core_topology[n].cpu_socket);
         ADD_INFO("core id\t\t: %lu\n", n);
-        ADD_INFO("cpu cores\t: %lu\n", g_pal_control->cpu_info.physical_cores_per_socket);
+        ADD_INFO("cpu cores\t: %lu\n", g_pal_control->topo_info.physical_cores_per_socket);
         double bogomips = g_pal_control->cpu_info.cpu_bogomips;
         // Apparently graphene snprintf cannot into floats.
         ADD_INFO("bogomips\t: %lu.%02lu\n", (unsigned long)bogomips,
