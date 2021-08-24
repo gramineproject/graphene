@@ -28,11 +28,6 @@ struct pal_sec {
     /* Child's stream FD created and sent over by parent.
      * If set to `PAL_IDX_POISON`, we have no parent (this is the first process). */
     PAL_IDX stream_fd;
-
-    PAL_NUM online_logical_cores;
-    PAL_NUM possible_logical_cores;
-    PAL_NUM physical_cores_per_socket;
-    int* cpu_socket;
     PAL_TOPO_INFO topo_info;
 
 #ifdef DEBUG

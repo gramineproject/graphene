@@ -209,4 +209,18 @@ int sys_cache_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
 bool sys_cpu_online_name_exists(struct shim_dentry* parent, const char* name);
 int sys_cpu_online_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
 
+/* Converts integers to a string. If size multiplier like 'K', 'M' or 'G' is passed, it is appended
+ * to the string. */
+int sys_convert_int_to_str(uint64_t val, uint64_t size_mult, char* str, int max_len);
+
+/* Converts integer ranges to a string. For example if ranges.start and ranges.end were 0 and 63
+ * respectively, then `0-63` string is generated. */
+int sys_convert_range_to_str(const PAL_RES_RANGE_INFO* res_range_info, char* str, int max_len,
+                             const char* sep);
+
+/* Converts integer ranges to a cpu bitmap string. For example, if ranges.start and ranges.end were
+ * 32 and 63, then `ffffffff,00000000` string is generated. */
+int sys_convert_range_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_info, char* str,
+                                        int max_len);
+
 #endif /* SHIM_FS_PSEUDO_H_ */
