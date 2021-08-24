@@ -208,5 +208,9 @@ int sys_cpu_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
 int sys_cache_load(struct shim_dentry* dent, char** out_data, size_t* out_size);
 bool sys_cpu_online_name_exists(struct shim_dentry* parent, const char* name);
 int sys_cpu_online_list_names(struct shim_dentry* parent, readdir_callback_t callback, void* arg);
+int sys_convert_int_to_str(PAL_NUM val, SIZE_QUALIFIER_T size_qual, char* str, int max_len);
+int sys_convert_range_info_str(PAL_RES_RANGE_INFO res_range_info, char* str, int max_len,
+                               const char* sep);
+int sys_convert_range_info_bitmap_str(PAL_RES_RANGE_INFO res_range_info, char* str, int max_len);
 
 #endif /* SHIM_FS_PSEUDO_H_ */
