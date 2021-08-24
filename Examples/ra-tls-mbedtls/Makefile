@@ -78,6 +78,7 @@ server.manifest: server.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
 		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
+		-Dadd_library_paths=$(LD_LIBRARY_PATH) \
 		$< > $@
 
 server.manifest.sgx: server.manifest server
@@ -99,6 +100,7 @@ client_dcap.manifest: client.manifest.template
 	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dadd_library_paths=$(LD_LIBRARY_PATH) \
 		$< >$@
 
 client_dcap.manifest.sgx: client_dcap.manifest client
@@ -120,6 +122,7 @@ client_epid.manifest: client.manifest.template
 	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
+		-Dadd_library_paths=$(LD_LIBRARY_PATH) \
 		$< >$@
 
 client_epid.manifest.sgx: client_epid.manifest client

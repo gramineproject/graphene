@@ -66,6 +66,7 @@ secret_prov_client.manifest: secret_prov_client.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
 		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
+		-Dadd_library_paths=$(LD_LIBRARY_PATH) \
 		$< > $@
 
 secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client
@@ -89,6 +90,7 @@ secret_prov_min_client.manifest: secret_prov_min_client.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
 		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
+		-Dadd_library_paths=$(LD_LIBRARY_PATH) \
 		$< > $@
 
 secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov_min_client
@@ -117,6 +119,7 @@ secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
 		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
+		-Dadd_library_paths=$(LD_LIBRARY_PATH) \
 		$< > $@
 
 secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_pf_client
