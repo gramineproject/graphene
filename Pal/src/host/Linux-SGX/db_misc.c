@@ -725,10 +725,6 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    ci->online_logical_cores = g_pal_sec.online_logical_cores;
-    ci->physical_cores_per_socket = g_pal_sec.physical_cores_per_socket;
-    ci->cpu_socket = g_pal_sec.cpu_socket;
-
     _DkCpuIdRetrieve(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[CPUID_WORD_EAX],  8, 12) +
                        BIT_EXTRACT_LE(words[CPUID_WORD_EAX], 20, 28);
@@ -785,15 +781,48 @@ out_vendor_id:
     return rv;
 }
 
-int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
-    topo_info->num_online_nodes = g_pal_sec.topo_info.num_online_nodes;
-    topo_info->num_cache_index  = g_pal_sec.topo_info.num_cache_index;
-    topo_info->core_topology    = g_pal_sec.topo_info.core_topology;
-    topo_info->numa_topology    = g_pal_sec.topo_info.numa_topology;
-    COPY_ARRAY(topo_info->online_logical_cores, g_pal_sec.topo_info.online_logical_cores);
-    COPY_ARRAY(topo_info->possible_logical_cores, g_pal_sec.topo_info.possible_logical_cores);
-    COPY_ARRAY(topo_info->online_nodes, g_pal_sec.topo_info.online_nodes);
+static int copy_resource_range(PAL_RES_RANGE_INFO* src, PAL_RES_RANGE_INFO* dest) {
+    uint64_t range_cnt = src->range_count;
+    PAL_RANGE_INFO* ranges = (PAL_RANGE_INFO*)malloc(range_cnt * sizeof(PAL_RANGE_INFO));
+    if (!ranges) {
+        log_error("Range allocation failed");
+        return -PAL_ERROR_NOMEM;
+    }
 
+    memcpy(ranges, src->ranges, range_cnt * sizeof(PAL_RANGE_INFO));
+    dest->ranges = ranges;
+    dest->range_count = range_cnt;
+    dest->resource_count = src->resource_count;
+    return 0;
+}
+
+/* This function doesn't clean up resources on failure, as we terminate on failure. */
+int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
+    int ret = copy_resource_range(&g_pal_sec.topo_info.online_logical_cores,
+                              &topo_info->online_logical_cores);
+    if (ret < 0) {
+        log_error("Copying g_pal_sec.topo_info.online_logical_cores failed");
+        return ret;
+    }
+
+    ret = copy_resource_range(&g_pal_sec.topo_info.possible_logical_cores,
+                              &topo_info->possible_logical_cores);
+    if (ret < 0) {
+        log_error("Copying g_pal_sec.topo_info.possible_logical_cores failed");
+        return ret;
+    }
+
+    ret = copy_resource_range(&g_pal_sec.topo_info.nodes, &topo_info->nodes);
+    if (ret < 0) {
+        log_error("Copying g_pal_sec.topo_info.nodes failed");
+        return ret;
+    }
+
+    topo_info->num_cache_index            = g_pal_sec.topo_info.num_cache_index;
+    topo_info->num_sockets                = g_pal_sec.topo_info.num_sockets;
+    topo_info->physical_cores_per_socket  = g_pal_sec.topo_info.physical_cores_per_socket;
+    topo_info->core_topology              = g_pal_sec.topo_info.core_topology;
+    topo_info->numa_topology              = g_pal_sec.topo_info.numa_topology;
     return 0;
 }
 

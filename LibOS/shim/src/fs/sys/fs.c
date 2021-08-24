@@ -14,6 +14,108 @@
 #include "shim_fs_pseudo.h"
 #include "stat.h"
 
+int sys_convert_int_to_sizestr(uint64_t val, uint64_t size_mult, char* str, size_t max_size) {
+    int ret = 0;
+
+    switch (size_mult) {
+        case MULTIPLIER_KB:
+            ret = snprintf(str, max_size, "%luK", val);
+            break;
+        case MULTIPLIER_MB:
+            ret = snprintf(str, max_size, "%luM", val);
+            break;
+        case MULTIPLIER_GB:
+            ret = snprintf(str, max_size, "%luG", val);
+            break;
+        default:
+            ret = snprintf(str, max_size, "%lu", val);
+            break;
+    }
+    return ret;
+}
+
+int sys_convert_ranges_to_str(const PAL_RES_RANGE_INFO* res_range_info, char* str, size_t max_size,
+                              const char* sep) {
+    if (res_range_info->range_count > INT64_MAX)
+        return -EINVAL;
+
+    uint64_t range_cnt = res_range_info->range_count;
+    size_t offset = 0;
+    for (uint64_t i = 0; i < range_cnt; i++) {
+        if (offset > max_size)
+            return -ENOMEM;
+
+        int ret;
+        if (res_range_info->ranges[i].end == res_range_info->ranges[i].start) {
+            ret = snprintf(str + offset, max_size - offset, "%lu%s", res_range_info->ranges[i].start,
+                           (i + 1 == range_cnt) ? "\0" : sep);
+        } else {
+            ret = snprintf(str + offset, max_size - offset, "%lu-%lu%s",
+                           res_range_info->ranges[i].start, res_range_info->ranges[i].end,
+                           (i + 1 == range_cnt) ? "\0" : sep);
+        }
+
+        if (ret < 0)
+            return ret;
+
+        offset += ret;
+    }
+    return 0;
+}
+
+int sys_convert_ranges_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_info, char* str,
+                                         size_t max_size) {
+    int ret;
+
+    if (g_pal_control->topo_info.possible_logical_cores.resource_count > INT64_MAX)
+        return -EINVAL;
+
+    if (res_range_info->range_count > INT64_MAX)
+        return -EINVAL;
+
+    /* Extract cpumask from the ranges */
+    uint64_t possible_cores =  g_pal_control->topo_info.possible_logical_cores.resource_count;
+    uint64_t num_cpumask = BITS_TO_INTS(possible_cores);
+    uint32_t* bitmap = (uint32_t*)calloc(num_cpumask, sizeof(uint32_t));
+    if (!bitmap)
+        return -ENOMEM;
+
+    for (uint64_t i = 0; i < res_range_info->range_count; i++) {
+        uint64_t start = res_range_info->ranges[i].start;
+        uint64_t end = res_range_info->ranges[i].end;
+        if (start > INT64_MAX || end > INT64_MAX) {
+            ret = -EINVAL;
+            goto out;
+        }
+        for (uint64_t j = start; j <= end; j++) {
+            uint64_t index = j / BITS_IN_TYPE(int);
+            if (index >= num_cpumask) {
+                ret = -EINVAL;
+                goto out;
+            }
+            bitmap[index] |= 1U << (j % BITS_IN_TYPE(int));
+        }
+    }
+
+    /* Convert cpumask to strings */
+    size_t offset = 0;
+    for (uint64_t j = num_cpumask; j > 0; j--) {
+        if (offset > max_size) {
+            ret = -ENOMEM;
+            goto out;
+        }
+        ret = snprintf(str + offset, max_size - offset, "%08x%s", bitmap[j-1], (j-1 == 0) ? "\0" : ",");
+        if (ret < 0)
+            goto out;
+        offset += ret;
+    }
+    ret = 0;
+
+out:
+    free(bitmap);
+    return ret;
+}
+
 static int sys_resource(struct shim_dentry* parent, const char* name, unsigned int* out_num,
                         readdir_callback_t callback, void* arg) {
     const char* parent_name = parent->name;
@@ -22,10 +124,10 @@ static int sys_resource(struct shim_dentry* parent, const char* name, unsigned i
     const char* prefix;
 
     if (strcmp(parent_name, "node") == 0) {
-        pal_total = g_pal_control->topo_info.num_online_nodes;
+        pal_total = g_pal_control->topo_info.nodes.resource_count;
         prefix = "node";
     } else if (strcmp(parent_name, "cpu") == 0) {
-        pal_total = g_pal_control->cpu_info.online_logical_cores;
+        pal_total = g_pal_control->topo_info.online_logical_cores.resource_count;
         prefix = "cpu";
     } else if (strcmp(parent_name, "cache") == 0) {
         pal_total = g_pal_control->topo_info.num_cache_index;
