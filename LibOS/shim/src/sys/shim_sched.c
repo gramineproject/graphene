@@ -175,7 +175,7 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
 
 long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr) {
     int ret;
-    size_t cpu_cnt = g_pal_control->cpu_info.online_logical_cores;
+    size_t cpu_cnt = g_pal_control->topo_info.online_logical_cores.resource_count;
 
     /* Check if user_mask_ptr is valid */
     if (!is_user_memory_writable(user_mask_ptr, cpumask_size))
