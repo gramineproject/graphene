@@ -260,6 +260,7 @@ void* malloc(size_t size);
 void* malloc_copy(const void* mem, size_t size);
 void* calloc(size_t nmem, size_t size);
 void free(void* mem);
+void* realloc_size(void* ptr, size_t old_size, size_t new_size);
 
 #ifdef __GNUC__
 #define __attribute_hidden        __attribute__((visibility("hidden")))

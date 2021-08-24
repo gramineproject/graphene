@@ -160,3 +160,17 @@ void free(void* ptr) {
         return;
     slab_free(g_slab_mgr, ptr);
 }
+
+// FIXME: remove once global realloc is enabled
+void* realloc_size(void* ptr, size_t old_size, size_t new_size) {
+    void* tmp = malloc(new_size);
+    if (!tmp) {
+        return NULL;
+    }
+
+    if (ptr) {
+        memcpy(tmp, ptr, old_size);
+        free(ptr);
+    }
+    return tmp;
+}
