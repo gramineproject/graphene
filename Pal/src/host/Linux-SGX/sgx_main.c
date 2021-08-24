@@ -901,56 +901,6 @@ static int load_enclave(struct pal_enclave* enclave, char* args, size_t args_siz
     pal_sec->uid = DO_SYSCALL(getuid);
     pal_sec->gid = DO_SYSCALL(getgid);
 
-    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
-     * instead extract info on total number of logical cores, number of physical cores,
-     * SMT support etc. by parsing sysfs pseudo-files */
-    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
-    if (online_logical_cores < 0)
-        return online_logical_cores;
-    pal_sec->online_logical_cores = online_logical_cores;
-
-    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
-                                                 /*count=*/true);
-    if (possible_logical_cores < 0)
-        return possible_logical_cores;
-    pal_sec->possible_logical_cores = possible_logical_cores;
-
-    /* TODO: correctly support offline cores */
-    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
-         log_warning("some CPUs seem to be offline; Graphene doesn't take this into account "
-                     "which may lead to subpar performance");
-    }
-
-    int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
-                                        /*count=*/true);
-    if (core_siblings < 0)
-        return core_siblings;
-
-    int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
-                                       /*count=*/true);
-    if (smt_siblings < 0)
-        return smt_siblings;
-    pal_sec->physical_cores_per_socket = core_siblings / smt_siblings;
-
-    /* array of "logical core -> socket" mappings */
-    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
-    if (!cpu_socket)
-        return -ENOMEM;
-
-    char filename[128];
-    for (int idx = 0; idx < online_logical_cores; idx++) {
-        snprintf(filename, sizeof(filename),
-                 "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
-        cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
-        if (cpu_socket[idx] < 0) {
-            log_error("Cannot read %s", filename);
-            ret = cpu_socket[idx];
-            free(cpu_socket);
-            return ret;
-        }
-    }
-    pal_sec->cpu_socket = cpu_socket;
-
     ret = get_topology_info(&pal_sec->topo_info);
     if (ret < 0)
         return ret;

@@ -107,65 +107,6 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
-     * instead extract info on total number of logical cores, number of physical cores,
-     * SMT support etc. by parsing sysfs pseudo-files */
-    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
-    if (online_logical_cores < 0) {
-        rv = unix_to_pal_error(online_logical_cores);
-        goto out_brand;
-    }
-    ci->online_logical_cores = online_logical_cores;
-
-    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
-                                                 /*count=*/true);
-    if (possible_logical_cores < 0) {
-        rv = unix_to_pal_error(possible_logical_cores);
-        goto out_brand;
-    }
-    ci->possible_logical_cores = possible_logical_cores;
-
-    /* TODO: correctly support offline cores */
-    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
-         log_warning("some CPUs seem to be offline; Graphene doesn't take this into account which "
-                     "may lead to subpar performance");
-    }
-
-    int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
-                                        /*count=*/true);
-    if (core_siblings < 0) {
-        rv = unix_to_pal_error(core_siblings);
-        goto out_brand;
-    }
-
-    int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
-                                       /*count=*/true);
-    if (smt_siblings < 0) {
-        rv = unix_to_pal_error(smt_siblings);
-        goto out_brand;
-    }
-    ci->physical_cores_per_socket = core_siblings / smt_siblings;
-
-    /* array of "logical core -> socket" mappings */
-    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
-    if (!cpu_socket) {
-        rv = -PAL_ERROR_NOMEM;
-        goto out_brand;
-    }
-
-    char filename[128];
-    for (int idx = 0; idx < online_logical_cores; idx++) {
-        snprintf(filename, sizeof(filename),
-                 "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
-        cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
-        if (cpu_socket[idx] < 0) {
-            log_warning("Cannot read %s", filename);
-            rv = unix_to_pal_error(cpu_socket[idx]);
-            goto out_phy_id;
-        }
-    }
-    ci->cpu_socket = cpu_socket;
-
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[CPUID_WORD_EAX], 8, 12);
     ci->cpu_model    = BIT_EXTRACT_LE(words[CPUID_WORD_EAX], 4, 8);
@@ -181,7 +122,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     char* flags = malloc(fmax);
     if (!flags) {
         rv = -PAL_ERROR_NOMEM;
-        goto out_phy_id;
+        goto out_brand;
     }
 
     for (int i = 0; i < 32; i++) {
@@ -218,8 +159,6 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     return rv;
 out_flags:
     free(flags);
-out_phy_id:
-    free(cpu_socket);
 out_brand:
     free(brand);
 out_vendor_id:

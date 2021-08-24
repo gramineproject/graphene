@@ -13,18 +13,23 @@
 #include "shim_fs_pseudo.h"
 
 int sys_cpu_general_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
+    int ret = 0;
     const char* name = dent->name;
-    const char* str;
+    char str[PAL_SYSFS_BUF_FILESZ] = {'\0'};
 
     if (strcmp(name, "online") == 0) {
-        str = g_pal_control->topo_info.online_logical_cores;
+        ret = sys_convert_range_info_str(g_pal_control->topo_info.online_logical_cores, str,
+                                         PAL_SYSFS_BUF_FILESZ, ",");
     } else if (strcmp(name, "possible") == 0) {
-        str = g_pal_control->topo_info.possible_logical_cores;
+        ret = sys_convert_range_info_str(g_pal_control->topo_info.possible_logical_cores, str,
+                                         PAL_SYSFS_BUF_FILESZ, ",");
     } else {
         log_debug("unrecognized file: %s", name);
-        return -ENOENT;
+        ret = -ENOENT;
     }
 
+    if (ret < 0)
+        return ret;
     return sys_load(str, out_data, out_size);
 }
 
@@ -37,27 +42,31 @@ int sys_cpu_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
 
     const char* name = dent->name;
     PAL_CORE_TOPO_INFO* core_topology = &g_pal_control->topo_info.core_topology[cpu_num];
-    const char* str;
+    char str[PAL_SYSFS_MAP_FILESZ] = {'\0'};
     if (strcmp(name, "online") == 0) {
         /* `cpu/cpuX/online` is not present for cpu0 */
         if (cpu_num == 0)
             return -ENOENT;
-        str = core_topology->is_logical_core_online;
+        ret = sys_convert_int_to_str(core_topology->is_logical_core_online, DEFAULT_SZ, str,
+                                     PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "core_id") == 0) {
-        str = core_topology->core_id;
+        ret = sys_convert_int_to_str(core_topology->core_id, DEFAULT_SZ, str, PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "physical_package_id") == 0) {
-        char buf[12];
-        snprintf(buf, sizeof(buf), "%d\n", g_pal_control->cpu_info.cpu_socket[cpu_num]);
-        str = buf;
+        ret = sys_convert_int_to_str(core_topology->cpu_socket, DEFAULT_SZ, str,
+                                     PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "core_siblings") == 0) {
-        str = core_topology->core_siblings;
+        ret = sys_convert_range_info_bitmap_str(core_topology->core_siblings, str,
+                                                PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "thread_siblings") == 0) {
-        str = core_topology->thread_siblings;
+        ret = sys_convert_range_info_bitmap_str(core_topology->thread_siblings, str,
+                                                PAL_SYSFS_MAP_FILESZ);
     } else {
         log_debug("unrecognized file: %s", name);
-        return -ENOENT;
+        ret = -ENOENT;
     }
 
+    if (ret < 0)
+        return ret;
     return sys_load(str, out_data, out_size);
 }
 

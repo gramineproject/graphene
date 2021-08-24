@@ -27,25 +27,41 @@ int sys_cache_load(struct shim_dentry* dent, char** out_data, size_t* out_size) 
 
     const char* name = dent->name;
     PAL_CORE_CACHE_INFO* cache = &g_pal_control->topo_info.core_topology[cpu_num].cache[cache_num];
-    const char* str;
+    char str[PAL_SYSFS_MAP_FILESZ] = {'\0'};
     if (strcmp(name, "shared_cpu_map") == 0) {
-        str = cache->shared_cpu_map;
+        ret = sys_convert_range_info_bitmap_str(cache->shared_cpu_map, str, PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "level") == 0) {
-        str = cache->level;
+        ret = sys_convert_int_to_str(cache->level, DEFAULT_SZ, str, PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "type") == 0) {
-        str = cache->type;
+        switch (cache->type) {
+            case DATA:
+                ret = snprintf(str, PAL_SYSFS_MAP_FILESZ, "%s", "Data\n");
+                break;
+            case INSTRUCTION:
+                ret = snprintf(str, PAL_SYSFS_MAP_FILESZ, "%s", "Instruction\n");
+                break;
+            case UNIFIED:
+                ret = snprintf(str, PAL_SYSFS_MAP_FILESZ, "%s", "Unified\n");
+                break;
+            default:
+                ret = -ENOENT;
+        }
     } else if (strcmp(name, "size") == 0) {
-        str = cache->size;
+        ret = sys_convert_int_to_str(cache->size, cache->size_qualifier, str, PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "coherency_line_size") == 0) {
-        str = cache->coherency_line_size;
+        ret = sys_convert_int_to_str(cache->coherency_line_size, DEFAULT_SZ, str,
+                                     PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "number_of_sets") == 0) {
-        str = cache->number_of_sets;
+        ret = sys_convert_int_to_str(cache->number_of_sets, DEFAULT_SZ, str, PAL_SYSFS_MAP_FILESZ);
     } else if (strcmp(name, "physical_line_partition") == 0) {
-        str = cache->physical_line_partition;
+        ret = sys_convert_int_to_str(cache->physical_line_partition, DEFAULT_SZ, str,
+                                     PAL_SYSFS_MAP_FILESZ);
     } else {
         log_debug("unrecognized file: %s", name);
-        return -ENOENT;
+        ret = -ENOENT;
     }
 
+    if (ret < 0)
+        return ret;
     return sys_load(str, out_data, out_size);
 }
