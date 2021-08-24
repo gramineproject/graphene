@@ -9,7 +9,7 @@
 
 #define OVERFLOWS(type, val)                        \
     ({                                              \
-        file_off_t __dummy;                         \
+        type __dummy;                               \
         __builtin_add_overflow((val), 0, &__dummy); \
     })
 
