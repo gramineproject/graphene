@@ -25,7 +25,7 @@ static void __attribute_unused elf_dynamic_do_rel(struct link_map* l, ElfW(Addr)
     if (!l->l_info[DT_SYMTAB])
         return;
 
-    if (!reladdr)
+    if (relsize == 0)
         return;
 
     ElfW(Rel)* r = (void*)reladdr, *end = (void*)(reladdr + relsize);
