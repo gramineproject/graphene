@@ -8,8 +8,16 @@ else
 GRAPHENE_LOG_LEVEL = error
 endif
 
+sourcefiles = \
+MultiThreadMain.java
+
+classfiles  = $(sourcefiles:.java=.class)
+
+%.class: %.java
+	javac -d . $<
+
 .PHONY: all
-all: java.manifest
+all: $(classfiles) java.manifest
 ifeq ($(SGX),1)
 all: java.manifest.sgx java.sig java.token
 endif
@@ -36,7 +44,7 @@ java.token: java.sig
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest *.class *.jar
+	$(RM) *.token *.sig *.manifest.sgx *.manifest *.class
 
 .PHONY: distclean
 distclean: clean
