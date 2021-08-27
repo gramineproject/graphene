@@ -10,10 +10,17 @@ Quick start without SGX support
 
       git clone https://github.com/oscarlab/graphene.git
 
-#. Build Graphene::
+#. Build Graphene:
 
-      sudo apt-get install -y autoconf bison build-essential gawk meson \
-          python3 python3-click python3-jinja2 wget
+   .. NOTE if you're about to sort the apt-get invocation below, see note in
+      building.rst
+
+   .. code-block:: sh
+
+      sudo apt-get install -y build-essential \
+          autoconf bison gawk ninja-build python3 python3-click python3-jinja2 \
+          wget
+      python3 -m pip install 'meson>=0.55'
       cd graphene
       make
       meson setup build/ --buildtype=release -Ddirect=enabled -Dsgx=disabled
@@ -52,13 +59,18 @@ descriptions in :doc:`building`.
 
       openssl genrsa -3 -out Pal/src/host/Linux-SGX/signer/enclave-key.pem 3072
 
-#. Build Graphene and Graphene-SGX::
+#. Build Graphene and Graphene-SGX:
 
-      sudo apt-get install -y autoconf bison build-essential gawk \
-          libcurl4-openssl-dev libprotobuf-c-dev meson protobuf-c-compiler \
-          python3 python3-click python3-jinja2 python3-pip python3-protobuf \
-          wget
-      python3 -m pip install toml>=0.10
+   .. NOTE if you're about to sort the apt-get invocation below, see note in
+      building.rst
+
+   .. code-block:: sh
+
+      sudo apt-get install -y build-essential \
+          autoconf bison gawk libcurl4-openssl-dev libprotobuf-c-dev \
+          ninja-build protobuf-c-compiler python3 python3-click python3-jinja2 \
+          python3-pip python3-protobuf wget
+      python3 -m pip install 'meson>=0.55' 'toml>=0.10'
       make
       make ISGX_DRIVER_PATH="" SGX=1                  # this assumes Linux 5.11+
       meson setup build/ --buildtype=release -Ddirect=enabled -Dsgx=enabled
