@@ -18,8 +18,8 @@ fs.mount.usr.type = "chroot"
 fs.mount.usr.path = "/usr"
 fs.mount.usr.uri = "file:/usr"
 
-# If using 64G or greater enclave sizes, the JVM flag `-Xmx4G` can be omitted in graphene-sgx.
-sgx.enclave_size = "8G"
+# If using 64G or greater enclave sizes, the JVM flag `-Xmx8G` can be omitted in graphene-sgx.
+sgx.enclave_size = "16G"
 
 # SGX needs minimum 64 threads for loading OpenJDK runtime.
 sgx.thread_num = 64

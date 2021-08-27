@@ -27,6 +27,6 @@ Without SGX:
 
 With SGX:
 
-    graphene-sgx java -Xmx4G MultiThreadMain
+    graphene-sgx java -Xmx8G MultiThreadMain
 
-Note: If using 64G or greater enclave sizes, the JVM flag `-Xmx4G` can be omitted in graphene-sgx.
+Note: If using 64G or greater enclave sizes, the JVM flag `-Xmx8G` can be omitted in graphene-sgx.
