@@ -18,7 +18,7 @@ project(
     #
     # https://wiki.ubuntu.com/Releases
     # https://wiki.debian.org/DebianReleases#Production_Releases
-    meson_version: '>=0.45',
+    meson_version: '>=0.55',
 
     default_options: [
         'c_std=c11',
@@ -27,6 +27,7 @@ project(
     ],
 )
 
+# we need this subdir() early, because we need scripts defined there for setting up global vars
 subdir('Scripts')
 
 prefix = get_option('prefix')
@@ -45,6 +46,9 @@ objcopy = find_program('objcopy')
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
 python3 = python3mod.find_python()
+python3_platlib = run_command(
+    python3, get_python_platlib_prog, get_option('prefix')).stdout()
+python3_pkgdir = join_paths(python3_platlib, 'graphenelibos')
 
 add_project_arguments(
     '-Wa,--noexecstack',
@@ -107,7 +111,7 @@ if sgx
 
     cjson_dep = dependency('cjson', required: false)
     if not cjson_dep.found()
-        # on Debian < 11 .pc is not installed and dependency() fails, so we fallback to
+        # on Debian < 11 .pc file is not installed and dependency() fails, so we fallback to
         # cc.find_library()
         cjson_dep = cc.find_library('cjson', required: false)
     endif
