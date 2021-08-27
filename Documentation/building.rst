@@ -34,10 +34,19 @@ Installing dependencies
 Common dependencies
 ^^^^^^^^^^^^^^^^^^^
 
-Run the following command on Ubuntu to install dependencies::
+.. NOTE to anyone who will be sorting this list: build-essential should not be
+   sorted together with others, because it is implicit when specifying package
+   dependecies, so when copying to debian/control, it should be omitted
 
-    sudo apt-get install -y autoconf bison build-essential gawk meson \
-        python3 python3-click python3-jinja2 wget
+Run the following command on Ubuntu LTS to install dependencies::
+
+    sudo apt-get install -y build-essential \
+        autoconf bison gawk ninja-build python3 python3-click python3-jinja2 \
+        wget
+    python3 -m pip install 'meson>=0.55'
+
+We require meson at least version 0.55, so if you're on newer distro (Debian 11
+or Ubuntu 20.10), you can install meson from apt.
 
 For GDB support and to run all tests locally you also need to install::
 
