@@ -9,7 +9,6 @@ For generating the manifest and running the OpenJDK example, run the
 following command to install the required packages (Ubuntu-specific):
 
     sudo apt-get install openjdk-11-jdk
-    sudo apt-get install google-perftools
 
 ## Building for graphene-direct
 
