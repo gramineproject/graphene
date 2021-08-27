@@ -34,10 +34,19 @@ Installing dependencies
 Common dependencies
 ^^^^^^^^^^^^^^^^^^^
 
-Run the following command on Ubuntu to install dependencies::
+.. NOTE to anyone who will be sorting this list: build-essential should not be
+   sorted together with others, because it is implicit when specifying package
+   dependecies, so when copying to debian/control, it should be omitted
 
-    sudo apt-get install -y autoconf bison build-essential gawk meson \
-        python3 python3-click python3-jinja2 wget
+Run the following command on Ubuntu LTS to install dependencies::
+
+    sudo apt-get install -y build-essential \
+        autoconf bison gawk ninja-build python3 python3-click python3-jinja2 \
+        wget
+    python3 -m pip install 'meson>=0.55'
+
+You can also install Meson from apt instead of pip, but only if your distro is
+new enough to have Meson >= 0.55 (Debian 11, Ubuntu 20.10).
 
 For GDB support and to run all tests locally you also need to install::
 
@@ -207,10 +216,22 @@ Additional build options
   GLIBC_MIRRORS=...`.
 
 - To install into some other place than :file:`/usr/local`, use
-  :command:`meson --prefix=<prefix>`. Note that you then need to include the
-  :file:`<prefix>/bin` directory in ``$PATH`` and
-  :file:`<prefix>/lib/python<version>/site-packages` in ``$PYTHONPATH``.
+  :command:`meson --prefix=<prefix>`. Note that if you chose something else than
+  :file:`/usr` then for things to work, you probably need to adjust several
+  environment variables:
 
+  =========================== ================================================== ========================
+  Variable                    What to add                                        Read more
+  =========================== ================================================== ========================
+  ``$PATH``                   :file:`<prefix>/bin`                               `POSIX.1-2018 8.3`_
+  ``$PYTHONPATH``             :file:`<prefix>/lib/python<version>/site-packages` :manpage:`python3(1)`
+  ``$PKG_CONFIG_PATH``        :file:`<prefix>/<libdir>/pkgconfig`                :manpage:`pkg-config(1)`
+  =========================== ================================================== ========================
+
+  .. _POSIX.1-2018 8.3: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
+
+  This very much depends on particular distribution, so please consult relevant
+  documentation provided by your distro.
 
 .. _FSGSBASE:
 

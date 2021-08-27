@@ -113,6 +113,8 @@ nitpick_ignore = [
     ('c:type', 'union'),
 ]
 
+manpages_url = 'https://manpages.debian.org/{path}'
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
