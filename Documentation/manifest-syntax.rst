@@ -454,7 +454,9 @@ Allowed files
 
 ::
 
-    sgx.allowed_files.[identifier] = "[URI]"
+    sgx.allowed_files = [ "[URI]", "[URI]" ]
+    # Or, deprecated TOML-table syntax:
+    # sgx.allowed_files.[identifier] = "[URI]"
 
 This syntax specifies the files that are allowed to be created or loaded into
 the enclave unconditionally. In other words, allowed files can be opened for
@@ -471,16 +473,26 @@ Trusted files
 
 ::
 
-    sgx.trusted_files.[identifier] = "[URI]"
+    sgx.trusted_files = [ "[URI]", "[URI]" ]  # entries can be strings
+
+    [[sgx.trusted_files]]                     # entries can be tables
+    uri = "[URI]"
+    sha256 = "[HASH]"
+
+    # Or, deprecated TOML-table syntax:
+    # sgx.trusted_files.[identifier] = "[URI]"
 
 This syntax specifies the files to be cryptographically hashed at build time,
 and allowed to be accessed by the app in runtime only if their hashes match.
 This implies that trusted files can be only opened for reading (not for writing)
 and cannot be created if they do not exist already. The signer tool will
 automatically generate hashes of these files and add them to the SGX-specific
-manifest (``.manifest.sgx``). Marking files as trusted is especially useful for
-shared libraries: a |~| trusted library cannot be silently replaced by a
-malicious host because the hash verification will fail.
+manifest (``.manifest.sgx``). The manifest writer may also specify the hash for
+a file using the TOML-table syntax, in the field ``sha256``.
+
+Marking files as trusted is especially useful for shared libraries: a |~|
+trusted library cannot be silently replaced by a malicious host because the hash
+verification will fail.
 
 Protected files
 ^^^^^^^^^^^^^^^
@@ -488,7 +500,10 @@ Protected files
 ::
 
     sgx.protected_files_key = "[16-byte hex value]"
-    sgx.protected_files.[identifier] = "[URI]"
+
+    sgx.protected_files = [ "[URI]", "[URI]" ]
+    # Or, deprecated TOML-table syntax:
+    # sgx.protected_files.[identifier] = "[URI]"
 
 This syntax specifies the files that are encrypted on disk and transparently
 decrypted when accessed by Graphene or by application running inside Graphene.

@@ -557,6 +557,11 @@ failed:
 static int register_file(const char* uri, const char* checksum_str, bool check_duplicates) {
     int ret;
 
+    if (checksum_str && strlen(checksum_str) < sizeof(sgx_file_hash_t) * 2) {
+        log_error("Hash (%s) of a trusted file %s is not a SHA256 hash", checksum_str, uri);
+        return -PAL_ERROR_INVAL;
+    }
+
     size_t uri_len = strlen(uri);
     if (uri_len >= URI_MAX) {
         log_error("Size of file exceeds maximum %dB: %s", URI_MAX, uri);
@@ -674,17 +679,17 @@ static int init_trusted_files_from_toml_table(void) {
 
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
-        return -PAL_ERROR_NOTDEFINED;
+        return 0;
 
     toml_table_t* toml_trusted_files = toml_table_in(manifest_sgx, "trusted_files");
     if (!toml_trusted_files)
-        return -PAL_ERROR_NOTDEFINED;
+        return 0;
 
     ssize_t toml_trusted_files_cnt = toml_table_nkval(toml_trusted_files);
     if (toml_trusted_files_cnt < 0)
         return -PAL_ERROR_DENIED;
     if (toml_trusted_files_cnt == 0)
-        return -PAL_ERROR_NOTDEFINED;
+        return 0;
 
     char* toml_trusted_file_str     = NULL;
     char* toml_trusted_checksum_key = NULL;
@@ -694,13 +699,20 @@ static int init_trusted_files_from_toml_table(void) {
         /* read sgx.trusted_file.<key> entry from manifest */
         const char* toml_trusted_file_key = toml_key_in(toml_trusted_files, i);
         assert(toml_trusted_file_key);
+
         toml_raw_t toml_trusted_file_raw = toml_raw_in(toml_trusted_files, toml_trusted_file_key);
-        assert(toml_trusted_file_raw);
+        if (!toml_trusted_file_raw) {
+            log_error("Invalid trusted file in manifest: '%s'", toml_trusted_file_key);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
 
         ret = toml_rtos(toml_trusted_file_raw, &toml_trusted_file_str);
         if (ret < 0) {
-            log_error("Invalid trusted file in manifest: \'%s\'", toml_trusted_file_key);
-            continue;
+            log_error("Invalid trusted file in manifest: '%s' (not a string)",
+                      toml_trusted_file_key);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
         }
 
         /* read corresponding sgx.trusted_checksum.<key> entry from manifest */
@@ -715,18 +727,12 @@ static int init_trusted_files_from_toml_table(void) {
          * sgx.trusted_hash but we don't want to break old manifests so we keep the legacy name */
         ret = toml_string_in(g_pal_state.manifest_root, toml_trusted_checksum_key,
                              &toml_trusted_checksum_str);
-        if (ret < 0) {
-            log_error("Cannot parse '%s'", toml_trusted_checksum_key);
+        if (ret < 0 || !toml_trusted_checksum_str) {
+            log_error("Invalid trusted checksum in manifest: '%s' (not found or not a string)",
+                      toml_trusted_checksum_key);
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
-
-        if (!toml_trusted_checksum_str) {
-            log_error("Missing '%s' entry", toml_trusted_checksum_key);
-            ret = -PAL_ERROR_INVAL;
-            goto out;
-        }
-
 
         ret = normalize_and_register_file(toml_trusted_file_str, toml_trusted_checksum_str);
         if (ret < 0)
@@ -740,12 +746,10 @@ static int init_trusted_files_from_toml_table(void) {
         toml_trusted_checksum_str = NULL;
     }
 
-#if 0  // TODO: enable this when we implement TOML-array syntax
-    log_warning("Detected the deprecated TOML-table syntax for 'sgx.trusted_files'. Consider "
-                "switching to the new TOML-array syntax: 'sgx.trusted_files = [\"file1\", ..]'");
-#endif
+    log_error("Detected deprecated syntax. Consider switching to new syntax: 'sgx.trusted_files "
+              "= [\"file1\", ..]'.");
 
-    ret = 0;
+    ret = (int)toml_trusted_files_cnt;
 out:
     free(toml_trusted_file_str);
     free(toml_trusted_checksum_key);
@@ -754,8 +758,78 @@ out:
 }
 
 static int init_trusted_files_from_toml_array(void) {
-    /* stub, not yet implemented */
-    return -PAL_ERROR_NOTDEFINED;
+    int ret;
+
+    toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
+    if (!manifest_sgx)
+        return 0;
+
+    toml_array_t* toml_trusted_files = toml_array_in(manifest_sgx, "trusted_files");
+    if (!toml_trusted_files)
+        return 0;
+
+    ssize_t toml_trusted_files_cnt = toml_array_nelem(toml_trusted_files);
+    if (toml_trusted_files_cnt < 0)
+        return -PAL_ERROR_DENIED;
+    if (toml_trusted_files_cnt == 0)
+        return 0;
+
+    char* toml_trusted_uri_str  = NULL;
+    char* toml_trusted_sha256_str = NULL;
+
+    for (ssize_t i = 0; i < toml_trusted_files_cnt; i++) {
+        /* read `sgx.trusted_file = {uri = "file:foo", sha256 = "deadbeef"}` entry from manifest */
+        toml_table_t* toml_trusted_file = toml_table_at(toml_trusted_files, i);
+        if (!toml_trusted_file) {
+            log_error("Invalid trusted file in manifest at index %ld (not a TOML table)", i);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        toml_raw_t toml_trusted_uri_raw = toml_raw_in(toml_trusted_file, "uri");
+        if (!toml_trusted_uri_raw) {
+            log_error("Invalid trusted file in manifest at index %ld (no 'uri' key)", i);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        ret = toml_rtos(toml_trusted_uri_raw, &toml_trusted_uri_str);
+        if (ret < 0) {
+            log_error("Invalid trusted file in manifest at index %ld ('uri' is not a string)", i);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        toml_raw_t toml_trusted_sha256_raw = toml_raw_in(toml_trusted_file, "sha256");
+        if (!toml_trusted_sha256_raw) {
+            log_error("Invalid trusted file in manifest at index %ld (no 'sha256' key)", i);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        ret = toml_rtos(toml_trusted_sha256_raw, &toml_trusted_sha256_str);
+        if (ret < 0 || !toml_trusted_sha256_str) {
+            log_error("Invalid trusted file in manifest at index %ld ('sha256' is not a string)",
+                      i);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        ret = normalize_and_register_file(toml_trusted_uri_str, toml_trusted_sha256_str);
+        if (ret < 0)
+            goto out;
+
+        free(toml_trusted_uri_str);
+        free(toml_trusted_sha256_str);
+        toml_trusted_uri_str  = NULL;
+        toml_trusted_sha256_str = NULL;
+    }
+
+    ret = (int)toml_trusted_files_cnt;
+out:
+    free(toml_trusted_uri_str);
+    free(toml_trusted_sha256_str);
+    return ret;
 }
 
 static int init_allowed_files_from_toml_table(void) {
@@ -763,30 +837,37 @@ static int init_allowed_files_from_toml_table(void) {
 
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
-        return -PAL_ERROR_NOTDEFINED;
+        return 0;
 
     toml_table_t* toml_allowed_files = toml_table_in(manifest_sgx, "allowed_files");
     if (!toml_allowed_files)
-        return -PAL_ERROR_NOTDEFINED;
+        return 0;
 
     ssize_t toml_allowed_files_cnt = toml_table_nkval(toml_allowed_files);
     if (toml_allowed_files_cnt < 0)
         return -PAL_ERROR_DENIED;
     if (toml_allowed_files_cnt == 0)
-        return -PAL_ERROR_NOTDEFINED;
+        return 0;
 
     char* toml_allowed_file_str = NULL;
 
     for (ssize_t i = 0; i < toml_allowed_files_cnt; i++) {
         const char* toml_allowed_file_key = toml_key_in(toml_allowed_files, i);
         assert(toml_allowed_file_key);
+
         toml_raw_t toml_allowed_file_raw = toml_raw_in(toml_allowed_files, toml_allowed_file_key);
-        assert(toml_allowed_file_raw);
+        if (!toml_allowed_file_raw) {
+            log_error("Invalid allowed file in manifest: '%s'", toml_allowed_file_key);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
 
         ret = toml_rtos(toml_allowed_file_raw, &toml_allowed_file_str);
         if (ret < 0) {
-            log_error("Invalid allowed file in manifest: \'%s\'", toml_allowed_file_key);
-            continue;
+            log_error("Invalid allowed file in manifest: '%s' (not a string)",
+                      toml_allowed_file_key);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
         }
 
         ret = normalize_and_register_file(toml_allowed_file_str, /*checksum_str=*/NULL);
@@ -797,20 +878,61 @@ static int init_allowed_files_from_toml_table(void) {
         toml_allowed_file_str = NULL;
     }
 
-#if 0  // TODO: enable this when we implement TOML-array syntax
-    log_warning("Detected the deprecated TOML-table syntax for 'sgx.allowed_files'. Consider "
-                "switching to the new TOML-array syntax: 'sgx.allowed_files = [\"file1\", ..]'");
-#endif
+    log_error("Detected deprecated syntax. Consider switching to new syntax: 'sgx.allowed_files "
+              "= [\"file1\", ..]'.");
 
-    ret = 0;
+    ret = (int)toml_allowed_files_cnt;
 out:
     free(toml_allowed_file_str);
     return ret;
 }
 
 static int init_allowed_files_from_toml_array(void) {
-    /* stub, not yet implemented */
-    return -PAL_ERROR_NOTDEFINED;
+    int ret;
+
+    toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
+    if (!manifest_sgx)
+        return 0;
+
+    toml_array_t* toml_allowed_files = toml_array_in(manifest_sgx, "allowed_files");
+    if (!toml_allowed_files)
+        return 0;
+
+    ssize_t toml_allowed_files_cnt = toml_array_nelem(toml_allowed_files);
+    if (toml_allowed_files_cnt < 0)
+        return -PAL_ERROR_DENIED;
+    if (toml_allowed_files_cnt == 0)
+        return 0;
+
+    char* toml_allowed_file_str = NULL;
+
+    for (ssize_t i = 0; i < toml_allowed_files_cnt; i++) {
+        toml_raw_t toml_allowed_file_raw = toml_raw_at(toml_allowed_files, i);
+        if (!toml_allowed_file_raw) {
+            log_error("Invalid allowed file in manifest at index %ld", i);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        ret = toml_rtos(toml_allowed_file_raw, &toml_allowed_file_str);
+        if (ret < 0) {
+            log_error("Invalid allowed file in manifest at index %ld (not a string)", i);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        ret = normalize_and_register_file(toml_allowed_file_str, /*checksum_str=*/NULL);
+        if (ret < 0)
+            goto out;
+
+        free(toml_allowed_file_str);
+        toml_allowed_file_str = NULL;
+    }
+
+    ret = (int)toml_allowed_files_cnt;
+out:
+    free(toml_allowed_file_str);
+    return ret;
 }
 
 int init_trusted_files(void) {
@@ -818,13 +940,9 @@ int init_trusted_files(void) {
 
     /* first try legacy manifest syntax with TOML tables, i.e. `sgx.trusted_files.key = "file"` */
     ret = init_trusted_files_from_toml_table();
-    if (ret == -PAL_ERROR_NOTDEFINED) {
+    if (ret == 0) {
         /* try new manifest syntax with TOML arrays, i.e. `sgx.trusted_files = ["file1", ..]` */
         ret = init_trusted_files_from_toml_array();
-        if (ret == -PAL_ERROR_NOTDEFINED) {
-            /* no trusted files were found, perfectly valid case */
-            return 0;
-        }
     }
 
     if (ret < 0) {
@@ -832,6 +950,7 @@ int init_trusted_files(void) {
         return ret;
     }
 
+    log_debug("Found %d trusted files in the manifest", ret);
     return 0;
 }
 
@@ -840,13 +959,9 @@ int init_allowed_files(void) {
 
     /* first try legacy manifest syntax with TOML tables, i.e. `sgx.allowed_files.key = "file"` */
     ret = init_allowed_files_from_toml_table();
-    if (ret == -PAL_ERROR_NOTDEFINED) {
+    if (ret == 0) {
         /* try new manifest syntax with TOML arrays, i.e. `sgx.allowed_files = ["file1", ..]` */
         ret = init_allowed_files_from_toml_array();
-        if (ret == -PAL_ERROR_NOTDEFINED) {
-            /* no allowed files were found, perfectly valid case */
-            return 0;
-        }
     }
 
     if (ret < 0) {
@@ -854,6 +969,7 @@ int init_allowed_files(void) {
         return ret;
     }
 
+    log_debug("Found %d allowed files in the manifest", ret);
     return 0;
 }
 
