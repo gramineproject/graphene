@@ -5,8 +5,6 @@
 
 #include "api.h"
 
-/* Find the length of S, but scan at most MAXLEN characters.  If no
-   '\0' terminator is found in that many characters, return MAXLEN.  */
 size_t strnlen(const char* str, size_t maxlen) {
     size_t len;
     for (len = 0; len < maxlen && str[len] != '\0'; len++)

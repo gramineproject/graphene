@@ -167,15 +167,15 @@ static int parse_line(const char* line, uintptr_t* start_ptr, uintptr_t* end_ptr
     unsigned long val;
 
     if (str_to_ulong(line, 16, &val, &next) < 0)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
     *start_ptr = val;
 
     assert(next);
     if (next[0] != '-')
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     if (str_to_ulong(next + 1, 16, &val, &next) < 0)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
     *end_ptr = val;
     return 0;
 }
