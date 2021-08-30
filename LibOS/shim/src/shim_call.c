@@ -48,7 +48,7 @@ static int run_test_undefined(void) {
 int run_test(const char* test_name) {
     int ret;
 
-    log_debug("run_test(\"%s\") = ...", test_name);
+    log_always("run_test(\"%s\") ...", test_name);
     if (strcmp(test_name, "pass") == 0) {
         ret = run_test_pass();
     } else if (strcmp(test_name, "undefined") == 0) {
@@ -56,6 +56,6 @@ int run_test(const char* test_name) {
     } else {
         ret = -EINVAL;
     }
-    log_debug("run_test(\"%s\") = %d", test_name, ret);
+    log_always("run_test(\"%s\") = %d", test_name, ret);
     return ret;
 }
