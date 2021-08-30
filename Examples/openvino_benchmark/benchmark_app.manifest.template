@@ -28,10 +28,9 @@ fs.mount.openvino.type = "chroot"
 fs.mount.openvino.path = "{{ openvino_dir }}"
 fs.mount.openvino.uri = "file:{{ openvino_dir }}"
 
-# Mount HOME because OpenVINO's build_samples.sh always installs samples in this directory.
-fs.mount.sample_app.type = "chroot"
-fs.mount.sample_app.path = "{{ env.HOME }}/inference_engine_cpp_samples_build"
-fs.mount.sample_app.uri = "file:{{ env.HOME }}/inference_engine_cpp_samples_build"
+fs.mount.samples.type = "chroot"
+fs.mount.samples.path = "{{ inference_engine_cpp_samples_build }}"
+fs.mount.samples.uri = "file:{{ inference_engine_cpp_samples_build }}"
 
 sgx.nonpie_binary = true
 sgx.enclave_size = "32G"
@@ -44,7 +43,7 @@ sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 sgx.trusted_files.inferenceengine_libs = "file:{{ openvino_dir }}/deployment_tools/inference_engine/lib/intel64/"
 sgx.trusted_files.tbb_libs = "file:{{ openvino_dir }}/deployment_tools/inference_engine/external/tbb/lib/"
-sgx.trusted_files.libformatreader = "file:{{ env.HOME }}/inference_engine_cpp_samples_build/intel64/Release/lib/libformat_reader.so"
+sgx.trusted_files.libformatreader = "file:{{ inference_engine_cpp_samples_build }}/intel64/Release/lib/libformat_reader.so"
 sgx.trusted_files.opencv_libs = "file:{{ openvino_dir }}/opencv/lib/"
 sgx.trusted_files.libngraph = "file:{{ openvino_dir }}/deployment_tools/ngraph/lib/libngraph.so"
 sgx.trusted_files.app = "file:benchmark_app"

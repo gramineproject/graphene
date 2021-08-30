@@ -1,9 +1,11 @@
-SHELL := /bin/bash
+SHELL := /bin/bash #Use bash syntax to activate virtual environment for downloading models
 OPENVINO_DIR ?= $(INTEL_OPENVINO_DIR)
 
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
+
+INFERENCE_ENGINE_CPP_SAMPLES_BUILD ?=  $(THIS_DIR)inference_engine_cpp_samples_build
 
 MODEL_DIR ?= $(THIS_DIR)model
 MODEL_RESNET ?= resnet-50-tf
@@ -94,6 +96,7 @@ benchmark_app.manifest: benchmark_app.manifest.template
 	-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 	-Darch_libdir=$(ARCH_LIBDIR) \
 	-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
+	-Dinference_engine_cpp_samples_build=$(abspath $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)) \
 	$< > $@
 
 benchmark_app.manifest.sgx: benchmark_app.manifest | benchmark_app
@@ -108,10 +111,10 @@ benchmark_app.sig: benchmark_app.manifest.sgx
 benchmark_app.token: benchmark_app.sig
 	graphene-sgx-get-token --sig $< --output $@
 
-# OpenVINO's build_samples.sh always installs samples in HOME directory
-benchmark_app:
-	cd $(OPENVINO_DIR)/deployment_tools/inference_engine/samples/cpp && ./build_samples.sh
-	ln -s $(HOME)/inference_engine_cpp_samples_build/intel64/Release/benchmark_app $@
+benchmark_app: $(OPENVINO_DIR)
+	mkdir -p $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)
+	cd $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD) && cmake -DCMAKE_BUILD_TYPE=Release $(OPENVINO_DIR)/inference_engine/samples/cpp && make
+	ln -s $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)/intel64/Release/benchmark_app $@
 
 .PHONY: clean
 clean:
@@ -119,4 +122,4 @@ clean:
 
 .PHONY: distclean
 distclean: clean
-	$(RM) -r $(MODEL_DIR) $(VENV_DIR)
+	$(RM) -r $(MODEL_DIR) $(VENV_DIR) $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)
