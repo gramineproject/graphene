@@ -64,7 +64,7 @@ class RegressionTestCase(unittest.TestCase):
 
         return self.run_binary(args, prefix=prefix, env=env, **kwds)
 
-    def run_binary(self, args, *, timeout=None, prefix=None, expect_fail=False, **kwds):
+    def run_binary(self, args, *, timeout=None, prefix=None, **kwds):
         timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
             else self.DEFAULT_TIMEOUT)
 
@@ -89,12 +89,9 @@ class RegressionTestCase(unittest.TestCase):
 
             self.print_output(stdout, stderr)
 
-            if not expect_fail and process.returncode:
+            if process.returncode:
                 raise subprocess.CalledProcessError(
                     process.returncode, args, stdout, stderr)
-
-            if expect_fail and not process.returncode:
-                self.fail('{} unexpectedly succeeded'.format(args))
 
         return stdout.decode(), stderr.decode()
 
