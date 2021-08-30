@@ -25,7 +25,7 @@ class TC_00_Unittests(RegressionTestCase):
 
     @unittest.skipUnless(os.environ.get('UBSAN') == '1', 'test only enabled with UBSAN=1')
     def test_020_ubsan(self):
-        stdout, stderr = self.run_binary(['run_test', 'undefined'], expect_fail=True)
+        _, stderr = self.run_binary(['run_test', 'undefined'], expect_fail=True)
         self.assertIn('run_test("undefined") ...', stderr,
                       'Graphene should not abort before attempting to run test')
         self.assertIn('ubsan: overflow', stderr)
