@@ -200,14 +200,16 @@ def get_trusted_files(manifest, check_exist=True, do_hash=True):
         for val in manifest['sgx']['trusted_files']:
             append_trusted_dir_or_file(targets, val, check_exist)
 
-    if do_hash:
-        for i in range(len(targets)):
-            uri, target, hash_ = targets[i]
-            if hash_ is None:
-                hash_ = get_hash(target).hex()
-                targets[i] = uri, target, hash_
+    if not do_hash:
+        return targets
 
-    return targets
+    hashed_targets = []
+    for (uri, target, hash_) in targets:
+        if hash_ is None:
+            hash_ = get_hash(target).hex()
+        hashed_targets.append((uri, target, hash_))
+
+    return hashed_targets
 
 
 # Populate Enclave Memory
