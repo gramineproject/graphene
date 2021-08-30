@@ -97,7 +97,11 @@ endif
 
 cflags_sanitizers = []
 if ubsan
-    cflags_sanitizers += [ '-fsanitize=undefined', '-fno-sanitize-recover=undefined', '-DUBSAN' ]
+    cflags_sanitizers += [
+        '-fsanitize=undefined',
+        '-fno-sanitize-recover=undefined',
+        '-DUBSAN',
+    ]
 endif
 
 #

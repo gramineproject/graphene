@@ -135,7 +135,10 @@ shared_library('sysdb',
     vdso_data_o,
     libos_asm_offsets_h,
 
-    c_args: cflags_libos + cflags_sanitizers,
+    c_args: [
+        cflags_libos,
+        cflags_sanitizers,
+    ],
     link_args: [
         '-nostdlib',
         '-Wl,-zcombreloc',
