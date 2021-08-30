@@ -44,7 +44,7 @@ static void usage(void) {
     exit(-1); \
 } while (0)
 
-ssize_t g_input_size = 0;
+size_t g_input_size = 0;
 char* g_input_name = NULL;
 void* g_input_data = MAP_FAILED;
 char* g_output_dir = NULL;
@@ -444,11 +444,12 @@ int main(int argc, char* argv[]) {
         goto out;
     }
 
-    g_input_size = get_file_size(input_fd);
-    if (g_input_size < 0) {
+    ssize_t input_size = get_file_size(input_fd);
+    if (input_size < 0) {
         ERROR("Failed to stat input file '%s': %s\n", input_path, strerror(errno));
         goto out;
     }
+    g_input_size = input_size;
 
     g_input_data = mmap(NULL, g_input_size, PROT_READ, MAP_PRIVATE, input_fd, 0);
     if (g_input_data == MAP_FAILED) {
