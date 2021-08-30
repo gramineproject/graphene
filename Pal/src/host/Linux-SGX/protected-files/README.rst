@@ -18,9 +18,11 @@ Example
 
 ::
 
-   sgx.protected_files.pf_1 = "file:tmp/some_file"
-   sgx.protected_files.pf_2 = "file:tmp/some_dir"
-   sgx.protected_files.pf_3 = "file:tmp/another_dir/some_file"
+   sgx.protected_files = [
+     "file:tmp/some_file",
+     "file:tmp/some_dir",
+     "file:tmp/another_dir/some_file",
+   ]
 
 Paths specifying PF entries can be files or directories. If a directory is specified,
 all existing files/directories within are registered as protected recursively (and are expected

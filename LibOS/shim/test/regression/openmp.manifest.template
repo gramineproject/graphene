@@ -26,10 +26,10 @@ fs.mount.usrlib.path = "/usrlib"
 fs.mount.usrlib.uri = "file:/usr/{{ arch_libdir }}"
 
 sgx.thread_num = 32
-
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.openmp = "file:openmp"
-
-sgx.trusted_files.libgomp_native = "file:/usr{{ arch_libdir }}/libgomp.so.1"
-
 sgx.nonpie_binary = true
+
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:openmp",
+  "file:/usr{{ arch_libdir }}/libgomp.so.1",
+]

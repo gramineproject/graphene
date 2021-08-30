@@ -18,14 +18,14 @@ fs.mount.host_usr_lib.type = "chroot"
 fs.mount.host_usr_lib.path = "/usr/{{ arch_libdir }}"
 fs.mount.host_usr_lib.uri = "file:/usr/{{ arch_libdir }}"
 
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.libgcc_s = "file:{{ arch_libdir }}/libgcc_s.so.1"
-sgx.trusted_files.libstdcxx = "file:/usr{{ arch_libdir }}/libstdc++.so.6"
-sgx.trusted_files.libunwindso = "file:/usr{{ arch_libdir }}/libunwind.so.8"
-sgx.trusted_files.liblzma = "file:{{ arch_libdir }}/liblzma.so.5"
-
-sgx.trusted_files.entrypoint = "file:bootstrap_cpp"
-
 sgx.thread_num = 8
-
 sgx.nonpie_binary = true
+
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:{{ arch_libdir }}/libgcc_s.so.1",
+  "file:/usr{{ arch_libdir }}/libstdc++.so.6",
+  "file:/usr{{ arch_libdir }}/libunwind.so.8",
+  "file:{{ arch_libdir }}/liblzma.so.5",
+  "file:bootstrap_cpp",
+]

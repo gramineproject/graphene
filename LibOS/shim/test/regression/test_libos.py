@@ -267,6 +267,15 @@ class TC_02_OpenMP(RegressionTestCase):
     'This test is only meaningful on SGX PAL because file-check-policy is '
     'only relevant to SGX.')
 class TC_03_FileCheckPolicy(RegressionTestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open('trusted_testfile', 'w') as f:
+            f.write('trusted_testfile')
+
+    @classmethod
+    def tearDownClass(cls):
+        os.remove('trusted_testfile')
+
     def test_000_strict_success(self):
         stdout, _ = self.run_binary(['file_check_policy_strict', 'read', 'trusted_testfile'])
         self.assertIn('file_check_policy succeeded', stdout)

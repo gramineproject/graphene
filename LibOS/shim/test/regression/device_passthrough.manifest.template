@@ -11,8 +11,9 @@ fs.mount.dev.type = "chroot"
 fs.mount.dev.path = "/dev/host-zero"
 fs.mount.dev.uri = "dev:/dev/zero"
 
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-
-sgx.trusted_files.entrypoint = "file:device_passthrough"
-
 sgx.nonpie_binary = true
+
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:device_passthrough",
+]

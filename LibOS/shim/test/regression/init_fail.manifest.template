@@ -13,7 +13,9 @@ fs.mount.test.type = "chroot"
 fs.mount.test.path = "/test"
 fs.mount.test.uri = "file:I_DONT_EXIST"
 
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.init_fail = "file:init_fail"
-
 sgx.nonpie_binary = true
+
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:init_fail",
+]

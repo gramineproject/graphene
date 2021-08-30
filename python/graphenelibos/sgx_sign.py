@@ -160,42 +160,61 @@ def get_hash(filename):
         return sha256(file.read())
 
 
-# TODO: this function should be deleted after we start using TOML lists instead of key-values for
-# trusted files.
-def path_to_key(path):
-    # anything which is unique to the path should do the work
-    return sha256(path.encode()).hex()
-
-
 def walk_dir(path):
     return sorted(filter(Path.is_file, path.rglob('*')))
 
+def append_trusted_dir_or_file(targets, val, check_exist):
+    if isinstance(val, dict):
+        # trusted file is specified as TOML table `{uri = "file:foo", sha256 = "deadbeef"}`
+        uri_ = val['uri']
+        hash_ = val.get('sha256')
+    elif isinstance(val, str):
+        # trusted file is specified as TOML string `"file:foo"`
+        uri_ = val
+        hash_ = None
+    else:
+        raise ValueError(f'Unknown trusted file format: {val!r}')
+
+    if hash_ is not None:
+        # if hash is specified for the trusted file, skip checking the file's existence
+        targets.append((uri_, resolve_uri(uri_, check_exist=False), hash_))
+        return
+
+    path = Path(resolve_uri(uri_, check_exist))
+    if path.is_dir():
+        for sub_path in walk_dir(path):
+            uri = f'file:{sub_path}'
+            targets.append((uri, sub_path, hash_))
+    else:
+        targets.append((uri_, path, hash_))
 
 def get_trusted_files(manifest, check_exist=True, do_hash=True):
-    targets = {}
+    targets = [] # tuple of graphene-uri, host-path, hash-of-host-file (can be None)
 
     preload_str = manifest['loader']['preload']
     # `filter` below is needed for the case where preload_str == '' (`split` returns [''] then)
-    for i, uri in enumerate(filter(None, preload_str.split(','))):
-        targets[f'preload{i}'] = uri, resolve_uri(uri, check_exist)
+    for _, uri in enumerate(filter(None, preload_str.split(','))):
+        targets.append((uri, resolve_uri(uri, check_exist), None))
 
-    for key, val in manifest['sgx']['trusted_files'].items():
-        path = Path(resolve_uri(val, check_exist))
-        if path.is_dir():
-            for sub_path in walk_dir(path):
-                sub_key = path_to_key(str(sub_path))
-                uri = f'file:{sub_path}'
-                targets[sub_key] = uri, sub_path
-        else:
-            targets[key] = val, path
+    try:
+        # try as dict (TOML table) first
+        for _, val in manifest['sgx']['trusted_files'].items():
+            append_trusted_dir_or_file(targets, val, check_exist)
+    except (AttributeError, TypeError):
+        # try as list (TOML array) on exception
+        for val in manifest['sgx']['trusted_files']:
+            append_trusted_dir_or_file(targets, val, check_exist)
 
-    if do_hash:
-        for key, val in targets.items():
-            uri, target = val
+    if not do_hash:
+        return targets
+
+    hashed_targets = []
+    for (uri, target, hash_) in targets:
+        if hash_ is None:
             hash_ = get_hash(target).hex()
-            targets[key] = uri, target, hash_
+        hashed_targets.append((uri, target, hash_))
 
-    return targets
+    return hashed_targets
 
 
 # Populate Enclave Memory
@@ -675,8 +694,7 @@ def read_manifest(path):
     # set defaults to simplify lookup code (otherwise we'd need to check keys existence each time)
 
     sgx = manifest.setdefault('sgx', {})
-    sgx.setdefault('trusted_files', {})
-    sgx.setdefault('trusted_checksum', {})
+    sgx.setdefault('trusted_files', [])
     sgx.setdefault('enclave_size', DEFAULT_ENCLAVE_SIZE)
     sgx.setdefault('thread_num', DEFAULT_THREAD_NUM)
     sgx.setdefault('isvprodid', 0)
@@ -740,12 +758,11 @@ def main_sign(manifest, args):
 
     # Use `list()` to ensure non-laziness (`manifest_sgx` is a part of `manifest`, and we'll be
     # changing it while iterating).
-    expanded_trusted_files = list(get_trusted_files(manifest).items())
-    manifest_sgx['trusted_files'] = {} # generate the list from scratch, dropping directory entries
-    for key, val in expanded_trusted_files:
+    expanded_trusted_files = list(get_trusted_files(manifest))
+    manifest_sgx['trusted_files'] = [] # generate the list from scratch, dropping directory entries
+    for val in expanded_trusted_files:
         uri, _, hash_ = val
-        manifest_sgx['trusted_files'][key] = uri
-        manifest_sgx['trusted_checksum'][key] = hash_
+        manifest_sgx['trusted_files'].append({'uri': uri, 'sha256': hash_})
 
     # Populate memory areas
     memory_areas = get_memory_areas(attr, args)
@@ -789,8 +806,10 @@ def make_depend(manifest, args):
         return 1
 
     dependencies = set()
-    for _, filename in get_trusted_files(manifest, check_exist=False, do_hash=False).values():
-        dependencies.add(filename)
+    for _, filename, hash_ in get_trusted_files(manifest, check_exist=False, do_hash=False):
+        # file may not exist on this system but its hash is provided
+        if hash_ is None:
+            dependencies.add(filename)
     if args['libpal'] is not None:
         dependencies.add(args['libpal'])
     dependencies.add(args['key'])

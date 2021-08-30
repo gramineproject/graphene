@@ -12,11 +12,14 @@ fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
 
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.large_mmap = "file:large_mmap"
-
-sgx.allowed_files.testfile = "file:testfile"
-
 sgx.enclave_size = "8G"
-
 sgx.nonpie_binary = true
+
+sgx.allowed_files = [
+  "file:testfile",
+]
+
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:large_mmap",
+]

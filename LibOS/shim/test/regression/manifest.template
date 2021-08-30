@@ -22,17 +22,19 @@ fs.mount.bin.type = "chroot"
 fs.mount.bin.path = "/bin"
 fs.mount.bin.uri = "file:/bin"
 
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.libgcc_s = "file:{{ arch_libdir }}/libgcc_s.so.1"
-sgx.trusted_files.libstdcxx = "file:/usr{{ arch_libdir }}/libstdc++.so.6"
-
-sgx.trusted_files.entrypoint = "file:{{ entrypoint }}"
-sgx.trusted_files.exec_victim = "file:exec_victim"
-
-sgx.allowed_files.tmp_dir = "file:tmp/"
-sgx.allowed_files.root = "file:root" # for getdents test
-sgx.allowed_files.testfile = "file:testfile" # for mmap_file test
-
 sgx.thread_num = 16
-
 sgx.nonpie_binary = true
+
+sgx.allowed_files = [
+  "file:tmp/",
+  "file:root", # for getdents test
+  "file:testfile", # for mmap_file test
+]
+
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:{{ arch_libdir }}/libgcc_s.so.1",
+  "file:/usr{{ arch_libdir }}/libstdc++.so.6",
+  "file:{{ entrypoint }}",
+  "file:exec_victim",
+]
