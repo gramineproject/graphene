@@ -1,5 +1,5 @@
 diff --git a/toml.c b/toml.c
-index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a43d0e631 100644
+index 8ec554e88ec772931aebcff615a6d9624ffacbe6..382fdeda573b6b9aa8402c66e960b4edcb2c7d65 100644
 --- a/toml.c
 +++ b/toml.c
 @@ -24,15 +24,7 @@
@@ -19,11 +19,10 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
  #include "toml.h"
  
  
-@@ -1406,62 +1398,6 @@ fail:
- 	return 0;
+@@ -1447,61 +1439,6 @@ fail:
  }
  
--
+ 
 -toml_table_t* toml_parse_file(FILE* fp,
 -							  char* errbuf,
 -							  int errbufsz)
@@ -46,7 +45,7 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
 -			buf = x;
 -			bufsz = xsz;
 -		}
--	
+-
 -		errno = 0;
 -		int n = fread(buf + off, 1, bufsz - off, fp);
 -		if (ferror(fp)) {
@@ -70,7 +69,7 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
 -		buf = x;
 -		bufsz = xsz;
 -	}
--	buf[off] = 0; 
+-	buf[off] = 0;
 -
 -	/* parse it, cleanup and finish */
 -	toml_table_t* ret = toml_parse(buf, errbuf, errbufsz);
@@ -82,19 +81,7 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
  static void xfree_kval(toml_keyval_t* p)
  {
  	if (!p) return;
-@@ -1893,11 +1829,7 @@ int toml_rtots(toml_raw_t src_, toml_timestamp_t* ret)
- 		if (*p == '.') {
- 			char* qq;
- 			p++;
--			errno = 0;
- 			*millisec = strtol(p, &qq, 0);
--			if (errno) {
--				return -1;
--			}
- 			while (*millisec > 999) {
- 				*millisec /= 10;
- 			}
-@@ -2020,72 +1952,19 @@ int toml_rtoi(toml_raw_t src, int64_t* ret_)
+@@ -2062,66 +1999,19 @@ int toml_rtoi(toml_raw_t src, int64_t* ret_)
  
  	/* Run strtoll on buf to get the integer */
  	char* endp;
@@ -108,13 +95,13 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
  int toml_rtod_ex(toml_raw_t src, double* ret_, char* buf, int buflen)
  {
 -	if (!src) return -1;
--	
+-
 -	char* p = buf;
 -	char* q = p + buflen;
 -	const char* s = src;
 -	double dummy;
 -	double* ret = ret_ ? ret_ : &dummy;
--	
+-
 -
 -	/* allow +/- */
 -	if (s[0] == '+' || s[0] == '-')
@@ -124,10 +111,15 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
 -	if (s[0] == '_')
 -		return -1;
 -
--	/* disallow +.99 */
--	if (s[0] == '.')
--		return -1;
--		
+-	/* decimal point, if used, must be surrounded by at least one digit on each side */
+-	{
+-		char* dot = strchr(s, '.');
+-		if (dot) {
+-			if (dot == s || !isdigit(dot[-1]) || !isdigit(dot[1]))
+-				return -1;
+-		}
+-	}
+-
 -	/* zero must be followed by . or 'e', or NUL */
 -	if (s[0] == '0' && s[1] && !strchr("eE.", s[1]))
 -		return -1;
@@ -135,27 +127,16 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
 -	/* just strip underscores and pass to strtod */
 -	while (*s && p < q) {
 -		int ch = *s++;
--		switch (ch) {
--		case '.':
--			if (s[-2] == '_') return -1;
--			if (s[0] == '_') return -1;
--			break;
--		case '_':
+-		if (ch == '_') {
 -			// disallow '__'
--			if (s[0] == '_') return -1; 
+-			if (s[0] == '_') return -1;
+-			// disallow last char '_'
+-			if (s[0] == 0) return -1;
 -			continue;			/* skip _ */
--		default:
--			break;
 -		}
 -		*p++ = ch;
 -	}
 -	if (*s || p == q) return -1; /* reached end of string or buffer is full? */
--	
--	/* last char cannot be '_' */
--	if (s[-1] == '_') return -1;
--
--	if (p != buf && p[-1] == '.') 
--		return -1; /* no trailing zero */
 -
 -	/* cap with NUL */
 -	*p = 0;
@@ -174,8 +155,42 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
  }
  
  int toml_rtod(toml_raw_t src, double* ret_)
+@@ -2240,33 +2130,6 @@ toml_datum_t toml_timestamp_at(const toml_array_t* arr, int idx)
+ 	return ret;
+ }
+ 
+-toml_datum_t toml_string_in(const toml_table_t* arr, const char* key)
+-{
+-	toml_datum_t ret;
+-	memset(&ret, 0, sizeof(ret));
+-	toml_raw_t raw = toml_raw_in(arr, key);
+-	if (raw) {
+-		ret.ok = (0 == toml_rtos(raw, &ret.u.s));
+-	}
+-	return ret;
+-}
+-
+-toml_datum_t toml_bool_in(const toml_table_t* arr, const char* key)
+-{
+-	toml_datum_t ret;
+-	memset(&ret, 0, sizeof(ret));
+-	ret.ok = (0 == toml_rtob(toml_raw_in(arr, key), &ret.u.b));
+-	return ret;
+-}
+-
+-toml_datum_t toml_int_in(const toml_table_t* arr, const char* key)
+-{
+-	toml_datum_t ret;
+-	memset(&ret, 0, sizeof(ret));
+-	ret.ok = (0 == toml_rtoi(toml_raw_in(arr, key), &ret.u.i));
+-	return ret;
+-}
+-
+ toml_datum_t toml_double_in(const toml_table_t* arr, const char* key)
+ {
+ 	toml_datum_t ret;
 diff --git a/toml.h b/toml.h
-index d541ec88b24283bb97050aa090f36e0aa7604d87..e7d5a40ed3781035e13d6a5003c05ee38f9a734a 100644
+index b91ef890303238e734f06bbfc95ab39b7851e031..735518d25d411d78ad417efb333683014c6d4c45 100644
 --- a/toml.h
 +++ b/toml.h
 @@ -26,7 +26,6 @@
@@ -186,17 +201,27 @@ index d541ec88b24283bb97050aa090f36e0aa7604d87..e7d5a40ed3781035e13d6a5003c05ee3
  #include <stdint.h>
  
  
-@@ -42,13 +41,6 @@ typedef struct toml_array_t toml_array_t;
- /* A raw value, must be processed by toml_rto* before using. */
- typedef const char* toml_raw_t;
+@@ -41,13 +40,6 @@ typedef struct toml_table_t toml_table_t;
+ typedef struct toml_array_t toml_array_t;
+ typedef struct toml_datum_t toml_datum_t;
  
--/* Parse a file. Return a table on success, or 0 otherwise. 
+-/* Parse a file. Return a table on success, or 0 otherwise.
 - * Caller must toml_free(the-return-value) after use.
 - */
--TOML_EXTERN toml_table_t* toml_parse_file(FILE* fp, 
+-TOML_EXTERN toml_table_t* toml_parse_file(FILE* fp,
 -										  char* errbuf,
 -										  int errbufsz);
 -
- /* Parse a string containing the full config. 
+ /* Parse a string containing the full config.
   * Return a table on success, or 0 otherwise.
   * Caller must toml_free(the-return-value) after use.
+@@ -110,9 +102,6 @@ TOML_EXTERN toml_table_t* toml_table_at(const toml_array_t* arr, int idx);
+ /* ... retrieve the key in table at keyidx. Return 0 if out of range. */
+ TOML_EXTERN const char* toml_key_in(const toml_table_t* tab, int keyidx);
+ /* ... retrieve values using key. */
+-TOML_EXTERN toml_datum_t toml_string_in(const toml_table_t* arr, const char* key);
+-TOML_EXTERN toml_datum_t toml_bool_in(const toml_table_t* arr, const char* key);
+-TOML_EXTERN toml_datum_t toml_int_in(const toml_table_t* arr, const char* key);
+ TOML_EXTERN toml_datum_t toml_double_in(const toml_table_t* arr, const char* key);
+ TOML_EXTERN toml_datum_t toml_timestamp_in(const toml_table_t* arr, const char* key);
+ /* .. retrieve array or table using key. */
