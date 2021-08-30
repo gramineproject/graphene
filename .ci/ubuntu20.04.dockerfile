@@ -68,6 +68,9 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     zlib1g \
     zlib1g-dev
 
+# NOTE about meson version: we support "0.55 or newer", so in CI we pin to latest patch version of
+# the earliest supported minor version (pip implicitly installs latest version satisfying the
+# specification)
 RUN python3 -m pip install -U \
     asv \
     'meson>=0.55,<0.56'
