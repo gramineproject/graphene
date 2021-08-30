@@ -43,7 +43,7 @@ Run the following command on Ubuntu LTS to install dependencies::
     sudo apt-get install -y build-essential \
         autoconf bison gawk ninja-build python3 python3-click python3-jinja2 \
         wget
-    python3 -m pip install meson
+    python3 -m pip install 'meson>=0.55`
 
 We require meson at least version 0.55, so if you're on newer distro (Debian 11
 or Ubuntu 20.10), you can install meson from apt.
