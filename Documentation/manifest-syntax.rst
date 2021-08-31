@@ -473,6 +473,7 @@ Trusted files
 ^^^^^^^^^^^^^
 
 ::
+
     # entries can be strings
     sgx.trusted_files = [
       "[URI]",
