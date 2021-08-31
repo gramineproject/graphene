@@ -88,7 +88,7 @@ index 8ec554e88ec772931aebcff615a6d9624ffacbe6..382fdeda573b6b9aa8402c66e960b4ed
 -	errno = 0;
  	*ret = strtoll(buf, &endp, base);
 -	return (errno || *endp) ? -1 : 0;
-+    return (*endp) ? -1 : 0;
++	return (*endp) ? -1 : 0;
  }
  
  
