@@ -693,3 +693,20 @@ Linux scheduler: the effective maximum is 250 samples per second.
 .. note::
    This option applies only to ``aex`` mode. In the ``ocall_*`` modes, currently
    all samples are taken.
+
+
+Deprecated options
+------------------
+
+Allowed/Trusted/Protected Files (deprecated schema)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.allowed_files.[identifier] = "[URI]"
+    sgx.trusted_files.[identifier] = "[URI]"
+    sgx.protected_files.[identifier] = "[URI]"
+
+These manifest options used the TOML-table schema that had a bogus
+``[identifier]`` key. This excessive TOML-table schema was replaced with a more
+appropriate TOML-array one.
