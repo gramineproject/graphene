@@ -83,9 +83,9 @@ static void ubsan_log_location(struct source_location* loc) {
                                        value_handle b),                             \
                            a, b)
 
-#define UBSAN_SIMPLE_HANDLER_3(name, fmt)                                            \
-    __UBSAN_SIMPLE_HANDLER(name, fmt, (struct source_location* loc, value_handle a,  \
-                                       value_handle b, value_handle c),              \
+#define UBSAN_SIMPLE_HANDLER_3(name, fmt)                                           \
+    __UBSAN_SIMPLE_HANDLER(name, fmt, (struct source_location* loc, value_handle a, \
+                                       value_handle b, value_handle c),             \
                            a, b, c)
 
 UBSAN_SIMPLE_HANDLER_2(add_overflow,
