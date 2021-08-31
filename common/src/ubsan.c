@@ -18,8 +18,6 @@
  *   (compiler-rt/lib/ubsan/ubsan_handlers.cpp)
  */
 
-#ifdef UBSAN
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -151,5 +149,3 @@ void __ubsan_handle_type_mismatch_v1_abort(struct type_mismatch_data* data, valu
     __ubsan_handle_type_mismatch_v1(data, pointer);
     abort();
 }
-
-#endif /* UBSAN */

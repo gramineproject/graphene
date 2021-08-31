@@ -112,8 +112,11 @@ objs += \
 	string/strstr.o \
 	string/toml_utils.o \
 	string/utils.o \
-	toml.o \
-	ubsan.o
+	toml.o
+
+ifeq ($(UBSAN),1)
+objs += ubsan.o
+endif
 
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o): crypto/mbedtls/library/aes.c
 
