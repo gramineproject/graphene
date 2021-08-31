@@ -693,3 +693,87 @@ Linux scheduler: the effective maximum is 250 samples per second.
 .. note::
    This option applies only to ``aex`` mode. In the ``ocall_*`` modes, currently
    all samples are taken.
+
+
+Deprecated syntax
+-----------------
+
+Before October 2020, manifests were not written in the TOML syntax but instead
+in an ad-hoc INI file-like syntax. Some of the differences include:
+
+* Strings in the old syntax were *not* surrounded by quotation marks (``"``).
+
+* There were no booleans (``true`` and ``false``) in the old syntax, instead
+  there was ``0`` for false values and ``1`` for true values.
+
+* There were no arrays (lists) in the old syntax. This necessitated bogus key
+  names in some cases to distinguish items in one logical grouping, e.g.,
+  ``sgx.allowed_files.<bogus_key_name> = "file:foo"``.
+
+Also, with time, some manifest options were removed, renamed or deprecated (kept
+for compatibility reasons but not recommended for use). All such options are
+listed below, with short descriptions.
+
+Executable (removed)
+^^^^^^^^^^^^^^^^^^^^
+
+::
+
+   loader.exec = "[URI]"
+
+This syntax specified the executable to be loaded into the library OS. It was
+replaced with ``loader.entrypoint``.
+
+Debug Type (removed)
+^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    loader.debug_type = "[none|inline]"
+
+This syntax specified whether debug output was printed to the terminal. It was
+replaced with ``loader.log_level``.
+
+Allowing File Creation (removed)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.allow_file_creation = [true|false]
+
+This syntax specified whether file creation is allowed from within the enclave.
+This prohibition was useless, thus this syntax was removed (now the enclave can
+always create files).
+
+Program Break Size (renamed)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sys.brk.size = "[SIZE]"
+
+This syntax was renamed to ``sys.brk.max_size`` to better reflect its meaning.
+
+Allowed/Trusted/Protected Files (deprecated syntax)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.allowed_files.[identifier] = "[URI]"
+    sgx.trusted_files.[identifier] = "[URI]"
+    sgx.protected_files.[identifier] = "[URI]"
+
+These manifest options used the TOML-table syntax that had a bogus
+``[identifier]`` key. This excessive TOML-table syntax was replaced with a more
+appropriate TOML-array syntax.
+
+Trusted Child Processes (removed)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.trusted_children.[identifier] = "[URI of signature (.sig)]"
+
+This syntax specified the signatures of allowed child processes of the current
+process. It was removed when Graphene stopped restricting which binaries can be
+spawned by the process. Also see ``loader.entrypoint``.
