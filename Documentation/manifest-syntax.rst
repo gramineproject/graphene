@@ -695,26 +695,10 @@ Linux scheduler: the effective maximum is 250 samples per second.
    all samples are taken.
 
 
-Deprecated syntax
------------------
+Deprecated options
+------------------
 
-Before October 2020, manifests were not written in the TOML syntax but instead
-in an ad-hoc INI file-like syntax. Some of the differences include:
-
-* Strings in the old syntax were *not* surrounded by quotation marks (``"``).
-
-* There were no booleans (``true`` and ``false``) in the old syntax, instead
-  there was ``0`` for false values and ``1`` for true values.
-
-* There were no arrays (lists) in the old syntax. This necessitated bogus key
-  names in some cases to distinguish items in one logical grouping, e.g.,
-  ``sgx.allowed_files.<bogus_key_name> = "file:foo"``.
-
-Also, with time, some manifest options were removed, renamed or deprecated (kept
-for compatibility reasons but not recommended for use). The deprecated options
-are listed below, with short descriptions.
-
-Allowed/Trusted/Protected Files (deprecated syntax)
+Allowed/Trusted/Protected Files (deprecated schema)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
@@ -723,6 +707,6 @@ Allowed/Trusted/Protected Files (deprecated syntax)
     sgx.trusted_files.[identifier] = "[URI]"
     sgx.protected_files.[identifier] = "[URI]"
 
-These manifest options used the TOML-table syntax that had a bogus
-``[identifier]`` key. This excessive TOML-table syntax was replaced with a more
-appropriate TOML-array syntax.
+These manifest options used the TOML-table schema that had a bogus
+``[identifier]`` key. This excessive TOML-table schema was replaced with a more
+appropriate TOML-array one.
