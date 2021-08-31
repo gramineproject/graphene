@@ -28,7 +28,7 @@ sgx.nonpie_binary = true
 sgx.allowed_files = [
   "file:tmp/",
   "file:root", # for getdents test
-  "file:testfile" # for mmap_file test
+  "file:testfile", # for mmap_file test
 ]
 
 sgx.trusted_files = [

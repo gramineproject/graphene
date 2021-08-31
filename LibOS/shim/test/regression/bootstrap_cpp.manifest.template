@@ -27,5 +27,5 @@ sgx.trusted_files = [
   "file:/usr{{ arch_libdir }}/libstdc++.so.6",
   "file:/usr{{ arch_libdir }}/libunwind.so.8",
   "file:{{ arch_libdir }}/liblzma.so.5",
-  "file:bootstrap_cpp"
+  "file:bootstrap_cpp",
 ]

@@ -15,5 +15,5 @@ sgx.enable_stats = true
 
 sgx.trusted_files = [
   "file:{{ graphene.runtimedir() }}/",
-  "file:multi_pthread"
+  "file:multi_pthread",
 ]

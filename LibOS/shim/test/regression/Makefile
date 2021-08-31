@@ -192,5 +192,6 @@ clean-tmp:
 		__pycache__ \
 		libos-regression.xml \
 		testfile \
+		trusted_testfile \
 		tmp/* \
 		*.o

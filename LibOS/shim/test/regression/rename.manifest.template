@@ -14,9 +14,11 @@ fs.mount.tmpfs.uri = "file:dummy-unused-by-tmpfs-uri"
 
 sgx.nonpie_binary = true
 
-sgx.trusted_files = [
-  "file:{{ graphene.runtimedir() }}/",
-  "file:{{ entrypoint }}"
+sgx.allowed_files = [
+  "file:tmp/",
 ]
 
-sgx.allowed_files = [ "file:tmp/" ]
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:{{ entrypoint }}",
+]

@@ -557,7 +557,7 @@ failed:
 static int register_file(const char* uri, const char* checksum_str, bool check_duplicates) {
     int ret;
 
-    if (checksum_str && strlen(checksum_str) < sizeof(sgx_file_hash_t) * 2) {
+    if (checksum_str && strlen(checksum_str) != sizeof(sgx_file_hash_t) * 2) {
         log_error("Hash (%s) of a trusted file %s is not a SHA256 hash", checksum_str, uri);
         return -PAL_ERROR_INVAL;
     }
@@ -604,7 +604,7 @@ static int register_file(const char* uri, const char* checksum_str, bool check_d
         }
         new->size = attr.pending_size;
 
-        assert(strlen(checksum_str) >= sizeof(sgx_file_hash_t) * 2);
+        assert(strlen(checksum_str) == sizeof(sgx_file_hash_t) * 2);
         for (size_t i = 0; i < sizeof(sgx_file_hash_t); i++) {
             int8_t byte1 = hex2dec(checksum_str[i * 2]);
             int8_t byte2 = hex2dec(checksum_str[i * 2 + 1]);
@@ -749,7 +749,7 @@ static int init_trusted_files_from_toml_table(void) {
     log_error("Detected deprecated syntax. Consider switching to new syntax: 'sgx.trusted_files "
               "= [\"file1\", ..]'.");
 
-    ret = (int)toml_trusted_files_cnt;
+    ret = 0;
 out:
     free(toml_trusted_file_str);
     free(toml_trusted_checksum_key);
@@ -774,7 +774,7 @@ static int init_trusted_files_from_toml_array(void) {
     if (toml_trusted_files_cnt == 0)
         return 0;
 
-    char* toml_trusted_uri_str  = NULL;
+    char* toml_trusted_uri_str = NULL;
     char* toml_trusted_sha256_str = NULL;
 
     for (ssize_t i = 0; i < toml_trusted_files_cnt; i++) {
@@ -821,11 +821,11 @@ static int init_trusted_files_from_toml_array(void) {
 
         free(toml_trusted_uri_str);
         free(toml_trusted_sha256_str);
-        toml_trusted_uri_str  = NULL;
+        toml_trusted_uri_str = NULL;
         toml_trusted_sha256_str = NULL;
     }
 
-    ret = (int)toml_trusted_files_cnt;
+    ret = 0;
 out:
     free(toml_trusted_uri_str);
     free(toml_trusted_sha256_str);
@@ -881,7 +881,7 @@ static int init_allowed_files_from_toml_table(void) {
     log_error("Detected deprecated syntax. Consider switching to new syntax: 'sgx.allowed_files "
               "= [\"file1\", ..]'.");
 
-    ret = (int)toml_allowed_files_cnt;
+    ret = 0;
 out:
     free(toml_allowed_file_str);
     return ret;
@@ -929,7 +929,7 @@ static int init_allowed_files_from_toml_array(void) {
         toml_allowed_file_str = NULL;
     }
 
-    ret = (int)toml_allowed_files_cnt;
+    ret = 0;
 out:
     free(toml_allowed_file_str);
     return ret;
@@ -940,17 +940,20 @@ int init_trusted_files(void) {
 
     /* first try legacy manifest syntax with TOML tables, i.e. `sgx.trusted_files.key = "file"` */
     ret = init_trusted_files_from_toml_table();
-    if (ret == 0) {
-        /* try new manifest syntax with TOML arrays, i.e. `sgx.trusted_files = ["file1", ..]` */
-        ret = init_trusted_files_from_toml_array();
-    }
-
     if (ret < 0) {
-        log_error("Reading trusted files from the manifest failed: %s", pal_strerror(ret));
+        log_error("Reading trusted files (in TOML-table syntax) from the manifest failed: %s",
+                  pal_strerror(ret));
         return ret;
     }
 
-    log_debug("Found %d trusted files in the manifest", ret);
+    /* use new manifest syntax with TOML arrays, i.e. `sgx.trusted_files = ["file1", ..]` */
+    ret = init_trusted_files_from_toml_array();
+    if (ret < 0) {
+        log_error("Reading trusted files (in TOML-array syntax) from the manifest failed: %s",
+                  pal_strerror(ret));
+        return ret;
+    }
+
     return 0;
 }
 
@@ -959,17 +962,20 @@ int init_allowed_files(void) {
 
     /* first try legacy manifest syntax with TOML tables, i.e. `sgx.allowed_files.key = "file"` */
     ret = init_allowed_files_from_toml_table();
-    if (ret == 0) {
-        /* try new manifest syntax with TOML arrays, i.e. `sgx.allowed_files = ["file1", ..]` */
-        ret = init_allowed_files_from_toml_array();
-    }
-
     if (ret < 0) {
-        log_error("Reading allowed files from the manifest failed: %s", pal_strerror(ret));
+        log_error("Reading allowed files (in TOML-table syntax) from the manifest failed: %s",
+                  pal_strerror(ret));
         return ret;
     }
 
-    log_debug("Found %d allowed files in the manifest", ret);
+    /* use new manifest syntax with TOML arrays, i.e. `sgx.allowed_files = ["file1", ..]` */
+    ret = init_allowed_files_from_toml_array();
+    if (ret < 0) {
+        log_error("Reading allowed files (in TOML-array syntax) from the manifest failed: %s",
+                  pal_strerror(ret));
+        return ret;
+    }
+
     return 0;
 }
 

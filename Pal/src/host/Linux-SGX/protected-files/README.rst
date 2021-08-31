@@ -21,7 +21,7 @@ Example
    sgx.protected_files = [
      "file:tmp/some_file",
      "file:tmp/some_dir",
-     "file:tmp/another_dir/some_file"
+     "file:tmp/another_dir/some_file",
    ]
 
 Paths specifying PF entries can be files or directories. If a directory is specified,

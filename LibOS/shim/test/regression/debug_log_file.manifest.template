@@ -14,5 +14,5 @@ sgx.nonpie_binary = true
 
 sgx.trusted_files = [
   "file:{{ graphene.runtimedir() }}/",
-  "file:bootstrap"
+  "file:bootstrap",
 ]

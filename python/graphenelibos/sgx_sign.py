@@ -167,13 +167,18 @@ def append_trusted_dir_or_file(targets, val, check_exist):
     if isinstance(val, dict):
         # trusted file is specified as TOML table `{uri = "file:foo", sha256 = "deadbeef"}`
         uri_ = val['uri']
-        hash_ = val['sha256']
+        hash_ = val.get('sha256')
     elif isinstance(val, str):
         # trusted file is specified as TOML string `"file:foo"`
         uri_ = val
         hash_ = None
     else:
         raise ValueError(f'Unknown trusted file format: {val!r}')
+
+    if hash_ is not None:
+        # if hash is specified for the trusted file, skip checking the file's existence
+        targets.append((uri_, resolve_uri(uri_, check_exist=False), hash_))
+        return
 
     path = Path(resolve_uri(uri_, check_exist))
     if path.is_dir():
@@ -801,8 +806,10 @@ def make_depend(manifest, args):
         return 1
 
     dependencies = set()
-    for _, filename, _ in get_trusted_files(manifest, check_exist=False, do_hash=False):
-        dependencies.add(filename)
+    for _, filename, hash_ in get_trusted_files(manifest, check_exist=False, do_hash=False):
+        # file may not exist on this system but its hash is provided
+        if hash_ is None:
+            dependencies.add(filename)
     if args['libpal'] is not None:
         dependencies.add(args['libpal'])
     dependencies.add(args['key'])

@@ -21,5 +21,5 @@ sgx.ra_client_linkable = {{ ra_client_linkable }}
 
 sgx.trusted_files = [
   "file:{{ graphene.runtimedir() }}/",
-  "file:attestation"
+  "file:attestation",
 ]

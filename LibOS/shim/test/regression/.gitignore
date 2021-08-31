@@ -1,6 +1,8 @@
 /*.manifest
 /*.xml
 
+/trusted_testfile
+
 /.cache
 /abort
 /abort_multithread

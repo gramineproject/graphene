@@ -16,5 +16,5 @@ sgx.nonpie_binary = true
 
 sgx.trusted_files = [
   "file:{{ graphene.runtimedir() }}/",
-  "file:{{ env.PWD }}/host_root_fs"
+  "file:{{ env.PWD }}/host_root_fs",
 ]

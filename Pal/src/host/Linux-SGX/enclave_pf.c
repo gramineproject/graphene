@@ -477,7 +477,7 @@ static int register_protected_files_from_toml_table(void) {
     log_error("Detected deprecated syntax. Consider switching to new syntax: 'sgx.protected_files "
               "= [\"file1\", ..]'.");
 
-    ret = (int)toml_pfs_cnt;
+    ret = 0;
 out:
     free(toml_pf_str);
     return ret;
@@ -530,7 +530,7 @@ static int register_protected_files_from_toml_array(void) {
         toml_pf_str = NULL;
     }
 
-    ret = (int)toml_pfs_cnt;
+    ret = 0;
 out:
     free(toml_pf_str);
     return ret;
@@ -541,20 +541,20 @@ static int register_protected_files(void) {
 
     /* first try legacy manifest syntax with TOML tables, i.e. `sgx.protected_files.key = "file"` */
     ret = register_protected_files_from_toml_table();
-    if (ret == 0) {
-        /* try new manifest syntax with TOML arrays, i.e. `sgx.protected_files = ["file1", ..]` */
-        ret = register_protected_files_from_toml_array();
-    }
-
     if (ret < 0) {
-        log_error("Reading allowed files from the manifest failed: %s", pal_strerror(ret));
+        log_error("Reading protected files (in TOML-table syntax) from the manifest failed: %s",
+                  pal_strerror(ret));
         return ret;
     }
 
-    pf_lock();
-    log_debug("Found %u protected directories and %u protected files in the manifest",
-              HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
-    pf_unlock();
+    /* use new manifest syntax with TOML arrays, i.e. `sgx.protected_files = ["file1", ..]` */
+    ret = register_protected_files_from_toml_array();
+    if (ret < 0) {
+        log_error("Reading protected files (in TOML-array syntax) from the manifest failed: %s",
+                  pal_strerror(ret));
+        return ret;
+    }
+
     return 0;
 }
 

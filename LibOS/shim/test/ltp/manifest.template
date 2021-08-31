@@ -31,7 +31,7 @@ sys.stack.size = "4M"
 sgx.nonpie_binary = true
 
 sgx.allowed_files = [
-  "file:/tmp"
+  "file:/tmp",
 ]
 
 sgx.trusted_files = [
@@ -42,5 +42,5 @@ sgx.trusted_files = [
   "file:{{ graphene.runtimedir() }}/libm.so.6",
   "file:{{ graphene.runtimedir() }}/libpthread.so.0",
   "file:{{ graphene.runtimedir() }}/librt.so.1",
-  "file:{{ coreutils_libdir }}/libstdbuf.so"
+  "file:{{ coreutils_libdir }}/libstdbuf.so",
 ]
