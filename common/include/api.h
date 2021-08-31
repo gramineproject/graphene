@@ -346,8 +346,7 @@ int get_base_name(const char* path, char* buf, size_t* inout_size);
  *
  * \param str A string containing a non-negative number. The string may end with "G"/"g" suffix
  *            denoting value in GBs, "M"/"m" for MBs, or "K"/"k" for KBs.
- * \param str A string containing a non-negative number. The string may end with "G"/"g" suffix
- *            denoting value in GBs, "M"/"m" for MBs, or "K"/"k" for KBs.
+ * \param[out] out_val Parsed size (in bytes).
  *
  * The number should be decimal. Returns -1 if string cannot be parsed into a size
  * (e.g., suffix is wrong).
