@@ -195,10 +195,10 @@ Additional build options
 - To compile with undefined behavior sanitization (UBSan), run :command:`make
   UBSAN=1` and :command:`meson -Dubsan=enabled`. This causes Graphene to abort
   when undefined behavior is detected (and display information about source
-  line).
+  line). UBSan can be enabled for both debug and non-debug builds.
 
   .. warning::
-     UBSan builds are not suitable for production.
+     UBSan builds (even non-debug) are not suitable for production.
 
 - To build with ``-Werror``, run :command:`make WERROR=1` and
   :command:`meson --werror`.

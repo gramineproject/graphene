@@ -48,6 +48,15 @@ crypto_mbedtls_library_objs += \
 endif
 
 objs += $(crypto_mbedtls_library_objs)
+
+# Compile mbedtls without UBSan. UBSan makes the code much slower, and consumes a lot of stack:
+# `mbedtls_internal_sha256_process` (as compiled by clang) takes up over 20 KB, overflowing LibOS
+# stack.
+ifeq ($(UBSAN),1)
+$(crypto_mbedtls_library_objs): CFLAGS += -fno-sanitize=undefined
+$(addprefix $(target),$(crypto_mbedtls_library_objs)): CFLAGS += -fno-sanitize=undefined
+endif
+
 endif
 
 MBEDTLS_VERSION ?= 2.26.0

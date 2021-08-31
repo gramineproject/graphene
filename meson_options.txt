@@ -7,4 +7,4 @@ option('skeleton', type: 'combo', choices: ['disabled', 'enabled'],
     description: 'Build skeleton PAL')
 
 option('ubsan', type: 'combo', choices: ['disabled', 'enabled'],
-    description: 'Enable undefined behavior sanitizer (supported in LibOS)')
+    description: 'Enable undefined behavior sanitizer')
