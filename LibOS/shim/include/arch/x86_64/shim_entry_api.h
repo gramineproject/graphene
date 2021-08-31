@@ -42,6 +42,12 @@ __asm__(
 #undef SHIM_XSTR
 #undef SHIM_STR
 
+/* Custom call numbers */
+enum {
+    SHIM_CALL_REGISTER_LIBRARY = 1,
+    SHIM_CALL_RUN_TEST,
+};
+
 static inline int shim_call(int number, unsigned long arg1, unsigned long arg2) {
     long (*handle_call)(int number, unsigned long arg1, unsigned long arg2);
     __asm__("movq %%gs:%c1, %0"
@@ -50,6 +56,15 @@ static inline int shim_call(int number, unsigned long arg1, unsigned long arg2) 
             : "memory");
     return handle_call(number, arg1, arg2);
 }
+
+static inline int shim_register_library(const char* name, unsigned long load_address) {
+    return shim_call(SHIM_CALL_REGISTER_LIBRARY, (unsigned long)name, load_address);
+}
+
+static inline int shim_run_test(const char* test_name) {
+    return shim_call(SHIM_CALL_RUN_TEST, (unsigned long)test_name, 0);
+}
+
 
 #endif /* __ASSEMBLER__ */
 
