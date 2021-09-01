@@ -162,7 +162,7 @@ def gsc_build(args):
     # generate Dockerfile.build from Jinja-style templates/Dockerfile.<distro>.build.template
     # using the user-provided config file with info on OS distro, Graphene version and SGX driver
     # and other env configurations generated above
-    build_template = env.get_template(f'Dockerfile.{env.globals["Distro"]}.build.template')
+    build_template = env.get_template(f'Dockerfile.build.template')
     with open(tmp_build_path / 'Dockerfile.build', 'w') as dockerfile:
         dockerfile.write(build_template.render())
 
@@ -268,7 +268,7 @@ def gsc_sign_image(args):
     # using the user-provided config file with info on OS distro, Graphene version and SGX driver
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
     env.globals.update(yaml.safe_load(args.config_file))
-    sign_template = env.get_template(f'Dockerfile.{env.globals["Distro"]}.sign.template')
+    sign_template = env.get_template(f'Dockerfile.sign.template')
 
     os.makedirs(tmp_build_path, exist_ok=True)
     with open(tmp_build_path / 'Dockerfile.sign', 'w') as dockerfile:

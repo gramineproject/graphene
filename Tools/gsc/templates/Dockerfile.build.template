@@ -2,7 +2,7 @@
 {% if Graphene.Image %}
 FROM gsc-{{Graphene.Image}} AS graphene
 {% else %}
-{% include "Dockerfile.ubuntu18.04.compile.template" %}
+{% include "Dockerfile.compile.template" %}
 {% endif %}
 
 # Combine Graphene image with the original app image
