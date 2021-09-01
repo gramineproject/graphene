@@ -36,7 +36,7 @@ all: $(KEY_FILE)
 	done
 
 config-%.yaml:
-	echo "Distro: \"$(subst $(DISTRO_PREFIX),$(DISTRO_SUFFIX):,$(*))\"" > config-$*.yaml
+	echo "Distro: \"$(subst $(DISTRO_PREFIX),$(DISTRO_PREFIX):,$(*))\"" > config-$*.yaml
 	echo "Graphene:" >> config-$*.yaml
 	echo "    Repository: \"$(GRAPHENE_REPO)\"" >> config-$*.yaml
 	echo "    Branch:     \"$(GRAPHENE_BRANCH)\"" >> config-$*.yaml
