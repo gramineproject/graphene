@@ -27,6 +27,8 @@ ADDITIONAL_VOLUMES ?= --volume /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.so
 
 DEVICES_VOLUMES = --device=/dev/${INTEL_SGX_DEVICE} ${ADDITIONAL_DEVICES} ${ADDITIONAL_VOLUMES}
 
+DISTRO_PREFIX = ubuntu
+
 .PHONY: all
 all: $(KEY_FILE)
 	for d in $(DISTRIBUTIONS); do \
@@ -34,7 +36,7 @@ all: $(KEY_FILE)
 	done
 
 config-%.yaml:
-	echo "Distro: \"$*\"" > config-$*.yaml
+	echo "Distro: \"$(subst $(DISTRO_PREFIX),$(DISTRO_SUFFIX):,$(*))\"" > config-$*.yaml
 	echo "Graphene:" >> config-$*.yaml
 	echo "    Repository: \"$(GRAPHENE_REPO)\"" >> config-$*.yaml
 	echo "    Branch:     \"$(GRAPHENE_BRANCH)\"" >> config-$*.yaml
