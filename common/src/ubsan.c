@@ -107,7 +107,7 @@ UBSAN_SIMPLE_HANDLER_2(shift_out_of_bounds,
 UBSAN_SIMPLE_HANDLER_1(out_of_bounds,
                        "array index out of bounds: %ld")
 UBSAN_SIMPLE_HANDLER_1(vla_bound_not_positive,
-                       "variable-length array bound bound is not positive: %ld")
+                       "variable-length array bound is not positive: %ld")
 UBSAN_SIMPLE_HANDLER_1(float_cast_overflow,
                        "float cast overflow from 0x%lx")
 UBSAN_SIMPLE_HANDLER_0(missing_return,
