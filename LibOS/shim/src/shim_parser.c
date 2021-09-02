@@ -820,11 +820,6 @@ static void parse_mmap_flags(struct print_buf* buf, va_list* ap) {
         flags &= ~MAP_ANONYMOUS;
     }
 
-    if (flags & MAP_FILE) {
-        buf_puts(buf, "|MAP_FILE");
-        flags &= ~MAP_FILE;
-    }
-
     if (flags & MAP_FIXED) {
         buf_puts(buf, "|MAP_FIXED");
         flags &= ~MAP_FIXED;

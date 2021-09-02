@@ -37,7 +37,7 @@ int main(int argc, const char** argv) {
     }
 
     volatile unsigned char* a =
-        mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FILE, fileno(fp), 0);
+        mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
     if (a == MAP_FAILED) {
         perror("mmap");
         return 1;

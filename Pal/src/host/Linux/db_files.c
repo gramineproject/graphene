@@ -151,10 +151,11 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         /* this address is used. don't over-map it later */
         handle->file.map_start = NULL;
     }
-    int flags = MAP_FILE | PAL_MEM_FLAGS_TO_LINUX(0, prot) | (mem ? MAP_FIXED : 0);
+    int flags = PAL_MEM_FLAGS_TO_LINUX(0, prot) | (mem ? MAP_FIXED : 0);
     prot = PAL_PROT_TO_LINUX(prot);
 
-    /* The memory will always be allocated with flag MAP_PRIVATE and MAP_FILE */
+    /* The memory will always be allocated with flag MAP_PRIVATE. */
+    // TODO: except it will not since `assert(flags & MAP_PRIVATE)` fails on LTP
     mem = (void*)DO_SYSCALL(mmap, mem, size, prot, flags, fd, offset);
 
     if (IS_PTR_ERR(mem))
