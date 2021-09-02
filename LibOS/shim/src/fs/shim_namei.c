@@ -522,7 +522,9 @@ int open_namei(struct shim_handle* hdl, struct shim_dentry* start, const char* p
     assert(dent->state & DENTRY_VALID);
 
     if (dent->type == S_IFDIR) {
-        if (flags & O_WRONLY || flags & O_RDWR || flags & O_CREAT) {
+        if (flags & O_WRONLY || flags & O_RDWR
+                || ((flags & O_CREAT) && !(flags & O_DIRECTORY))
+                || ((flags & O_CREAT) && !(flags & O_EXCL))) {
             ret = -EISDIR;
             goto err;
         }
