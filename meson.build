@@ -108,10 +108,8 @@ endif
 if sgx
     threads_dep = dependency('threads')
 
-    # this one is bizarre, will be compiled in different ways: one for LibOS, one for PAL
     mbedtls_proj = subproject('mbedtls-mbedtls-2.26.0')
     mbedtls_dep = mbedtls_proj.get_variable('mbedtls_dep')
-    mbedtls_install_dir = mbedtls_proj.get_variable('mbedtls_install_dir') # for install_rpath
 
     libcurl_dep = dependency('libcurl', version: '>=7.58.0')
 

@@ -6,5 +6,5 @@ executable('graphene-sgx-quote-dump',
         mbedtls_dep,
     ],
 
-    install: false,
+    install: true,
 )

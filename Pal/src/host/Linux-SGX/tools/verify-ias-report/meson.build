@@ -6,5 +6,5 @@ executable('graphene-sgx-ias-verify-report',
         mbedtls_dep,
     ],
 
-    install: false,
+    install: true,
 )

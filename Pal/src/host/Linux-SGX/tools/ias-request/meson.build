@@ -6,5 +6,5 @@ executable('graphene-sgx-ias-request',
         mbedtls_dep,
     ],
 
-    install: false,
+    install: true,
 )

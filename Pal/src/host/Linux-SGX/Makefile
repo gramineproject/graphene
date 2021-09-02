@@ -165,17 +165,15 @@ CLEAN_FILES += gdb_integration/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
 CLEAN_FILES += gsgx.h
 
-.PHONY: clean_
-clean_:
+.PHONY: clean
+clean:
 	$(RM) -r *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d gdb_integration/*.d signer/*.pyc \
 	         __pycache__ signer/__pycache__
 	$(RM) -r protected-files/*.o protected-files/*.d
 
-.PHONY: clean
-clean: clean_
-
 .PHONY: distclean
-distclean: clean_
+distclean: clean
+	@:
 
 .PHONY: test
 test:

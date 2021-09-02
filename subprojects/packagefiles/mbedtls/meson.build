@@ -3,7 +3,7 @@ project('mbedtls', 'c')
 # as our mbedtls will conflict with system's one, we need rpath at least for pf tools
 mbedtls_install_dir = join_paths(get_option('libdir'), 'graphene', 'mbedtls')
 
-# TODO this is custom_target, because we need to patch mbedtls before compiling
+# TODO: This is custom_target, because we need to patch mbedtls before compiling.
 # PR for patch support in wraps: https://github.com/mesonbuild/meson/pull/4570
 mbedtls_libs = custom_target('mbedtls',
     command: [
@@ -54,7 +54,6 @@ mbedtls_pal_libs = custom_target('mbedtls_pal',
 )
 
 mbedtls_inc = include_directories('include')
-#mbedtls_incpath = meson.current_source_dir() / 'include'
 
 mbedtls_dep = declare_dependency(
     link_with: [mbedtls_libs[1], mbedtls_libs[3], mbedtls_libs[5]],
