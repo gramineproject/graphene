@@ -168,8 +168,7 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
 
         if (c->mapend > c->mapstart) {
             void* addr = (void*)DO_SYSCALL(mmap, NULL, c->mapend - c->mapstart,
-                                           PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FILE, fd,
-                                           c->mapoff);
+                                           PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, c->mapoff);
 
             if (IS_PTR_ERR(addr)) {
                 ret = PTR_TO_ERR(addr);

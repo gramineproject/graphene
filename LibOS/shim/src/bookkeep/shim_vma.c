@@ -31,8 +31,8 @@
 /* Filter flags that will be saved in `struct shim_vma`. For example there is no need for saving
  * MAP_FIXED or unsupported flags. */
 static int filter_saved_flags(int flags) {
-    return flags & (MAP_SHARED | MAP_SHARED_VALIDATE | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FILE
-                    | MAP_GROWSDOWN | MAP_HUGETLB | MAP_HUGE_2MB | MAP_HUGE_1GB | MAP_STACK
+    return flags & (MAP_SHARED | MAP_SHARED_VALIDATE | MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN
+                    | MAP_HUGETLB | MAP_HUGE_2MB | MAP_HUGE_1GB | MAP_STACK
                     | VMA_UNMAPPED | VMA_INTERNAL | VMA_TAINTED);
 }
 

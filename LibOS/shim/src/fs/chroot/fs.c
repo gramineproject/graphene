@@ -690,11 +690,7 @@ static int chroot_mmap(struct shim_handle* hdl, void** addr, size_t size, int pr
 
     int pal_prot = LINUX_PROT_TO_PAL(prot, flags);
 
-#if MAP_FILE == 0
     if (flags & MAP_ANONYMOUS)
-#else
-    if (!(flags & MAP_FILE))
-#endif
         return -EINVAL;
 
     return pal_to_unix_errno(DkStreamMap(hdl->pal_handle, addr, pal_prot, offset, size));
