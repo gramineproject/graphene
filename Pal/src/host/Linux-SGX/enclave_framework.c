@@ -910,9 +910,6 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* out_key,
     size_t secret_size;
     uint8_t secret[DH_SIZE];
 
-    int64_t total;
-    int64_t bytes;
-
     assert(IS_HANDLE_TYPE(stream, process));
 
     /* perform unauthenticated DH key exchange to produce two collaterals: the session key K_e and
@@ -925,7 +922,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* out_key,
     if (ret < 0)
         goto out;
 
-    for (bytes = 0, total = 0; total < (int64_t)sizeof(my_public); total += bytes) {
+    for (int64_t bytes = 0, total = 0; total < (int64_t)sizeof(my_public); total += bytes) {
         bytes = _DkStreamWrite(stream, 0, sizeof(my_public) - total, my_public + total, NULL, 0);
         if (bytes < 0) {
             if (bytes == -PAL_ERROR_INTERRUPTED || bytes == -PAL_ERROR_TRYAGAIN) {
@@ -937,7 +934,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* out_key,
         }
     }
 
-    for (bytes = 0, total = 0; total < (int64_t)sizeof(peer_public); total += bytes) {
+    for (int64_t bytes = 0, total = 0; total < (int64_t)sizeof(peer_public); total += bytes) {
         bytes = _DkStreamRead(stream, 0, sizeof(peer_public) - total, peer_public + total, NULL, 0);
         if (bytes < 0) {
             if (bytes == -PAL_ERROR_INTERRUPTED || bytes == -PAL_ERROR_TRYAGAIN) {
@@ -945,6 +942,11 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* out_key,
                 continue;
             }
             ret = (int)bytes;
+            goto out;
+        }
+        if (bytes == 0) {
+            /* peer enclave closed the connection prematurely */
+            ret = -PAL_ERROR_DENIED;
             goto out;
         }
     }
@@ -979,11 +981,6 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* out_key,
     log_debug("Key exchange succeeded\n");
     ret = 0;
 out:
-    if (ret < 0) {
-        erase_memory(out_key, sizeof(*out_key)); /* scrub session key on failure */
-        log_error("Key Exchange failed: %d\n", ret);
-    }
-
     /* scrub all temporary buffers */
     erase_memory(&secret, sizeof(secret));
     erase_memory(&my_public, sizeof(my_public));
