@@ -1,7 +1,6 @@
 project('mbedtls', 'c')
 
-# as our mbedtls will conflict with system's one, we need rpath at least for pf tools
-mbedtls_install_dir = join_paths(get_option('libdir'), 'graphene', 'mbedtls')
+pkgconfig = import('pkgconfig')
 
 # TODO: This is custom_target, because we need to patch mbedtls before compiling.
 # PR for patch support in wraps: https://github.com/mesonbuild/meson/pull/4570
@@ -13,6 +12,7 @@ mbedtls_libs = custom_target('mbedtls',
         '@PRIVATE_DIR@',
         '@OUTPUT@',
         '--',
+        'SUFFIX=_graphene',
         'SHARED=1',
     ],
 
@@ -21,16 +21,27 @@ mbedtls_libs = custom_target('mbedtls',
     # NOTE we need real sonames here (.so.N, not .so), please keep synced with
     # mbedtls/library/Makefile, variables SOEXT_{TLS,X509,CRYPTO}
     output: [
-        'libmbedcrypto.so.6',
-        'libmbedcrypto.so',
-        'libmbedtls.so.13',
-        'libmbedtls.so',
-        'libmbedx509.so.1',
-        'libmbedx509.so',
+        'libmbedcrypto_graphene.so.6',
+        'libmbedcrypto_graphene.so',
+        'libmbedtls_graphene.so.13',
+        'libmbedtls_graphene.so',
+        'libmbedx509_graphene.so.1',
+        'libmbedx509_graphene.so',
     ],
 
     install: true,
-    install_dir: mbedtls_install_dir,
+    install_dir: get_option('libdir'),
+)
+
+pkgconfig.generate(
+    name: 'mbedtls_graphene',
+    filebase: 'mbedtls_graphene',
+    description: 'A version of mbedtls patched for Graphene',
+    libraries: [
+        'mbedcrypto_graphene',
+        'mbedtls_graphene',
+        'mbedx509_graphene',
+    ],
 )
 
 mbedtls_pal_libs = custom_target('mbedtls_pal',
@@ -40,6 +51,8 @@ mbedtls_pal_libs = custom_target('mbedtls_pal',
         meson.current_build_dir(),
         '@PRIVATE_DIR@',
         '@OUTPUT@',
+        '--',
+        'SUFFIX=_pal',
     ],
 
     input: ['Makefile', 'graphene.patch'],

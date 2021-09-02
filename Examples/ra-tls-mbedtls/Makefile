@@ -60,9 +60,8 @@ mbedtls/.mbedtls_configured: mbedtls/.mbedtls_downloaded
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -I./mbedtls/include
-LFLAGS += -Wl,-rpath,$(GRAPHENE_PKGLIBDIR)/mbedtls -L$(GRAPHENE_PKGLIBDIR)/mbedtls \
-	-ldl -lmbedcrypto -lmbedtls -lmbedx509
+CFLAGS += -I./mbedtls/include $(shell pkg-config --cflags mbedtls_graphene)
+LFLAGS += -ldl $(shell pkg-config --libs mbedtls_graphene)
 
 server: src/server.c mbedtls/.mbedtls_configured
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@

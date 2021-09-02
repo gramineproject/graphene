@@ -37,8 +37,9 @@ dcap: secret_prov_server_dcap
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -Wall -std=c11 -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
-LFLAGS += -L$(GRAPHENE_PKGLIBDIR)/mbedtls
+CFLAGS += -Wall -std=c11 -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls \
+		  $(shell pkg-config --cflags mbedtls_graphene)
+LFLAGS += $(shell pkg-config --libs mbedtls_graphene)
 
 secret_prov_server_epid: src/secret_prov_server.c
 	$(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_verify_epid -pthread -o $@

@@ -1,10 +1,10 @@
 # A similar fix will be merged to a future version of mbedTLS, please track
 # progress via issue https://github.com/ARMmbed/mbedtls/issues/3141.
 
-diff --git a/library/ssl_tls.c b/library/ssl_tls.c
-index e367fbd9c..e9524f66b 100644
---- a/library/ssl_tls.c
-+++ b/library/ssl_tls.c
+diff --git i/library/ssl_tls.c w/library/ssl_tls.c
+index e367fbd9cdd42c81b108a92037b1b16d562a6f55..e9524f66ba4203e7654b1023656c1830c7a01010 100644
+--- i/library/ssl_tls.c
++++ w/library/ssl_tls.c
 @@ -6235,12 +6235,14 @@ int mbedtls_ssl_context_save( mbedtls_ssl_context *ssl,
          MBEDTLS_SSL_DEBUG_MSG( 1, ( "There is pending outgoing data" ) );
          return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
@@ -92,10 +92,10 @@ index e367fbd9c..e9524f66b 100644
      /* mbedtls_ssl_reset() leaves the handshake sub-structure allocated,
       * which we don't want - otherwise we'd end up freeing the wrong transform
       * by calling mbedtls_ssl_handshake_wrapup_free_hs_transform()
-diff --git a/include/mbedtls/config.h b/include/mbedtls/config.h
-index d370dbff5..b0b3f02ef 100644
---- a/include/mbedtls/config.h
-+++ b/include/mbedtls/config.h
+diff --git i/include/mbedtls/config.h w/include/mbedtls/config.h
+index d370dbff5e8f6d231719aba4453304545c6332bc..b0b3f02ef5a7bda27e06de7f5afe8d9da7fc755e 100644
+--- i/include/mbedtls/config.h
++++ w/include/mbedtls/config.h
 @@ -2620,7 +2620,7 @@
   * Requires: MBEDTLS_AES_C or MBEDTLS_DES_C
   *
@@ -105,3 +105,95 @@ index d370dbff5..b0b3f02ef 100644
  
  /**
   * \def MBEDTLS_CTR_DRBG_C
+diff --git i/library/Makefile w/library/Makefile
+index 6bb9c1781db543d9bb9ef8478fa4431fbe3af5b8..f80d0ab18126472b15acbc661cb13337ee154d7d 100644
+--- i/library/Makefile
++++ w/library/Makefile
+@@ -43,6 +43,8 @@ SOEXT_TLS=so.13
+ SOEXT_X509=so.1
+ SOEXT_CRYPTO=so.6
+ 
++SUFFIX ?=
++
+ # Set AR_DASH= (empty string) to use an ar implementation that does not accept
+ # the - prefix for command line options (e.g. llvm-ar)
+ AR_DASH ?= -
+@@ -179,12 +181,13 @@ else
+ all: shared static
+ endif
+ 
+-static: libmbedcrypto.a libmbedx509.a libmbedtls.a
++static: libmbedcrypto$(SUFFIX).a libmbedx509$(SUFFIX).a libmbedtls$(SUFFIX).a
+ 
+-shared: libmbedcrypto.$(DLEXT) libmbedx509.$(DLEXT) libmbedtls.$(DLEXT)
++shared: libmbedcrypto$(SUFFIX).$(DLEXT) libmbedx509$(SUFFIX).$(DLEXT) libmbedtls$(SUFFIX).$(DLEXT) \
++		libmbedcrypto$(SUFFIX).$(SOEXT_CRYPTO) libmbedx509$(SUFFIX).$(SOEXT_X509) libmbedtls$(SUFFIX).$(SOEXT_TLS)
+ 
+ # tls
+-libmbedtls.a: $(OBJS_TLS)
++libmbedtls%.a: $(OBJS_TLS)
+ 	echo "  AR    $@"
+ 	$(AR) $(ARFLAGS) $@ $(OBJS_TLS)
+ ifdef APPLE_BUILD
+@@ -194,11 +197,11 @@ ifneq ($(APPLE_BUILD),0)
+ endif
+ endif
+ 
+-libmbedtls.$(SOEXT_TLS): $(OBJS_TLS) libmbedx509.so
++libmbedtls%.$(SOEXT_TLS): $(OBJS_TLS) libmbedx509%.so
+ 	echo "  LD    $@"
+-	$(CC) -shared -Wl,-soname,$@ -L. -lmbedcrypto -lmbedx509 $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@ $(OBJS_TLS)
++	$(CC) -shared -Wl,-soname,$@ -L. -lmbedcrypto$(SUFFIX) -lmbedx509$(SUFFIX) $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@ $(OBJS_TLS)
+ 
+-libmbedtls.so: libmbedtls.$(SOEXT_TLS)
++libmbedtls%.so: libmbedtls%.$(SOEXT_TLS)
+ 	echo "  LN    $@ -> $<"
+ 	ln -sf $< $@
+ 
+@@ -211,7 +214,7 @@ libmbedtls.dll: $(OBJS_TLS) libmbedx509.dll
+ 	$(CC) -shared -Wl,-soname,$@ -Wl,--out-implib,$@.a -o $@ $(OBJS_TLS) -lws2_32 -lwinmm -lgdi32 -L. -lmbedcrypto -lmbedx509 -static-libgcc $(LOCAL_LDFLAGS) $(LDFLAGS)
+ 
+ # x509
+-libmbedx509.a: $(OBJS_X509)
++libmbedx509%.a: $(OBJS_X509)
+ 	echo "  AR    $@"
+ 	$(AR) $(ARFLAGS) $@ $(OBJS_X509)
+ ifdef APPLE_BUILD
+@@ -221,11 +224,11 @@ ifneq ($(APPLE_BUILD),0)
+ endif
+ endif
+ 
+-libmbedx509.$(SOEXT_X509): $(OBJS_X509) libmbedcrypto.so
++libmbedx509%.$(SOEXT_X509): $(OBJS_X509) libmbedcrypto%.so
+ 	echo "  LD    $@"
+-	$(CC) -shared -Wl,-soname,$@ -L. -lmbedcrypto $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@ $(OBJS_X509)
++	$(CC) -shared -Wl,-soname,$@ -L. -lmbedcrypto$(SUFFIX) $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@ $(OBJS_X509)
+ 
+-libmbedx509.so: libmbedx509.$(SOEXT_X509)
++libmbedx509%.so: libmbedx509%.$(SOEXT_X509)
+ 	echo "  LN    $@ -> $<"
+ 	ln -sf $< $@
+ 
+@@ -238,7 +241,7 @@ libmbedx509.dll: $(OBJS_X509) libmbedcrypto.dll
+ 	$(CC) -shared -Wl,-soname,$@ -Wl,--out-implib,$@.a -o $@ $(OBJS_X509) -lws2_32 -lwinmm -lgdi32 -L. -lmbedcrypto -static-libgcc $(LOCAL_LDFLAGS) $(LDFLAGS)
+ 
+ # crypto
+-libmbedcrypto.a: $(OBJS_CRYPTO)
++libmbedcrypto%.a: $(OBJS_CRYPTO)
+ 	echo "  AR    $@"
+ 	$(AR) $(ARFLAGS) $@ $(OBJS_CRYPTO)
+ ifdef APPLE_BUILD
+@@ -248,11 +251,11 @@ ifneq ($(APPLE_BUILD),0)
+ endif
+ endif
+ 
+-libmbedcrypto.$(SOEXT_CRYPTO): $(OBJS_CRYPTO)
++libmbedcrypto%.$(SOEXT_CRYPTO): $(OBJS_CRYPTO)
+ 	echo "  LD    $@"
+ 	$(CC) -shared -Wl,-soname,$@ $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@ $(OBJS_CRYPTO)
+ 
+-libmbedcrypto.so: libmbedcrypto.$(SOEXT_CRYPTO)
++libmbedcrypto%.so: libmbedcrypto%.$(SOEXT_CRYPTO)
+ 	echo "  LN    $@ -> $<"
+ 	ln -sf $< $@
+ 

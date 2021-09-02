@@ -28,6 +28,5 @@ make -C "$PRIVATE_DIR" lib "$@"
 
 for output in $OUTPUTS
 do
-    input=$(basename "$output" | sed -e 's:_[a-z]*::')
-    cp -a "$PRIVATE_DIR"/library/"$input" "$output"
+    cp -a "$PRIVATE_DIR"/library/"$(basename "$output")" "$output"
 done

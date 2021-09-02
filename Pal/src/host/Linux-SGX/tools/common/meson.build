@@ -20,7 +20,6 @@ sgx_util = shared_library('sgx_util',
     ],
 
     install: true,
-    install_rpath: join_paths(prefix / mbedtls_install_dir),
 )
 
 sgx_util_dep = declare_dependency(
