@@ -10,10 +10,12 @@ Quick start without SGX support
 
       git clone https://github.com/oscarlab/graphene.git
 
-.. NOTE if you're about to sort the apt-get invocation below, see note in
-   building.rst
+#. Build Graphene:
 
-#. Build Graphene::
+   .. NOTE if you're about to sort the apt-get invocation below, see note in
+      building.rst
+
+   .. code-block:: sh
 
       sudo apt-get install -y build-essential \
           autoconf bison gawk ninja-build python3 python3-click python3-jinja2 \
@@ -60,7 +62,12 @@ descriptions in :doc:`building`.
 .. NOTE if you're about to sort the apt-get invocation below, see note in
    building.rst
 
-#. Build Graphene and Graphene-SGX::
+#. Build Graphene and Graphene-SGX:
+
+   .. NOTE if you're about to sort the apt-get invocation below, see note in
+      building.rst
+
+   .. code-block:: sh
 
       sudo apt-get install -y build-essential \
           autoconf bison gawk libcurl4-openssl-dev libprotobuf-c-dev \
