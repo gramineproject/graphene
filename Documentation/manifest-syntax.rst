@@ -184,17 +184,16 @@ provided at runtime from an external (trusted) source.
 
 If the same variable is set in both, then ``loader.env.[ENVIRON]`` takes
 precedence. It is prohibited to specify both ``value`` and ``passthrough`` keys
-for the same environment variable. ``passthrough = false`` doesn't have any
-effect and is only specified here for completeness. If manifest option
-``insecure__use_host_env`` is specified, then ``passthrough`` manifest options
-have no effect (they are "consumed" by ``insecure__use_host_env``).
+for the same environment variable. If manifest option ``insecure__use_host_env``
+is specified, then ``passthrough = true`` manifest options have no effect (they
+are "consumed" by ``insecure__use_host_env``).
 
 .. note ::
    It is tempting to try to passthrough all environment variables using
    ``insecure__use_host_env`` and then disallow some of them using ``passthrough
    = false``. However, this deny list approach is intentionally prohibited.
-   Graphene completely ignores any ``passthrough`` manifest options when it
-   notices ``insecure__use_host_env``.
+   Graphene loudly fails if any ``passthrough = false`` manifest options are set
+   together with ``insecure__use_host_env``.
 
 Disabling ASLR
 ^^^^^^^^^^^^^^
