@@ -8,16 +8,6 @@ project(
     version: '1.2-rc1',
     license: 'LGPLv3+',
 
-    # DISTRO            EOL         meson_version
-    # xenial            2021.04     0.29
-    # xenial-backports  2021.04     0.40
-    # bionic            2023.04     0.45
-    # buster            2022        0.49
-    # buster-backports  2022        0.52
-    # focal             2025.04     0.53
-    #
-    # https://wiki.ubuntu.com/Releases
-    # https://wiki.debian.org/DebianReleases#Production_Releases
     meson_version: '>=0.55',
 
     default_options: [
