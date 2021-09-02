@@ -1,19 +1,17 @@
-From ubuntu:18.04
-
-ARG DEBIAN_FRONTEND=noninteractive
+FROM ubuntu:18.04
 
 # Install prerequisites
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
     curl \
     git \
-    wget \
+    gnupg \
+    numactl \
     python3 \
     python3-pip \
-    numactl \
-    gnupg \
-    build-essential \
-    cmake
+    wget
 
 # Install OpenVINO
 ARG PUBLIC_KEY="https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021"
@@ -39,20 +37,18 @@ RUN cd /opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/downloader
     python3 -m pip install --upgrade pip setuptools && \
     pip3 install -r requirements.txt && \
     cd /opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/downloader && \
-    python3 ./downloader.py --name resnet-50-tf -o /model && \
-    python3 ./converter.py --mo /opt/intel/openvino_2021/deployment_tools/model_optimizer/mo.py --name resnet-50-tf -d /model -o /model && \
-    python3 ./downloader.py --name bert-large-uncased-whole-word-masking-squad-0001 -o /model && \
-    python3 ./converter.py --mo /opt/intel/openvino_2021/deployment_tools/model_optimizer/mo.py --name bert-large-uncased-whole-word-masking-squad-0001 -d /model -o /model && \
-    python3 ./downloader.py --name bert-large-uncased-whole-word-masking-squad-int8-0001 -o /model && \
-    python3 ./converter.py --mo /opt/intel/openvino_2021/deployment_tools/model_optimizer/mo.py --name bert-large-uncased-whole-word-masking-squad-int8-0001 -d /model -o /model && \
-    python3 ./downloader.py --name brain-tumor-segmentation-0001 -o /model && \
-    python3 ./converter.py --mo /opt/intel/openvino_2021/deployment_tools/model_optimizer/mo.py --name brain-tumor-segmentation-0001 -d /model -o /model && \
-    python3 ./downloader.py --name brain-tumor-segmentation-0002 -o /model && \
-    python3 ./converter.py --mo /opt/intel/openvino_2021/deployment_tools/model_optimizer/mo.py --name brain-tumor-segmentation-0002 -d /model -o /model && \
-    python3 ./downloader.py --name ssd_mobilenet_v1_coco  -o /model && \
-    python3 ./converter.py --mo /opt/intel/openvino_2021/deployment_tools/model_optimizer/mo.py --name ssd_mobilenet_v1_coco -d /model -o /model
+    for model_name in resnet-50-tf \
+                      bert-large-uncased-whole-word-masking-squad-0001 \
+                      bert-large-uncased-whole-word-masking-squad-int8-0001 \
+                      brain-tumor-segmentation-0001 \
+                      brain-tumor-segmentation-0002 \
+                      ssd_mobilenet_v1_coco; \
+    do \
+        python3 ./downloader.py --name $model_name -o /model; \
+        python3 ./converter.py --mo /opt/intel/openvino_2021/deployment_tools/model_optimizer/mo.py --name $model_name -d /model -o /model; \
+    done
 
-ENV LD_LIBRARY_PATH = "${LD_LIBRARY_PATH}:/opt/intel/openvino_2021/deployment_tools/inference_engine/external/tbb/lib:/opt/intel/openvino_2021/deployment_tools/inference_engine/lib/intel64:/opt/intel/openvino_2021/deployment_tools/ngraph/lib"
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/intel/openvino_2021/deployment_tools/inference_engine/external/tbb/lib:/opt/intel/openvino_2021/deployment_tools/inference_engine/lib/intel64:/opt/intel/openvino_2021/deployment_tools/ngraph/lib
 
 RUN echo "source /opt/intel/openvino_2021/bin/setupvars.sh" | tee -a /root/.bashrc
 
