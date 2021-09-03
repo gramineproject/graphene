@@ -299,8 +299,8 @@ in :file:`config.yaml.template`.
 
 .. describe:: Distro
 
-   Defines Linux distribution to be used to build Graphene in. Currently the
-   only supported value is ``ubuntu18.04``.
+   Defines Linux distribution to be used to build Graphene in. Currently tested
+   distros are ubuntu 18.04 and ubuntu 20.04. Default value is ``ubuntu18.04``.
 
 .. describe:: Graphene.Repository
 

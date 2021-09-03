@@ -1,6 +1,5 @@
-# The only currently supported distro is Ubuntu 18.04; to add another distro, you must add three new
-# Dockerfiles (compile, build, sign) under templates/
-Distro: "ubuntu18.04"
+# Specify the OS distro in the below format as shown for ubuntu 18.04. Currently tested distros are ubuntu 18.04 and ubuntu 20.04.
+Distro: "ubuntu:18.04"
 
 # If you're using your own fork and branch of Graphene, specify the GitHub link and the branch name
 # below; typically, you want to keep the default values though

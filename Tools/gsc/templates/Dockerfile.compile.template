@@ -1,4 +1,5 @@
 FROM {{Distro}} AS graphene
+# Currently tested base OS images are ubuntu 18.04 and ubuntu 20.04
 
 RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
     && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
