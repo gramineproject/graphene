@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2020 Invisible Things Lab
  *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
- * Copyright (C) 2021 Invisible Things Lab
+ * Copyright (C) 2021 Intel Corporation
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
