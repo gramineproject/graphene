@@ -238,7 +238,7 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
  */
 static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK) || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
+    if (access < 0 || access >= PAL_ACCESS_BOUND || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
         !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 

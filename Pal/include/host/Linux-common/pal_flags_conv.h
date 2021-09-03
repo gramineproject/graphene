@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2020 Invisible Things Lab
  *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+ * Copyright (C) 2021 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
 /*
@@ -35,11 +37,17 @@ static inline int PAL_PROT_TO_LINUX(int prot) {
 }
 
 static inline int PAL_ACCESS_TO_LINUX_OPEN(int access) {
-    assert(WITHIN_MASK(access, PAL_ACCESS_MASK));
-    return (access & PAL_ACCESS_RDONLY ? O_RDONLY : 0) |
-           (access & PAL_ACCESS_WRONLY ? O_WRONLY : 0) |
-           (access & PAL_ACCESS_RDWR   ? O_RDWR   : 0) |
-           (access & PAL_ACCESS_APPEND ? O_APPEND : 0);
+    switch (access) {
+        case PAL_ACCESS_RDONLY:
+            return O_RDONLY;
+        case PAL_ACCESS_WRONLY:
+            return O_WRONLY;
+        case PAL_ACCESS_RDWR:
+            return O_RDWR;
+        default:
+            log_error("Invalid access (%d) in PAL_ACCESS_TO_LINUX_OPEN", access);
+            die_or_inf_loop();
+    }
 }
 
 static inline int PAL_CREATE_TO_LINUX_OPEN(int create) {

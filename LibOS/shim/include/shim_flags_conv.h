@@ -47,7 +47,7 @@ static inline int LINUX_OPEN_FLAGS_TO_PAL_ACCESS(int access) {
             BUG();
     }
     if (access & O_APPEND) {
-        ret |= PAL_ACCESS_APPEND;
+        /* FIXME: Currently PAL does not support appending. */
     }
     return ret;
 }

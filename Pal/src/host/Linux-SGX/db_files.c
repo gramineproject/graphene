@@ -113,12 +113,14 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         pf_lock();
 
         pf_file_mode_t pf_mode = 0;
-        if (pal_access & PAL_ACCESS_RDWR)
-            pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
-        else if (pal_access & PAL_ACCESS_WRONLY)
-            pf_mode = PF_FILE_MODE_WRITE;
-        else
+        if (pal_access == PAL_ACCESS_RDONLY) {
             pf_mode = PF_FILE_MODE_READ;
+        } else if (pal_access == PAL_ACCESS_WRONLY) {
+            pf_mode = PF_FILE_MODE_WRITE;
+        } else {
+            assert(pal_access == PAL_ACCESS_RDWR);
+            pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
+        }
 
         if ((pf_mode & PF_FILE_MODE_WRITE) && pf->writable_fd >= 0) {
             log_warning("file_open(%s): disallowing concurrent writable handle",
@@ -164,8 +166,8 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     assert(tf); /* at this point, we want to open a trusted or allowed file */
 
     if (!tf->allowed && (do_create
-                         || (pal_access & PAL_ACCESS_RDWR)
-                         || (pal_access & PAL_ACCESS_WRONLY))) {
+                         || (pal_access == PAL_ACCESS_RDWR)
+                         || (pal_access == PAL_ACCESS_WRONLY))) {
         log_error("Disallowing create/write/append to a trusted file '%s'", hdl->file.realpath);
         ret = -PAL_ERROR_DENIED;
         goto fail;
@@ -847,7 +849,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
                     int create, int options) {
     if (strcmp(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
+    if (access < 0 || access >= PAL_ACCESS_BOUND)
         return -PAL_ERROR_INVAL;
 
     if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {
