@@ -146,7 +146,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char** args) {
     if (!child)
         return -PAL_ERROR_NOMEM;
 
-    SET_HANDLE_TYPE(child, process);
+    init_handle_hdr(HANDLE_HDR(child), PAL_TYPE_PROCESS);
     HANDLE_HDR(child)->flags |= RFD(0) | WFD(0);
     child->process.stream      = stream_fd;
     child->process.nonblocking = PAL_FALSE;
@@ -217,7 +217,7 @@ int init_child_process(PAL_HANDLE* parent_handle, uint64_t* instance_id_ptr) {
     if (!parent)
         return -PAL_ERROR_NOMEM;
 
-    SET_HANDLE_TYPE(parent, process);
+    init_handle_hdr(HANDLE_HDR(parent), PAL_TYPE_PROCESS);
     HANDLE_HDR(parent)->flags |= RFD(0) | WFD(0);
 
     parent->process.stream      = g_pal_sec.stream_fd;

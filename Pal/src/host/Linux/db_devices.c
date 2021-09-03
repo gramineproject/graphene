@@ -36,7 +36,7 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     if (!hdl)
         return -PAL_ERROR_NOMEM;
 
-    SET_HANDLE_TYPE(hdl, dev);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_DEV);
 
     if (!strcmp(uri, "tty")) {
         /* special case of "dev:tty" device which is the standard input + standard output */
@@ -85,7 +85,7 @@ fail:
 }
 
 static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buffer) {
-    if (offset || !IS_HANDLE_TYPE(handle, dev))
+    if (offset || HANDLE_HDR(handle)->type != PAL_TYPE_DEV)
         return -PAL_ERROR_INVAL;
 
     if (!(HANDLE_HDR(handle)->flags & RFD(0)))
@@ -99,7 +99,7 @@ static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void*
 }
 
 static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
-    if (offset || !IS_HANDLE_TYPE(handle, dev))
+    if (offset || HANDLE_HDR(handle)->type != PAL_TYPE_DEV)
         return -PAL_ERROR_INVAL;
 
     if (!(HANDLE_HDR(handle)->flags & WFD(0)))
@@ -113,7 +113,7 @@ static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, cons
 }
 
 static int dev_close(PAL_HANDLE handle) {
-    if (!IS_HANDLE_TYPE(handle, dev))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_DEV)
         return -PAL_ERROR_INVAL;
 
     /* currently we just assign `0`/`1` FDs without duplicating, so close is a no-op for them */
@@ -126,7 +126,7 @@ static int dev_close(PAL_HANDLE handle) {
 }
 
 static int dev_flush(PAL_HANDLE handle) {
-    if (!IS_HANDLE_TYPE(handle, dev))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_DEV)
         return -PAL_ERROR_INVAL;
 
     if (handle->dev.fd != PAL_IDX_POISON) {
@@ -164,13 +164,13 @@ static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* att
         attr->pending_size = stat_buf.st_size;
     }
 
-    attr->handle_type  = pal_type_dev;
+    attr->handle_type  = PAL_TYPE_DEV;
     attr->nonblocking  = PAL_FALSE;
     return 0;
 }
 
 static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
-    if (!IS_HANDLE_TYPE(handle, dev))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_DEV)
         return -PAL_ERROR_INVAL;
 
     if (handle->dev.fd == 0 || handle->dev.fd == 1) {
@@ -194,7 +194,7 @@ static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         attr->pending_size = stat_buf.st_size;
     }
 
-    attr->handle_type  = pal_type_dev;
+    attr->handle_type  = PAL_TYPE_DEV;
     attr->nonblocking  = handle->dev.nonblocking;
     return 0;
 }

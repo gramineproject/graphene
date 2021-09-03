@@ -94,12 +94,12 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
     /* find fields to serialize (depends on the handle type) and assign them to d1/d2; note that
      * no handle type has more than two such fields, and some have none at all */
     switch (PAL_GET_TYPE(handle)) {
-        case pal_type_file:
+        case PAL_TYPE_FILE:
             d1   = handle->file.realpath;
             dsz1 = strlen(handle->file.realpath) + 1;
             break;
-        case pal_type_pipe:
-        case pal_type_pipecli:
+        case PAL_TYPE_PIPE:
+        case PAL_TYPE_PIPECLI:
             /* session key is part of handle but need to serialize SSL context */
             if (handle->pipe.ssl_ctx) {
                 free_d1 = true;
@@ -108,22 +108,22 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
                     return -PAL_ERROR_DENIED;
             }
             break;
-        case pal_type_pipesrv:
-        case pal_type_pipeprv:
+        case PAL_TYPE_PIPESRV:
+        case PAL_TYPE_PIPEPRV:
             break;
-        case pal_type_dev:
+        case PAL_TYPE_DEV:
             /* devices have no fields to serialize */
             break;
-        case pal_type_dir:
+        case PAL_TYPE_DIR:
             if (handle->dir.realpath) {
                 d1   = handle->dir.realpath;
                 dsz1 = strlen(handle->dir.realpath) + 1;
             }
             break;
-        case pal_type_tcp:
-        case pal_type_tcpsrv:
-        case pal_type_udp:
-        case pal_type_udpsrv:
+        case PAL_TYPE_TCP:
+        case PAL_TYPE_TCPSRV:
+        case PAL_TYPE_UDP:
+        case PAL_TYPE_UDPSRV:
             if (handle->sock.bind) {
                 d1   = (const void*)handle->sock.bind;
                 dsz1 = addr_size(handle->sock.bind);
@@ -133,7 +133,7 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
                 dsz2 = addr_size(handle->sock.conn);
             }
             break;
-        case pal_type_process:
+        case PAL_TYPE_PROCESS:
             /* session key is part of handle but need to serialize SSL context */
             if (handle->process.ssl_ctx) {
                 free_d1 = true;
@@ -142,7 +142,7 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
                     return -PAL_ERROR_DENIED;
             }
             break;
-        case pal_type_eventfd:
+        case PAL_TYPE_EVENTFD:
             break;
         default:
             return -PAL_ERROR_INVAL;
@@ -185,12 +185,12 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
 
     /* update handle fields to point to correct contents (located right after handle itself) */
     switch (PAL_GET_TYPE(hdl)) {
-        case pal_type_file:
+        case PAL_TYPE_FILE:
             hdl->file.realpath = hdl->file.realpath ? (PAL_STR)hdl + hdlsz : NULL;
             hdl->file.chunk_hashes = (PAL_PTR)NULL;
             break;
-        case pal_type_pipe:
-        case pal_type_pipecli:
+        case PAL_TYPE_PIPE:
+        case PAL_TYPE_PIPECLI:
             /* session key is part of handle but need to deserialize SSL context */
             hdl->pipe.fd = fds[0]; /* correct host FD must be passed to SSL context */
             ret = _DkStreamSecureInit(hdl, hdl->pipe.is_server, &hdl->pipe.session_key,
@@ -201,18 +201,18 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
                 return -PAL_ERROR_DENIED;
             }
             break;
-        case pal_type_pipesrv:
-        case pal_type_pipeprv:
+        case PAL_TYPE_PIPESRV:
+        case PAL_TYPE_PIPEPRV:
             break;
-        case pal_type_dev:
+        case PAL_TYPE_DEV:
             break;
-        case pal_type_dir:
+        case PAL_TYPE_DIR:
             hdl->dir.realpath = hdl->dir.realpath ? (PAL_STR)hdl + hdlsz : NULL;
             break;
-        case pal_type_tcp:
-        case pal_type_tcpsrv:
-        case pal_type_udp:
-        case pal_type_udpsrv: {
+        case PAL_TYPE_TCP:
+        case PAL_TYPE_TCPSRV:
+        case PAL_TYPE_UDP:
+        case PAL_TYPE_UDPSRV: {
             size_t s1 = hdl->sock.bind ? addr_size((PAL_PTR)hdl + hdlsz) : 0;
             size_t s2 = hdl->sock.conn ? addr_size((PAL_PTR)hdl + hdlsz + s1) : 0;
             if (s1)
@@ -221,7 +221,7 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
                 hdl->sock.conn = (PAL_PTR)hdl + hdlsz + s2;
             break;
         }
-        case pal_type_process:
+        case PAL_TYPE_PROCESS:
             /* session key is part of handle but need to deserialize SSL context */
             hdl->process.stream = fds[0]; /* correct host FD must be passed to SSL context */
             ret = _DkStreamSecureInit(hdl, hdl->process.is_server, &hdl->process.session_key,
@@ -232,7 +232,7 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
                 return -PAL_ERROR_DENIED;
             }
             break;
-        case pal_type_eventfd:
+        case PAL_TYPE_EVENTFD:
             break;
         default:
             free(hdl);
@@ -253,7 +253,7 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
-    if (!IS_HANDLE_TYPE(hdl, process))
+    if (HANDLE_HDR(hdl)->type != PAL_TYPE_PROCESS)
         return -PAL_ERROR_BADHANDLE;
 
     /* serialize cargo handle into a blob hdl_data */
@@ -323,7 +323,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
-    if (!IS_HANDLE_TYPE(hdl, process))
+    if (HANDLE_HDR(hdl)->type != PAL_TYPE_PROCESS)
         return -PAL_ERROR_BADHANDLE;
 
     ssize_t ret;

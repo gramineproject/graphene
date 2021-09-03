@@ -13,16 +13,16 @@ int DkEventCreate(PAL_HANDLE* handle, bool init_signaled, bool auto_clear) {
 }
 
 void DkEventSet(PAL_HANDLE handle) {
-    assert(handle && IS_HANDLE_TYPE(handle, event));
+    assert(handle && HANDLE_HDR(handle)->type == PAL_TYPE_EVENT);
     _DkEventSet(handle);
 }
 
 void DkEventClear(PAL_HANDLE handle) {
-    assert(handle && IS_HANDLE_TYPE(handle, event));
+    assert(handle && HANDLE_HDR(handle)->type == PAL_TYPE_EVENT);
     _DkEventClear(handle);
 }
 
 int DkEventWait(PAL_HANDLE handle, uint64_t* timeout_us) {
-    assert(handle && IS_HANDLE_TYPE(handle, event));
+    assert(handle && HANDLE_HDR(handle)->type == PAL_TYPE_EVENT);
     return _DkEventWait(handle, timeout_us);
 }

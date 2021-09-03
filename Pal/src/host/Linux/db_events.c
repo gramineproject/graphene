@@ -23,7 +23,7 @@ int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear) 
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(handle, event);
+    init_handle_hdr(HANDLE_HDR(handle), PAL_TYPE_EVENT);
     handle->event.auto_clear = auto_clear;
     __atomic_store_n(&handle->event.signaled, init_signaled ? 1 : 0, __ATOMIC_RELEASE);
 

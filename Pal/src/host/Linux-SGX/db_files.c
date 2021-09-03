@@ -66,7 +66,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(hdl, file);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_FILE);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
 
     memcpy((char*)hdl + HANDLE_SIZE(file), normpath, normpath_size);
@@ -625,15 +625,15 @@ static int file_flush(PAL_HANDLE handle) {
 
 static inline int file_stat_type(struct stat* stat) {
     if (S_ISREG(stat->st_mode))
-        return pal_type_file;
+        return PAL_TYPE_FILE;
     if (S_ISDIR(stat->st_mode))
-        return pal_type_dir;
+        return PAL_TYPE_DIR;
     if (S_ISCHR(stat->st_mode))
-        return pal_type_dev;
+        return PAL_TYPE_DEV;
     if (S_ISFIFO(stat->st_mode))
-        return pal_type_pipe;
+        return PAL_TYPE_PIPE;
     if (S_ISSOCK(stat->st_mode))
-        return pal_type_dev;
+        return PAL_TYPE_DEV;
 
     return 0;
 }
@@ -720,7 +720,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     /* For protected files return the data size, not real FS size */
     struct protected_file* pf = get_protected_file(path);
-    if (pf && attr->handle_type != pal_type_dir) {
+    if (pf && attr->handle_type != PAL_TYPE_DIR) {
         /* protected files should be regular files */
         if (S_ISFIFO(stat_buf.st_mode)) {
             ret = -PAL_ERROR_DENIED;
@@ -757,7 +757,7 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     file_attrcopy(attr, &stat_buf);
 
-    if (attr->handle_type != pal_type_dir) {
+    if (attr->handle_type != PAL_TYPE_DIR) {
         /* For protected files return the data size, not real FS size */
         struct protected_file* pf = find_protected_file_handle(handle);
         if (pf) {
@@ -874,7 +874,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         ocall_close(fd);
         return -PAL_ERROR_NOMEM;
     }
-    SET_HANDLE_TYPE(hdl, dir);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_DIR);
     HANDLE_HDR(hdl)->flags |= RFD(0);
     hdl->dir.fd = fd;
     char* path  = (void*)hdl + HANDLE_SIZE(dir);

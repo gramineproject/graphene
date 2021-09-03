@@ -57,7 +57,7 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
         goto out;
     }
 
-    SET_HANDLE_TYPE(phdl, process);
+    init_handle_hdr(HANDLE_HDR(phdl), PAL_TYPE_PROCESS);
     HANDLE_HDR(phdl)->flags  |= RFD(0) | WFD(0);
     phdl->process.stream      = fds[0];
     phdl->process.nonblocking = PAL_FALSE;
@@ -68,7 +68,7 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
         goto out;
     }
 
-    SET_HANDLE_TYPE(chdl, process);
+    init_handle_hdr(HANDLE_HDR(chdl), PAL_TYPE_PROCESS);
     HANDLE_HDR(chdl)->flags  |= RFD(0) | WFD(0);
     chdl->process.stream      = fds[1];
     chdl->process.nonblocking = PAL_FALSE;

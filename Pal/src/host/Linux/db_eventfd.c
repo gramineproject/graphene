@@ -59,7 +59,7 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
         DO_SYSCALL(close, fd);
         return -PAL_ERROR_NOMEM;
     }
-    SET_HANDLE_TYPE(hdl, eventfd);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_EVENTFD);
 
     /* Note: using index 0, given that there is only 1 eventfd FD per pal-handle. */
     HANDLE_HDR(hdl)->flags = RFD(0) | WFD(0);
@@ -75,7 +75,7 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, eventfd))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_EVENTFD)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (len < sizeof(uint64_t))
@@ -94,7 +94,7 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, eventfd))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_EVENTFD)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (len < sizeof(uint64_t))
@@ -145,7 +145,7 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
 }
 
 static int eventfd_pal_close(PAL_HANDLE handle) {
-    if (IS_HANDLE_TYPE(handle, eventfd)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_EVENTFD) {
         if (handle->eventfd.fd != PAL_IDX_POISON) {
             DO_SYSCALL(close, handle->eventfd.fd);
             handle->eventfd.fd = PAL_IDX_POISON;

@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
             memset(buffer, 0, 20);
 
             switch (PAL_GET_TYPE(handles[i])) {
-                case pal_type_pipesrv: {
+                case PAL_TYPE_PIPESRV: {
                     PAL_HANDLE pipe = NULL;
                     ret = DkStreamWaitForClient(handles[i], &pipe);
 
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
                     break;
                 }
 
-                case pal_type_udpsrv: {
+                case PAL_TYPE_UDPSRV: {
                     char uri[20];
 
                     size = sizeof(buffer);
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
                     break;
                 }
 
-                case pal_type_file:
+                case PAL_TYPE_FILE:
                     size = sizeof(buffer);
                     ret = DkStreamRead(handles[i], 0, &size, buffer, NULL, 0);
                     if (ret == 0 && size > 0)

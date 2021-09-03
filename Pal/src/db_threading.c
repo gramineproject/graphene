@@ -30,7 +30,7 @@ noreturn void DkThreadExit(PAL_PTR clear_child_tid) {
 
 /* PAL call DkThreadResume: resume the execution of a thread which is delayed before */
 int DkThreadResume(PAL_HANDLE threadHandle) {
-    if (!threadHandle || !IS_HANDLE_TYPE(threadHandle, thread)) {
+    if (!threadHandle || HANDLE_HDR(threadHandle)->type != PAL_TYPE_THREAD) {
         return -PAL_ERROR_INVAL;
     }
 

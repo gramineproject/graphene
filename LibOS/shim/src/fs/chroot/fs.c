@@ -238,15 +238,15 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
     mode_t type;
     /* need to correct the data type */
     switch (pal_attr.handle_type) {
-        case pal_type_file:
+        case PAL_TYPE_FILE:
             data->type = FILE_REGULAR;
             type = S_IFREG;
             break;
-        case pal_type_dir:
+        case PAL_TYPE_DIR:
             data->type = FILE_DIR;
             type = S_IFDIR;
             break;
-        case pal_type_dev:
+        case PAL_TYPE_DEV:
             if (strstartswith(qstrgetstr(&data->host_uri) + static_strlen(URI_PREFIX_DEV), "tty")) {
                 data->type = FILE_TTY;
             } else {
@@ -254,7 +254,7 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
             }
             type = S_IFCHR;
             break;
-        case pal_type_pipe:
+        case PAL_TYPE_PIPE:
             log_warning("trying to access '%s' which is a host-level FIFO (named pipe); "
                         "Graphene supports only named pipes created by Graphene processes",
                         qstrgetstr(&data->host_uri));

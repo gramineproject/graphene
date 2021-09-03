@@ -208,7 +208,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     if (!first_thread)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
-    SET_HANDLE_TYPE(first_thread, thread);
+    init_handle_hdr(HANDLE_HDR(first_thread), PAL_TYPE_THREAD);
     first_thread->thread.tid = DO_SYSCALL(gettid);
 
     void* alt_stack = calloc(1, ALT_STACK_SIZE);

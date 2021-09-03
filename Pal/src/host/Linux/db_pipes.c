@@ -70,7 +70,7 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(hdl, pipesrv);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_PIPESRV);
     HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write to a listening socket */
     hdl->pipe.fd            = fd;
     hdl->pipe.nonblocking   = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
@@ -97,7 +97,7 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
  * \return             0 on success, negative PAL error code otherwise.
  */
 static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
-    if (!IS_HANDLE_TYPE(handle, pipesrv))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_PIPESRV)
         return -PAL_ERROR_NOTSERVER;
 
     if (handle->pipe.fd == PAL_IDX_POISON)
@@ -113,7 +113,7 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(clnt, pipecli);
+    init_handle_hdr(HANDLE_HDR(clnt), PAL_TYPE_PIPECLI);
     HANDLE_HDR(clnt)->flags |= RFD(0) | WFD(0);
     clnt->pipe.fd            = newfd;
     clnt->pipe.name          = handle->pipe.name;
@@ -162,7 +162,7 @@ static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(hdl, pipe);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_PIPE);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->pipe.fd            = fd;
     hdl->pipe.nonblocking   = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
@@ -202,7 +202,7 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(hdl, pipeprv);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_PIPEPRV);
     HANDLE_HDR(hdl)->flags  |= RFD(0) | WFD(1); /* first FD for reads, second FD for writes */
     hdl->pipeprv.fds[0]      = fds[0];
     hdl->pipeprv.fds[1]      = fds[1];
@@ -270,11 +270,11 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, pipecli) && !IS_HANDLE_TYPE(handle, pipeprv) &&
-        !IS_HANDLE_TYPE(handle, pipe))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_PIPECLI && HANDLE_HDR(handle)->type != PAL_TYPE_PIPEPRV &&
+        HANDLE_HDR(handle)->type != PAL_TYPE_PIPE)
         return -PAL_ERROR_NOTCONNECTION;
 
-    int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] : handle->pipe.fd;
+    int fd = HANDLE_HDR(handle)->type == PAL_TYPE_PIPEPRV ? handle->pipeprv.fds[0] : handle->pipe.fd;
 
     ssize_t bytes = DO_SYSCALL(read, fd, buffer, len);
     if (bytes < 0)
@@ -296,11 +296,11 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, size_t len, const 
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, pipecli) && !IS_HANDLE_TYPE(handle, pipeprv) &&
-        !IS_HANDLE_TYPE(handle, pipe))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_PIPECLI && HANDLE_HDR(handle)->type != PAL_TYPE_PIPEPRV &&
+        HANDLE_HDR(handle)->type != PAL_TYPE_PIPE)
         return -PAL_ERROR_NOTCONNECTION;
 
-    int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] : handle->pipe.fd;
+    int fd = HANDLE_HDR(handle)->type == PAL_TYPE_PIPEPRV ? handle->pipeprv.fds[1] : handle->pipe.fd;
 
     ssize_t bytes = DO_SYSCALL(write, fd, buffer, len);
     if (bytes < 0)
@@ -316,7 +316,7 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, size_t len, const 
  * \return            0 on success, negative PAL error code otherwise.
  */
 static int pipe_close(PAL_HANDLE handle) {
-    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_PIPEPRV) {
         if (handle->pipeprv.fds[0] != PAL_IDX_POISON) {
             DO_SYSCALL(close, handle->pipeprv.fds[0]);
             handle->pipeprv.fds[0] = PAL_IDX_POISON;
@@ -356,7 +356,7 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
             return -PAL_ERROR_INVAL;
     }
 
-    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_PIPEPRV) {
         /* pipeprv has two underlying FDs, shut down the requested one(s) */
         if (handle->pipeprv.fds[0] != PAL_IDX_POISON &&
             (shutdown == SHUT_RD || shutdown == SHUT_RDWR)) {
@@ -391,13 +391,13 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         return -PAL_ERROR_BADHANDLE;
 
     attr->handle_type  = HANDLE_HDR(handle)->type;
-    attr->nonblocking  = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.nonblocking
-                                                         : handle->pipe.nonblocking;
+    attr->nonblocking  = HANDLE_HDR(handle)->type == PAL_TYPE_PIPEPRV ? handle->pipeprv.nonblocking
+                                                                      : handle->pipe.nonblocking;
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
 
     /* get number of bytes available for reading (doesn't make sense for "listening" pipes) */
     attr->pending_size = 0;
-    if (!IS_HANDLE_TYPE(handle, pipesrv)) {
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_PIPESRV) {
         int val;
         ret = DO_SYSCALL(ioctl, handle->pipe.fd, FIONREAD, &val);
         if (ret < 0)
@@ -407,7 +407,7 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     }
 
     /* query if there is data available for reading/writing */
-    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_PIPEPRV) {
         /* for private pipe, readable and writable are queried on different fds */
         struct pollfd pfd[2] = {{.fd = handle->pipeprv.fds[0], .events = POLLIN,  .revents = 0},
                                 {.fd = handle->pipeprv.fds[1], .events = POLLOUT, .revents = 0}};
@@ -421,7 +421,7 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     } else {
         /* for non-private pipes, both readable and writable are queried on the same fd */
         short pfd_events = POLLIN;
-        if (!IS_HANDLE_TYPE(handle, pipesrv)) {
+        if (HANDLE_HDR(handle)->type != PAL_TYPE_PIPESRV) {
             /* querying for writing doesn't make sense for "listening" pipes */
             pfd_events |= POLLOUT;
         }
@@ -452,7 +452,7 @@ static int pipe_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    PAL_BOL* nonblocking = (HANDLE_HDR(handle)->type == pal_type_pipeprv)
+    PAL_BOL* nonblocking = (HANDLE_HDR(handle)->type == PAL_TYPE_PIPEPRV)
                                ? &handle->pipeprv.nonblocking
                                : &handle->pipe.nonblocking;
 
@@ -486,16 +486,16 @@ static int pipe_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     size_t prefix_len  = 0;
 
     switch (PAL_GET_TYPE(handle)) {
-        case pal_type_pipesrv:
-        case pal_type_pipecli:
+        case PAL_TYPE_PIPESRV:
+        case PAL_TYPE_PIPECLI:
             prefix_len = static_strlen(URI_TYPE_PIPE_SRV);
             prefix     = URI_TYPE_PIPE_SRV;
             break;
-        case pal_type_pipe:
+        case PAL_TYPE_PIPE:
             prefix_len = static_strlen(URI_TYPE_PIPE);
             prefix     = URI_TYPE_PIPE;
             break;
-        case pal_type_pipeprv:
+        case PAL_TYPE_PIPEPRV:
         default:
             return -PAL_ERROR_INVAL;
     }

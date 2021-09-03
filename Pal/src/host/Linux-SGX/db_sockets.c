@@ -229,7 +229,7 @@ static inline PAL_HANDLE socket_create_handle(int type, int fd, int options,
 
     memset(hdl, 0, sizeof(struct pal_handle));
     init_handle_hdr(HANDLE_HDR(hdl), type);
-    HANDLE_HDR(hdl)->flags |= RFD(0) | (type != pal_type_tcpsrv ? WFD(0) : 0);
+    HANDLE_HDR(hdl)->flags |= RFD(0) | (type != PAL_TYPE_TCPSRV ? WFD(0) : 0);
     hdl->sock.fd = fd;
     void* addr   = (void*)hdl + HANDLE_SIZE(sock);
     if (bind_addr) {
@@ -289,7 +289,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     if (ret < 0)
         return unix_to_pal_error(ret);
 
-    *handle = socket_create_handle(pal_type_tcpsrv, ret, options, bind_addr, bind_addrlen, NULL, 0,
+    *handle = socket_create_handle(PAL_TYPE_TCPSRV, ret, options, bind_addr, bind_addrlen, NULL, 0,
                                    &sock_options);
     if (!(*handle)) {
         ocall_close(ret);
@@ -301,7 +301,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
 
 /* accept a tcp connection */
 static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
-    if (!IS_HANDLE_TYPE(handle, tcpsrv) || !handle->sock.bind || handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCPSRV || !handle->sock.bind || handle->sock.conn)
         return -PAL_ERROR_NOTSERVER;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -322,7 +322,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     if (ret < 0)
         return unix_to_pal_error(ret);
 
-    *client = socket_create_handle(pal_type_tcp, ret, 0, bind_addr, bind_addrlen,
+    *client = socket_create_handle(PAL_TYPE_TCP, ret, 0, bind_addr, bind_addrlen,
                                    (struct sockaddr*)&dest_addr, dest_addrlen, &sock_options);
 
     if (!(*client)) {
@@ -363,7 +363,7 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     if (ret < 0)
         return unix_to_pal_error(ret);
 
-    *handle = socket_create_handle(pal_type_tcp, ret, options, bind_addr, bind_addrlen, dest_addr,
+    *handle = socket_create_handle(PAL_TYPE_TCP, ret, options, bind_addr, bind_addrlen, dest_addr,
                                    dest_addrlen, &sock_options);
 
     if (!(*handle)) {
@@ -407,7 +407,7 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, tcp) || !handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -426,7 +426,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, tcp) || !handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -464,7 +464,7 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     if (ret < 0)
         return unix_to_pal_error(ret);
 
-    *handle = socket_create_handle(pal_type_udpsrv, ret, options, bind_addr, bind_addrlen, NULL, 0,
+    *handle = socket_create_handle(PAL_TYPE_UDPSRV, ret, options, bind_addr, bind_addrlen, NULL, 0,
                                    &sock_options);
 
     if (!(*handle)) {
@@ -500,7 +500,7 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
     if (ret < 0)
         return unix_to_pal_error(ret);
 
-    *handle = socket_create_handle(dest_addr ? pal_type_udp : pal_type_udpsrv, ret, options,
+    *handle = socket_create_handle(dest_addr ? PAL_TYPE_UDP : PAL_TYPE_UDPSRV, ret, options,
                                    bind_addr, bind_addrlen, dest_addr, dest_addrlen, &sock_options);
 
     if (!(*handle)) {
@@ -542,7 +542,7 @@ static int64_t udp_receive(PAL_HANDLE handle, uint64_t offset, uint64_t len, voi
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, udp))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDP)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -557,7 +557,7 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, udpsrv))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDPSRV)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -588,7 +588,7 @@ static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, uint64_t len, const 
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, udp))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDP)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -606,7 +606,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, udpsrv))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDPSRV)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -640,10 +640,10 @@ static int socket_delete(PAL_HANDLE handle, int access) {
     if (handle->sock.fd == PAL_IDX_POISON)
         return 0;
 
-    if (!IS_HANDLE_TYPE(handle, tcp) && access)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP && access)
         return -PAL_ERROR_INVAL;
 
-    if (IS_HANDLE_TYPE(handle, tcp) || IS_HANDLE_TYPE(handle, tcpsrv)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_TCP || HANDLE_HDR(handle)->type == PAL_TYPE_TCPSRV) {
         int shutdown;
         switch (access) {
             case 0:
@@ -701,7 +701,7 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     /* get number of bytes available for reading (doesn't make sense for listening sockets) */
     attr->pending_size = 0;
-    if (!IS_HANDLE_TYPE(handle, tcpsrv)) {
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCPSRV) {
         ret = ocall_fionread(handle->sock.fd);
         if (ret < 0)
             return unix_to_pal_error(ret);
@@ -735,7 +735,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         handle->sock.nonblocking = attr->nonblocking;
     }
 
-    if (HANDLE_TYPE(handle) != pal_type_tcpsrv) {
+    if (HANDLE_TYPE(handle) != PAL_TYPE_TCPSRV) {
         struct __kernel_linger {
             int l_onoff;
             int l_linger;
@@ -789,7 +789,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         }
     }
 
-    if (HANDLE_TYPE(handle) == pal_type_tcp || HANDLE_TYPE(handle) == pal_type_tcpsrv) {
+    if (HANDLE_TYPE(handle) == PAL_TYPE_TCP || HANDLE_TYPE(handle) == PAL_TYPE_TCPSRV) {
         if (attr->socket.tcp_cork != handle->sock.tcp_cork) {
             val = attr->socket.tcp_cork ? 1 : 0;
             ret = ocall_setsockopt(fd, SOL_TCP, TCP_CORK, &val, sizeof(int));
@@ -831,23 +831,23 @@ static int socket_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     struct sockaddr* dest_addr = NULL;
 
     switch (PAL_GET_TYPE(handle)) {
-        case pal_type_tcpsrv:
+        case PAL_TYPE_TCPSRV:
             prefix_len = static_strlen(URI_PREFIX_TCP_SRV);
             prefix = URI_PREFIX_TCP_SRV;
             bind_addr = (struct sockaddr*)handle->sock.bind;
             break;
-        case pal_type_tcp:
+        case PAL_TYPE_TCP:
             prefix_len = static_strlen(URI_PREFIX_TCP);
             prefix = URI_PREFIX_TCP;
             bind_addr = (struct sockaddr*)handle->sock.bind;
             dest_addr = (struct sockaddr*)handle->sock.conn;
             break;
-        case pal_type_udpsrv:
+        case PAL_TYPE_UDPSRV:
             prefix_len = static_strlen(URI_PREFIX_UDP_SRV);
             prefix = URI_PREFIX_UDP_SRV;
             bind_addr = (struct sockaddr*)handle->sock.bind;
             break;
-        case pal_type_udp:
+        case PAL_TYPE_UDP:
             prefix_len = static_strlen(URI_PREFIX_UDP);
             prefix = URI_PREFIX_UDP;
             bind_addr = (struct sockaddr*)handle->sock.bind;

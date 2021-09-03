@@ -50,7 +50,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(hdl, file);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_FILE);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->file.fd = ret;
     hdl->file.map_start = NULL;
@@ -189,15 +189,15 @@ static int file_flush(PAL_HANDLE handle) {
 
 static inline int file_stat_type(struct stat* stat) {
     if (S_ISREG(stat->st_mode))
-        return pal_type_file;
+        return PAL_TYPE_FILE;
     if (S_ISDIR(stat->st_mode))
-        return pal_type_dir;
+        return PAL_TYPE_DIR;
     if (S_ISCHR(stat->st_mode))
-        return pal_type_dev;
+        return PAL_TYPE_DEV;
     if (S_ISFIFO(stat->st_mode))
-        return pal_type_pipe;
+        return PAL_TYPE_PIPE;
     if (S_ISSOCK(stat->st_mode))
-        return pal_type_dev;
+        return PAL_TYPE_DEV;
 
     return 0;
 }
@@ -345,7 +345,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         DO_SYSCALL(close, fd);
         return -PAL_ERROR_NOMEM;
     }
-    SET_HANDLE_TYPE(hdl, dir);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_DIR);
     HANDLE_HDR(hdl)->flags |= RFD(0);
     hdl->dir.fd = fd;
     char* path = (void*)hdl + HANDLE_SIZE(dir);
