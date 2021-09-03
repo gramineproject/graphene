@@ -70,7 +70,8 @@ static void load_libraries(void) {
  *   - `loader.env.{key} = { value = "val" }`
  *   - `loader.env.{key} = { passthrough = true|false }`, then `*out_val = NULL` and
  *                                                             `*out_passthrough = true|false`
- *   - `loader.env.{key}` doesn't exist, then returns 0 and `*out_val = NULL`
+ *   - `loader.env.{key}` doesn't exist, then returns 0 and `*out_val = NULL` and
+ *                                                          `*out_passthrough = false`
  *
  * For any other format, returns negative error code. The caller is responsible to free `out_val`.
  */
@@ -135,7 +136,7 @@ static int deep_copy_envs(const char** envp, const char*** out_envp) {
 
     size_t idx = 0;
     for (const char** orig_env = envp; *orig_env; orig_env++) {
-        new_envp[idx] = alloc_substr(*orig_env, strlen(*orig_env));
+        new_envp[idx] = strdup(*orig_env);
         if (!new_envp[idx]) {
             return -PAL_ERROR_NOMEM;
         }
@@ -253,7 +254,7 @@ static int passthrough_envs_from_manifest(const char** envp, const char*** out_e
         }
 
         /* at this point, we must passthrough envvar named `toml_env_key` from the host; this is
-         * O(host_env_cnt * passthrough_envs), but happens only once during init so don't care */
+         * O(host_env_cnt * passthrough_envs), but happens only once during init so we don't care */
         for (const char** orig_env = envp; *orig_env; orig_env++) {
             char* orig_env_key_end = strchr(*orig_env, '=');
             if (!orig_env_key_end)
@@ -267,7 +268,7 @@ static int passthrough_envs_from_manifest(const char** envp, const char*** out_e
             free(env_key);
 
             if (found_orig_env) {
-                new_envp[new_envp_idx] = alloc_substr(*orig_env, strlen(*orig_env));
+                new_envp[new_envp_idx] = strdup(*orig_env);
                 if (!new_envp[new_envp_idx])
                     return -PAL_ERROR_NOMEM;
 
@@ -366,7 +367,7 @@ static int insert_envs_from_manifest(const char** envp, const char*** out_envp) 
 
         if (!env_val) {
             /* this original env is not found in manifest (i.e., not overwritten) */
-            new_envp[idx] = alloc_substr(*orig_env, strlen(*orig_env));
+            new_envp[idx] = strdup(*orig_env);
             if (!new_envp[idx])
                 return -PAL_ERROR_NOMEM;
             idx++;
