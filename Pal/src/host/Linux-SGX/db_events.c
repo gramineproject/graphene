@@ -22,7 +22,7 @@ int _DkEventCreate(PAL_HANDLE* handle_ptr, bool init_signaled, bool auto_clear) 
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(handle, event);
+    SET_HANDLE_TYPE(handle, EVENT);
     handle->event.signaled_untrusted = malloc_untrusted(sizeof(*handle->event.signaled_untrusted));
     if (!handle->event.signaled_untrusted) {
         free(handle);

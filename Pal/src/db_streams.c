@@ -27,21 +27,21 @@ extern struct handle_ops g_event_ops;
 extern struct handle_ops g_eventfd_ops;
 
 const struct handle_ops* g_pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
-    [pal_type_file]    = &g_file_ops,
-    [pal_type_pipe]    = &g_pipe_ops,
-    [pal_type_pipesrv] = &g_pipe_ops,
-    [pal_type_pipecli] = &g_pipe_ops,
-    [pal_type_pipeprv] = &g_pipeprv_ops,
-    [pal_type_dev]     = &g_dev_ops,
-    [pal_type_dir]     = &g_dir_ops,
-    [pal_type_tcp]     = &g_tcp_ops,
-    [pal_type_tcpsrv]  = &g_tcp_ops,
-    [pal_type_udp]     = &g_udp_ops,
-    [pal_type_udpsrv]  = &g_udpsrv_ops,
-    [pal_type_process] = &g_proc_ops,
-    [pal_type_thread]  = &g_thread_ops,
-    [pal_type_event]   = &g_event_ops,
-    [pal_type_eventfd] = &g_eventfd_ops,
+    [PAL_TYPE_FILE]    = &g_file_ops,
+    [PAL_TYPE_PIPE]    = &g_pipe_ops,
+    [PAL_TYPE_PIPESRV] = &g_pipe_ops,
+    [PAL_TYPE_PIPECLI] = &g_pipe_ops,
+    [PAL_TYPE_PIPEPRV] = &g_pipeprv_ops,
+    [PAL_TYPE_DEV]     = &g_dev_ops,
+    [PAL_TYPE_DIR]     = &g_dir_ops,
+    [PAL_TYPE_TCP]     = &g_tcp_ops,
+    [PAL_TYPE_TCPSRV]  = &g_tcp_ops,
+    [PAL_TYPE_UDP]     = &g_udp_ops,
+    [PAL_TYPE_UDPSRV]  = &g_udpsrv_ops,
+    [PAL_TYPE_PROCESS] = &g_proc_ops,
+    [PAL_TYPE_THREAD]  = &g_thread_ops,
+    [PAL_TYPE_EVENT]   = &g_event_ops,
+    [PAL_TYPE_EVENTFD] = &g_eventfd_ops,
 };
 
 /* parse_stream_uri scan the uri, seperate prefix and search for

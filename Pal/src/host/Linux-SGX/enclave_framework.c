@@ -964,7 +964,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     int64_t bytes;
     int64_t ret;
 
-    assert(IS_HANDLE_TYPE(stream, process));
+    assert(IS_HANDLE_TYPE(stream, PROCESS));
 
     ret = lib_DhInit(&context);
     if (ret < 0) {
@@ -1050,7 +1050,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
     uint64_t bytes;
     int64_t ret;
 
-    assert(IS_HANDLE_TYPE(stream, process));
+    assert(IS_HANDLE_TYPE(stream, PROCESS));
 
     /* A -> B: targetinfo[A] */
     memset(&target_info, 0, sizeof(target_info));
@@ -1145,7 +1145,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_report_data_t* sgx_report_data
     uint64_t bytes;
     int64_t ret;
 
-    assert(IS_HANDLE_TYPE(stream, process));
+    assert(IS_HANDLE_TYPE(stream, PROCESS));
 
     memset(&target_info, 0, sizeof(target_info));
 
@@ -1226,9 +1226,9 @@ int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* sess
                         size_t buf_size) {
     int stream_fd;
 
-    if (IS_HANDLE_TYPE(stream, process))
+    if (IS_HANDLE_TYPE(stream, PROCESS))
         stream_fd = stream->process.stream;
-    else if (IS_HANDLE_TYPE(stream, pipe) || IS_HANDLE_TYPE(stream, pipecli))
+    else if (IS_HANDLE_TYPE(stream, PIPE) || IS_HANDLE_TYPE(stream, PIPECLI))
         stream_fd = stream->pipe.fd;
     else
         return -PAL_ERROR_BADHANDLE;
