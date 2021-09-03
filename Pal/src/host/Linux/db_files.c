@@ -25,7 +25,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (strcmp(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
-    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(0 <= access && access < PAL_ACCESS_BOUND);
     assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
     assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
     assert(WITHIN_MASK(options, PAL_OPTION_MASK));
@@ -319,7 +319,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
                     int create, int options) {
     if (strcmp(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
+    if (access < 0 || access >= PAL_ACCESS_BOUND)
         return -PAL_ERROR_INVAL;
 
     if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {

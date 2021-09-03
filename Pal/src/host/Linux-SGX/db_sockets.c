@@ -380,7 +380,7 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     __UNUSED(access);
     __UNUSED(share);
 
-    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(0 <= access && access < PAL_ACCESS_BOUND);
     assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
     assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
     assert(WITHIN_MASK(options, PAL_OPTION_MASK));
@@ -516,7 +516,7 @@ static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int acce
     __UNUSED(access);
     __UNUSED(share);
 
-    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(0 <= access && access < PAL_ACCESS_BOUND);
     assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
     assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
     assert(WITHIN_MASK(options, PAL_OPTION_MASK));

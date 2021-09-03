@@ -28,7 +28,7 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     if (strcmp(type, URI_TYPE_DEV))
         return -PAL_ERROR_INVAL;
 
-    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(0 <= access && access < PAL_ACCESS_BOUND);
     assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
     assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
     assert(WITHIN_MASK(options, PAL_OPTION_MASK));
@@ -43,15 +43,16 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         /* special case of "dev:tty" device which is the standard input + standard output */
         hdl->dev.nonblocking = PAL_FALSE;
 
-        if (access & PAL_ACCESS_RDWR) {
-            ret = -PAL_ERROR_INVAL;
-            goto fail;
-        } else if (access & PAL_ACCESS_WRONLY) {
+        if (access == PAL_ACCESS_RDONLY) {
+            HANDLE_HDR(hdl)->flags |= RFD(0);
+            hdl->dev.fd = 0; /* host stdin */
+        } else if (access == PAL_ACCESS_WRONLY) {
             HANDLE_HDR(hdl)->flags |= WFD(0);
             hdl->dev.fd = 1; /* host stdout */
         } else {
-            HANDLE_HDR(hdl)->flags |= RFD(0);
-            hdl->dev.fd = 0; /* host stdin */
+            assert(access == PAL_ACCESS_RDWR);
+            ret = -PAL_ERROR_INVAL;
+            goto fail;
         }
     } else {
         /* other devices must be opened through the host */
@@ -67,12 +68,13 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         }
         hdl->dev.fd = ret;
 
-        if (access & PAL_ACCESS_RDWR) {
-            HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
-        } else if (access & PAL_ACCESS_WRONLY) {
+        if (access == PAL_ACCESS_RDONLY) {
+            HANDLE_HDR(hdl)->flags |= RFD(0);
+        } else if (access == PAL_ACCESS_WRONLY) {
             HANDLE_HDR(hdl)->flags |= WFD(0);
         } else {
-            HANDLE_HDR(hdl)->flags |= RFD(0);
+            assert(access == PAL_ACCESS_RDWR);
+            HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
         }
     }
 

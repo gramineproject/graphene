@@ -261,11 +261,10 @@ noreturn void DkProcessExit(PAL_NUM exitCode);
 
 /*! Stream Access Flags */
 enum PAL_ACCESS {
-    PAL_ACCESS_RDONLY = 0,
-    PAL_ACCESS_WRONLY = 1,
-    PAL_ACCESS_RDWR   = 2,
-    PAL_ACCESS_APPEND = 4,
-    PAL_ACCESS_MASK   = 7,
+    PAL_ACCESS_RDONLY,
+    PAL_ACCESS_WRONLY,
+    PAL_ACCESS_RDWR,
+    PAL_ACCESS_BOUND,
 };
 
 /*! Stream Sharing Flags */
