@@ -50,7 +50,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         return -PAL_ERROR_NOMEM;
     }
 
-    SET_HANDLE_TYPE(hdl, FILE);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_FILE);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->file.fd = ret;
     hdl->file.map_start = NULL;
@@ -345,7 +345,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         DO_SYSCALL(close, fd);
         return -PAL_ERROR_NOMEM;
     }
-    SET_HANDLE_TYPE(hdl, DIR);
+    init_handle_hdr(HANDLE_HDR(hdl), PAL_TYPE_DIR);
     HANDLE_HDR(hdl)->flags |= RFD(0);
     hdl->dir.fd = fd;
     char* path = (void*)hdl + HANDLE_SIZE(dir);

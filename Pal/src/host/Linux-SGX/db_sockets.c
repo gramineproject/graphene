@@ -301,7 +301,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
 
 /* accept a tcp connection */
 static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
-    if (!IS_HANDLE_TYPE(handle, TCPSRV) || !handle->sock.bind || handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCPSRV || !handle->sock.bind || handle->sock.conn)
         return -PAL_ERROR_NOTSERVER;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -407,7 +407,7 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, TCP) || !handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -426,7 +426,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, TCP) || !handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -542,7 +542,7 @@ static int64_t udp_receive(PAL_HANDLE handle, uint64_t offset, uint64_t len, voi
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDP))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDP)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -557,7 +557,7 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDPSRV))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDPSRV)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -588,7 +588,7 @@ static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, uint64_t len, const 
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDP))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDP)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -606,7 +606,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDPSRV))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDPSRV)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -640,10 +640,10 @@ static int socket_delete(PAL_HANDLE handle, int access) {
     if (handle->sock.fd == PAL_IDX_POISON)
         return 0;
 
-    if (!IS_HANDLE_TYPE(handle, TCP) && access)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP && access)
         return -PAL_ERROR_INVAL;
 
-    if (IS_HANDLE_TYPE(handle, TCP) || IS_HANDLE_TYPE(handle, TCPSRV)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_TCP || HANDLE_HDR(handle)->type == PAL_TYPE_TCPSRV) {
         int shutdown;
         switch (access) {
             case 0:
@@ -701,7 +701,7 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     /* get number of bytes available for reading (doesn't make sense for listening sockets) */
     attr->pending_size = 0;
-    if (!IS_HANDLE_TYPE(handle, TCPSRV)) {
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCPSRV) {
         ret = ocall_fionread(handle->sock.fd);
         if (ret < 0)
             return unix_to_pal_error(ret);

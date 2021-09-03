@@ -72,9 +72,6 @@ static inline void init_handle_hdr(PAL_HDR* hdr, int pal_type) {
     hdr->flags = 0;
 }
 
-#define SET_HANDLE_TYPE(handle, T) init_handle_hdr(HANDLE_HDR(handle), PAL_TYPE_##T)
-#define IS_HANDLE_TYPE(handle, T)  (HANDLE_HDR(handle)->type == PAL_TYPE_##T)
-
 #else
 typedef union pal_handle {
     struct {

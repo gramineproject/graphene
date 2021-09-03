@@ -354,7 +354,7 @@ failed:
 
 /* accept a tcp connection */
 static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
-    if (!IS_HANDLE_TYPE(handle, TCPSRV) || !handle->sock.bind || handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCPSRV || !handle->sock.bind || handle->sock.conn)
         return -PAL_ERROR_NOTSERVER;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -508,7 +508,7 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, size_t len, void* bu
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, TCP) || !handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -539,7 +539,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, size_t len, const v
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, TCP) || !handle->sock.conn)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -716,7 +716,7 @@ static int64_t udp_receive(PAL_HANDLE handle, uint64_t offset, size_t len, void*
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDP))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDP)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -747,7 +747,7 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, size_t len,
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDPSRV))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDPSRV)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -788,7 +788,7 @@ static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, size_t len, const vo
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDP))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDP)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -818,7 +818,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, size_t len, co
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (!IS_HANDLE_TYPE(handle, UDPSRV))
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_UDPSRV)
         return -PAL_ERROR_NOTCONNECTION;
 
     if (handle->sock.fd == PAL_IDX_POISON)
@@ -863,10 +863,10 @@ static int socket_delete(PAL_HANDLE handle, int access) {
     if (handle->sock.fd == PAL_IDX_POISON)
         return 0;
 
-    if (!IS_HANDLE_TYPE(handle, TCP) && access)
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCP && access)
         return -PAL_ERROR_INVAL;
 
-    if (IS_HANDLE_TYPE(handle, TCP) || IS_HANDLE_TYPE(handle, TCPSRV)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_TCP || HANDLE_HDR(handle)->type == PAL_TYPE_TCPSRV) {
         int shutdown;
         switch (access) {
             case 0:
@@ -929,7 +929,7 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     /* get number of bytes available for reading (doesn't make sense for listening sockets) */
     attr->pending_size = 0;
-    if (!IS_HANDLE_TYPE(handle, TCPSRV)) {
+    if (HANDLE_HDR(handle)->type != PAL_TYPE_TCPSRV) {
         int val;
         ret = DO_SYSCALL(ioctl, handle->sock.fd, FIONREAD, &val);
         if (ret < 0)
@@ -965,7 +965,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         handle->sock.nonblocking = attr->nonblocking;
     }
 
-    if (IS_HANDLE_TYPE(handle, TCPSRV)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_TCPSRV) {
         if (attr->socket.linger != handle->sock.linger) {
             struct __kernel_linger l;
             l.l_onoff  = attr->socket.linger ? 1 : 0;
@@ -1020,7 +1020,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         }
     }
 
-    if (IS_HANDLE_TYPE(handle, TCP) || IS_HANDLE_TYPE(handle, TCPSRV)) {
+    if (HANDLE_HDR(handle)->type == PAL_TYPE_TCP || HANDLE_HDR(handle)->type == PAL_TYPE_TCPSRV) {
         if (attr->socket.tcp_cork != handle->sock.tcp_cork) {
             val = attr->socket.tcp_cork ? 1 : 0;
             ret = DO_SYSCALL(setsockopt, fd, SOL_TCP, TCP_CORK, &val, sizeof(int));

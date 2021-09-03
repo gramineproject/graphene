@@ -253,7 +253,7 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
-    if (!IS_HANDLE_TYPE(hdl, PROCESS))
+    if (HANDLE_HDR(hdl)->type != PAL_TYPE_PROCESS)
         return -PAL_ERROR_BADHANDLE;
 
     /* serialize cargo handle into a blob hdl_data */
@@ -323,7 +323,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
-    if (!IS_HANDLE_TYPE(hdl, PROCESS))
+    if (HANDLE_HDR(hdl)->type != PAL_TYPE_PROCESS)
         return -PAL_ERROR_BADHANDLE;
 
     ssize_t ret;
