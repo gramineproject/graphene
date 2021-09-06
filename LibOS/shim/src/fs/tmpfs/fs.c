@@ -92,7 +92,7 @@ static int tmpfs_open(struct shim_handle* hdl, struct shim_dentry* dent, int fla
     __UNUSED(dent);
     hdl->type = TYPE_TMPFS;
     hdl->info.tmpfs.pos = 0;
-    hdl->flags = flags & ~O_ACCMODE;
+    hdl->flags = flags;
     hdl->acc_mode = ACC_MODE(flags & O_ACCMODE);
     return 0;
 }
