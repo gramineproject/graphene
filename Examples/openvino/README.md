@@ -1,57 +1,146 @@
-# OpenVINO
+# OpenVINO benchmark
 
-This directory contains a Makefile and a template manifest for the most
-recent version of OpenVINO toolkit (as of this writing, version 2020.4).
-We use the "Object Detection C++ Sample SSD" (object_detection_sample_ssd)
-example from the OpenVINO distribution as a concrete application running
-under Graphene-SGX. We test only the CPU backend (i.e., no GPU or FPGA). This
-was tested on a machine with SGX v1 and Ubuntu 18.04.
+This directory contains a Makefile and a template manifest for the most recent version of OpenVINO
+toolkit (as of this writing, version 2021.4). We use the `Benchmark C++ Tool` (benchmark_app) from
+the OpenVINO distribution as a concrete application running under Graphene-SGX to estimate deep
+learning inference performance. We test only the CPU backend (i.e., no GPU or FPGA).
 
-The Makefile and the template manifest contain extensive comments. Please review
-them to understand the requirements for OpenVINO/object_detection_sample_ssd
-running under Graphene-SGX.
+**NOTE**: the models require ~3GB of disk space.
 
-We build OpenVINO from the source code instead of using an existing installation.
-**Note:** the build process requires ~1.1GB of disk space and takes ~20 minutes.
+## Tips for better performance
 
-We also download the Open Model Zoo repository and use the SSD300 pre-trained
-model from it. **Note:** the model zoo requires ~350MB of disk space.
+Linux systems have CPU frequency scaling governor that helps the system to scale the CPU frequency
+to achieve best performance or to save power based on the requirement. To achieve the best
+performance, please set the CPU frequency scaling governor to `performance` mode.
 
-# Prerequisites
-
-For Ubuntu 18.04, install the following prerequisite packages:
-
-* Install CMake version >= 3.11 (on Ubuntu 18.04, this may require installing
-  Cmake from a non-official APT repository like Kitware).
-
-* Install libusb version >= 1.0.0 (`sudo apt install libusb-1.0-0-dev`).
-
-* Install libtbb-dev
-
-* Install packages for Python3:
-  `pip3 install pyyaml numpy networkx test-generator defusedxml protobuf>=3.6.1`
-
-# Quick Start
-
-```sh
-# build OpenVINO together with object_detection_sample_ssd and the final manifest;
-# note that it also downloads the SSD300 model and transforms it from the Caffe
-# format to an optimized Intermediate Representation (IR)
-make SGX=1
-
-# run original OpenVINO/object_detection_sample_ssd
-# note that this assumes the Release build of OpenVINO (no DEBUG=1)
-./openvino/bin/intel64/Release/object_detection_sample_ssd -i images/horses.jpg \
-    -m model/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml -d CPU
-
-# run OpenVINO/object_detection_sample_ssd in non-SGX Graphene
-graphene-direct object_detection_sample_ssd -i images/horses.jpg \
-    -m model/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml -d CPU
-
-# run OpenVINO/object_detection_sample_ssd in Graphene-SGX
-graphene-sgx object_detection_sample_ssd -i images/horses.jpg \
-    -m model/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml -d CPU
-
-# Each of these commands produces an image out_0.bmp with detected objects
-xxd out_0.bmp   # or open in any image editor
+```bash
+for ((i=0; i<$(nproc); i++)); do
+    echo 'performance' > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor;
+done
 ```
+
+## Software requirements
+
+- OpenVINO: Please download latest OpenVINO toolkit (as of this writing, version 2021.4) for Linux
+from https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html.
+For OpenVINO installation step-by-step instructions please refer to this
+[link](https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_linux.html).
+- Python (version 3.6 or higher)
+- Python virtual environment: `sudo apt-get install python3-venv`
+- CMake (version 3.10 or higher)
+
+## Supported models for Graphene-SGX
+
+The following models have been enabled and tested with Graphene-SGX.
+
+- resnet-50-tf(FP16/FP32)
+- ssd_mobilenet_v1_coco(FP16/FP32)
+- bert-large-uncased-whole-word-masking-squad-0001(FP16/FP32)
+- bert-large-uncased-whole-word-masking-squad-int8-0001(INT8)
+- brain-tumor-segmentation-0001(FP16/FP32)
+- brain-tumor-segmentation-0002(FP16/FP32)
+
+## Preparing the source
+
+1. `cd $(GRAPHENE_DIR)/Examples/openvino_benchmark`
+2. Set up OpenVINO environment variables for a root user by running
+`source /opt/intel/openvino_2021/bin/setupvars.sh` or you can permanently set it by appending
+`source /opt/intel/openvino_2021/bin/setupvars.sh` to `~/.bashrc`. For regular users run
+`source /home/<USER>/intel/openvino_2021/bin/setupvars.sh`.
+3. Build: `make SGX=1`
+
+**NOTE**: After setting up OpenVINO environment variables if you want to build Graphene after
+cleaning you need to unset LD_LIBRARY_PATH. Please make sure to set up OpenVINO environment
+variables after building Graphene again.
+
+## Running the benchmark
+
+Performance benchmark on Xeon servers (Silver/Gold/Platinum) must be launched with increased number
+of inference requests. Options `-nireq`, `-nstreams` and `-nthreads` should be set to the
+`number of physical cores * 2` (take into account hyperthreading) for achieving maximum
+performance.
+
+**NOTE**: To get `number of physical cores`, do `lscpu | grep 'Core(s) per socket'`.
+
+### Throughput runs
+
+#### Graphene-SGX
+
+```bash
+$ export OPTIMAL_VALUE=<number of physical cores * 2>
+$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
+graphene-sgx benchmark_app -i <image files> \
+-m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
+-d CPU -b 1 -t 20 \
+-nstreams OPTIMAL_VALUE -nthreads OPTIMAL_VALUE -nireq OPTIMAL_VALUE
+```
+For example, in a system with 36 physical cores, please export `OPTIMAL_VALUE` as below.
+```bash
+$ export OPTIMAL_VALUE=72
+```
+
+#### Native
+
+To run the benchmark in a native baremetal (outside Graphene), replace `graphene-sgx benchmark_app`
+with `./benchmark_app` in the above command.
+
+**NOTE 1**: Option `i <image files>` is optional. A user may use this option as required.
+
+**NOTE 2**: Please tune batch size to get best performance in your system.
+
+**NOTE 3**: Model files for bert-large can be found in `model/intel` directory and for rest of
+the models these are stored in `model/public` directory.
+
+**NOTE 4**: Based on the precision for bert-large and brain-tumor-segmentation models the enclave
+size must be set to 64/128 GB.
+
+**NOTE 5**: In multi-socket systems for bert-large-uncased-whole-word-masking-squad-0001 and
+brain-tumor-segmentation-0001 FP32/FP16 models please expand memory nodes usage with
+`numactl --membind` if memory allocation fails.
+
+### Latency runs
+
+#### Graphene-SGX
+
+```bash
+$ KMP_AFFINITY=granularity=fine,noverbose,compact,1,0 numactl --cpubind=0 --membind=0 \
+graphene-sgx benchmark_app -i <image files> \
+-m model/<public | intel>/<model_dir>/<INT8 | FP16 | FP32>/<model_xml_file> \
+-d CPU -b 1 -t 20 -api sync
+```
+
+#### Native
+
+To run the benchmark in a native baremetal (outside Graphene), replace `graphene-sgx benchmark_app`
+with `./benchmark_app` in the above command.
+
+**NOTE**: Option `-i <image files>` is optional. A user may use this option as required.
+
+## Performance considerations
+
+- Preheat manifest option pre-faults the enclave memory and moves the performance penalty to
+graphene-sgx startup (before the workload starts executing). To use preheat option, add
+`sgx.preheat_enclave = true` to the manifest template.
+- Skipping invalid user pointer checks when the application does not invoke system calls with
+invalid pointers (typical case) can help improve performance. To use this option, add
+`libos.check_invalid_pointers = false` to the
+manifest template.
+- TCMalloc and mimalloc are memory allocator libraries from Google and Microsoft that can help
+improve performance significantly based on the workloads. At any point, only one of these
+allocators can be used.
+  - TCMalloc (please update the binary location and name if different from default)
+    - Install tcmalloc : `sudo apt-get install google-perftools`
+    - Add these in the manifest template:
+        - `loader.env.LD_PRELOAD = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"`
+        - `sgx.trusted_files.libtcmalloc = "file:/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"`
+        - `sgx.trusted_files.libunwind = "file:/usr/lib/x86_64-linux-gnu/libunwind.so.8"`
+    - Save the manifest template and rebuild this example.
+  - mimalloc (please update the binary location and name if different from default)
+    - Install mimalloc using the steps from https://github.com/microsoft/mimalloc
+    - Add these in the manifest template:
+        - `fs.mount.usr_local.type = "chroot"`
+        - `fs.mount.usr_local.path = "/usr/local"`
+        - `fs.mount.usr_local.uri = "file:/usr/local"`
+        - `loader.env.LD_PRELOAD = "/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"`
+        - `sgx.trusted_files.libmimalloc = "file:/usr/local/lib/mimalloc-1.7/libmimalloc.so.1.7"`
+    - Save the manifest template and rebuild this example.

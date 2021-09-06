@@ -1,94 +1,105 @@
-# Building the manifest for OpenVINO:
-#
-# - make                Build for Linux, OpenVINO with Release build
-# - make DEBUG=1        Build for Linux, OpenVINO with Debug build, Graphene with debug output
-# - make SGX=1          Build for SGX, OpenVINO with Release build
-# - make SGX=1 DEBUG=1  Build for SGX, OpenVINO with Debug build, Graphene with debug output
-#
-# Use `make clean` to remove Graphene-generated files.
-#
-# Use `make distclean` to further remove the OpenVINO source and installation.
+SHELL := /bin/bash #Use bash syntax to activate virtual environment and to download models
+
+OPENVINO_DIR ?= $(INTEL_OPENVINO_DIR)
 
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
+
+INFERENCE_ENGINE_CPP_SAMPLES_BUILD ?=  $(THIS_DIR)inference_engine_cpp_samples_build
+
 MODEL_DIR ?= $(THIS_DIR)model
-MODEL_COMMIT ?= acf297c73db8cb3f68791ae1fad4a7cc4a6039e5     # corresponds to tag "2019_R3"
-MODEL_NAME ?= VGG_VOC0712Plus_SSD_300x300_ft_iter_160000
 
-OPENVINO_DIR ?= $(THIS_DIR)openvino
-OPENVINO_COMMIT ?= 023e7c2c3f8a8ac83564db09799d2049115d9cf6  # corresponds to tag "2020.4"
+INTEL_MODELS = \
+	bert-large-uncased-whole-word-masking-squad-0001 \
+	bert-large-uncased-whole-word-masking-squad-int8-0001
 
-# Relative path to Graphene root and key for enclave signing
-GRAPHENE_DIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+PUBLIC_MODELS = \
+	resnet-50-tf \
+	brain-tumor-segmentation-0001 \
+	brain-tumor-segmentation-0002 \
+	ssd_mobilenet_v1_coco
+
+VENV_DIR ?= $(THIS_DIR)/openvino
+
+SGX_SIGNER_KEY ?= ../../Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
-OPENVINO_BUILD = Debug
 else
 GRAPHENE_LOG_LEVEL = error
-OPENVINO_BUILD = Release
 endif
 
 .PHONY: all
-all: $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd \
-     $(MODEL_DIR)/$(MODEL_NAME).bin object_detection_sample_ssd.manifest
+all: benchmark_app benchmark_app.manifest $(VENV_DIR) intel_models public_models
 ifeq ($(SGX),1)
-all: object_detection_sample_ssd.manifest.sgx object_detection_sample_ssd.sig \
-     object_detection_sample_ssd.token
+all: benchmark_app.manifest.sgx benchmark_app.sig benchmark_app.token
 endif
 
-include ../../Scripts/Makefile.configs
+.PHONY: intel_models
+intel_models: $(VENV_DIR)
+	@source $(VENV_DIR)/bin/activate \
+	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
+	&& for model in $(INTEL_MODELS); do \
+		if [ ! -d $(abspath $(MODEL_DIR))/intel/$$model ]; then \
+			python3 ./downloader.py --name $$model -o $(abspath $(MODEL_DIR)); \
+			python3 ./converter.py --name $$model -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)); \
+		fi; \
+	done \
+	&& deactivate
 
-$(MODEL_DIR)/README.md:
-	git clone https://github.com/opencv/open_model_zoo.git $(MODEL_DIR)
-	git -C $(MODEL_DIR) checkout $(MODEL_COMMIT)
+.PHONY: public_models
+public_models: $(VENV_DIR)
+	@source $(VENV_DIR)/bin/activate \
+	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
+	&& for model in $(PUBLIC_MODELS); do \
+		if [ ! -d $(abspath $(MODEL_DIR))/public/$$model ]; then \
+			python3 ./downloader.py --name $$model -o $(abspath $(MODEL_DIR)); \
+			python3 ./converter.py --name $$model -d $(abspath $(MODEL_DIR)) -o $(abspath $(MODEL_DIR)); \
+		fi; \
+	done \
+	&& deactivate
 
-$(MODEL_DIR)/$(MODEL_NAME).bin: $(MODEL_DIR)/README.md
-	cd $(MODEL_DIR)/tools/downloader && python3 ./downloader.py \
-		--name ssd300 -o $(abspath $(MODEL_DIR))
-	cd $(OPENVINO_DIR)/model-optimizer && python3 ./mo.py \
-		--input_model $(abspath $(MODEL_DIR))/public/ssd300/models/VGGNet/VOC0712Plus/SSD_300x300_ft/$(MODEL_NAME).caffemodel \
-		--input_proto $(abspath $(MODEL_DIR))/public/ssd300/models/VGGNet/VOC0712Plus/SSD_300x300_ft/deploy.prototxt \
-		--output_dir $(abspath $(MODEL_DIR))
+$(VENV_DIR):
+	mkdir -p model
+	python3 -m venv $(VENV_DIR) \
+	&& source $(VENV_DIR)/bin/activate \
+	&& pip install --upgrade pip \
+	&& cd $(OPENVINO_DIR)/deployment_tools/open_model_zoo/tools/downloader \
+	&& python3 -mpip install -r ./requirements.in \
+	&& cd $(OPENVINO_DIR)/deployment_tools/model_optimizer \
+	&& pip3 install -r requirements.txt \
+	&& deactivate
 
-$(OPENVINO_DIR)/README.md:
-	git clone https://github.com/openvinotoolkit/openvino.git $(OPENVINO_DIR)
-	git -C $(OPENVINO_DIR) checkout $(OPENVINO_COMMIT)
-	git -C $(OPENVINO_DIR)/inference-engine submodule update --init --recursive
-
-$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
-	cd $(OPENVINO_DIR)/inference-engine && mkdir -p build
-	cd $(OPENVINO_DIR)/inference-engine/build && cmake -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ../..
-	$(MAKE) -C $(OPENVINO_DIR)/inference-engine/build
-
-object_detection_sample_ssd.manifest: object_detection_sample_ssd.manifest.template
+benchmark_app.manifest: benchmark_app.manifest.template
 	graphene-manifest \
-		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
-		-Darch_libdir=$(ARCH_LIBDIR) \
-		-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
-		-Dmodel_dir=$(MODEL_DIR) \
-		-Dopenvino_build=$(OPENVINO_BUILD) \
-		$< > $@
+	-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+	-Darch_libdir=$(ARCH_LIBDIR) \
+	-Dopenvino_dir=$(abspath $(OPENVINO_DIR)) \
+	-Dinference_engine_cpp_samples_build=$(abspath $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)) \
+	$< > $@
 
-# Generating the SGX-specific manifest (object_detection_sample_ssd.manifest.sgx), the enclave signature,
-# and the token for enclave initialization.
-object_detection_sample_ssd.manifest.sgx: object_detection_sample_ssd.manifest \
-		$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
+benchmark_app.manifest.sgx: benchmark_app.manifest | benchmark_app
+	@test -s $(SGX_SIGNER_KEY) || \
+		{ echo "SGX signer private key was not found, please specify SGX_SIGNER_KEY!"; exit 1; }
 	graphene-sgx-sign \
-		--key $(SGX_SIGNER_KEY) \
-		--manifest $< \
-		--output $@
+	-key $(SGX_SIGNER_KEY) \
+	-manifest $< -output $@
 
-object_detection_sample_ssd.sig: object_detection_sample_ssd.manifest.sgx
+benchmark_app.sig: benchmark_app.manifest.sgx
 
-object_detection_sample_ssd.token: object_detection_sample_ssd.sig
+benchmark_app.token: benchmark_app.sig
 	graphene-sgx-get-token --sig $< --output $@
+
+benchmark_app: $(OPENVINO_DIR)
+	mkdir -p $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)
+	cd $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD) && cmake -DCMAKE_BUILD_TYPE=Release $(OPENVINO_DIR)/inference_engine/samples/cpp && make
+	ln -s $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)/intel64/Release/benchmark_app $@
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig *.bmp
+	$(RM) *.manifest *.manifest.sgx *.token *.sig benchmark_app
 
 .PHONY: distclean
 distclean: clean
-	$(RM) -r $(OPENVINO_DIR) $(MODEL_DIR)
+	$(RM) -r $(MODEL_DIR) $(VENV_DIR) $(INFERENCE_ENGINE_CPP_SAMPLES_BUILD)

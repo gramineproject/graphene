@@ -1,3 +1,4 @@
-*.bmp
 /model/
 /openvino/
+/benchmark_app
+/inference_engine_cpp_samples_build
