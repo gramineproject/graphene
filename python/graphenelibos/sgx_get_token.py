@@ -34,15 +34,12 @@ def set_optional_sgx_features(attr):
     xfrms = int.from_bytes(attr['xfrms'], byteorder='little')
     xfrmmask = int.from_bytes(attr['xfrm_mask'], byteorder='little')
 
-    new_xfrms = 0
+    new_xfrms = xfrms
     for (bits, feature) in optional_sgx_features.items():
-        # Check if SIGSTRUCT allows enabling an optional CPU feature.
-        # If all the xfrm bits for a feature, after applying xfrmmask, are set in xfrms,
-        # we can set the remaining bits if the feature is available.
-        # If the xfrmmask includes all the required xfrm bits, then these bits cannot be
-        # changed in xfrm (need to stay the same as signed).
-        if xfrms & (bits & xfrmmask) == (bits & xfrmmask) and feature in cpu_features:
-            new_xfrms |= xfrms | bits
+        # check if SIGSTRUCT.ATTRIBUTEMASK.XFRM doesn't care whether an optional CPU feature is
+        # enabled or not (XFRM mask should completely unset these bits)
+        if bits & xfrmmask == 0 and feature in cpu_features:
+            new_xfrms |= bits
 
     attr['xfrms'] = new_xfrms.to_bytes(length=8, byteorder='little')
 
@@ -143,14 +140,14 @@ def create_dummy_token(attr):
     fields['isvprodidle'] = (208, '<H')
     fields['isvsvnle'] = (210, '<H')
     fields['reserved4'] = (212, '24B')
-    fields['misc_mask'] = (236, '<I')
+    fields['misc_select'] = (236, '<L')
     fields['flagmask'] = (240, '<Q') # attrmask
     fields['xfrmmask'] = (248, '<Q') # attrmask
     fields['keyid'] = (256, '32B')
     fields['mac'] = (288, '16B')
 
     # fields read by create_enclave() in sgx_framework.c
-    actual_fields = ['flags', 'xfrms', 'misc_mask']
+    actual_fields = ['flags', 'xfrms', 'misc_select']
 
     for key in actual_fields:
         field = fields[key]
@@ -186,6 +183,8 @@ def main(args=None):
     print(f'    isv_svn:     {attr["isv_svn"]}')
     print(f'    attr.flags:  {int.from_bytes(attr["flags"], byteorder="big"):016x}')
     print(f'    attr.xfrm:   {int.from_bytes(attr["xfrms"], byteorder="big"):016x}')
+    print(f'    mask.flags:  {int.from_bytes(attr["flag_mask"], byteorder="big"):016x}')
+    print(f'    mask.xfrm:   {int.from_bytes(attr["xfrm_mask"], byteorder="big"):016x}')
     print(f'    misc_select: {int.from_bytes(attr["misc_select"], byteorder="big"):08x}')
     print(f'    misc_mask:   {int.from_bytes(attr["misc_mask"], byteorder="big"):08x}')
     print(f'    modulus:     {attr["modulus"].hex()[:32]}...')

@@ -66,15 +66,59 @@ typedef uint8_t sgx_isvfamily_id_t[SGX_ISV_FAMILY_ID_SIZE];
 #define SGX_FLAGS_PROVISION_KEY 0x10ULL
 #define SGX_FLAGS_LICENSE_KEY   0x20ULL
 
+/* EINIT must verify *all* SECS.ATTRIBUTES[63..0] bits (FLAGS bits) against
+ * SIGSTRUCT.ATTRIBUTES[63..0].
+ *
+ * Notes:
+ *   - Two versions of the same enclave with even one-bit difference in attributes-flags (e.g., one
+ *   with DEBUG == 0 and another with DEBUG == 1) will have two different SIGSTRUCTs.
+ *   - Important consequence of the above: a debug version of the enclave requires a different
+ *     SIGSTRUCT file than a production version of the enclave.
+ *   - CET and KSS bits are not yet reflected in Graphene, i.e., Graphene doesn't support Intel CET
+ *     technology and Key Separation and Sharing feature.
+  */
+#define SGX_FLAGS_MASK_CONST_HI 0xffffffffUL
+#define SGX_FLAGS_MASK_CONST_LO 0xffffffffUL
+
 #define SGX_XFRM_LEGACY   0x03ULL
-#define SGX_XFRM_AVX      0x06ULL
+#define SGX_XFRM_AVX      0x04ULL
 #define SGX_XFRM_MPX      0x18ULL
-#define SGX_XFRM_AVX512   0xe6ULL
+#define SGX_XFRM_AVX512   0xe4ULL
 #define SGX_XFRM_PKRU     0x200ULL
 #define SGX_XFRM_RESERVED (~(SGX_XFRM_LEGACY | SGX_XFRM_AVX | SGX_XFRM_MPX | SGX_XFRM_AVX512 | \
                              SGX_XFRM_PKRU))
 
+/* EINIT must verify most of the SECS.ATTRIBUTES[127..64] bits (XFRM/XCR0 bits) against
+ * SIGSTRUCT.ATTRIBUTES[127..64].
+ *
+ * Notes:
+ *   - Verified bits include: bit 0 + bit 1 (X87 + SSE, always enabled in SGX), bit 3 + bit 4
+ *     (BNDREG + BNDCSR, enable security-critical MPX), bit 9 (PKRU, enables security-critical MPK),
+ *     and all reserved bits.
+ *   - Not-verified bits include: bit 2 (AVX), bit 5 + bit 6 + bit 7 (AVX-512). These bits are
+ *     considered not security-critical.
+ *   - Two versions of the same enclave with difference in X87, SSE, MPX, MPK bits (e.g., one
+ *     with PKRU == 0 and another with PKRU == 1) will have two different SIGSTRUCTs. However,
+ *     difference in AVX/AVX-512 bits does not lead to different SIGSTRUCTs.
+ *   - Important consequence of the above: the same enclave (with the same SIGSTRUCT) may run on
+ *     machines with and without AVX/AVX-512, but e.g. a PKRU-requiring enclave may run only on
+ *     machine with PKRU.
+ *   - CET bits are not yet reflected in Graphene, i.e., Graphene doesn't support Intel CET.
+  */
+#define SGX_XFRM_MASK_CONST_HI 0xffffffffUL
+#define SGX_XFRM_MASK_CONST_LO 0xffffff1bUL
+
 #define SGX_MISCSELECT_EXINFO 0x01UL
+
+/* EINIT must verify *all* SECS.MISCSELECT bits against SIGSTRUCT.MISCSELECT.
+ *
+ * Notes:
+ *   - Two versions of the same enclave (one with EXINFO == 0 and another with EXINFO == 1) will
+ *     have two different SIGSTRUCTs.
+ *   - CPINFO bit is not yet reflected in Graphene, i.e., information about control protection
+ *     exception (#CP) will not be reported on AEX.
+  */
+#define SGX_MISCSELECT_MASK_CONST 0xffffffffUL
 
 typedef struct {
     uint64_t          size;
