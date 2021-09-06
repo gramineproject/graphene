@@ -18,7 +18,7 @@
 #include "list.h"
 #include "protected_files.h"
 
-#define PF_FILE_ID       0x46505f4850415247 /* GRAPH_PF */
+#define PF_FILE_ID       0x46505f5346415247 /* GRAFS_PF */
 #define PF_MAJOR_VERSION 0x01
 #define PF_MINOR_VERSION 0x00
 
