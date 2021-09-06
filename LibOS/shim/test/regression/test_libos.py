@@ -816,6 +816,7 @@ class TC_40_FileSystem(RegressionTestCase):
                 self.assertIn(f'{cache}/type: file', lines)
                 self.assertIn(f'{cache}/size: file', lines)
                 self.assertIn(f'{cache}/coherency_line_size: file', lines)
+                self.assertIn(f'{cache}/number_of_sets: file', lines)
                 self.assertIn(f'{cache}/physical_line_partition: file', lines)
 
         self.assertIn('/sys/devices/system/node: directory', lines)
