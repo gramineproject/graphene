@@ -7,4 +7,5 @@ executable('graphene-sgx-quote-dump',
     ],
 
     install: true,
+    install_rpath: join_paths(get_option('prefix'), get_option('libdir')),
 )

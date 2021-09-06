@@ -29,3 +29,11 @@ sgx_util_dep = declare_dependency(
         sgx_inc, # this is mostly for sgx_arch.h
     ],
 )
+
+pkgconfig.generate(
+    sgx_util,
+    libraries: [
+        '-Wl,-rpath,${libdir}',
+        sgx_util,
+    ],
+)

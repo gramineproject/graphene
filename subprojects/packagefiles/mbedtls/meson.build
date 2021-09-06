@@ -38,9 +38,11 @@ pkgconfig.generate(
     filebase: 'mbedtls_graphene',
     description: 'A version of mbedtls patched for Graphene',
     libraries: [
-        'mbedcrypto_graphene',
-        'mbedtls_graphene',
-        'mbedx509_graphene',
+        '-L${libdir}',
+        '-Wl,-rpath,${libdir}',
+        '-lmbedcrypto_graphene',
+        '-lmbedtls_graphene',
+        '-lmbedx509_graphene',
     ],
 )
 
