@@ -1142,6 +1142,11 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         }
 
         bytes += this_size;
+
+        /* gap in iovecs is not allowed, return a partial write to user; it is the responsibility
+         * of user application to deal with partial writes */
+        if (this_size < bufs[i].iov_len)
+            break;
     }
 
     if (bytes)
