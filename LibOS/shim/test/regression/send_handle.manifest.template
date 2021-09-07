@@ -1,0 +1,25 @@
+loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "{{ entrypoint }}"
+loader.insecure__use_cmdline_argv = true
+
+loader.env.LD_LIBRARY_PATH = "/lib"
+
+fs.mount.graphene_lib.type = "chroot"
+fs.mount.graphene_lib.path = "/lib"
+fs.mount.graphene_lib.uri = "file:{{ graphene.runtimedir() }}"
+
+sgx.nonpie_binary = true
+
+sgx.allowed_files = [
+  "file:tmp/",
+]
+
+sgx.trusted_files = [
+  "file:{{ graphene.runtimedir() }}/",
+  "file:{{ entrypoint }}",
+]
+
+sgx.protected_files_key = "ffeeddccbbaa99887766554433221100"
+sgx.protected_files = [
+  "file:tmp/pf/",
+]
