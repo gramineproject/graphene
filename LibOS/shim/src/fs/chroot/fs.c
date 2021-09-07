@@ -213,6 +213,32 @@ static int chroot_temp_open(struct shim_dentry* dent, mode_t type, PAL_HANDLE* o
     return pal_to_unix_errno(ret);
 }
 
+/* Reopen a PAL handle if this is a migrated handle that doesn't have one. See `chroot_checkout`
+ * below for why this is currently necessary. */
+static int chroot_reopen(struct shim_handle* hdl) {
+    assert(locked(&hdl->lock));
+    assert(hdl->type == TYPE_CHROOT);
+
+    if (hdl->pal_handle)
+        return 0;
+
+    const char* uri = qstrgetstr(&hdl->uri);
+    PAL_HANDLE palhdl;
+
+    mode_t mode = 0;
+    int access = LINUX_OPEN_FLAGS_TO_PAL_ACCESS(hdl->flags);
+    int create = 0;
+    int options = LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(hdl->flags);
+    int ret = DkStreamOpen(uri, access, mode, create, options, &palhdl);
+    if (ret < 0) {
+        log_warning("%s: failed to open %s: %d", __func__, uri, ret);
+        return pal_to_unix_errno(ret);
+    }
+    hdl->pal_handle = palhdl;
+
+    return 0;
+}
+
 /* Open a PAL handle, and associate it with a LibOS handle (if provided). */
 static int chroot_do_open(struct shim_handle* hdl, struct shim_dentry* dent, mode_t type,
                           int flags, mode_t mode) {
@@ -378,8 +404,19 @@ static int chroot_hstat(struct shim_handle* hdl, struct stat* buf) {
 static int chroot_flush(struct shim_handle* hdl) {
     assert(hdl->type == TYPE_CHROOT);
 
-    int ret = DkStreamFlush(hdl->pal_handle);
-    return pal_to_unix_errno(ret);
+    int ret;
+
+    lock(&hdl->lock);
+
+    if (hdl->pal_handle) {
+        ret = DkStreamFlush(hdl->pal_handle);
+        ret = pal_to_unix_errno(ret);
+    } else {
+        ret = 0;
+    }
+
+    unlock(&hdl->lock);
+    return ret;
 }
 
 static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
@@ -392,6 +429,10 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
 
     struct shim_inode* inode = hdl->inode;
     lock(&hdl->lock);
+
+    ret = chroot_reopen(hdl);
+    if (ret < 0)
+        goto out;
 
     file_off_t pos = hdl->info.chroot.pos;
 
@@ -429,6 +470,10 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
 
     struct shim_inode* inode = hdl->inode;
     lock(&hdl->lock);
+
+    ret = chroot_reopen(hdl);
+    if (ret < 0)
+        goto out;
 
     file_off_t pos = hdl->info.chroot.pos;
 
@@ -472,8 +517,20 @@ static int chroot_mmap(struct shim_handle* hdl, void** addr, size_t size, int pr
     if (flags & MAP_ANONYMOUS)
         return -EINVAL;
 
-    int ret = DkStreamMap(hdl->pal_handle, addr, pal_prot, offset, size);
-    return pal_to_unix_errno(ret);
+    int ret;
+
+    lock(&hdl->lock);
+
+    ret = chroot_reopen(hdl);
+    if (ret < 0)
+        goto out;
+
+    ret = DkStreamMap(hdl->pal_handle, addr, pal_prot, offset, size);
+    ret = pal_to_unix_errno(ret);
+
+out:
+    unlock(&hdl->lock);
+    return ret;
 }
 
 /* TODO: this function emulates lseek() completely inside the LibOS, but some device files may
@@ -505,6 +562,12 @@ static int chroot_truncate(struct shim_handle* hdl, file_off_t size) {
 
     int ret;
 
+    lock(&hdl->lock);
+
+    ret = chroot_reopen(hdl);
+    if (ret < 0)
+        goto out;
+
     lock(&hdl->inode->lock);
     ret = DkStreamSetLength(hdl->pal_handle, size);
     if (ret == 0) {
@@ -513,6 +576,9 @@ static int chroot_truncate(struct shim_handle* hdl, file_off_t size) {
         ret = pal_to_unix_errno(ret);
     }
     unlock(&hdl->inode->lock);
+
+out:
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -703,6 +769,11 @@ out:
  * Prepare the handle to be sent to child process. If the corresponding file still exists on the
  * host, we will not checkpoint its PAL handle, but let the child process open another one.
  *
+ * The child process does not reopen the handle immediately (e.g. using `chroot_checkin`), but does
+ * so on demand (using `chroot_reopen`). This is because there might be various reasons why a file
+ * might not be accessible anymore (wrong permissions, etc.) and we don't want one such failure to
+ * crash the whole process.
+ *
  * TODO: this is only necessary because PAL handles for protected files cannot be sent to child
  * process (`DkSendHandle`). This workaround limits the damage: inheriting a handle by child process
  * will now fail to work only if it's a handle for a protected file *and* the file has been deleted
@@ -710,34 +781,14 @@ out:
  */
 static int chroot_checkout(struct shim_handle* hdl) {
     assert(hdl->type == TYPE_CHROOT);
-    assert(hdl->pal_handle);
 
-    PAL_STREAM_ATTR attr;
-    if (DkStreamAttributesQuery(qstrgetstr(&hdl->uri), &attr) == 0) {
-        hdl->pal_handle = NULL;
-    }
-
-    return 0;
-}
-
-static int chroot_checkin(struct shim_handle* hdl) {
-    assert(hdl->type == TYPE_CHROOT);
-
-    if (!hdl->pal_handle) {
-        const char* uri = qstrgetstr(&hdl->uri);
-        PAL_HANDLE palhdl;
-
-        mode_t mode = 0;
-        int access = LINUX_OPEN_FLAGS_TO_PAL_ACCESS(hdl->flags);
-        int create = 0;
-        int options = LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(hdl->flags);
-        int ret = DkStreamOpen(uri, access, mode, create, options, &palhdl);
-        if (ret < 0) {
-            log_warning("%s: failed to open %s: %d", __func__, uri, ret);
-            return pal_to_unix_errno(ret);
+    if (hdl->pal_handle) {
+        PAL_STREAM_ATTR attr;
+        if (DkStreamAttributesQuery(qstrgetstr(&hdl->uri), &attr) == 0) {
+            hdl->pal_handle = NULL;
         }
-        hdl->pal_handle = palhdl;
     }
+
     return 0;
 }
 
@@ -752,7 +803,6 @@ struct shim_fs_ops chroot_fs_ops = {
     .truncate   = &chroot_truncate,
     .poll       = &chroot_poll,
     .checkout   = &chroot_checkout,
-    .checkin    = &chroot_checkin,
 };
 
 struct shim_d_ops chroot_d_ops = {
