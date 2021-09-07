@@ -241,6 +241,9 @@ struct shim_handle {
 
     struct shim_dir_handle dir_info;
 
+    /* TODO: the `flags` and `acc_mode` fields contain duplicate information (the access mode).
+     * Instead of `flags`, we should have a field with different name (such as `options`) that
+     * contain the open flags without access mode (i.e. set it to `flags & ~O_ACCMODE`). */
     int flags; /* Linux' O_* flags */
     int acc_mode;
     struct shim_lock lock;
