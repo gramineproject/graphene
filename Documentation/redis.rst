@@ -1,2 +1,2 @@
-THIS IS REDIS DOC STUB
+THIS IS redis DOC STUB
 ======================
