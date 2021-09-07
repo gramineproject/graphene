@@ -124,10 +124,13 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
          * the metadata in the file, so open with RDWR mode with necessary share permissions.
          * For normal files, reset this option.
          */
-        if (options & PAL_OPTION_RENAME)
+        if (pal_options & PAL_OPTION_RENAME) {
             pal_share = PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W;
-        else
-            pal_options &= ~PAL_OPTION_RENAME;
+            pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
+            flags |= O_RDWR;
+        }
+
+        pal_options &= ~PAL_OPTION_RENAME;
 
         if ((pf_mode & PF_FILE_MODE_WRITE) && pf->writable_fd >= 0) {
             log_warning("file_open(%s): disallowing concurrent writable handle",
@@ -802,6 +805,9 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
 
     struct protected_file* pf = find_protected_file_handle(handle);
 
+    /* TODO: Handle the case of renaming a file that has a file handle already open, so that the
+     * file operations work on both the handles properly
+     */
     if (pf) {
         size_t uri_size = strlen(uri) + 1;
         char* new_path = (char*)calloc(1, uri_size);
@@ -825,6 +831,7 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
             return -PAL_ERROR_DENIED;
         }
 
+        // update the metadata of the protected file
         pf_status_t pf_ret = pf_rename(pf->context, new_path);
 
         free(new_path);
@@ -837,8 +844,17 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     }
 
     int ret = ocall_rename(handle->file.realpath, uri);
+    /* If the rename ocall fails, restore the metadata back to current file path, so that the
+     * file does not become unusable.
+     */
     if (ret < 0) {
         free(tmp);
+        /* restore the original file name in pf metadata */
+        pf_status_t pf_ret =  pf_rename(pf->context, handle->file.realpath);
+        if (PF_FAILURE(pf_ret)) {
+            log_warning("rename failed: %s, the file might be unusable.", pf_strerror(pf_ret));
+            return -PAL_ERROR_DENIED;
+        }
         return unix_to_pal_error(ret);
     }
 
