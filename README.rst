@@ -1,3 +1,14 @@
+********************************************************************************
+
+#################################
+PROJECT MOVED TO A NEW REPOSITORY
+#################################
+
+**Note:** Graphene project was renamed to Gramine and moved to a new location:
+https://github.com/gramineproject/gramine. All development will continue there.
+
+********************************************************************************
+
 ******************************************
 Graphene Library OS with Intel SGX Support
 ******************************************
