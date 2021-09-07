@@ -9,6 +9,8 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 
@@ -216,4 +218,18 @@ int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
             sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[buffer_size - i - 1]);
     }
     return 0;
+}
+
+/* _log() and abort() are needed for our <assert.h>; see also: common/include/callbacks.h */
+void _log(int level, const char* fmt, ...) {
+    (void)level;
+    va_list ap;
+    va_start(ap, fmt);
+    vdprintf(g_stderr_fd, fmt, ap);
+    va_end(ap);
+    dprintf(g_stderr_fd, "\n");
+}
+
+noreturn void abort(void) {
+    _Exit(131);
 }
