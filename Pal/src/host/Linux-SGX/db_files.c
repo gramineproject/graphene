@@ -122,6 +122,16 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
         }
 
+        /* If it is a protected file and the file is opened for renaming, we will need to update
+         * the metadata in the file, so open with RDWR mode with necessary share permissions.
+         * For normal files, reset this option.
+         */
+        if (pal_options & PAL_OPTION_RENAME) {
+            pal_share = PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W;
+            pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
+            flags |= O_RDWR;
+        }
+
         if ((pf_mode & PF_FILE_MODE_WRITE) && pf->writable_fd >= 0) {
             log_warning("file_open(%s): disallowing concurrent writable handle",
                         hdl->file.realpath);
@@ -784,6 +794,7 @@ static int file_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     return 0;
 }
 
+
 static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     if (strcmp(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
@@ -792,9 +803,59 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     if (!tmp)
         return -PAL_ERROR_NOMEM;
 
+
+    struct protected_file* pf = find_protected_file_handle(handle);
+
+    /* TODO: Handle the case of renaming a file that has a file handle already open, so that the
+     * file operations work on both the handles properly
+     */
+    if (pf) {
+        size_t uri_size = strlen(uri) + 1;
+        char* new_path = (char*)calloc(1, uri_size);
+
+        if (!new_path) {
+            free(tmp);
+            return -PAL_ERROR_NOMEM;
+        }
+
+        if (get_norm_path(uri, new_path, &uri_size) < 0) {
+            log_warning("Could not normalize path (%s)", uri);
+            free(tmp);
+            free(new_path);
+            return -PAL_ERROR_DENIED;
+        }
+
+        if (!get_protected_file(new_path)) {
+            log_warning("New path is disallowed for protected files (%s)", new_path);
+            free(tmp);
+            free(new_path);
+            return -PAL_ERROR_DENIED;
+        }
+
+        /* update the metadata of the protected file */
+        pf_status_t pf_ret = pf_rename(pf->context, new_path);
+
+        free(new_path);
+
+        if (PF_FAILURE(pf_ret)) {
+            log_warning("pf_rename failed: %s", pf_strerror(pf_ret));
+            free(tmp);
+            return -PAL_ERROR_DENIED;
+        }
+    }
+
     int ret = ocall_rename(handle->file.realpath, uri);
+    /* If the rename ocall fails, restore the metadata back to current file path, so that the
+     * file does not become unusable.
+     */
     if (ret < 0) {
         free(tmp);
+        /* restore the original file name in pf metadata */
+        pf_status_t pf_ret =  pf_rename(pf->context, handle->file.realpath);
+        if (PF_FAILURE(pf_ret)) {
+            log_warning("rename failed: %s, the file might be unusable.", pf_strerror(pf_ret));
+            return -PAL_ERROR_DENIED;
+        }
         return unix_to_pal_error(ret);
     }
 
