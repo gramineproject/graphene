@@ -1,4 +1,4 @@
-# Specify the OS distro in the below format as shown for ubuntu 18.04. Currently tested distros are ubuntu 18.04 and ubuntu 20.04.
+# Specify the OS distro. Currently tested distros are Ubuntu 18.04 and Ubuntu 20.04.
 Distro: "ubuntu:18.04"
 
 # If you're using your own fork and branch of Graphene, specify the GitHub link and the branch name

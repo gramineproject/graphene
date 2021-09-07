@@ -15,7 +15,7 @@ This folder includes sample images and test cases for GSC:
 Each sample consists of two files ``<distro>-<image-name>.dockerfile`` and
 ``<distro>-<image-name>.manifest`` where ``<distro>`` specifies the underlying
 Linux distribution and ``<image-name>`` specifies the test case. The tests
-currently supports ubuntu 18.04 distribution only. The manifest
+currently support Ubuntu 18.04 distribution only. The manifest
 file may not exist, since the standard arguments for manifest files often
 suffice.
 
