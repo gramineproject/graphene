@@ -44,6 +44,9 @@ int main(int argc, char** argv) {
         pos += ret;
     } while (pos < MESSAGE_LEN);
 
+    if (fsync(fd) == -1)
+        err(1, "fsync");
+
     pid_t pid = fork();
     if (pid < 0)
         err(1, "fork");
