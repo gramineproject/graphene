@@ -138,6 +138,8 @@ static int chroot_setup_dentry(struct shim_dentry* dent, mode_t type, mode_t per
 }
 
 static int chroot_lookup(struct shim_dentry* dent) {
+    assert(locked(&g_dcache_lock));
+
     int ret;
 
     lock(&dent->lock);
@@ -281,6 +283,8 @@ static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct
                         int flags, mode_t mode) {
     __UNUSED(dir);
 
+    assert(locked(&g_dcache_lock));
+
     int ret;
 
     mode_t type = S_IFREG;
@@ -306,6 +310,8 @@ out:
 
 static int chroot_mkdir(struct shim_dentry* dir, struct shim_dentry* dent, mode_t mode) {
     __UNUSED(dir);
+
+    assert(locked(&g_dcache_lock));
 
     int ret;
 
@@ -381,9 +387,6 @@ static ssize_t chroot_read(struct shim_handle* hdl, void* buf, size_t count) {
 
     ssize_t ret;
 
-    if (count == 0)
-        return 0;
-
     if (count > SSIZE_MAX)
         return -EFBIG;
 
@@ -420,9 +423,6 @@ static ssize_t chroot_write(struct shim_handle* hdl, const void* buf, size_t cou
     assert(hdl->type == TYPE_CHROOT);
 
     ssize_t ret;
-
-    if (count == 0)
-        return 0;
 
     if (count > SSIZE_MAX)
         return -EFBIG;
