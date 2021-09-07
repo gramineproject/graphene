@@ -176,6 +176,33 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('execve(invalid-argv) correctly returned error', stdout)
         self.assertIn('execve(invalid-envp) correctly returned error', stdout)
 
+    def test_220_send_handle(self):
+        self._test_send_handle('tmp/send_handle_test')
+        self._test_send_handle('tmp/send_handle_test', delete=True)
+
+    @unittest.skipUnless(HAS_SGX,
+        'Protected files are only available with SGX')
+    def test_221_send_handle_pf(self):
+        os.makedirs('tmp/pf', exist_ok=True)
+        self._test_send_handle('tmp/pf/send_handle_test')
+        # TODO: Migrating a protected files handle is not supported when the file is deleted
+        # self._test_send_handle('tmp/pf/send_handle_test', delete=True)
+
+    def _test_send_handle(self, path, delete=False):
+        if delete:
+            cmd = ['send_handle', '-d', path]
+        else:
+            cmd = ['send_handle', path]
+
+        if os.path.exists(path):
+            os.unlink(path)
+        try:
+            stdout, _ = self.run_binary(cmd)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+        self.assertIn('TEST OK', stdout, 'test failed: {}'.format(cmd))
+
     def test_300_shared_object(self):
         stdout, _ = self.run_binary(['shared_object'])
 

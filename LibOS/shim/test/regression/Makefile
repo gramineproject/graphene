@@ -78,6 +78,7 @@ c_executables = \
 	sched \
 	sched_set_get_affinity \
 	select \
+	send_handle \
 	shared_object \
 	sigaction_per_process \
 	sigaltstack \
