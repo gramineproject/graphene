@@ -699,6 +699,48 @@ out:
     return ret;
 }
 
+/*
+ * Prepare the handle to be sent to child process. If the corresponding file still exists on the
+ * host, we will not checkpoint its PAL handle, but let the child process open another one.
+ *
+ * TODO: this is only necessary because PAL handles for protected files cannot be sent to child
+ * process (`DkSendHandle`). This workaround limits the damage: inheriting a handle by child process
+ * will now fail to work only if it's a handle for a protected file *and* the file has been deleted
+ * from host.
+ */
+static int chroot_checkout(struct shim_handle* hdl) {
+    assert(hdl->type == TYPE_CHROOT);
+    assert(hdl->pal_handle);
+
+    PAL_STREAM_ATTR attr;
+    if (DkStreamAttributesQuery(qstrgetstr(&hdl->uri), &attr) == 0) {
+        hdl->pal_handle = NULL;
+    }
+
+    return 0;
+}
+
+static int chroot_checkin(struct shim_handle* hdl) {
+    assert(hdl->type == TYPE_CHROOT);
+
+    if (!hdl->pal_handle) {
+        const char* uri = qstrgetstr(&hdl->uri);
+        PAL_HANDLE palhdl;
+
+        mode_t mode = 0;
+        int access = LINUX_OPEN_FLAGS_TO_PAL_ACCESS(hdl->flags);
+        int create = 0;
+        int options = LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(hdl->flags);
+        int ret = DkStreamOpen(uri, access, mode, create, options, &palhdl);
+        if (ret < 0) {
+            log_warning("%s: failed to open %s: %d", __func__, uri, ret);
+            return pal_to_unix_errno(ret);
+        }
+        hdl->pal_handle = palhdl;
+    }
+    return 0;
+}
+
 struct shim_fs_ops chroot_fs_ops = {
     .mount      = &chroot_mount,
     .flush      = &chroot_flush,
@@ -709,6 +751,8 @@ struct shim_fs_ops chroot_fs_ops = {
     .hstat      = &chroot_hstat,
     .truncate   = &chroot_truncate,
     .poll       = &chroot_poll,
+    .checkout   = &chroot_checkout,
+    .checkin    = &chroot_checkin,
 };
 
 struct shim_d_ops chroot_d_ops = {
