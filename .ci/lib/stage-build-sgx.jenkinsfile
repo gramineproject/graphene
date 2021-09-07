@@ -45,6 +45,9 @@ stage('build') {
         archiveArtifacts 'build/meson-logs/**/*'
     }
 
+    // archive all installed files
+    archiveArtifacts "${env.PREFIX}/**/*"
+
     // Absolute path to libdir, as configured by Meson.
     // For our current builds this should be "$WORKSPACE/usr/lib/x86_64-linux-gnu":
     // --prefix is set from $PREFIX above (see config-docker.jenkinsfile) and should be "$WORKSPACE/usr";
