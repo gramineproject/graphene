@@ -612,8 +612,8 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     ret = DO_SYSCALL(getsockname, fd, bind_addr, &bind_addrlen);
     if (ret < 0) {
-	    ret = unix_to_pal_error(ret);
-	    goto failed;
+        ret = unix_to_pal_error(ret);
+        goto failed;
     }
 
     *handle = socket_create_handle(pal_type_udpsrv, fd, options, bind_addr, bind_addrlen, NULL, 0);
