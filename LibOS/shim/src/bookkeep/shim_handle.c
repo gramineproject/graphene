@@ -807,8 +807,11 @@ BEGIN_RS_FUNC(handle) {
             break;
     }
 
-    if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->checkin)
-        hdl->fs->fs_ops->checkin(hdl);
+    if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->checkin) {
+        int ret = hdl->fs->fs_ops->checkin(hdl);
+        if (ret < 0)
+            return ret;
+    }
 }
 END_RS_FUNC(handle)
 

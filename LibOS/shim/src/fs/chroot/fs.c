@@ -716,8 +716,7 @@ static int chroot_reopen(struct shim_handle* hdl, PAL_HANDLE* out_palhdl) {
 
 /*
  * Prepare the handle to be sent to child process. If the corresponding file still exists on the
- * host (and can be opened), we will not checkpoint its PAL handle, but let the child process open
- * another one.
+ * host, we will not checkpoint its PAL handle, but let the child process open another one.
  *
  * TODO: this is only necessary because PAL handles for protected files cannot be sent to child
  * process (`DkSendHandle`). This workaround limits the damage: inheriting a handle by child process
@@ -728,19 +727,20 @@ static int chroot_checkout(struct shim_handle* hdl) {
     assert(hdl->type == TYPE_CHROOT);
     assert(hdl->pal_handle);
 
+    /* We don't take `hdl->lock` because this is actually the handle *copied* for checkpointing (and
+     * the lock isn't even properly initialized). */
+
     /* First, check if we have not deleted or renamed the file (the dentry contains the same
      * inode). */
     lock(&hdl->dentry->lock);
-    bool still_exists = (hdl->dentry->inode == hdl->inode);
+    bool is_in_dentry = (hdl->dentry->inode == hdl->inode);
     unlock(&hdl->dentry->lock);
 
-    if (still_exists) {
-        /* Try to open the file using the same parameters the child process is going to use, so that
-         * we notice permission problems. If we succeed, we assume the PAL handle does not need
-         * sending. */
-        PAL_HANDLE palhdl;
-        if (chroot_reopen(hdl, &palhdl) == 0) {
-            DkObjectClose(palhdl);
+    /* Then check if the file still exists on host. If so, we assume it can be opened by the child
+     * process, so the PAL handle doesn't need sending. */
+    if (is_in_dentry) {
+        PAL_STREAM_ATTR attr;
+        if (DkStreamAttributesQuery(qstrgetstr(&hdl->uri), &attr) == 0) {
             hdl->pal_handle = NULL;
         }
     }
@@ -750,6 +750,9 @@ static int chroot_checkout(struct shim_handle* hdl) {
 
 static int chroot_checkin(struct shim_handle* hdl) {
     assert(hdl->type == TYPE_CHROOT);
+
+    /* We don't take `hdl->lock` because this handle is being initialized (during checkpoint
+     * restore). */
 
     if (!hdl->pal_handle) {
         PAL_HANDLE palhdl;
