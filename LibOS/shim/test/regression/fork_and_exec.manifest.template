@@ -1,0 +1,38 @@
+loader.preload = "file:{{ graphene.libos }}"
+libos.entrypoint = "fork_and_exec"
+loader.argv0_override = "fork_and_exec"
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
+
+fs.mount.graphene_lib.type = "chroot"
+fs.mount.graphene_lib.path = "/lib"
+fs.mount.graphene_lib.uri = "file:{{ graphene.runtimedir() }}"
+
+fs.mount.host_lib.type = "chroot"
+fs.mount.host_lib.path = "{{ arch_libdir }}"
+fs.mount.host_lib.uri = "file:{{ arch_libdir }}"
+
+fs.mount.host_usr_lib.type = "chroot"
+fs.mount.host_usr_lib.path = "/usr/{{ arch_libdir }}"
+fs.mount.host_usr_lib.uri = "file:/usr/{{ arch_libdir }}"
+
+fs.mount.bin.type = "chroot"
+fs.mount.bin.path = "/bin"
+fs.mount.bin.uri = "file:/bin"
+
+libos.redirect_fd.stdin = "fork_and_exec.stdin"
+libos.redirect_fd.stdout = "fork_and_exec.stdout"
+libos.redirect_fd.stderr = "fork_and_exec.stderr"
+
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.libgcc_s = "file:{{ arch_libdir }}/libgcc_s.so.1"
+sgx.trusted_files.libstdcxx = "file:/usr{{ arch_libdir }}/libstdc++.so.6"
+
+sgx.trusted_files.entrypoint = "file:{{ entrypoint }}"
+sgx.trusted_files.exec_victim = "file:exec_victim"
+
+sgx.allowed_files.stdin = "file:fork_and_exec.stdin"
+sgx.allowed_files.stdout = "file:fork_and_exec.stdout"
+sgx.allowed_files.stderr = "file:fork_and_exec.stderr"
+
+sgx.thread_num = 8
+sgx.nonpie_binary = true

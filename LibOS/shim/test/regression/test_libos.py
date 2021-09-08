@@ -128,11 +128,7 @@ class TC_01_Bootstrap(RegressionTestCase):
     def test_200_exec(self):
         stdout, _ = self.run_binary(['exec'])
 
-        # 2 page child binary
-        self.assertIn(
-            '0' * 89 + ' ' +
-            ('0' * 93 + ' ') * 15,
-            stdout)
+        self.assertIn('Hello World (./exec_victim)!', stdout)
 
     def test_201_exec_same(self):
         args = ['arg_#%d' % i for i in range(50)]
@@ -141,11 +137,29 @@ class TC_01_Bootstrap(RegressionTestCase):
             self.assertIn(arg + '\n', stdout)
 
     def test_202_fork_and_exec(self):
+        paths = ['fork_and_exec.stdin', 'fork_and_exec.stdout', 'fork_and_exec.stderr']
+        for path in paths:
+            if os.path.exists(path):
+                os.remove(path)
+        with open(paths[0], 'wb') as f:
+            f.write(b'a')
+
         stdout, _ = self.run_binary(['fork_and_exec'], timeout=60)
 
-        # fork and exec 2 page child binary
-        self.assertIn('child exited with status: 0', stdout)
-        self.assertIn('test completed successfully', stdout)
+        with open(paths[1], 'rb') as f:
+            file_stdout = f.read()
+        with open(paths[2], 'rb') as f:
+            file_stderr = f.read()
+
+        for path in paths:
+            if os.path.exists(path):
+                os.remove(path)
+
+        self.assertIn(b'Hello World (./exec_victim)!', file_stdout)
+        self.assertIn(b'child exited with status: 0', file_stdout)
+        self.assertIn(b'test completed successfully', file_stdout)
+        self.assertEqual(b'', file_stderr)
+        self.assertEqual(b'', stdout)
 
     def test_203_vfork_and_exec(self):
         stdout, _ = self.run_binary(['vfork_and_exec'], timeout=60)
