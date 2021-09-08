@@ -1,0 +1,6 @@
+sgx.enclave_size = "32G"
+sgx.thread_num = 300
+loader.pal_internal_mem_size = "64M"
+loader.insecure__use_host_env = 1
+sgx.allowed_files.tmp = "file:/tmp"
+sgx.preheat_enclave = 1
