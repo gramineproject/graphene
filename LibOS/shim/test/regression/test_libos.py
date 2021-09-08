@@ -194,6 +194,8 @@ class TC_01_Bootstrap(RegressionTestCase):
         else:
             cmd = ['send_handle', path]
 
+        # Delete the file: the test truncates the file anyway, but it may fail to open a malformed
+        # protected file.
         if os.path.exists(path):
             os.unlink(path)
         try:

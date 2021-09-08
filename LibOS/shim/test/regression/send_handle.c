@@ -22,7 +22,7 @@
 #include <unistd.h>
 
 #define MESSAGE "hello world"
-#define MESSAGE_LEN 11
+#define MESSAGE_LEN (sizeof(MESSAGE) - 1)
 
 int main(int argc, char** argv) {
     bool delete = false;
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
 
     const char* path = argv[i];
 
-    int fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0666);
+    int fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0666);
     if (fd == -1)
         err(1, "open");
 
@@ -53,6 +53,8 @@ int main(int argc, char** argv) {
         ssize_t ret = write(fd, &message[pos], MESSAGE_LEN - pos);
         if (ret < 0)
             err(1, "write");
+        if (ret == 0)
+            errx(1, "write unexpectedly returned 0");
         pos += ret;
     } while (pos < MESSAGE_LEN);
 
