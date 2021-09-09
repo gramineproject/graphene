@@ -264,12 +264,9 @@ static int __query_attr(struct shim_dentry* dent, struct shim_file_data* data,
             BUG();
     }
 
-    mode_t perm = (pal_attr.readable ? S_IRUSR : 0) |
-                  (pal_attr.writable ? S_IWUSR : 0) |
-                  (pal_attr.runnable ? S_IXUSR : 0);
     if (dent) {
         dent->type = type;
-        dent->perm = perm;
+        dent->perm = pal_attr.share_flags & 0777;
     }
 
     __atomic_store_n(&data->size.counter, pal_attr.pending_size, __ATOMIC_SEQ_CST);
