@@ -122,9 +122,8 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
         }
 
-        /* If it is a protected file and the file is opened for renaming, we will need to update
-         * the metadata in the file, so open with RDWR mode with necessary share permissions.
-         * For normal files, reset this option.
+        /* The file is being opened for renaming. We will need to update the metadata in the file,
+         * so open with RDWR mode with necessary share permissions.
          */
         if (pal_options & PAL_OPTION_RENAME) {
             pal_share = PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W;
@@ -794,7 +793,6 @@ static int file_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     return 0;
 }
 
-
 static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     if (strcmp(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
@@ -845,16 +843,12 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     }
 
     int ret = ocall_rename(handle->file.realpath, uri);
-    /* If the rename ocall fails, restore the metadata back to current file path, so that the
-     * file does not become unusable.
-     */
     if (ret < 0) {
         free(tmp);
         /* restore the original file name in pf metadata */
-        pf_status_t pf_ret =  pf_rename(pf->context, handle->file.realpath);
+        pf_status_t pf_ret = pf_rename(pf->context, handle->file.realpath);
         if (PF_FAILURE(pf_ret)) {
-            log_warning("rename failed: %s, the file might be unusable.", pf_strerror(pf_ret));
-            return -PAL_ERROR_DENIED;
+            log_warning("Rename failed: %s, the file might be unusable.", pf_strerror(pf_ret));
         }
         return unix_to_pal_error(ret);
     }

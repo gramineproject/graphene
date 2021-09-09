@@ -1,5 +1,6 @@
 /* Protected file renaming. Renaming a file without closing its handle. */
 
+#include <assert.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -8,61 +9,71 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-int main(void) {
-    char buf[15];
-    char input_text[] = "Hello, world!";
-    int fd = open("pftmp/foo.txt", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-    if (fd < 0)
-        err(1, "Cannot create file pftmp/foo.txt.");
+#define PF_FOO_PATH "pftmp/foo.txt"
+#define PF_BAR_PATH "pftmp/bar.txt"
+#define BUF_SIZE    15
 
-    int num_bytes = write(fd, input_text, strlen(input_text) + 1);
-    if (num_bytes < 0) {
-        close(fd);
-        err(1, "Writing to file failed.");
+int main(void) {
+    char buf[BUF_SIZE];
+    char input_text[] = "Hello, world!";
+    int fd = open(PF_FOO_PATH, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (fd < 0)
+        err(1, "File creation failed");
+
+    int size = strlen(input_text) + 1;
+    char* str = input_text;
+    while (size > 0) {
+        ssize_t n = write(fd, str, size);
+        if (n == -1) {
+            close(fd);
+            err(1, "Writing to file failed");
+        }
+        assert(n <= size);
+        size -= n;
+        str += n;
     }
 
-    close(fd);
+    int ret = close(fd);
+    if (ret < 0)
+        err(1, "Cannot close file");
 
-    int ret = rename("pftmp/foo.txt", "pftmp/bar.txt");
+    ret = rename(PF_FOO_PATH, PF_BAR_PATH);
     if (ret < 0) {
-        fd = open("pftmp/foo.txt", O_RDONLY);
-        if (fd < 0)
-            err(1, "Rename failed, Original file corrupted & unusable.");
-
-        num_bytes = read(fd, buf, sizeof(buf));
-
-        close(fd);
-
-        if (num_bytes < 0)
-            err(1, "Rename failed, Original file corrupted & unusable.");
-
-        buf[sizeof(buf) - 1] = '\0';
-
-        if (strncmp(input_text, buf, sizeof(input_text)))
-            err(1, "Rename failed, Original file corrupted & unusable.");
-
-        err(1, "Rename failed, Original file intact.");
+        err(1, "Rename failed");
     }
 
     /* Open the renamed file */
-    fd = open("pftmp/bar.txt", O_RDONLY);
+    fd = open(PF_BAR_PATH, O_RDONLY);
     if (fd < 0)
-        err(1, "Cannot open renamed file!");
+        err(1, "Cannot open renamed file");
 
-    num_bytes = read(fd, buf, sizeof(buf));
+    size_t pos = 0;
+    do {
+        ssize_t n = read(fd, &buf[pos], BUF_SIZE - pos);
+        if (n == -1)
+            err(1, "Reading from renamed file failed");
+        if (n == 0) {
+            if (size > 0) {
+                warnx("read less bytes than expected");
+                return -1;
+            }
+            break;
+        }
+        pos += n;
+    } while (pos < BUF_SIZE);
 
     close(fd);
-
-    if (num_bytes < 0)
-        err(1, "Reading from renamed file failed.");
+    if (ret < 0)
+        err(1, "Cannot close file");
 
     buf[sizeof(buf) - 1] = '\0';
 
     /* Check if the renamed file's contents are same as original text */
     if (strncmp(input_text, buf, sizeof(input_text)))
-        err(1, "Renamed file content mismatching.");
+        err(1, "Renamed file content mismatching");
 
     printf("TEST OK\n");
 
     return 0;
 }
+

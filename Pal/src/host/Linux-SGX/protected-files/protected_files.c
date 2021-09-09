@@ -373,11 +373,6 @@ static bool ipf_init_new_file(pf_context_t* pf, const char* path) {
 }
 
 static bool ipf_rename_file(pf_context_t* pf, const char* new_path) {
-    if (!new_path) {
-        pf->last_error = PF_STATUS_INVALID_PATH;
-        return false;
-    }
-
     memset(&pf->encrypted_part_plain.path, 0, sizeof(pf->encrypted_part_plain.path));
     memcpy(pf->encrypted_part_plain.path, new_path, strlen(new_path) + 1);
 
@@ -1343,8 +1338,10 @@ pf_status_t pf_rename(pf_context_t* pf, const char* new_path) {
         return PF_STATUS_UNKNOWN_ERROR;
     }
 
-    if (new_path && strlen(new_path) > PATH_MAX_SIZE - 1) {
-        pf->last_error = PF_STATUS_PATH_TOO_LONG;
+    if (!new_path)
+        return PF_STATUS_INVALID_PATH;
+
+    if (strlen(new_path) > PATH_MAX_SIZE - 1) {
         return PF_STATUS_PATH_TOO_LONG;
     }
 
