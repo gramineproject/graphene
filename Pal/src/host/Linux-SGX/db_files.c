@@ -123,8 +123,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         }
 
         /* The file is being opened for renaming. We will need to update the metadata in the file,
-         * so open with RDWR mode with necessary share permissions.
-         */
+         * so open with RDWR mode with necessary share permissions. */
         if (pal_options & PAL_OPTION_RENAME) {
             pal_share = PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W;
             pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
@@ -805,8 +804,7 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     struct protected_file* pf = find_protected_file_handle(handle);
 
     /* TODO: Handle the case of renaming a file that has a file handle already open, so that the
-     * file operations work on both the handles properly
-     */
+     * file operations work on both the handles properly. */
     if (pf) {
         size_t uri_size = strlen(uri) + 1;
         char* new_path = (char*)calloc(1, uri_size);
@@ -848,7 +846,7 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
         /* restore the original file name in pf metadata */
         pf_status_t pf_ret = pf_rename(pf->context, handle->file.realpath);
         if (PF_FAILURE(pf_ret)) {
-            log_warning("Rename failed: %s, the file might be unusable.", pf_strerror(pf_ret));
+            log_warning("Rename failed: %s, the file might be unusable", pf_strerror(pf_ret));
         }
         return unix_to_pal_error(ret);
     }

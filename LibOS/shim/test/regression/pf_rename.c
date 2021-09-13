@@ -1,4 +1,4 @@
-/* Protected file renaming. Renaming a file without closing its handle. */
+/* Protected file renaming. */
 
 #include <assert.h>
 #include <err.h>
@@ -20,7 +20,7 @@ int main(void) {
     if (fd < 0)
         err(1, "File creation failed");
 
-    int size = strlen(input_text) + 1;
+    size_t size = strlen(input_text) + 1;
     char* str = input_text;
     while (size > 0) {
         ssize_t n = write(fd, str, size);
@@ -54,7 +54,7 @@ int main(void) {
             err(1, "Reading from renamed file failed");
         if (n == 0) {
             if (size > 0) {
-                warnx("read less bytes than expected");
+                warnx("Read less bytes than expected");
                 return -1;
             }
             break;
@@ -62,7 +62,7 @@ int main(void) {
         pos += n;
     } while (pos < BUF_SIZE);
 
-    close(fd);
+    ret = close(fd);
     if (ret < 0)
         err(1, "Cannot close file");
 
@@ -73,7 +73,5 @@ int main(void) {
         err(1, "Renamed file content mismatching");
 
     printf("TEST OK\n");
-
     return 0;
 }
-
