@@ -45,9 +45,6 @@ int main(void) {
         errx(1, "Expected O_CLOEXEC flag to be set on both ends of pipe but got flags_wr=0x%x, "
              "flags_rd=0x%x", flags_wr, flags_rd);
 
-    flags_rd = flags_rd & ~O_ACCMODE;
-    flags_wr = flags_wr & ~O_ACCMODE;
-
     if (flags_wr != flags_rd)
         errx(1, "`F_GETFD` flags mismatch: flags_wr=0x%x and flags_rd=0x%x", flags_wr, flags_rd);
 
