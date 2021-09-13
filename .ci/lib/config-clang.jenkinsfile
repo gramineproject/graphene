@@ -1,5 +1,5 @@
 env.CC = "clang"
-env.CXX = "clang++"
+env.CXX = "g++"
 env.AS = "clang"
 
 /*
