@@ -26,6 +26,12 @@ int main(void) {
         errx(1, "Expected O_NONBLOCK flag to be set on both ends of pipe but got flags_wr=0x%x, "
             "flags_rd=0x%x", flags_wr, flags_rd);
 
+    flags_rd = flags_rd & ~O_ACCMODE;
+    flags_wr = flags_wr & ~O_ACCMODE;
+
+    if (flags_wr != flags_rd)
+        errx(1, "`F_GETFL` flags mismatch: flags_wr=0x%x and flags_rd=0x%x", flags_wr, flags_rd);
+
     flags_wr = fcntl(p[1], F_GETFD);
     if (flags_wr < 0)
         err(1, "fcntl(<write end of pipe>, F_GETFD)");
@@ -38,6 +44,12 @@ int main(void) {
     if (!(flags_wr & FD_CLOEXEC) || !(flags_rd & FD_CLOEXEC))
         errx(1, "Expected O_CLOEXEC flag to be set on both ends of pipe but got flags_wr=0x%x, "
              "flags_rd=0x%x", flags_wr, flags_rd);
+
+    flags_rd = flags_rd & ~O_ACCMODE;
+    flags_wr = flags_wr & ~O_ACCMODE;
+
+    if (flags_wr != flags_rd)
+        errx(1, "`F_GETFD` flags mismatch: flags_wr=0x%x and flags_rd=0x%x", flags_wr, flags_rd);
 
     ssize_t ret = write(p[1], "a", 1);
     if (ret < 0) {
