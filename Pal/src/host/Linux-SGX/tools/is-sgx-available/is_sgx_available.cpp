@@ -42,11 +42,11 @@ static bool is_cpuid_supported() {
         "pushf\n"
 
         "pushf\n"
-        "xor qword ptr [rsp], (1<<21)\n"
+        "xorq $(1<<21), (%%rsp)\n"
         "popf\n"
         "pushf\n"
-        "pop %0\n"
-        "xor %0, [rsp]\n"
+        "popq %0\n"
+        "xorq (%%rsp), %0\n"
 
         "popf\n"
         : "=r" (write_diff)
