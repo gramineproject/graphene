@@ -23,3 +23,8 @@ DUMMY_FUNCTION(sgx_thread_set_untrusted_event_ocall)
 DUMMY_FUNCTION(sgx_thread_setwait_untrusted_events_ocall)
 DUMMY_FUNCTION(sgx_thread_set_multiple_untrusted_events_ocall)
 DUMMY_FUNCTION(sgx_thread_wait_untrusted_event_ocall)
+
+/* https://github.com/intel/linux-sgx/blob/master/common/inc/sgx_pthread.edl */
+DUMMY_FUNCTION(pthread_wait_timeout_ocall)
+DUMMY_FUNCTION(pthread_create_ocall)
+DUMMY_FUNCTION(pthread_wakeup_ocall)
