@@ -33,7 +33,7 @@ static void* dowork(void* args) {
 
     unsigned int cpu, node;
     int ret =  syscall(SYS_getcpu, &cpu, &node);
-    if (ret < 0) {
+    if (ret < 0)
         err(EXIT_FAILURE, "sched_getcpu failed!");
 
     printf("Thread %ld is running on cpu: %d, node: %d\n", syscall(SYS_gettid), cpu, node);

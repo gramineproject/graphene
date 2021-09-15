@@ -251,7 +251,12 @@ static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
     if (possible_logical_cores < 0)
         return possible_logical_cores;
 
+    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
+    if (online_logical_cores < 0)
+        return online_logical_cores;
+
     int num_bitmaps = BITS_TO_INTS(possible_logical_cores);
+    static int total_online_cores = 0;
     const char* p = cpumap;
     while (*p) {
         while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n')
@@ -266,9 +271,9 @@ static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
         if (end == p || overflowed)
             return -EINVAL;
 
-        /* cpumap is represented by comma seperated unsigned 32-bit integers ranging upto the total
-         * processors present in the system. `bitmap` represents each unsigned 32-bit value. So any
-         * value above this range is considered malicious and we fail. */
+        /* cpumap is represented by comma separated unsigned 32-bit integers ranging upto the total
+         * number of cores present in the system. `bitmap` represents each unsigned 32-bit value.
+         * So any value above this range is considered malicious and we fail. */
         if (bitmap > UINT32_MAX)
             return -EINVAL;
 
@@ -283,8 +288,11 @@ static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
 
         for (int pos = 0; bitmap; pos++) {
             if (bitmap & 1U) {
-                /* Since bitmap cannot be greater than UINT32_MAX, `pos` will be less than or equal
-                 * to 31 */
+                /* Ensure that number of cores represented by cpumap doesn't exceed the total number
+                 * of cores present in the system. */
+                total_online_cores++;
+                if (total_online_cores > online_logical_cores)
+                    return -EINVAL;
                 int cpu = (num_bitmaps - 1) * BITS_IN_TYPE(int) + pos;
                 core_topology[cpu].node = node;
             }
