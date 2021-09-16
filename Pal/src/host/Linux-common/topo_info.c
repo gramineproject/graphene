@@ -246,6 +246,10 @@ out:
 
 static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
                                     PAL_CORE_TOPO_INFO* core_topology) {
+    /* This function will be called for all NUMA nodes present in the system. So, using static
+     * variable to accumulate core count, i.e., set bits of `cpumap` for each NUMA node. */
+    static int total_online_cores = 0;
+
     int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
                                                  /*count=*/true);
     if (possible_logical_cores < 0)
@@ -256,7 +260,6 @@ static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
         return online_logical_cores;
 
     int num_bitmaps = BITS_TO_INTS(possible_logical_cores);
-    static int total_online_cores = 0;
     const char* p = cpumap;
     while (*p) {
         while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n')
@@ -271,9 +274,10 @@ static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
         if (end == p || overflowed)
             return -EINVAL;
 
-        /* cpumap is represented by comma separated unsigned 32-bit integers ranging upto the total
-         * number of cores present in the system. `bitmap` represents each unsigned 32-bit value.
-         * So any value above this range is considered malicious and we fail. */
+        /* cpumap is represented by comma separated unsigned 32-bit integers representing cores that
+         * are part of a given NUMA node. `bitmap` represents each unsigned 32-bit value.
+         * So bitmap with a value greater than unsigned 32-bit integer is considered malicious and
+         * we fail. */
         if (bitmap > UINT32_MAX)
             return -EINVAL;
 
@@ -281,8 +285,8 @@ static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
             return -EINVAL;
         p = end;
 
-        /* Number of 32-bit unsigned `bitmap` to represent `cpumap` exceeds the number of cores
-         * present in the system. */
+        /* Number of 32-bit unsigned `bitmap` integers read from the `cpumap` string exceeds the
+         * number of `bitmaps` used to represent the total number of cores in the system. */
         if (num_bitmaps < 1)
             return -EINVAL;
 
