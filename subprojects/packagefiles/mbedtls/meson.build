@@ -50,8 +50,8 @@ pkgconfig.generate(
 
 foreach output : mbedtls_libs_output
     meson.add_install_script('/bin/sh', '-c',
-        'ln -sf ../../../@0@ ' +
-        '"$MESON_INSTALL_DESTDIR_PREFIX"/@1@/graphene/runtime/glibc/'.format(
+        ('ln -sf ../../../@0@ ' +
+        '"$MESON_INSTALL_DESTDIR_PREFIX"/@1@/graphene/runtime/glibc/').format(
             output, get_option('libdir')))
 endforeach
 

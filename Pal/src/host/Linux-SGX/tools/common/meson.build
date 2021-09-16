@@ -20,6 +20,7 @@ sgx_util = shared_library('sgx_util',
     ],
 
     install: true,
+    install_rpath: join_paths(get_option('prefix'), get_option('libdir')),
 )
 
 sgx_util_dep = declare_dependency(
@@ -37,3 +38,8 @@ pkgconfig.generate(
         sgx_util,
     ],
 )
+
+meson.add_install_script('/bin/sh', '-c',
+    'ln -sf ../../../libsgx_util.so ' +
+    '"$MESON_INSTALL_DESTDIR_PREFIX"/@0@/graphene/runtime/glibc/'.format(
+        get_option('libdir')))
