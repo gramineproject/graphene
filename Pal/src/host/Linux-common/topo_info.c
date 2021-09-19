@@ -292,12 +292,18 @@ static int extract_cpu_node_mapping(unsigned int node, const char* cpumap,
 
         for (int pos = 0; bitmap; pos++) {
             if (bitmap & 1U) {
-                /* Ensure that number of cores represented by cpumap doesn't exceed the total number
-                 * of cores present in the system. */
+                /* Number of cores represented by cpumap of each NUMA node should not exceed the
+                 * total number of cores present in the system. */
                 total_online_cores++;
                 if (total_online_cores > online_logical_cores)
                     return -EINVAL;
+
+                /* `cpu` extracted from cpumap cannot be greater than or equal to total number of
+                 * cores. `cpu` value ranges from 0 to number of cores in system - 1. */
                 int cpu = (num_bitmaps - 1) * BITS_IN_TYPE(int) + pos;
+                if (cpu >= online_logical_cores)
+                    return -EINVAL;
+
                 core_topology[cpu].node = node;
             }
             bitmap = bitmap >> 1;
