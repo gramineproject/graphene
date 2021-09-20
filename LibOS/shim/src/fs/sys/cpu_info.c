@@ -13,16 +13,16 @@
 #include "shim_fs_pseudo.h"
 
 int sys_cpu_general_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
-    int ret = 0;
+    int ret;
     const char* name = dent->name;
     char str[PAL_SYSFS_BUF_FILESZ] = {'\0'};
 
     if (strcmp(name, "online") == 0) {
-        ret = sys_convert_range_to_str(&g_pal_control->topo_info.online_logical_cores, str,
-                                       sizeof(str), ",");
+        ret = sys_convert_ranges_to_str(&g_pal_control->topo_info.online_logical_cores, str,
+                                        sizeof(str), ",");
     } else if (strcmp(name, "possible") == 0) {
-        ret = sys_convert_range_to_str(&g_pal_control->topo_info.possible_logical_cores, str,
-                                       sizeof(str), ",");
+        ret = sys_convert_ranges_to_str(&g_pal_control->topo_info.possible_logical_cores, str,
+                                        sizeof(str), ",");
     } else {
         log_debug("unrecognized file: %s", name);
         ret = -ENOENT;
@@ -54,10 +54,10 @@ int sys_cpu_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
     } else if (strcmp(name, "physical_package_id") == 0) {
         ret = sys_convert_int_to_str(core_topology->cpu_socket, MULTIPLIER_NONE, str, sizeof(str));
     } else if (strcmp(name, "core_siblings") == 0) {
-        ret = sys_convert_range_to_cpu_bitmap_str(&core_topology->core_siblings, str, sizeof(str));
+        ret = sys_convert_ranges_to_cpu_bitmap_str(&core_topology->core_siblings, str, sizeof(str));
     } else if (strcmp(name, "thread_siblings") == 0) {
-        ret = sys_convert_range_to_cpu_bitmap_str(&core_topology->thread_siblings, str,
-                                                  sizeof(str));
+        ret = sys_convert_ranges_to_cpu_bitmap_str(&core_topology->thread_siblings, str,
+                                                   sizeof(str));
     } else {
         log_debug("unrecognized file: %s", name);
         ret = -ENOENT;

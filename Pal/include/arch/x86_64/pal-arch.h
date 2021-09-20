@@ -31,12 +31,10 @@ typedef struct pal_tcb PAL_TCB;
 #define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbadUL
 
 /* Used to represent buffers having numeric values with text. E.g "1024576K".
- * Note: This MACRO is used to allocate on the stack, so increase the size if needed with caution or
- * use malloc. */
+ * NOTE: Used to allocate on stack; increase with caution or use malloc instead. */
 #define PAL_SYSFS_BUF_FILESZ 64
 /* Used to represent cpumaps like "00000000,ffffffff,00000000,ffffffff".
- * Note: This MACRO is used to allocate on the stack, so increase the size if needed with caution or
- * use malloc. */
+ * NOTE: Used to allocate on stack; increase with caution or use malloc instead. */
 #define PAL_SYSFS_MAP_FILESZ 256
 
 typedef struct pal_tcb {
@@ -288,9 +286,9 @@ enum {
 };
 
 enum {
-    DATA = 0,
-    INSTRUCTION,
-    UNIFIED,
+    CACHE_TYPE_DATA = 0,
+    CACHE_TYPE_INSTRUCTION,
+    CACHE_TYPE_UNIFIED,
 };
 
 /* PAL_CPU_INFO holds /proc/cpuinfo data */
@@ -306,13 +304,13 @@ typedef struct PAL_CPU_INFO_ {
 
 typedef struct PAL_RANGE_INFO_ {
     PAL_NUM start;
-    PAL_NUM end; /* If end is not present, set this to UINT64_MAX as end marker. */
+    PAL_NUM end;
 } PAL_RANGE_INFO;
 
 typedef struct PAL_RES_RANGE_INFO_ {
     /* Count of total number of resources present. Eg. 0-63 will result in this count being 64 */
     PAL_NUM resource_count;
-    /* Count of total number of ranges present. Eg. 0-31,32-63, will result in this count being 2 */
+    /* Count of total number of ranges present. Eg. 0-31,32-63 will result in this count being 2 */
     PAL_NUM range_count;
     PAL_RANGE_INFO* ranges;
 } PAL_RES_RANGE_INFO;

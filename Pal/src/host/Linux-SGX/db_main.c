@@ -154,7 +154,9 @@ static int copy_hw_resource_range(PAL_RES_RANGE_INFO* src, PAL_RES_RANGE_INFO* d
     return 0;
 }
 
-/* This fucntion does the following 3 sanitizations for a given resource range:
+/* All sanitization functions below do not free memory.  We simply exit on failure. */
+
+/* This function does the following 3 sanitizations for a given resource range:
  * 1. Ensures the resource as well as range count doesn't exceed limits.
  * 2. Ensures that ranges don't overlap like "1-5, 3-4".
  * 3. Ensures the ranges aren't malformed like "1-5, 7-1".
@@ -188,28 +190,24 @@ static int sanitize_hw_resource_range(PAL_RES_RANGE_INFO res_info, int64_t res_m
             return -1;
         int64_t start = (int64_t)res_info.ranges[i].start;
 
-        int64_t end;
-        if (res_info.ranges[i].end == UINT64_MAX)
-            end = start;
-        else if (res_info.ranges[i].end <= INT64_MAX)
-            end =  (int64_t)res_info.ranges[i].end;
-        else
+        if (res_info.ranges[i].end > INT64_MAX)
             return -1;
+        int64_t end = (int64_t)res_info.ranges[i].end;
 
         /* Ensure start and end fall within the max_limit value */
         if (!IS_IN_RANGE_INCL(start, range_min_limit, range_max_limit)) {
-            log_error("Invalid start range: %ld\n", start);
+            log_error("Invalid start range: %ld", start);
             return -1;
         }
 
         if ((start != end) && !IS_IN_RANGE_INCL(end, start + 1, range_max_limit)) {
-            log_error("Invalid end range: %ld\n", start);
+            log_error("Invalid end range: %ld", end);
             return -1;
         }
 
         /* check for malformed ranges */
         if (previous_end >= end) {
-            log_error("Malformed range: previous_end =%ld, current end = %ld\n", previous_end, end);
+            log_error("Malformed range: previous_end = %ld, current end = %ld", previous_end, end);
             return -1;
         }
         previous_end = end;
@@ -221,13 +219,13 @@ static int sanitize_hw_resource_range(PAL_RES_RANGE_INFO res_info, int64_t res_m
 static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cache_lvls,
                                         int64_t num_cores) {
     for (int64_t lvl = 0; lvl < cache_lvls; lvl++) {
-        if (cache[lvl].type != DATA && cache[lvl].type != INSTRUCTION  &&
-            cache[lvl].type != UNIFIED) {
-            return -EINVAL;
+        if (cache[lvl].type != CACHE_TYPE_DATA && cache[lvl].type != CACHE_TYPE_INSTRUCTION  &&
+            cache[lvl].type != CACHE_TYPE_UNIFIED) {
+            return -1;
         }
 
         int64_t max_limit;
-        if (cache[lvl].type == DATA || cache[lvl].type == INSTRUCTION) {
+        if (cache[lvl].type == CACHE_TYPE_DATA || cache[lvl].type == CACHE_TYPE_INSTRUCTION) {
             max_limit = 2; /* Taking HT into account */
         } else {
             /* if unified cache then it can range upto total number of cores. */
@@ -244,7 +242,7 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
             return -1;
         int64_t level = (int64_t)cache[lvl].level;
         if (!IS_IN_RANGE_INCL(level, 1, 3))      /* x86 processors have max of 3 cache levels */
-            return -EINVAL;
+            return -1;
 
         if (cache[lvl].size_multiplier != MULTIPLIER_KB &&
             cache[lvl].size_multiplier != MULTIPLIER_MB &&
@@ -253,15 +251,13 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
             return -1;
         }
 
-        int64_t multiplier;
+        int64_t multiplier =1;
         if (cache[lvl].size_multiplier == MULTIPLIER_KB)
             multiplier = 1024;
         else if (cache[lvl].size_multiplier == MULTIPLIER_MB)
             multiplier = 1024 * 1024;
         else if (cache[lvl].size_multiplier == MULTIPLIER_GB)
             multiplier = 1024 * 1024 * 1024;
-        else
-            multiplier = 1;
 
         if (cache[lvl].size > INT64_MAX)
             return -1;
@@ -270,25 +266,25 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
             return -1;
 
         if (!IS_IN_RANGE_INCL(cache_size, 1, 1 << 30))
-            return -EINVAL;
+            return -1;
 
         if (cache[lvl].coherency_line_size > INT64_MAX)
             return -1;
         int64_t coherency_line_size = (int64_t)cache[lvl].coherency_line_size;
         if (!IS_IN_RANGE_INCL(coherency_line_size, 1, 1 << 16))
-            return -EINVAL;
+            return -1;
 
         if (cache[lvl].number_of_sets > INT64_MAX)
             return -1;
         int64_t number_of_sets = (int64_t)cache[lvl].number_of_sets;
         if (!IS_IN_RANGE_INCL(number_of_sets, 1, 1 << 30))
-            return -EINVAL;
+            return -1;
 
         if (cache[lvl].physical_line_partition > INT64_MAX)
             return -1;
         int64_t physical_line_partition = (int64_t)cache[lvl].physical_line_partition;
         if (!IS_IN_RANGE_INCL(physical_line_partition, 1, 1 << 16))
-            return -EINVAL;
+            return -1;
     }
     return 0;
 }
@@ -296,23 +292,23 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
 static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int64_t num_cores,
                                        int64_t cache_lvls) {
     if (num_cores == 0 || cache_lvls == 0)
-        return -ENOENT;
+        return -1;
 
     for (int64_t idx = 0; idx < num_cores; idx++) {
         if (idx != 0) {     /* core 0 is always online */
             if (core_topology[idx].is_logical_core_online > INT64_MAX)
-            return -1;
+                return -1;
 
             int64_t is_core_online = core_topology[idx].is_logical_core_online;
             if (is_core_online != 0 && is_core_online != 1)
-                return -EINVAL;
+                return -1;
         }
 
         if (core_topology[idx].core_id > INT64_MAX)
             return -1;
         int64_t core_id = (int64_t)core_topology[idx].core_id;
         if (!IS_IN_RANGE_INCL(core_id, 0, num_cores - 1))
-            return -EINVAL;
+            return -1;
 
         int64_t core_siblings = sanitize_hw_resource_range(core_topology[idx].core_siblings, 1,
                                                            num_cores, 0, num_cores);
@@ -330,24 +326,20 @@ static int sanitize_core_topology_info(PAL_CORE_TOPO_INFO* core_topology, int64_
         }
 
         if (sanitize_cache_topology_info(core_topology[idx].cache, cache_lvls, num_cores) < 0)
-            return -EINVAL;
+            return -1;
     }
     return 0;
 }
-
-typedef struct PAL_SOCKET_INFO_ {
-    PAL_NUM range_count;
-    PAL_RANGE_INFO* ranges;
-} PAL_SOCKET_INFO;
 
 static int sanitize_socket_info(PAL_TOPO_INFO topo_info) {
     int ret = 0;
     int64_t prev_socket = -1;
 
     int64_t num_sockets = (int64_t)topo_info.num_sockets;
-    PAL_SOCKET_INFO* socket_info = (PAL_SOCKET_INFO*)calloc(num_sockets, sizeof(PAL_SOCKET_INFO));
+    PAL_RES_RANGE_INFO * socket_info =
+        (PAL_RES_RANGE_INFO*)calloc(num_sockets, sizeof(PAL_RES_RANGE_INFO ));
     if (!socket_info)
-        return -ENOMEM;
+        return -1;
 
     int64_t num_cores = topo_info.online_logical_cores.resource_count;
     for (int64_t idx = 0; idx < num_cores; idx++) {
@@ -356,38 +348,38 @@ static int sanitize_socket_info(PAL_TOPO_INFO topo_info) {
 
         int64_t socket = (int64_t)topo_info.core_topology[idx].cpu_socket;
         if (!IS_IN_RANGE_INCL(socket, 0, num_sockets - 1)) {
-            ret = -EINVAL;
+            ret = -1;
             goto out_socket;
         }
 
         /* Extract cores that are part of each socket to validate against core_siblings.
          * Note: Although a clever attacker might modify both of these values, idea here is to
          * provide a consistent view of the topology. */
-        int64_t range_count;
         if (socket != prev_socket) {
             socket_info[socket].range_count++;
             size_t new_sz = sizeof(PAL_RANGE_INFO) * socket_info[socket].range_count;
             size_t old_sz = new_sz - sizeof(PAL_RANGE_INFO);
             socket_info[socket].ranges = realloc_size(socket_info[socket].ranges, old_sz, new_sz);
             if (!socket_info->ranges) {
-                ret = -ENOMEM;
+                ret = -1;
                 goto out_socket;
             }
 
-            range_count = socket_info[socket].range_count - 1;
-            socket_info[socket].ranges[range_count].start = idx;
-            socket_info[socket].ranges[range_count].end = UINT64_MAX;
+            int64_t range_idx = socket_info[socket].range_count - 1;
+            socket_info[socket].ranges[range_idx].start = idx;
+            socket_info[socket].ranges[range_idx].end = UINT64_MAX;
             prev_socket = socket;
         } else {
-            range_count = socket_info[socket].range_count - 1;
-            socket_info[socket].ranges[range_count].end = idx;
+            int64_t range_idx = socket_info[socket].range_count - 1;
+            socket_info[socket].ranges[range_idx].end = idx;
         }
     }
 
-    /* Verify against core-siblings */
+    /* core-siblings represent all the cores that are part of a socket. We cross-verify the
+     * socket info against this. */
     for (int64_t idx = 0; idx < num_sockets; idx++) {
         if (!socket_info[idx].range_count || !socket_info[idx].ranges) {
-            ret = -EINVAL;
+            ret = -1;
             goto out_socket;
         }
 
@@ -395,7 +387,7 @@ static int sanitize_socket_info(PAL_TOPO_INFO topo_info) {
         uint64_t core_sibling_cnt = topo_info.core_topology[core_in_socket].core_siblings.range_count;
 
         if (core_sibling_cnt != socket_info[idx].range_count) {
-            ret = -EINVAL;
+            ret = -1;
             goto out_socket;
         }
 
@@ -404,14 +396,14 @@ static int sanitize_socket_info(PAL_TOPO_INFO topo_info) {
         for (uint64_t j = 0; j < core_sibling_cnt; j++) {
             if (socket_info[idx].ranges[j].start != core_sibling_ranges[j].start ||
                 socket_info[idx].ranges[j].end != core_sibling_ranges[j].end) {
-                ret = -EINVAL;
+                ret = -1;
                 goto out_socket;
             }
         }
     }
 
 out_socket:
-    for (int64_t i =0 ; i < num_sockets; i++) {
+    for (int64_t i = 0 ; i < num_sockets; i++) {
         if (socket_info[i].ranges)
             free(socket_info[i].ranges);
     }
@@ -425,7 +417,7 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
     int64_t num_cpumask = BITS_TO_INTS(possible_cores);
     unsigned int* bitmap = (unsigned int*)calloc(num_cpumask, sizeof(unsigned int));
     if (!bitmap)
-        return -ENOMEM;
+        return -1;
 
     int64_t total_cores_in_numa = 0;
     for (int64_t idx = 0; idx < num_nodes; idx++) {
@@ -439,8 +431,6 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
         for (int64_t i = 0; i < (int64_t)numa_topology[idx].cpumap.range_count; i++) {
             uint64_t start = numa_topology[idx].cpumap.ranges[i].start;
             uint64_t end = numa_topology[idx].cpumap.ranges[i].end;
-            if (end == UINT64_MAX)
-                end = start;
             for (int64_t j = (int64_t)start; j <= (int64_t)end; j++) {
                 int64_t index = j / (sizeof(int) * BITS_IN_BYTE);
                 if (index >= num_cpumask) {
@@ -448,7 +438,7 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
                     goto out_numa;
                 }
                 if (bitmap[index] >> (j % (sizeof(int) * BITS_IN_BYTE)) == 1) {
-                    log_error("Invalid numa_topology! Core: %ld found in multiple numa nodes", j);
+                    log_error("Invalid numa_topology: Core %ld found in multiple numa nodes", j);
                     ret = -1;
                     goto out_numa;
                 }
@@ -466,7 +456,7 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
     }
 
     if (total_cores_in_numa != num_cores) {
-        log_error("Invalid numa_topology! More cores in NUMA than online");
+        log_error("Invalid numa_topology: more cores in NUMA than online");
         ret = -1;
         goto out_numa;
     }

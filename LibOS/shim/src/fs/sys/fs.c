@@ -14,8 +14,10 @@
 #include "shim_fs_pseudo.h"
 #include "stat.h"
 
-int sys_convert_int_to_str(uint64_t val, uint64_t size_mult, char* str, int max_len) {
+int sys_convert_int_to_str(uint64_t val, uint64_t size_mult, char* str, size_t max_len) {
     int ret = 0;
+    assert(max_len > 0);
+
     switch (size_mult) {
         case MULTIPLIER_KB:
             ret = snprintf(str, max_len, "%luK", val);
@@ -33,47 +35,45 @@ int sys_convert_int_to_str(uint64_t val, uint64_t size_mult, char* str, int max_
     return ret;
 }
 
-int sys_convert_range_to_str(const PAL_RES_RANGE_INFO* res_range_info, char* str, int max_len,
-                             const char* sep) {
+int sys_convert_ranges_to_str(const PAL_RES_RANGE_INFO* res_range_info, char* str, size_t max_len,
+                              const char* sep) {
     if (res_range_info->range_count > INT64_MAX)
         return -EINVAL;
 
     int64_t range_cnt = (int64_t)res_range_info->range_count;
-    int offset = 0;
+    size_t offset = 0;
     for (int64_t i = 0; i < range_cnt; i++) {
-        if (max_len - offset < 0)
+        if (offset > max_len)
             return -ENOMEM;
 
         int ret;
-        char end_str[PAL_SYSFS_BUF_FILESZ] = {'\0'};
-        if (res_range_info->ranges[i].end == UINT64_MAX) {
-            ret = snprintf(end_str, sizeof(end_str), "%s", "");
+        if (res_range_info->ranges[i].end == res_range_info->ranges[i].start) {
+            ret = snprintf(str + offset, max_len - offset, "%lu%s", res_range_info->ranges[i].start,
+                           (i + 1 == range_cnt) ? "\0" : sep);
         } else {
-            ret = snprintf(end_str, sizeof(end_str), "-%lu", res_range_info->ranges[i].end);
+            ret = snprintf(str + offset, max_len - offset, "%lu-%lu%s",
+                           res_range_info->ranges[i].start, res_range_info->ranges[i].end,
+                           (i + 1 == range_cnt) ? "\0" : sep);
         }
 
         if (ret < 0)
             return ret;
 
-        ret = snprintf(str + offset, max_len - offset, "%lu%s%s", res_range_info->ranges[i].start,
-                       end_str, (i + 1 == range_cnt) ? "\0" : sep);
-        if (ret < 0)
-            return ret;
         offset += ret;
     }
     return 0;
 }
 
-int sys_convert_range_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_info, char* str,
-                                        int max_len) {
+int sys_convert_ranges_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_info, char* str,
+                                         size_t max_len) {
     if (g_pal_control->topo_info.possible_logical_cores.resource_count > INT64_MAX)
         return -1;
-    int ret = 0;
+    int ret;
 
     /* Extract cpumask from the ranges */
     int64_t possible_cores =  g_pal_control->topo_info.possible_logical_cores.resource_count;
     int64_t num_cpumask = BITS_TO_INTS(possible_cores);
-    unsigned int* bitmap = (unsigned int*)calloc(num_cpumask, sizeof(unsigned int));
+    uint32_t* bitmap = (uint32_t*)calloc(num_cpumask, sizeof(uint32_t));
     if (!bitmap)
         return -ENOMEM;
 
@@ -83,8 +83,6 @@ int sys_convert_range_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_info
     for (int64_t i = 0; i < (int64_t)res_range_info->range_count; i++) {
         uint64_t start = res_range_info->ranges[i].start;
         uint64_t end = res_range_info->ranges[i].end;
-        if (end == UINT64_MAX)
-            end = start;
         if (start > INT64_MAX || end > INT64_MAX)
             return -EINVAL;
         for (int64_t j = (int64_t)start; j <= (int64_t)end; j++) {
@@ -98,9 +96,9 @@ int sys_convert_range_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_info
     }
 
     /* Convert cpumask to strings */
-    int offset = 0;
+    size_t offset = 0;
     for (int64_t j = num_cpumask - 1; j >= 0; j-- ) {
-        if (max_len - offset < 0) {
+        if (offset > max_len) {
             ret = -ENOMEM;
             goto out;
         }
