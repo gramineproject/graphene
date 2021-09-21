@@ -32,7 +32,7 @@ static void* dowork(void* args) {
         iterations--;
 
     unsigned int cpu, node;
-    int ret =  syscall(SYS_getcpu, &cpu, &node);
+    int ret = syscall(SYS_getcpu, &cpu, &node);
     if (ret < 0)
         err(EXIT_FAILURE, "sched_getcpu failed!");
 

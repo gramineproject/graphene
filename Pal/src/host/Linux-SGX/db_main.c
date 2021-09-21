@@ -350,7 +350,8 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
         if (num_nodes != sanitize_hw_resource_count(numa_topology[idx].distance, /*ordered=*/false))
             return -EINVAL;
     }
-    /* TODO: Ensure each NUMA has unique set of cores and there is no overlap */
+
+    /* TODO: Ensure each NUMA node has unique set of cores and there is no overlap */
     if (!IS_IN_RANGE_INCL(num_bits_in_cpumap, 1, num_cores))
         return -EINVAL;
 
