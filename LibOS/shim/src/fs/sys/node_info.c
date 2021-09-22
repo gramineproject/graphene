@@ -15,16 +15,17 @@ int sys_node_general_load(struct shim_dentry* dent, char** out_data, size_t* out
     int ret;
 
     const char* name = dent->name;
-    char str[PAL_SYSFS_BUF_FILESZ] = {'\0'};;
-    if (strcmp(name, "online") == 0) {
-        ret = sys_convert_ranges_to_str(&g_pal_control->topo_info.nodes, str, sizeof(str), ",");
-    } else {
+    char str[PAL_SYSFS_BUF_FILESZ] = {'\0'};
+
+    if (strcmp(name, "online") != 0) {
         log_debug("unrecognized file: %s", name);
-        ret = -ENOENT;
+        return -ENOENT;
     }
 
+    ret = sys_convert_ranges_to_str(&g_pal_control->topo_info.nodes, str, sizeof(str), ",");
     if (ret < 0)
         return ret;
+
     return sys_load(str, out_data, out_size);
 }
 
@@ -52,6 +53,7 @@ int sys_node_load(struct shim_dentry* dent, char** out_data, size_t* out_size) {
                                          str, sizeof(str));
         } else {
             log_debug("unrecognized hugepage file: %s", parent_name);
+            ret = -ENOENT;
         }
     } else {
         log_debug("unrecognized file: %s", name);

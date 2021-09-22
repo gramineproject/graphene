@@ -786,7 +786,7 @@ static int copy_resource_range(PAL_RES_RANGE_INFO* src, PAL_RES_RANGE_INFO* dest
     PAL_RANGE_INFO* ranges = (PAL_RANGE_INFO*)malloc(range_cnt * sizeof(PAL_RANGE_INFO));
     if (!ranges) {
         log_error("Range allocation failed");
-        return -1;
+        return -PAL_ERROR_NOMEM;
     }
 
     memcpy(ranges, src->ranges, range_cnt * sizeof(PAL_RANGE_INFO));
@@ -796,25 +796,26 @@ static int copy_resource_range(PAL_RES_RANGE_INFO* src, PAL_RES_RANGE_INFO* dest
     return 0;
 }
 
+/* This function doesn't clean up resources on failure, as we terminate on failure. */
 int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
     int ret = copy_resource_range(&g_pal_sec.topo_info.online_logical_cores,
                               &topo_info->online_logical_cores);
     if (ret < 0) {
         log_error("Copying g_pal_sec.topo_info.online_logical_cores failed");
-        return -1;
+        return ret;
     }
 
     ret = copy_resource_range(&g_pal_sec.topo_info.possible_logical_cores,
                               &topo_info->possible_logical_cores);
     if (ret < 0) {
         log_error("Copying g_pal_sec.topo_info.possible_logical_cores failed");
-        return -1;
+        return ret;
     }
 
     ret = copy_resource_range(&g_pal_sec.topo_info.nodes, &topo_info->nodes);
     if (ret < 0) {
         log_error("Copying g_pal_sec.topo_info.nodes failed");
-        return -1;
+        return ret;
     }
 
     topo_info->num_cache_index            = g_pal_sec.topo_info.num_cache_index;

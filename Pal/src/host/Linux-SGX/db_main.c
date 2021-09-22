@@ -134,6 +134,8 @@ fail:
     return NULL;
 }
 
+/* All sanitization/helper functions below do not free memory. We simply exit on failure. */
+
 static int copy_hw_resource_range(PAL_RES_RANGE_INFO* src, PAL_RES_RANGE_INFO* dest) {
     uint64_t range_cnt = src->range_count;
     PAL_RANGE_INFO* ranges = (PAL_RANGE_INFO*)malloc(range_cnt * sizeof(PAL_RANGE_INFO));
@@ -153,8 +155,6 @@ static int copy_hw_resource_range(PAL_RES_RANGE_INFO* src, PAL_RES_RANGE_INFO* d
     dest->resource_count = src->resource_count;
     return 0;
 }
-
-/* All sanitization functions below do not free memory.  We simply exit on failure. */
 
 /* This function does the following 3 sanitizations for a given resource range:
  * 1. Ensures the resource as well as range count doesn't exceed limits.
@@ -177,7 +177,7 @@ static int sanitize_hw_resource_range(PAL_RES_RANGE_INFO res_info, int64_t res_m
         return -1;
     int64_t range_count = (int64_t)res_info.range_count;
     if (!IS_IN_RANGE_INCL(range_count, 1, 1 << 7)) {
-        log_error("Invalid range count: %ld\n", range_count);
+        log_error("Invalid range count: %ld", range_count);
         return -1;
     }
 
@@ -186,12 +186,10 @@ static int sanitize_hw_resource_range(PAL_RES_RANGE_INFO res_info, int64_t res_m
 
     int64_t previous_end = -1;
     for (int64_t i = 0; i < range_count; i++) {
-        if (res_info.ranges[i].start > INT64_MAX)
+        if (res_info.ranges[i].start > INT64_MAX || res_info.ranges[i].end > INT64_MAX)
             return -1;
-        int64_t start = (int64_t)res_info.ranges[i].start;
 
-        if (res_info.ranges[i].end > INT64_MAX)
-            return -1;
+        int64_t start = (int64_t)res_info.ranges[i].start;
         int64_t end = (int64_t)res_info.ranges[i].end;
 
         /* Ensure start and end fall within the max_limit value */
@@ -251,7 +249,7 @@ static int sanitize_cache_topology_info(PAL_CORE_CACHE_INFO* cache, int64_t cach
             return -1;
         }
 
-        int64_t multiplier =1;
+        int64_t multiplier = 1;
         if (cache[lvl].size_multiplier == MULTIPLIER_KB)
             multiplier = 1024;
         else if (cache[lvl].size_multiplier == MULTIPLIER_MB)
@@ -336,8 +334,8 @@ static int sanitize_socket_info(PAL_TOPO_INFO topo_info) {
     int64_t prev_socket = -1;
 
     int64_t num_sockets = (int64_t)topo_info.num_sockets;
-    PAL_RES_RANGE_INFO * socket_info =
-        (PAL_RES_RANGE_INFO*)calloc(num_sockets, sizeof(PAL_RES_RANGE_INFO ));
+    PAL_RES_RANGE_INFO* socket_info =
+        (PAL_RES_RANGE_INFO*)calloc(num_sockets, sizeof(PAL_RES_RANGE_INFO));
     if (!socket_info)
         return -1;
 
@@ -402,8 +400,9 @@ static int sanitize_socket_info(PAL_TOPO_INFO topo_info) {
         }
     }
 
+    ret = 0;
 out_socket:
-    for (int64_t i = 0 ; i < num_sockets; i++) {
+    for (int64_t i = 0; i < num_sockets; i++) {
         if (socket_info[i].ranges)
             free(socket_info[i].ranges);
     }
@@ -432,17 +431,17 @@ static int sanitize_numa_topology_info(PAL_NUMA_TOPO_INFO* numa_topology, int64_
             uint64_t start = numa_topology[idx].cpumap.ranges[i].start;
             uint64_t end = numa_topology[idx].cpumap.ranges[i].end;
             for (int64_t j = (int64_t)start; j <= (int64_t)end; j++) {
-                int64_t index = j / (sizeof(int) * BITS_IN_BYTE);
+                int64_t index = j / BITS_IN_TYPE(int);
                 if (index >= num_cpumask) {
                     ret = -1;
                     goto out_numa;
                 }
-                if (bitmap[index] >> (j % (sizeof(int) * BITS_IN_BYTE)) == 1) {
+                if (bitmap[index] >> (j % BITS_IN_TYPE(int)) == 1) {
                     log_error("Invalid numa_topology: Core %ld found in multiple numa nodes", j);
                     ret = -1;
                     goto out_numa;
                 }
-                bitmap[index] |= 1U << (j % (sizeof(int) * BITS_IN_BYTE));
+                bitmap[index] |= 1U << (j % BITS_IN_TYPE(int));
                 total_cores_in_numa++;
             }
         }
@@ -552,8 +551,6 @@ static int sgx_copy_numa_topo_to_enclave(PAL_NUMA_TOPO_INFO* src, int64_t num_on
     return 0;
 }
 
-/* This function doesn't clean up resources on failure, assuming that we terminate right away in
- * such case. */
 static int parse_host_topo_info(PAL_TOPO_INFO topo_info) {
     int ret = sanitize_hw_resource_range(topo_info.online_logical_cores, 1, 1 << 16, 0, 1 << 16);
     if (ret < 0) {
