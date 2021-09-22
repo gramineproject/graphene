@@ -98,16 +98,12 @@ int sys_convert_ranges_to_cpu_bitmap_str(const PAL_RES_RANGE_INFO* res_range_inf
 
     /* Convert cpumask to strings */
     size_t offset = 0;
-    for (int64_t j = num_cpumask - 1; j >= 0; j-- ) {
+    for (int64_t j = num_cpumask - 1; j >= 0; j--) {
         if (offset > max_size) {
             ret = -ENOMEM;
             goto out;
         }
-        ret = snprintf(str + offset, max_size - offset, "%x%x%x%x%x%x%x%x%s",
-                       (bitmap[j] & 0xf0000000) >> 28, (bitmap[j] & 0xf000000) >> 24,
-                       (bitmap[j] & 0xf00000) >> 20, (bitmap[j] & 0xf0000) >> 16,
-                       (bitmap[j] & 0xf000) >> 12, (bitmap[j] & 0xf00) >> 8,
-                       (bitmap[j] & 0xf0) >> 4, (bitmap[j] & 0xf), (j == 0) ? "\0" : ",");
+        ret = snprintf(str + offset, max_size - offset, "%08x%s", bitmap[j], (j == 0) ? "\0" : ",");
         if (ret < 0)
             goto out;
         offset += ret;
